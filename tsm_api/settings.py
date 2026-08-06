@@ -129,6 +129,17 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+INSTALLED_APPS += [
+    'erp',
+]
+
+DATABASES['erp'] = {
+    'ENGINE': 'django.db.backends.sqlite3',
+    'NAME': BASE_DIR / 'erp.sqlite3',
+}
+
+DATABASE_ROUTERS = ['erp.db_router.ERPRouter']
+
 # Django REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -149,7 +160,7 @@ SIMPLE_JWT = {
 
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Ticket Management API',
+    'TITLE': 'Time Sheet Management API',
     'VERSION': '1.0.0',
 
     'SECURITY': [
