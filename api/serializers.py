@@ -34,6 +34,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'approvedBy', 'approved_status', 'created_at', 'updated_at',
         ]
 
+
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project

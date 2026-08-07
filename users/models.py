@@ -6,7 +6,7 @@ User = get_user_model()
 
 
 class Role(models.Model):
-    name = models.CharField(max_length=150, unique=True)
+    name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
     permissions = models.ManyToManyField(Permission, blank=True, related_name='roles')
 
@@ -23,7 +23,7 @@ class UserProfile(models.Model):
         null=True,
         related_name='subordinates',
     )
-    location = models.CharField(max_length=255, blank=True, null=True)
+    location = models.CharField(max_length=100, blank=True, null=True)
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, blank=True, null=True, related_name='profiles')
     department = models.ManyToManyField(
         'Department',

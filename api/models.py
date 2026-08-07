@@ -11,13 +11,13 @@ class Project(models.Model):
     quoted_date = models.DateField(null=True, blank=True, db_index=True)
 
     def __str__(self):
-        return f"{self.name} ({self.quotation})" if self.quotation else self.name
+        return f"{self.quotation}-{self.customer_name}-{self.name}"
 
 class Milestone(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='milestones', db_index=True)
     name = models.CharField(max_length=255, db_index=True)
     def __str__(self):
-        return f"{self.name} ({self.due_date})" if self.due_date else self.name
+        return f"{self.name}" if self.id else self.name
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks', db_index=True)
@@ -26,7 +26,7 @@ class Task(models.Model):
     milestone = models.ForeignKey('api.Milestone', on_delete=models.CASCADE, null=True, blank=True, related_name='tasks', db_index=True)
 
     def __str__(self):
-        return f"{self.name} ({self.external_id})" if self.external_id else self.name
+        return f"{self.name}" if self.id else self.project
 
 class AssignedTask(models.Model):
     assign_by = models.ForeignKey(

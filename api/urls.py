@@ -8,6 +8,7 @@ from .views import (
     TaskViewSet,
     MilestoneViewSet,
     TimesheetStatusViewSet,
+    TimesheetEntryViewSet,
 )
 
 router = routers.DefaultRouter()
@@ -20,4 +21,5 @@ router.register(r'timesheet-statuses', TimesheetStatusViewSet, basename='timeshe
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('timesheet-entries/', TimesheetEntryViewSet.as_view({'get': 'entries'}), name='timesheet-entries'),
 ]

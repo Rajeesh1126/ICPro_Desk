@@ -26,10 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-llcu2cxucbnqfjt3!8@6umatiqk=n=2m6#%t)q^_$_vu3gmb*i'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in {'1', 'true', 'yes', 'on'}
 
 ALLOWED_HOSTS = ['*']
+ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development').lower()
 
+SWAGGER_ENABLED = ENVIRONMENT != 'production'
 
 # Application definition
 
@@ -134,8 +136,16 @@ INSTALLED_APPS += [
 ]
 
 DATABASES['erp'] = {
-    'ENGINE': 'django.db.backends.sqlite3',
-    'NAME': BASE_DIR / 'erp.sqlite3',
+    'ENGINE': 'django.db.backends.mysql',
+    'NAME': os.getenv('ERP_DB_NAME', 'icpro_prod_v1'),
+    'USER': os.getenv('ERP_DB_USER', 'erpuser'),
+    'PASSWORD': os.getenv('ERP_DB_PASSWORD', 'icpro@123'),
+    'HOST': os.getenv('ERP_DB_HOST', '192.168.5.51'),
+    'PORT': int(os.getenv('ERP_DB_PORT', '3306')),
+    'OPTIONS': {
+        'charset': 'utf8mb4',
+        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+    },
 }
 
 DATABASE_ROUTERS = ['erp.db_router.ERPRouter']
@@ -158,6 +168,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(hours=1),
 }
 
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@example.com'
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Time Sheet Management API',
