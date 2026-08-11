@@ -35,8 +35,11 @@ export default function Login() {
     setError("");
     try {
       const response = await api.post("/users/login/", { username, password });
+      console.log(response)
       localStorage.setItem("accessToken", response.data.access);
-      localStorage.setItem("currentUser", JSON.stringify(response.data.user));
+      localStorage.setItem("user", response.data.id);
+      localStorage.setItem("first_name", response.data.first_name);
+
       navigate("/SelfTickets");
     } catch {
       setError("We could not sign you in. Check your credentials and try again.");

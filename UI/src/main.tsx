@@ -13,7 +13,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AppThemeProvider>
-      <BrowserRouter basename="/tms">
+      <BrowserRouter basename="/">
         <ErrorDialogProvider>
           <NotificationProvider>
             <ErrorBoundary>

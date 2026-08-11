@@ -18,9 +18,9 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("accessToken");
+        
         if (token) {
             if (isTokenExpired(token)) {
-
                 localStorage.clear();
 
                 window.location.replace(import.meta.env.BASE_URL);
@@ -37,7 +37,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // console.log(error.response.data);
+        console.log(error);
         const status = error.response ? error.response.status : null;
         if (status === 404) {
             // retuen the error response data to the calling function for handling validation errors

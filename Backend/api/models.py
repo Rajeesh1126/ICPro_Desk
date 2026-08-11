@@ -72,7 +72,6 @@ class AssignedTask(models.Model):
     def __str__(self):
         return f"{self.task_obj} ({self.project_obj}) -> {self.assign_to}"
 
-
 class Submission(models.Model):
     assignId = models.ForeignKey('api.AssignedTask', on_delete=models.CASCADE, db_index=True)
     date = models.DateField()
@@ -94,7 +93,6 @@ class Submission(models.Model):
 
     def __str__(self):
         return f"{self.assignId} - {self.date}"
-
 
 class TimesheetStatus(models.Model):
     STATUS_CHOICES = [

@@ -5,11 +5,24 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Department, Role, UserProfile
 
 User = get_user_model()
 
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        return {
+            "refresh": data["refresh"],
+            "access": data["access"],
+            "id": self.user.id,
+            "first_name":self.user.first_name,
+        }
 
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.PrimaryKeyRelatedField(
@@ -217,3 +230,17 @@ class UserSerializer(serializers.ModelSerializer):
         if groups_data is not None:
             user.groups.set(groups_data)
         return user
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+        ]
+
+

@@ -3,10 +3,11 @@ from django.contrib.auth.models import Group
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
+from rest_framework_simplejwt.views import TokenObtainPairView
 from core.permissions import RoleBasedPermission
 from .models import Department, Role
 from .serializers import (
+    CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
     DepartmentSerializer,
     ForgotPasswordSerializer,
@@ -14,11 +15,14 @@ from .serializers import (
     ResetPasswordSerializer,
     RoleSerializer,
     UserSerializer,
+    TeamSerializer
 )
 
 User = get_user_model()
 
-
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+    
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -64,3 +68,16 @@ class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
+# get who are all reportes 
+class TeamViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = TeamSerializer
+    permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
+    def get_queryset(self):
+        return (
+            User.objects
+            .filter(profile__reporting_to=self.request.user)
+            .select_related("profile")
+            .order_by("first_name", "last_name")
+        )

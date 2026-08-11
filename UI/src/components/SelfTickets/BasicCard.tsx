@@ -19,11 +19,11 @@ interface BasicCardProps {
   ticket: SelfTicketData;
   onOpen: (data: SelfTicketData) => void;
 }
-const currentUserParsed = JSON.parse(
-  localStorage.getItem("currentUser") || "null",
+const currentUserParsed = Number(
+  localStorage.getItem("user") || "null",
 );
 
-const currentUserId = currentUserParsed?.id ?? null;
+const userId = currentUserParsed?? null;
 
 export default function BasicCardSelfTicket({
   ticket,
@@ -46,8 +46,6 @@ export default function BasicCardSelfTicket({
 
   const styles = getPriorityStyles(ticket.priority);
 
-  // console.log("BasicCardSelfTicket - ticket:", ticket);
-
   return (
     <Card
       elevation={0}
@@ -59,37 +57,17 @@ export default function BasicCardSelfTicket({
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
-          // gap={0.5}
           mb={1}
         >
            <Stack direction="row">
-
-          
           <Typography
             sx={selfTicketsBasicCardDynamicDynamicTypographySx1({ styles })}
           >
             Task No #{ticket.number}
           </Typography>
-
-          {/* {ticket.logs?.length > 0 && (
-            <Tooltip title={ticket.comments}>
-              <CommentIcon 
-                fontSize="small" 
-                color="primary" 
-                sx={{
-                  animation: "blink 1s infinite",
-                  "@keyframes blink": {
-                    "0%": { opacity: 1 },
-                    "50%": { opacity: 0.2 },
-                    "100%": { opacity: 1 },
-                  },
-                }}
-              />
-            </Tooltip>
-          )} */}
           </Stack>
 
-          {ticket.reporting_to == currentUserId ? (
+          {ticket.creator !== userId ? (
             <Stack direction="row">
               <Typography sx={selfTicketsBasicCardTypographySx1}>
                 Owner :
@@ -132,7 +110,6 @@ export default function BasicCardSelfTicket({
               Reminder Interval
             </Typography>
             <Typography sx={detailValueSx}>
-              {/* {ticket.reminder_interval ? `${ticket.reminder_interval} days` : "N/A"} */}
               {ticket.reminder_interval
                 ? `${ticket.reminder_interval} day${
                     ticket.reminder_interval > 1 ? "s" : ""

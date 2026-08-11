@@ -47,14 +47,11 @@ const pages = [
   { label: "Executive Overview", path: "/Reports", icon: <SummarizeRoundedIcon />, codeName: "view_report" },
 ] as const;
 
-
-
 const EMPTY_NOTIFICATIONS: NotificationsType = {
   selfticketOpenCount: 0,
   ticketOpenCount: 0,
 };
 
-type StoredUser = { full_name?: string };
 
 function getStoredPermissions(): string[] {
   try {
@@ -65,14 +62,7 @@ function getStoredPermissions(): string[] {
   }
 }
 
-function getStoredUser(): StoredUser {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem("currentUser") ?? "{}");
-    return typeof value === "object" && value !== null ? (value as StoredUser) : {};
-  } catch {
-    return {};
-  }
-}
+const loggedUser = localStorage.getItem("first_name");
 
 export default function ResponsiveAppBar() {
   const navigate = useNavigate();
@@ -85,45 +75,44 @@ export default function ResponsiveAppBar() {
   const [notifications, setNotifications] =
     useState<NotificationsType>(EMPTY_NOTIFICATIONS);
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/users/getHeaderData/")
-      .then((response) => {
+  // useEffect(() => {
+  //   let active = true;
+  //   void api
+  //     .get("/users/getHeaderData/")
+  //     .then((response) => {
         
-        if (!active) return;
-        const topNavData: unknown = response.data.topNavData;
-        const nextPermissions = Array.isArray(topNavData)
-          ? topNavData.filter((item): item is string => typeof item === "string")
-          : [];
-        setPermissions(nextPermissions);
-        localStorage.setItem("permissionList", JSON.stringify(nextPermissions));
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+  //       if (!active) return;
+  //       const topNavData: unknown = response.data.topNavData;
+  //       const nextPermissions = Array.isArray(topNavData)
+  //         ? topNavData.filter((item): item is string => typeof item === "string")
+  //         : [];
+  //       setPermissions(nextPermissions);
+  //       localStorage.setItem("permissionList", JSON.stringify(nextPermissions));
+  //     })
+  //     .catch(() => undefined);
+  //   return () => {
+  //     active = false;
+  //   };
+  // }, []);
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/notifications/")
-      .then((response) => {
-        if (!active) return;
-        setNotifications(response.data ?? EMPTY_NOTIFICATIONS);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+  // useEffect(() => {
+  //   let active = true;
+  //   void api
+  //     .get("/notifications/")
+  //     .then((response) => {
+  //       if (!active) return;
+  //       setNotifications(response.data ?? EMPTY_NOTIFICATIONS);
+  //     })
+  //     .catch(() => undefined);
+  //   return () => {
+  //     active = false;
+  //   };
+  // }, []);
 
   const visiblePages = useMemo(
     () => pages.filter((page) => permissions.includes(page.codeName)),
     [permissions]
   );
-  const currentUserName = getStoredUser().full_name || "User";
   const totalNotifications = notifications.selfticketOpenCount + notifications.ticketOpenCount;
 
   const downloadProcessFlow = () => {
@@ -134,9 +123,7 @@ export default function ResponsiveAppBar() {
   };
 
   const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("permissionList");
+    localStorage.clear();
     setProfileAnchor(null);
     navigate("/", { replace: true });
   };
@@ -220,7 +207,7 @@ export default function ResponsiveAppBar() {
             <Tooltip title="Account">
               <IconButton aria-label="Account menu" onClick={(event) => setProfileAnchor(event.currentTarget)} sx={appBarHeaderIconButtonSx2}>
                 <Avatar sx={appBarHeaderAvatarSx1}>
-                  {currentUserName.charAt(0).toUpperCase()}
+                  {loggedUser?.charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -378,7 +365,7 @@ export default function ResponsiveAppBar() {
             <Avatar
               sx={appBarHeaderDynamicDynamicAvatarSx1({ alpha })}
             >
-              {currentUserName.charAt(0).toUpperCase()}
+              {loggedUser?.charAt(0).toUpperCase()}
             </Avatar>
             <Box minWidth={0}>
               <Typography
@@ -392,7 +379,7 @@ export default function ResponsiveAppBar() {
                 fontWeight={900}
                 sx={appBarHeaderTypographySx4}
               >
-                {currentUserName}
+                {loggedUser}
               </Typography>
             </Box>
           </Stack>
