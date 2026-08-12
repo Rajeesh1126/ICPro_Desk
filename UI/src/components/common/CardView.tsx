@@ -1,6 +1,6 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import type { SelfTicketData, TicketData } from "../../types/TicketData";
+import type { SelfTicketData, TicketData } from "../../types/dataTypes";
 import BasicCardComponent from "../Tickets/BasicCard";
 import BasicCardSelfTicket from "../SelfTickets/BasicCard";
 import { cardViewBoxSx1, cardViewBoxSx2, cardViewBoxSx3, cardViewDynamicDynamicBoxSx1, cardViewDynamicDynamicChipSx1, cardViewDynamicDynamicStackSx1, cardViewTypographySx1, getStatusColor } from "../../styles/common";

@@ -19,9 +19,8 @@ import {
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FilterAltRoundedIcon from "@mui/icons-material/FilterAltRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import Header from "../components/AppBar/header";
 import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
-import type { TicketData, UserSummary, SelfTicketData } from "../types/TicketData";
+import type { TicketData, UserSummary, SelfTicketData } from "../types/dataTypes";
 import * as XLSX from "xlsx";
 import api from "../api/axios";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
@@ -156,7 +155,6 @@ export default function Reports() {
     void api
       .get("/users/currentUserGroups/")
       .then((response) => {
-        console.log(response)
         if (!active) return;
         setUsers((Array.isArray(response.data.userslist) ? response.data.userslist : []) as UserSummary[]);
         setDepartments((Array.isArray(response.data.departments) ? response.data.departments : []) as Department[]);
@@ -370,7 +368,6 @@ export default function Reports() {
 
   return (
     <Box sx={reportsPageBoxSx2}>
-      <Header />
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
           <Box>

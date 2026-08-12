@@ -31,7 +31,7 @@ import { showNotification } from "../../api/NotificationService";
 import type {
   SelfTicketData,
   SelfTicketFormData,
-} from "../../types/TicketData";
+} from "../../types/dataTypes";
 import {
   compactFieldSx,
   marginTopSmallSx,
@@ -507,4 +507,3 @@ export default function CreateSelfTicketModel({
     </Dialog>
   );
 }
-

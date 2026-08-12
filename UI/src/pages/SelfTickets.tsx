@@ -21,15 +21,17 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
 import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import Header from "../components/AppBar/header";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
+import {
+	VirtualizedTable,
+	type ColumnData,
+} from "../components/common/TableView";
 import CreateSelfTicketModel from "../components/SelfTickets/CreateModel";
 import TicketCardView from "../components/common/CardView";
 import type {
 	SelfTicketCollections,
 	SelfTicketData,
 	ReportingEmployees,
-} from "../types/TicketData";
+} from "../types/dataTypes";
 import api from "../api/axios";
 import SelfTicketDetailModel from "../components/SelfTickets/DetailModel";
 import {
@@ -42,7 +44,7 @@ import {
 	selfTicketsPageFormControlSx1,
 	selfTicketsPagePaperSx1,
 	selfTicketsPageStackSx1,
-	TOGGLE_BUTTON
+	TOGGLE_BUTTON,
 } from "../styles/common";
 
 const EMPTY_COLLECTIONS: SelfTicketCollections = {
@@ -52,13 +54,10 @@ const EMPTY_COLLECTIONS: SelfTicketCollections = {
 };
 
 function storedUserId(): number | null {
-	const value = localStorage.getItem("user");
+  const value = localStorage.getItem("user");
+  const id = value ? Number(value) : NaN;
 
-	if (!value) {
-		return null;
-	}
-	const id = Number(value);
-	return Number.isInteger(id) ? id : null;
+  return Number.isInteger(id) ? id : null;
 }
 
 export default function SelfTickets() {
@@ -119,6 +118,7 @@ export default function SelfTickets() {
 		};
 	}, [userId]);
 
+
 	const openCreate = useCallback(() => {
 		setSelectedRow(null);
 		setEditing(false);
@@ -144,44 +144,50 @@ export default function SelfTickets() {
 		setRefreshKey((key) => key + 1);
 	}, []);
 
-	const columns = useMemo<ColumnData<SelfTicketData>[]>(() => [
-		{ label: "#", width: 10, render: (_row, index) => index + 1, number: true },
-		{
-			label: "Task Number",
-			width: 145,
-			render: (row) => (
-				<Box sx={inlineCenterGapSx}>
-					<Tooltip title="View details">
-						<IconButton
-							aria-label={`View ${row.number}`}
-							size="small"
-							onClick={() => openDetails(row)}
-						>
-							<VisibilityRoundedIcon fontSize="small" color="primary" />
-						</IconButton>
-					</Tooltip>
-					<Tooltip title="Edit task">
-						<IconButton
-							aria-label={`Edit ${row.number}`}
-							size="small"
-							onClick={() => openEdit(row)}
-							disabled={
-								row.creator !== userId || row.current_status !== "open"
-							}
-						>
-							<EditRoundedIcon fontSize="small" />
-						</IconButton>
-					</Tooltip>
-					<Typography variant="body2">{row.number}</Typography>
-				</Box>
-			),
-		},
-		{ label: "Subject", dataKey: "task", width: 600 },
-		{ label: "Status", dataKey: "current_status" },
-		{ label: "Type", dataKey: "type" },
-		{ label: "Priority", dataKey: "priority" },
-		{ label: "Est Hrs", dataKey: "est_hours" },
-	],
+	const columns = useMemo<ColumnData<SelfTicketData>[]>(
+		() => [
+			{
+				label: "#",
+				width: 10,
+				render: (_row, index) => index + 1,
+				number: true,
+			},
+			{
+				label: "Task Number",
+				width: 145,
+				render: (row) => (
+					<Box sx={inlineCenterGapSx}>
+						<Tooltip title="View details">
+							<IconButton
+								aria-label={`View ${row.number}`}
+								size="small"
+								onClick={() => openDetails(row)}
+							>
+								<VisibilityRoundedIcon fontSize="small" color="primary" />
+							</IconButton>
+						</Tooltip>
+						<Tooltip title="Edit task">
+							<IconButton
+								aria-label={`Edit ${row.number}`}
+								size="small"
+								onClick={() => openEdit(row)}
+								disabled={
+									row.creator !== userId || row.current_status !== "open"
+								}
+							>
+								<EditRoundedIcon fontSize="small" />
+							</IconButton>
+						</Tooltip>
+						<Typography variant="body2">{row.number}</Typography>
+					</Box>
+				),
+			},
+			{ label: "Subject", dataKey: "task", width: 600 },
+			{ label: "Status", dataKey: "current_status" },
+			{ label: "Type", dataKey: "type" },
+			{ label: "Priority", dataKey: "priority" },
+			{ label: "Est Hrs", dataKey: "est_hours" },
+		],
 		[userId, openEdit],
 	);
 
@@ -196,7 +202,6 @@ export default function SelfTickets() {
 
 	return (
 		<Box sx={selfTicketsPageBoxSx2}>
-			<Header />
 			<Box component="main" sx={flexColumnFillSx}>
 				<Box sx={pageHeaderSx}>
 					<Box>
@@ -266,7 +271,7 @@ export default function SelfTickets() {
 					</Stack>
 				</Box>
 
-				<Paper square elevation={0} sx={selfTicketsPagePaperSx1}>
+				<Box sx={{ mx: 2 }}>
 					<Tabs
 						value={tabValue}
 						onChange={(_, value: number) => {
@@ -280,7 +285,7 @@ export default function SelfTickets() {
 						<Tab label={`My Do List (${tickets.self.length})`} />
 						<Tab label={`My Teams Do List (${tickets.others.length})`} />
 					</Tabs>
-				</Paper>
+				</Box>
 
 				<Box sx={selfTicketsPageBoxSx4}>
 					{view === "card" ? (

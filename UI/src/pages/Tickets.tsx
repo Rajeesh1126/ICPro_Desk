@@ -17,7 +17,6 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
 import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
-import Header from "../components/AppBar/header";
 import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
 import CreateTicketModal from "../components/Tickets/CreateModal";
 import TicketDetailModal from "../components/Tickets/DetailModal";
@@ -26,7 +25,7 @@ import type {
   TicketCollections,
   TicketData,
   TicketLog,
-} from "../types/TicketData";
+} from "../types/dataTypes";
 import api from "../api/axios";
 import {
   flexColumnFillSx,
@@ -48,10 +47,10 @@ const EMPTY_TICKETS: TicketCollections = {
   recalled: [],
 };
 
-function storedCurrentUserId(): number | null {
+function storeduserId(): number | null {
   try {
     const user: unknown = JSON.parse(
-      localStorage.getItem("currentUser") ?? "null",
+      localStorage.getItem("user") ?? "null",
     );
     return typeof user === "object" &&
       user !== null &&
@@ -64,19 +63,9 @@ function storedCurrentUserId(): number | null {
   }
 }
 
-function canAddTicket(): boolean {
-  try {
-    const permissions: unknown = JSON.parse(
-      localStorage.getItem("permissionList") ?? "[]",
-    );
-    return Array.isArray(permissions) && permissions.includes("add_ticket");
-  } catch {
-    return false;
-  }
-}
 
 export default function Tickets() {
-  const currentUserId = useMemo(() => storedCurrentUserId(), []);
+  const userId = useMemo(() => storeduserId(), []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
@@ -123,33 +112,33 @@ export default function Tickets() {
         setTickets({
           all: all.filter(
             (ticket) =>
-              ticket.assigned_to === currentUserId ||
-              ticket.creator === currentUserId,
+              ticket.assigned_to === userId ||
+              ticket.creator === userId,
           ),
           assigned: all.filter(
             (ticket) =>
               (!inactiveStatuses.includes(ticket.current_status) &&
-                ticket.assigned_to === currentUserId) ||
-              ticket.latestAcceptedLog?.assigned_to === currentUserId,
+                ticket.assigned_to === userId) ||
+              ticket.latestAcceptedLog?.assigned_to === userId,
           ),
           created: all.filter(
             (ticket) =>
-              ticket.creator === currentUserId &&
+              ticket.creator === userId &&
               !inactiveStatuses.includes(ticket.current_status),
           ),
-          closed: all.filter((ticket) => (ticket.assigned_to === currentUserId ||
-              ticket.creator === currentUserId) && ticket.display_status === "closed"),
+          closed: all.filter((ticket) => (ticket.assigned_to === userId ||
+              ticket.creator === userId) && ticket.display_status === "closed"),
           rejected: all.filter(
             (ticket) =>
               ticket.current_status === "rejected" &&
-              (ticket.assigned_to === currentUserId ||
-                ticket.creator === currentUserId),
+              (ticket.assigned_to === userId ||
+                ticket.creator === userId),
           ),
           recalled: all.filter(
             (ticket) =>
               ticket.current_status === "recall successful" &&
-              (ticket.assigned_to === currentUserId ||
-                ticket.creator === currentUserId),
+              (ticket.assigned_to === userId ||
+                ticket.creator === userId),
           ),
         });
       })
@@ -157,7 +146,7 @@ export default function Tickets() {
     return () => {
       active = false;
     };
-  }, [currentUserId, refreshKey]);
+  }, [userId, refreshKey]);
 
   const openCreate = useCallback(() => {
     setSelectedRow(null);
@@ -207,7 +196,7 @@ export default function Tickets() {
                   size="small"
                   onClick={() => openEdit(row)}
                   disabled={
-                    row.creator !== currentUserId ||
+                    row.creator !== userId ||
                     [
                       "closed",
                       "recall successful",
@@ -234,7 +223,7 @@ export default function Tickets() {
       { label: "Target Completion", dataKey: "target_date" },
       { label: "Actual Completion", dataKey: "actual_end_date" },
     ],
-    [currentUserId, openDetails, openEdit],
+    [userId, openDetails, openEdit],
   );
 
   const activeRows =
@@ -249,7 +238,6 @@ export default function Tickets() {
 
   return (
     <Box sx={ticketsPageBoxSx1}>
-      <Header/>
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
           <Box>
@@ -264,7 +252,6 @@ export default function Tickets() {
                 startIcon={<AddRoundedIcon />}
                 variant="contained"
                 onClick={openCreate}
-                disabled={!canAddTicket()}
                 sx={modalActionButtonSx}
               >
                 New Ticket
@@ -294,7 +281,8 @@ export default function Tickets() {
           </Stack>
         </Box>
 
-        <Paper square elevation={0} sx={ticketsPagePaperSx1}>
+        {/* <Paper square elevation={0} sx={ticketsPagePaperSx1}> */}
+        <Box sx={{ mx: 2 }}>
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => setTabValue(value)}
@@ -309,7 +297,8 @@ export default function Tickets() {
             <Tab label={`Recalled (${tickets.recalled.length})`} />
             <Tab label={`Closed (${tickets.closed.length})`} />
           </Tabs>
-        </Paper>
+          </Box>
+        {/* </Paper> */}
 
         <Box sx={ticketsPageBoxSx3}>
           {view === "card" ? (

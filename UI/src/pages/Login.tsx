@@ -39,8 +39,13 @@ export default function Login() {
       localStorage.setItem("accessToken", response.data.access);
       localStorage.setItem("user", response.data.id);
       localStorage.setItem("first_name", response.data.first_name);
-
-      navigate("/SelfTickets");
+      
+      localStorage.setItem("role", response.data.role);
+      localStorage.setItem(
+        "permissions",
+        JSON.stringify(response.data.permissions ?? [])
+      );
+      navigate("/Home");
     } catch {
       setError("We could not sign you in. Check your credentials and try again.");
     } finally {

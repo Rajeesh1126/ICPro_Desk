@@ -1,4 +1,17 @@
-export function formatValidationErrors(errors: any): string {
+type ValidationErrorValue =
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | ValidationErrorValue[]
+    | { [key: string]: ValidationErrorValue };
+
+function isErrorRecord(value: unknown): value is Record<string, ValidationErrorValue> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function formatValidationErrors(errors: unknown): string {
     if (!errors) return "An unknown error occurred.";
 
     // Plain string
@@ -12,13 +25,15 @@ export function formatValidationErrors(errors: any): string {
     }
 
     // Common API message fields
-    if (errors.detail) return String(errors.detail);
-    if (errors.message) return String(errors.message);
-    if (errors.error) return String(errors.error);
+    if (isErrorRecord(errors)) {
+        if (errors.detail) return String(errors.detail);
+        if (errors.message) return String(errors.message);
+        if (errors.error) return String(errors.error);
+    }
 
     const messages: string[] = [];
 
-    const extract = (obj: any, parent = "") => {
+    const extract = (obj: Record<string, ValidationErrorValue>, parent = "") => {
         Object.entries(obj).forEach(([key, value]) => {
             const field =
                 key === "non_field_errors"
@@ -52,7 +67,9 @@ export function formatValidationErrors(errors: any): string {
         });
     };
 
-    extract(errors);
+    if (isErrorRecord(errors)) {
+        extract(errors);
+    }
 
     return messages.length
         ? messages.join("\n")

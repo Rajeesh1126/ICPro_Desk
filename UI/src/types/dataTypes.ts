@@ -1,3 +1,23 @@
+export interface UsersData {
+  [key: string]: unknown;
+  id: number;
+  username: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+  role?: string;
+  role_permissions?: string[];
+  department: string[];
+  groups?: string[];
+  reporting_to?: string;
+  location?: string;
+  dept_role?: boolean | false;
+  exe_role?: boolean | false;
+  designation?: string;
+  resign_date?: string | null;
+}
+
 export interface UserSummary {
   id?: number;
   users_id?: number;
@@ -129,7 +149,7 @@ export interface SelfTicketData {
   reminder_interval?: number | 0;
   comments?: string | "";
   team?: number;
-  team_name?: string ;
+  team_name?: string;
   logs: SelfTicketLog[];
 }
 

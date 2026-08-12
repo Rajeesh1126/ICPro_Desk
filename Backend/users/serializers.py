@@ -16,12 +16,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        role = role = self.user.profile.role
 
+        permissions = []
+
+        if role:
+            permissions = list(
+                role.permissions.values_list("codename", flat=True)
+            )
         return {
             "refresh": data["refresh"],
             "access": data["access"],
             "id": self.user.id,
             "first_name":self.user.first_name,
+            "role": role.name if role else None,
+            "permissions": permissions,
         }
 
 class RoleSerializer(serializers.ModelSerializer):

@@ -11,7 +11,7 @@ import {
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { alpha } from "@mui/material/styles";
-import type { SelfTicketData } from "../../types/TicketData";
+import type { SelfTicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import { compactTextSx, detailLabelSx, detailValueSx, secondaryTextSx, selfTicketsBasicCardBoxSx1, selfTicketsBasicCardCardContentSx1, selfTicketsBasicCardDividerSx1, selfTicketsBasicCardDynamicDynamicCardSx1, selfTicketsBasicCardDynamicDynamicChipSx1, selfTicketsBasicCardDynamicDynamicTypographySx1, selfTicketsBasicCardTypographySx1, selfTicketsBasicCardTypographySx3, selfTicketsBasicCardTypographySx4 } from "../../styles/common";
 

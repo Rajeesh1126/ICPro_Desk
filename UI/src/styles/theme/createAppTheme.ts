@@ -16,7 +16,7 @@ const lightPalette = {
 };
 
 const darkPalette = {
-  primary: { main: "#66C2E8", dark: "#2D8DB8", light: "#A5DFF4" },
+  primary: { main: "#41A8B9", dark: "#2D8DB8", light: "#A5DFF4" },
   secondary: { main: "#5ED4F0" },
   background: { default: "#101722", paper: "#182231" },
   text: { primary: "#EEF5FB", secondary: "#AAB8C8" },
@@ -61,7 +61,10 @@ export function createAppTheme(mode: PaletteMode) {
             height: 10,
           },
           "::-webkit-scrollbar-track": {
-            backgroundColor: alpha(palette.background.paper, isDark ? 0.72 : 0.7),
+            backgroundColor: alpha(
+              palette.background.paper,
+              isDark ? 0.72 : 0.7,
+            ),
           },
           "::-webkit-scrollbar-thumb": {
             backgroundColor: alpha(palette.text.secondary, isDark ? 0.7 : 0.58),
@@ -71,7 +74,9 @@ export function createAppTheme(mode: PaletteMode) {
           "::-webkit-scrollbar-thumb:hover": {
             backgroundColor: palette.primary.main,
           },
-          "::selection": { backgroundColor: alpha(palette.secondary.main, 0.28) },
+          "::selection": {
+            backgroundColor: alpha(palette.secondary.main, 0.28),
+          },
           "*:focus-visible": {
             outline: `3px solid ${alpha(palette.primary.main, 0.35)}`,
             outlineOffset: 2,
@@ -101,22 +106,62 @@ export function createAppTheme(mode: PaletteMode) {
       MuiFormControl: {
         defaultProps: { size: "small" },
       },
-      MuiCheckbox : {
+      MuiCheckbox: {
         defaultProps: { size: "small" },
       },
       MuiButton: {
-        defaultProps: { disableElevation: true },
+        defaultProps: {
+          size: "small",
+          disableElevation: true,
+        },
         styleOverrides: {
           root: {
-            borderRadius: 10,
-            minHeight: 40,
+            // minHeight: 40,
             textTransform: "none",
           },
         },
       },
       MuiToggleButton: {
         styleOverrides: {
-          root: { borderRadius: 10, minHeight: 40, textTransform: "none", fontWeight: 700 },
+          root: {
+            minHeight: 40,
+            textTransform: "none",
+            fontWeight: 700,
+          },
+        },
+      },
+      MuiToggleButtonGroup: {
+        styleOverrides: {
+          root: {
+            border: "1px solid palette.primary.main",
+          },
+          grouped: {
+            color: isDark ? palette.primary.dark : palette.primary.light,
+
+            "&:hover": {
+              color: isDark ? palette.primary.light : palette.primary.dark,
+              backgroundColor: alpha(
+                isDark ? palette.primary.light : palette.primary.dark,
+                isDark ? 0.14 : 0.08,
+              ),
+            },
+
+            "&.Mui-selected": {
+              color: isDark ? palette.primary.light : palette.primary.dark,
+              backgroundColor: alpha(
+                isDark ? palette.primary.light : palette.primary.dark,
+                isDark ? 0.18 : 0.12,
+              ),
+            },
+
+            "&.Mui-selected:hover": {
+              color: isDark ? palette.primary.dark : palette.primary.light,
+              backgroundColor: alpha(
+                isDark ? palette.primary.dark : palette.primary.light,
+                isDark ? 0.24 : 0.16,
+              ),
+            },
+          },
         },
       },
       MuiPaper: {
@@ -148,9 +193,49 @@ export function createAppTheme(mode: PaletteMode) {
           paper: { borderRadius: 1 },
         },
       },
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            minHeight: 44,
+            backgroundColor: alpha(palette.primary.main, isDark ? 0.16 : 0.08),
+            borderRadius: 10,
+            padding: 5,
+            width: "fit-content",
+          },
+        },
+      },
       MuiTab: {
         styleOverrides: {
-          root: { minHeight: 48, textTransform: "none", fontWeight: 700 },
+          root: {
+            minHeight: 36,
+            minWidth: 100,
+            padding: "6px 16px",
+            margin: "0px 5px",
+
+            textTransform: "none",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+
+            color: isDark ? palette.primary.dark : palette.primary.light,
+
+            transition: "all 0.2s ease",
+
+            "&:hover": {
+              color: isDark ? palette.primary.light : palette.primary.dark,
+            },
+
+            "&.Mui-selected": {
+              color: isDark ? palette.primary.light : palette.primary.dark,
+              borderBottom: `3px solid ${
+                isDark ? palette.primary.light : palette.primary.dark
+              }`,
+              fontWeight: 700,
+            },
+
+            "&.Mui-disabled": {
+              opacity: 0.4,
+            },
+          },
         },
       },
       MuiTableCell: {

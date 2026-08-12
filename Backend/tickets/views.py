@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from .models import Ticket,Ticket_File,Ticket_Log,Self_Ticket
+from api.models import Submission
 from rest_framework.decorators import action
 from django.db.models import Count, Sum, OuterRef, Subquery, DateField, F, FloatField, ExpressionWrapper, Q, DurationField, CharField, Count, Value
 from django.db.models.functions import Coalesce, NullIf, Cast, Round
@@ -38,7 +39,7 @@ class DepartmentMixin:
         )
         if include_executive:
             executive = set(
-                user.executive_dept.values_list("id", flat=True)
+                user.profile.department_mappings.values_list("id", flat=True)
             )
             groups |= executive
 
@@ -52,7 +53,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         try:
             department_ids = self.get_department_ids()
             submission_qs = Submission.objects.filter(
-                assignid__quotation=OuterRef("number")
+                assignId__project_obj__quotation=OuterRef("number")
             )
 
             log_qs = Ticket_Log.objects.filter(
@@ -78,7 +79,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                     act_hours=Coalesce(
                         Subquery(
                             submission_qs
-                            .values("assignid__quotation")
+                            .values("assignId__project_obj__quotation")
                             .annotate(
                                 total_hours=ExpressionWrapper(
                                     Sum("hours") / Value(3600.0),
@@ -264,9 +265,9 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         # ----------------------------------
         submission_hours = (
             Submission.objects.filter(
-                assignid__quotation=OuterRef("number")
+                assignId__project_obj__quotation=OuterRef("number")
             )
-            .values("assignid__quotation")
+            .values("assignId__project_obj__quotation")
             .annotate(
                 total_hours=ExpressionWrapper(
                     Sum("hours") / 3600.0,

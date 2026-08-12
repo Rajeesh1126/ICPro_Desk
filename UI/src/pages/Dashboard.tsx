@@ -3,10 +3,9 @@ import { Box, Grid, LinearProgress, Paper, Stack, Typography } from "@mui/materi
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
-import Header from "../components/AppBar/header";
 import AnalysisPieChart from "../components/Dashboard/AnalysisPieChart";
 import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
-import type { TicketData } from "../types/TicketData";
+import type { TicketData } from "../types/dataTypes";
 import api from "../api/axios";
 import { appPageSx, borderedSurfaceSx, dashboardDynamicPageDynamicBoxSx1, dashboardDynamicPageDynamicBoxSx2, dashboardDynamicPageDynamicLinearProgressSx1, dashboardDynamicPageDynamicPaperSx1, dashboardDynamicPageDynamicPaperSx2, dashboardPageBoxSx1, dashboardPageBoxSx2, dashboardPageBoxSx3, dashboardPageBoxSx4, dashboardPageBoxSx5, dashboardPageBoxSx6, dashboardPageBoxSx7, dashboardPageEventAvailableRoundedIconSx1, dashboardPageStackSx1, dashboardPageStackSx2, dashboardPageStackSx3, dashboardPageStackSx4, emptyStateSx, minWidthZeroSx } from "../styles/common";
 
@@ -35,7 +34,6 @@ export default function Dashboard() {
     void api
       .get("/summary/?include_executive=true")
       .then((response) => {
-        console.log(response)
         if (active) setSummary({ ...EMPTY_SUMMARY, ...response.data });
       })
       .catch(() => undefined);
@@ -58,7 +56,6 @@ export default function Dashboard() {
 
   return (
     <Box sx={appPageSx}>
-      <Header/>
       <Box component="main" sx={dashboardPageBoxSx1}>
         <Box sx={dashboardPageBoxSx2}>
           <Typography variant="h5" fontWeight={900}>

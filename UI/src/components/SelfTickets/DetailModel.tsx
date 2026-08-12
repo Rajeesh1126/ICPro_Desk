@@ -27,7 +27,7 @@ import PendingActionsRoundedIcon from "@mui/icons-material/PendingActionsRounded
 import api from "../../api/axios";
 import { useState } from "react";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { SelfTicketData } from "../../types/TicketData";
+import type { SelfTicketData } from "../../types/dataTypes";
 import Avatar from "@mui/material/Avatar";
 import ConfirmDialog from "../common/ConfirmDialog";
 import {

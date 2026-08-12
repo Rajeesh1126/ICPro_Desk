@@ -1,6 +1,7 @@
 import { alpha, type Theme } from "@mui/material/styles";
 import { type CSSProperties, type SxProps } from "@mui/material";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DynamicStyleValues = Record<string, any>;
 
 // common/feedback.ts
@@ -382,7 +383,7 @@ export const navButtonSx = (selected: boolean) => (theme: Theme) => ({
 });
 
 export const navListItemSx = (selected: boolean) => (theme: Theme) => ({
-  borderRadius: 2,
+  borderRadius: 1,
   mb: 0.5,
   py: 1.1,
   transition: theme.transitions.create(
@@ -623,16 +624,14 @@ export const appBarHeaderDynamicDynamicListItemIconSx1 = ({
   color: selected ? "primary.main" : "text.secondary",
 });
 
-export const appBarHeaderDynamicDynamicAppBarSx1 = (
-  _values: DynamicStyleValues,
-): SxProps<Theme> => ({
+export const appBarHeaderDynamicDynamicAppBarSx1: SxProps<Theme> = {
   top: 0,
   zIndex: (theme) => theme.zIndex.drawer + 1,
   bgcolor: (theme) =>
     theme.palette.mode === "dark"
       ? "rgba(24, 34, 49, 0.94)"
       : "rgba(255, 255, 255, 0.96)",
-});
+};
 
 export const appBarHeaderDynamicDynamicAvatarSx1 = ({
   alpha,
@@ -669,7 +668,7 @@ export const appBarHeaderBoxSx2: SxProps<Theme> = {
 };
 
 export const appBarHeaderIconButtonSx1: SxProps<Theme> = {
-  display: { lg: "none" },
+  display: "inline-flex",
   mr: 0.5,
 };
 
@@ -2115,7 +2114,6 @@ export const loginDynamicPageDynamicBoxSx1 = ({
 // pages/Login.styles.ts
 export const loginPageCardSx1: SxProps<Theme> = {
   width: "min(100%, 440px)",
-  border: "1px solid rgba(255,255,255,.7)",
   boxShadow: "0 24px 80px rgba(4, 39, 58, .28)",
   backdropFilter: "blur(12px)",
 };

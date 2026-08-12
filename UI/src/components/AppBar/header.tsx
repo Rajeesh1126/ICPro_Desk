@@ -1,19 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   AppBar,
   Avatar,
   Badge,
   Box,
-  Button,
+  Chip,
   Container,
   Divider,
-  Drawer,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Menu,
   MenuItem,
   Stack,
@@ -22,78 +17,146 @@ import {
   Typography,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import CloseIcon from "@mui/icons-material/Close";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
-import SummarizeRoundedIcon from "@mui/icons-material/SummarizeRounded";
 import FormatListBulletedRoundedIcon from "@mui/icons-material/FormatListBulletedRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
-import { alpha } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 import logo from "../../assets/icpro_logo.svg";
 import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
 import api from "../../api/axios";
 import { useThemeMode } from "../../styles/theme/themeModeContext";
-import { appBarHeaderAvatarSx1, appBarHeaderBoxSx1, appBarHeaderBoxSx2, appBarHeaderBoxSx3, appBarHeaderBoxSx4, appBarHeaderCallbackCallbackSx1, appBarHeaderCallbackCallbackSx2, appBarHeaderCallbackCallbackSx3, appBarHeaderCallbackCallbackSx4, appBarHeaderCallbackCallbackSx5, appBarHeaderCallbackCallbackSx6, appBarHeaderCallbackCallbackSx8, appBarHeaderCallbackCallbackSx9, appBarHeaderContainerSx1, appBarHeaderDrawerSx1, appBarHeaderDynamicDynamicAppBarSx1, appBarHeaderDynamicDynamicAvatarSx1, appBarHeaderDynamicDynamicListItemIconSx1, appBarHeaderIconButtonSx1, appBarHeaderIconButtonSx2, appBarHeaderStackSx1, appBarHeaderStackSx3, appBarHeaderToolbarSx1, appBarHeaderTypographySx3, appBarHeaderTypographySx4, marginTopMediumSx, marginTopSmallSx, navButtonSx, navListItemSx, pushRightSx } from "../../styles/common";
-import type { NotificationsType } from "../../types/TicketData";
-
-const pages = [
-  { label: "Do List", path: "/SelfTickets", icon: <FormatListBulletedRoundedIcon />, codeName: "view_self_tickets" },
-  { label: "Tickets", path: "/Tickets", icon: <TaskAltRoundedIcon />, codeName: "view_ticket" },
-  { label: "Team Analysis", path: "/Dashboard", icon: <GridViewRoundedIcon />, codeName: "view_managementoverview" },
-  { label: "Executive Overview", path: "/Reports", icon: <SummarizeRoundedIcon />, codeName: "view_report" },
-] as const;
+import {
+  appBarHeaderAvatarSx1,
+  appBarHeaderBoxSx1,
+  appBarHeaderBoxSx2,
+  appBarHeaderBoxSx3,
+  appBarHeaderBoxSx4,
+  appBarHeaderCallbackCallbackSx1,
+  appBarHeaderCallbackCallbackSx2,
+  appBarHeaderCallbackCallbackSx3,
+  appBarHeaderCallbackCallbackSx4,
+  appBarHeaderCallbackCallbackSx5,
+  appBarHeaderCallbackCallbackSx6,
+  appBarHeaderContainerSx1,
+  appBarHeaderDynamicDynamicAppBarSx1,
+  appBarHeaderDynamicDynamicAvatarSx1,
+  appBarHeaderIconButtonSx1,
+  appBarHeaderIconButtonSx2,
+  appBarHeaderToolbarSx1,
+  appBarHeaderTypographySx3,
+  appBarHeaderTypographySx4,
+  marginTopMediumSx,
+  marginTopSmallSx,
+  pushRightSx,
+} from "../../styles/common";
+import type { NotificationsType } from "../../types/dataTypes";
 
 const EMPTY_NOTIFICATIONS: NotificationsType = {
   selfticketOpenCount: 0,
   ticketOpenCount: 0,
 };
 
+const coloredIconButtonSx =
+  (color: "primary" | "info" | "warning" | "secondary" | "error" | "muted") =>
+    (theme: Theme) => {
+      const iconColor =
+        color === "muted"
+          ? theme.palette.text.secondary
+          : theme.palette[color].main;
 
-function getStoredPermissions(): string[] {
+      return {
+        color: iconColor,
+        "&:hover": {
+          bgcolor: alpha(iconColor, theme.palette.mode === "dark" ? 0.18 : 0.1),
+        },
+      };
+    };
+
+const logoutMenuItemSx = (theme: Theme) => ({
+  m: 1.25,
+  px: 1.5,
+  py: 1.25,
+  gap: 1.25,
+  borderRadius: 1.5,
+  color: "error.main",
+  bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.16 : 0.1),
+  border: "1px solid",
+  borderColor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.28 : 0.2),
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? `0 10px 24px ${alpha(theme.palette.error.main, 0.12)}`
+      : `0 10px 24px ${alpha(theme.palette.error.main, 0.1)}`,
+  "&:hover": {
+    bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.24 : 0.16),
+    borderColor: alpha(theme.palette.error.main, 0.38),
+  },
+});
+
+const logoutIconWrapSx = (theme: Theme) => ({
+  width: 38,
+  height: 38,
+  borderRadius: 0.8,
+  display: "grid",
+  placeItems: "center",
+  bgcolor: theme.palette.error.main,
+  color: theme.palette.error.contrastText,
+  flexShrink: 0,
+});
+
+type StoredPermission = {
+  id?: number;
+  name?: string;
+  codename?: string;
+};
+
+type StoredRole = {
+  id?: number;
+  name?: string;
+  permissions?: StoredPermission[];
+};
+
+type StoredUser = {
+  id?: number;
+  username?: string;
+  full_name?: string;
+  email?: string;
+  is_staff?: boolean;
+  groups?: string[];
+  role?: StoredRole[];
+};
+
+function getStoredUser(): StoredUser {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem("permissionList") ?? "[]");
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    const value: unknown = JSON.parse(
+      localStorage.getItem("user") ?? "{}",
+    );
+    return typeof value === "object" && value !== null
+      ? (value as StoredUser)
+      : {};
   } catch {
-    return [];
+    return {};
   }
 }
-
 const loggedUser = localStorage.getItem("first_name");
 
-export default function ResponsiveAppBar() {
+type ResponsiveAppBarProps = {
+  onMenuClick?: () => void;
+};
+
+export default function ResponsiveAppBar({
+  onMenuClick,
+}: ResponsiveAppBarProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { mode, toggleMode } = useThemeMode();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null);
+  const [notificationAnchor, setNotificationAnchor] =
+    useState<HTMLElement | null>(null);
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
-  const [permissions, setPermissions] = useState<string[]>(getStoredPermissions);
   const [notifications, setNotifications] =
     useState<NotificationsType>(EMPTY_NOTIFICATIONS);
-
-  // useEffect(() => {
-  //   let active = true;
-  //   void api
-  //     .get("/users/getHeaderData/")
-  //     .then((response) => {
-        
-  //       if (!active) return;
-  //       const topNavData: unknown = response.data.topNavData;
-  //       const nextPermissions = Array.isArray(topNavData)
-  //         ? topNavData.filter((item): item is string => typeof item === "string")
-  //         : [];
-  //       setPermissions(nextPermissions);
-  //       localStorage.setItem("permissionList", JSON.stringify(nextPermissions));
-  //     })
-  //     .catch(() => undefined);
-  //   return () => {
-  //     active = false;
-  //   };
-  // }, []);
 
   // useEffect(() => {
   //   let active = true;
@@ -109,11 +172,13 @@ export default function ResponsiveAppBar() {
   //   };
   // }, []);
 
-  const visiblePages = useMemo(
-    () => pages.filter((page) => permissions.includes(page.codeName)),
-    [permissions]
-  );
-  const totalNotifications = notifications.selfticketOpenCount + notifications.ticketOpenCount;
+  const currentUser = getStoredUser();
+  // const currentUserName = currentUser.full_name || currentUser.username || "User";
+  const userGroups = Array.isArray(currentUser.groups) ? currentUser.groups : [];
+  const userRoles = Array.isArray(currentUser.role) ? currentUser.role : [];
+
+  const totalNotifications =
+    notifications.selfticketOpenCount + notifications.ticketOpenCount;
 
   const downloadProcessFlow = () => {
     const link = document.createElement("a");
@@ -128,84 +193,105 @@ export default function ResponsiveAppBar() {
     navigate("/", { replace: true });
   };
 
-  const navItems = visiblePages.map((page) => {
-    const selected = location.pathname === page.path || location.pathname.startsWith(`${page.path}/`);
-    return (
-      <ListItemButton
-        key={page.path}
-        component={RouterLink}
-        to={page.path}
-        selected={selected}
-        onClick={() => setDrawerOpen(false)}
-        sx={navListItemSx(selected)}
-      >
-        <ListItemIcon sx={appBarHeaderDynamicDynamicListItemIconSx1({ selected })}>
-          {page.icon}
-        </ListItemIcon>
-        <ListItemText primary={page.label} primaryTypographyProps={{ fontWeight: selected ? 800 : 650 }} />
-      </ListItemButton>
-    );
-  });
-
   return (
     <AppBar
       position="sticky"
       color="inherit"
       elevation={0}
-      sx={appBarHeaderDynamicDynamicAppBarSx1({  })}
+      sx={appBarHeaderDynamicDynamicAppBarSx1}
     >
       <Container maxWidth={false} sx={appBarHeaderContainerSx1}>
         <Toolbar disableGutters sx={appBarHeaderToolbarSx1}>
-
-          <Box component={RouterLink} to="/SelfTickets" sx={appBarHeaderBoxSx1}>
-            <Box component="img" src={logo} alt="ICPro" sx={appBarHeaderBoxSx2} />
+          <Box component={RouterLink} to="/Home" sx={appBarHeaderBoxSx1}>
+            <Box
+              component="img"
+              src={logo}
+              alt="ICPro"
+              sx={appBarHeaderBoxSx2}
+            />
           </Box>
 
-          <IconButton aria-label="Open navigation" onClick={() => setDrawerOpen(true)} sx={appBarHeaderIconButtonSx1}>
+          <IconButton
+            aria-label="Open navigation"
+            onClick={onMenuClick}
+            sx={(theme) => ({
+              ...(appBarHeaderIconButtonSx1 as object),
+              ...coloredIconButtonSx("primary")(theme),
+              alignSelf: "center",
+              alignItems: "flex-end",
+              p: 0,
+              width: 32,
+              height: 40,
+              justifyContent: "center",
+              "&:hover": {
+                bgcolor: "transparent",
+              },
+            })}
+          >
             <MenuIcon />
           </IconButton>
 
-          <Stack direction="row" spacing={0.5} sx={appBarHeaderStackSx1}>
-            {visiblePages.map((page) => {
-              const selected = location.pathname === page.path || location.pathname.startsWith(`${page.path}/`);
-              return (
-                <Button
-                  key={page.path}
-                  component={RouterLink}
-                  to={page.path}
-                  startIcon={page.icon}
-                  color={selected ? "primary" : "inherit"}
-                  sx={navButtonSx(selected)}
-                >
-                  {page.label}
-                </Button>
-              );
-            })}
-          </Stack>
-
-          <Stack direction="row" alignItems="center" spacing={{ xs: 0, sm: 0.5 }} sx={pushRightSx}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={{ xs: 0, sm: 0.5 }}
+            sx={pushRightSx}
+          >
             <Tooltip title="Process flow">
-              <IconButton aria-label="Download process flow" onClick={downloadProcessFlow}>
+              <IconButton
+                aria-label="Download process flow"
+                onClick={downloadProcessFlow}
+                sx={coloredIconButtonSx("info")}
+              >
                 <InfoOutlinedIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            <Tooltip
+              title={
+                mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
               <IconButton
-                aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                aria-label={
+                  mode === "dark"
+                    ? "Switch to light mode"
+                    : "Switch to dark mode"
+                }
                 onClick={toggleMode}
+                sx={coloredIconButtonSx(
+                  mode === "dark" ? "warning" : "secondary",
+                )}
               >
-                {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+                {mode === "dark" ? (
+                  <LightModeRoundedIcon />
+                ) : (
+                  <DarkModeRoundedIcon />
+                )}
               </IconButton>
             </Tooltip>
-            <Tooltip title={totalNotifications ? `${totalNotifications} action items` : "No notifications"}>
-              <IconButton aria-label="Notifications" onClick={(event) => setNotificationAnchor(event.currentTarget)}>
+            <Tooltip
+              title={
+                totalNotifications
+                  ? `${totalNotifications} action items`
+                  : "No notifications"
+              }
+            >
+              <IconButton
+                aria-label="Notifications"
+                onClick={(event) => setNotificationAnchor(event.currentTarget)}
+                sx={coloredIconButtonSx(totalNotifications ? "error" : "muted")}
+              >
                 <Badge badgeContent={totalNotifications} color="error">
                   <NotificationsOutlinedIcon />
                 </Badge>
               </IconButton>
             </Tooltip>
             <Tooltip title="Account">
-              <IconButton aria-label="Account menu" onClick={(event) => setProfileAnchor(event.currentTarget)} sx={appBarHeaderIconButtonSx2}>
+              <IconButton
+                aria-label="Account menu"
+                onClick={(event) => setProfileAnchor(event.currentTarget)}
+                sx={{ ...appBarHeaderIconButtonSx2, "&&": { ml: 2 } }}
+              >
                 <Avatar sx={appBarHeaderAvatarSx1}>
                   {loggedUser?.charAt(0).toUpperCase()}
                 </Avatar>
@@ -214,18 +300,6 @@ export default function ResponsiveAppBar() {
           </Stack>
         </Toolbar>
       </Container>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        sx={appBarHeaderDrawerSx1}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={appBarHeaderStackSx3}>
-          <Typography variant="h6">Navigation</Typography>
-          <IconButton aria-label="Close navigation" onClick={() => setDrawerOpen(false)}><CloseIcon /></IconButton>
-        </Stack>
-        <List disablePadding>{navItems}</List>
-      </Drawer>
 
       <Menu
         anchorEl={notificationAnchor}
@@ -253,21 +327,28 @@ export default function ResponsiveAppBar() {
           list: { sx: { p: 0 } },
         }}
       >
-        <Box
-          sx={appBarHeaderCallbackCallbackSx1({ alpha })}
-        >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+        <Box sx={appBarHeaderCallbackCallbackSx1({ alpha })}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            gap={2}
+          >
             <Box minWidth={0}>
               <Typography fontWeight={900} lineHeight={1.15}>
                 Notifications
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={marginTopSmallSx}>
-                {totalNotifications ? `${totalNotifications} action item${totalNotifications === 1 ? "" : "s"} need attention` : "You are all caught up"}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={marginTopSmallSx}
+              >
+                {totalNotifications
+                  ? `${totalNotifications} action item${totalNotifications === 1 ? "" : "s"} need attention`
+                  : "You are all caught up"}
               </Typography>
             </Box>
-            <Box
-              sx={appBarHeaderCallbackCallbackSx2({ alpha })}
-            >
+            <Box sx={appBarHeaderCallbackCallbackSx2({ alpha })}>
               <Badge badgeContent={totalNotifications} color="error">
                 <NotificationsOutlinedIcon fontSize="small" />
               </Badge>
@@ -278,21 +359,24 @@ export default function ResponsiveAppBar() {
         {totalNotifications === 0 ? (
           <Box sx={appBarHeaderBoxSx3}>
             <Typography fontWeight={800}>No notifications</Typography>
-            <Typography variant="body2" color="text.secondary" sx={marginTopMediumSx}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={marginTopMediumSx}
+            >
               New ticket updates will appear here.
             </Typography>
           </Box>
-        ) : [
+        ) : (
+          [
             <MenuItem
               key="self-tickets"
               component={RouterLink}
-              to="/SelfTickets"
+              to="/Home/SelfTickets"
               onClick={() => setNotificationAnchor(null)}
               sx={appBarHeaderCallbackCallbackSx3({ alpha })}
             >
-              <Box
-                sx={appBarHeaderCallbackCallbackSx4({ alpha })}
-              >
+              <Box sx={appBarHeaderCallbackCallbackSx4({ alpha })}>
                 <FormatListBulletedRoundedIcon fontSize="small" />
               </Box>
               <Box minWidth={0} sx={appBarHeaderBoxSx4}>
@@ -303,18 +387,19 @@ export default function ResponsiveAppBar() {
                   Self tickets waiting for action
                 </Typography>
               </Box>
-              <Badge badgeContent={notifications.selfticketOpenCount} color="primary" />
+              <Badge
+                badgeContent={notifications.selfticketOpenCount}
+                color="primary"
+              />
             </MenuItem>,
             <MenuItem
               key="tickets"
               component={RouterLink}
-              to="/Tickets"
+              to="/Home/Tickets"
               onClick={() => setNotificationAnchor(null)}
               sx={appBarHeaderCallbackCallbackSx5({ alpha })}
             >
-              <Box
-                sx={appBarHeaderCallbackCallbackSx6({ alpha })}
-              >
+              <Box sx={appBarHeaderCallbackCallbackSx6({ alpha })}>
                 <TaskAltRoundedIcon fontSize="small" />
               </Box>
               <Box minWidth={0} sx={appBarHeaderBoxSx4}>
@@ -325,9 +410,13 @@ export default function ResponsiveAppBar() {
                   Assigned ticket updates
                 </Typography>
               </Box>
-              <Badge badgeContent={notifications.ticketOpenCount} color="primary" />
+              <Badge
+                badgeContent={notifications.ticketOpenCount}
+                color="primary"
+              />
             </MenuItem>,
-        ]}
+          ]
+        )}
       </Menu>
 
       <Menu
@@ -340,8 +429,9 @@ export default function ResponsiveAppBar() {
           paper: {
             elevation: 0,
             sx: (theme) => ({
-              width: 286,
-              mt: 1.25,
+              width: "min(420px, calc(100vw - 24px))",
+              maxHeight: "calc(100dvh - 96px)",
+              mt: 2.5,
               overflow: "hidden",
               borderRadius: 2,
               border: "1px solid",
@@ -358,40 +448,81 @@ export default function ResponsiveAppBar() {
           },
         }}
       >
-        <Box
-          sx={appBarHeaderCallbackCallbackSx1({ alpha })}
-        >
+        <Box sx={appBarHeaderCallbackCallbackSx1({ alpha })}>
           <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Avatar
-              sx={appBarHeaderDynamicDynamicAvatarSx1({ alpha })}
-            >
+            <Avatar sx={appBarHeaderDynamicDynamicAvatarSx1({ alpha })}>
               {loggedUser?.charAt(0).toUpperCase()}
             </Avatar>
-            <Box minWidth={0}>
+            <Stack spacing={0.5}>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={appBarHeaderTypographySx3}
               >
-                Signed in
+                {currentUser.username}
               </Typography>
-              <Typography
-                fontWeight={900}
-                sx={appBarHeaderTypographySx4}
-              >
-                {loggedUser}
+              <Typography fontWeight={700} sx={appBarHeaderTypographySx4}>
+                {loggedUser?.toUpperCase()}
               </Typography>
+              {currentUser.email && (
+                <Typography variant="body2" color="text.secondary" sx={appBarHeaderTypographySx4}>
+                  {currentUser.email}
+                </Typography>
+              )}
+            </Stack>
+          </Stack>
+        </Box>
+        <Divider />
+        <Box sx={{ maxHeight: "min(58dvh, 520px)", overflowY: "auto", p: 2 }}>
+          <Stack spacing={1.5}>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={900}>
+                Groups
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.75 }}>
+                {userGroups.length ? (
+                  userGroups.map((group) => (
+                    <Chip key={group} label={group} size="small" color="info" variant="outlined" />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No groups assigned
+                  </Typography>
+                )}
+              </Stack>
             </Box>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={900}>
+                Roles
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.75 }}>
+                {userRoles.length ? (
+                  userRoles.map((role) => (
+                    <Chip
+                      key={role.id ?? role.name}
+                      label={role.name || `Role ${role.id}`}
+                      size="small"
+                      color="secondary"
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No roles assigned
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+
           </Stack>
         </Box>
         <Divider />
         <MenuItem
           onClick={logout}
-          sx={appBarHeaderCallbackCallbackSx8({ alpha })}
+          sx={logoutMenuItemSx}
         >
-          <Box
-            sx={appBarHeaderCallbackCallbackSx9({ alpha })}
-          >
+          <Box sx={logoutIconWrapSx}>
             <LogoutRoundedIcon fontSize="small" />
           </Box>
           <Box>

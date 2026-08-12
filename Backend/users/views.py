@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action,api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from core.permissions import RoleBasedPermission
@@ -17,6 +17,8 @@ from .serializers import (
     UserSerializer,
     TeamSerializer
 )
+from django.http import JsonResponse
+# logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -57,12 +59,10 @@ class RoleViewSet(viewsets.ModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
-
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
-
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
@@ -81,3 +81,28 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
             .select_related("profile")
             .order_by("first_name", "last_name")
         )
+
+
+@api_view(['GET'])
+def currentUserGroups(request):
+    groups = list(
+        request.user.groups.values('name','id')
+    )
+    executive_depts = list(
+        request.user.profile.department_mappings.values('department__name','id')
+    )
+    departments = groups + executive_depts
+
+    unique_departments = list({
+        dept['id']: dept
+        for dept in departments
+    }.values())
+    department_ids = [dept['id'] for dept in unique_departments]
+
+    userslist = User.objects.filter(groups__id__in = department_ids).values('first_name',"id").distinct()
+    data = {
+        "department_ids":department_ids,
+        "departments": unique_departments,
+        "userslist":list(userslist)
+    }
+    return JsonResponse(data)

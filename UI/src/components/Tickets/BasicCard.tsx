@@ -1,7 +1,7 @@
 import { Card, CardContent, Typography, Box, Chip, Divider, Avatar, Stack } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { alpha } from "@mui/material/styles";
-import type { TicketData } from '../../types/TicketData';
+import type { TicketData } from '../../types/dataTypes';
 import { formatDate } from '../common/formatDate';
 import { compactTextSx, detailLabelSx, detailValueSx, minWidthZeroSx, pushRightSx, secondaryTextSx, ticketsBasicCardAvatarSx1, ticketsBasicCardBoxSx1, ticketsBasicCardBoxSx2, ticketsBasicCardCardContentSx1, ticketsBasicCardDividerSx1, ticketsBasicCardDynamicDynamicCardSx1, ticketsBasicCardDynamicDynamicChipSx1, ticketsBasicCardDynamicDynamicTypographySx1, ticketsBasicCardTypographySx1, ticketsBasicCardTypographySx2, ticketsBasicCardTypographySx3 } from "../../styles/common";
 

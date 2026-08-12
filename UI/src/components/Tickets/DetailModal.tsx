@@ -44,9 +44,10 @@ import AttachmentIcon from "@mui/icons-material/Attachment";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import type {
   TicketData,
+  TicketFile,
   TicketLog,
   UserSummary,
-} from "../../types/TicketData";
+} from "../../types/dataTypes";
 import { formatDate, formatDateTime } from "../common/formatDate";
 import { attachmentHeaderSx, attachmentIconSx, attachmentItemSx, attachmentListSx, attachmentNameSx, attachmentOpenSx, attachmentSectionSx, detailLabelSx, detailValueSx, formSectionSx, formatStatusLabel, getModalPalette, getPriorityPalette, getStatusColor, marginTopSectionSx, modalActionButtonSx, modalFormActionsSx, modalFormContentSx, modalFormHeaderSx, modalFormPaperSx, modalPrimaryActionButtonSx, pushRightSx, ticketsDetailModalAvatarSx1, ticketsDetailModalAvatarSx2, ticketsDetailModalBoxSx1, ticketsDetailModalBoxSx2, ticketsDetailModalCallbackCallbackSx1, ticketsDetailModalCallbackCallbackSx2, ticketsDetailModalCallbackCallbackSx3, ticketsDetailModalCallbackCallbackSx4, ticketsDetailModalCallbackCallbackSx5, ticketsDetailModalChipSx1, ticketsDetailModalDynamicDynamicBoxSx1, ticketsDetailModalDynamicDynamicBoxSx2, ticketsDetailModalDynamicDynamicBoxSx3, ticketsDetailModalDynamicDynamicBoxSx6, ticketsDetailModalDynamicDynamicBoxSx7, ticketsDetailModalDynamicDynamicBoxSx8, ticketsDetailModalDynamicDynamicBoxSx9, ticketsDetailModalDynamicDynamicChipSx1, ticketsDetailModalDynamicDynamicChipSx2, ticketsDetailModalDynamicDynamicStackSx1, ticketsDetailModalDynamicDynamicTypographySx1, ticketsDetailModalDynamicDynamicTypographySx2, ticketsDetailModalDynamicDynamicTypographySx3, ticketsDetailModalIconButtonSx1, ticketsDetailModalPaperSx1, ticketsDetailModalStackSx2, ticketsDetailModalTypographySx1, ticketsDetailModalTypographySx2, ticketsDetailModalTypographySx3, ticketsDetailModalTypographySx4, ticketsDetailModalTypographySx5, ticketsDetailModalTypographySx6 } from "../../styles/common";
 import { showNotification } from "../../api/NotificationService";
@@ -416,7 +417,7 @@ export default function TicketDetailModal({
                 <Typography sx={detailLabelSx}>Attachments ({data.files.length})</Typography>
               </Box>
               <Box sx={attachmentListSx}>
-                {data.files.map((item: any) => {
+                {data.files.map((item: TicketFile) => {
                   const fileName = item.file?.split("/").pop() || "Attachment";
 
                   return (

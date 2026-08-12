@@ -29,7 +29,7 @@ import type {
   TicketData,
   TicketFormData,
   UserSummary,
-} from "../../types/TicketData";
+} from "../../types/dataTypes";
 import {
   modalActionButtonSx,
   modalFormActionsSx,
@@ -52,6 +52,16 @@ type CreateTicketModalProps = {
 };
 type Priority = "high" | "medium" | "low" | "";
 
+type ValidationErrorResponse = {
+  response?: {
+    status?: number;
+    data?: Partial<SelfTicketFormData>;
+  };
+};
+
+function isValidationErrorResponse(error: unknown): error is ValidationErrorResponse {
+  return typeof error === "object" && error !== null && "response" in error;
+}
 
 const getTomorrowDate = () => {
     const tomorrow = new Date();
@@ -210,8 +220,8 @@ export default function CreateTicketModal({
         type: "success",
         message:Data ? "Ticket updated successfully." : "Ticket created successfully.",
       });
-    } catch (error: any) {
-      if (error.response?.status === 400) {
+    } catch (error: unknown) {
+      if (isValidationErrorResponse(error) && error.response?.status === 400) {
         setFormErrorData(error.response.data);
       } else {
         console.error(error);
