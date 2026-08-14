@@ -6,7 +6,6 @@ import {
 	IconButton,
 	InputLabel,
 	MenuItem,
-	Paper,
 	Select,
 	Stack,
 	Tab,
@@ -24,28 +23,27 @@ import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
 	VirtualizedTable,
 	type ColumnData,
-} from "../components/common/TableView";
-import CreateSelfTicketModel from "../components/SelfTickets/CreateModel";
-import TicketCardView from "../components/common/CardView";
+} from "../../components/common/TableView";
+import CreateSelfTicketModel from "../../components/SelfTickets/CreateModel";
+import TicketCardView from "../../components/common/CardView";
 import type {
 	SelfTicketCollections,
 	SelfTicketData,
 	ReportingEmployees,
-} from "../types/dataTypes";
-import api from "../api/axios";
-import SelfTicketDetailModel from "../components/SelfTickets/DetailModel";
+} from "../../types/dataTypes";
+import api from "../../api/axios";
+import SelfTicketDetailModel from "../../components/SelfTickets/DetailModel";
 import {
+	appPageBox,
 	flexColumnFillSx,
 	inlineCenterGapSx,
 	modalActionButtonSx,
 	pageHeaderSx,
-	selfTicketsPageBoxSx2,
 	selfTicketsPageBoxSx4,
 	selfTicketsPageFormControlSx1,
-	selfTicketsPagePaperSx1,
 	selfTicketsPageStackSx1,
 	TOGGLE_BUTTON,
-} from "../styles/common";
+} from "../../styles/common";
 
 const EMPTY_COLLECTIONS: SelfTicketCollections = {
 	all: [],
@@ -53,15 +51,15 @@ const EMPTY_COLLECTIONS: SelfTicketCollections = {
 	others: [],
 };
 
-function storedUserId(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
+function loggedUser(): number | null {
+	const value = localStorage.getItem("user");
+	const id = value ? Number(value) : NaN;
 
-  return Number.isInteger(id) ? id : null;
+	return Number.isInteger(id) ? id : null;
 }
 
 export default function SelfTickets() {
-	const userId = useMemo(() => storedUserId(), []);
+	const userId = useMemo(() => loggedUser(), []);
 	const [selectedUser, setSelectedUser] = useState("");
 	const [view, setView] = useState<"table" | "card">("card");
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -103,11 +101,11 @@ export default function SelfTickets() {
 		void api
 			.get("/teams/")
 			.then((response) => {
-				console.log(response)
+				// console.log(" response data Teams....",response.data)
 				if (!active) return;
 				const data = (
-					Array.isArray(response.data.reporting_employees)
-						? response.data.reporting_employees
+					Array.isArray(response.data)
+						? response.data
 						: []
 				) as ReportingEmployees[];
 				setUsers(data);
@@ -117,7 +115,6 @@ export default function SelfTickets() {
 			active = false;
 		};
 	}, [userId]);
-
 
 	const openCreate = useCallback(() => {
 		setSelectedRow(null);
@@ -192,6 +189,7 @@ export default function SelfTickets() {
 	);
 
 	const activeRows = tabValue === 0 ? tickets.self : tickets.others;
+
 	const filteredRows = useMemo(
 		() =>
 			activeRows.filter(
@@ -201,7 +199,7 @@ export default function SelfTickets() {
 	);
 
 	return (
-		<Box sx={selfTicketsPageBoxSx2}>
+		<Box sx={appPageBox}>
 			<Box component="main" sx={flexColumnFillSx}>
 				<Box sx={pageHeaderSx}>
 					<Box>

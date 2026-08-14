@@ -2,11 +2,11 @@ import json
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
+from core.permissions import RoleBasedPermission
 from .models import Ticket,Ticket_File,Ticket_Log,Self_Ticket
 from api.models import Submission
 from rest_framework.decorators import action
@@ -46,7 +46,8 @@ class DepartmentMixin:
         return list(groups)
 
 class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    queryset = Ticket.objects.all()
+    permission_classes = [RoleBasedPermission]
     serializer_class = TicketSerializer
 
     def get_queryset(self):
@@ -363,8 +364,15 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         )
 
 class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    queryset = Self_Ticket.objects.all()
+    permission_classes = [RoleBasedPermission]
     serializer_class = SelfTicketSerializer
+    permission_codename_map = {
+        "view": "view_self_tickets",
+        "list": "view_self_tickets",
+        "retrieve": "view_self_tickets",
+        "summary": "view_managementoverview",
+    }
     
     def get_queryset(self):
         try:
@@ -474,7 +482,8 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
             raise
 
 class NotificationView(DepartmentMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    queryset = Ticket.objects.all()
+    permission_classes = [RoleBasedPermission]
 
     def get(self, request):
 

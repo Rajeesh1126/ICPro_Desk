@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Department, Role, UserProfile
+from .models import Role, UserProfile
 
 User = get_user_model()
 
@@ -45,10 +45,10 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'permissions']
 
 
-class DepartmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = ['id', 'name', 'type', 'description']
+# class DepartmentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Department
+#         fields = ['id', 'name', 'type', 'description']
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -134,13 +134,7 @@ class UserSerializer(serializers.ModelSerializer):
         required=False,
     )
     role_permissions = serializers.SerializerMethodField()
-    department = serializers.SlugRelatedField(
-        many=True,
-        queryset=Department.objects.all(),
-        slug_field='name',
-        source='profile.department',
-        required=False,
-    )
+    
     groups = serializers.SlugRelatedField(
         many=True,
         queryset=Group.objects.all(),
@@ -172,7 +166,6 @@ class UserSerializer(serializers.ModelSerializer):
             'password',
             'role',
             'role_permissions',
-            'department',
             'groups',
             'reporting_to',
             'location',
@@ -181,7 +174,7 @@ class UserSerializer(serializers.ModelSerializer):
             'designation',
             'resign_date',
         ]
-        read_only_fields = ['id', 'is_active']
+        read_only_fields = ['id']
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
         }
@@ -253,3 +246,16 @@ class TeamSerializer(serializers.ModelSerializer):
         ]
 
 
+class UserWithGroupsSerializer(serializers.ModelSerializer):
+    groups = GroupSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "groups",
+        ]

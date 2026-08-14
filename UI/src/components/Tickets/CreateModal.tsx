@@ -83,20 +83,11 @@ const EMPTY_FORM: TicketFormData = {
   deletedFileIds: [],
 };
 
-function currentUserId(): number | null {
-  try {
-    const user: unknown = JSON.parse(
-      localStorage.getItem("currentUser") ?? "null",
-    );
-    return typeof user === "object" &&
-      user !== null &&
-      "id" in user &&
-      typeof user.id === "number"
-      ? user.id
-      : null;
-  } catch {
-    return null;
-  }
+function loggedUser(): number | null {
+	const value = localStorage.getItem("user");
+	const id = value ? Number(value) : NaN;
+
+	return Number.isInteger(id) ? id : null;
 }
 
 export default function CreateTicketModal({
@@ -154,7 +145,7 @@ export default function CreateTicketModal({
         const source = (
           Array.isArray(response.data) ? response.data : []
         ) as UserSummary[];
-        setUsers(source.filter((user) => user.users_id !== currentUserId()));
+        setUsers(source.filter((user) => user.users_id !== loggedUser()));
       })
       .catch(() => undefined);
     return () => {

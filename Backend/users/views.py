@@ -5,13 +5,14 @@ from rest_framework.decorators import action,api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from core.permissions import RoleBasedPermission
-from .models import Department, Role
+from .models import  Role
 from .serializers import (
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
-    DepartmentSerializer,
+    # DepartmentSerializer,
     ForgotPasswordSerializer,
     GroupSerializer,
+    UserWithGroupsSerializer,
     ResetPasswordSerializer,
     RoleSerializer,
     UserSerializer,
@@ -59,10 +60,10 @@ class RoleViewSet(viewsets.ModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
-class DepartmentViewSet(viewsets.ModelViewSet):
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+# class DepartmentViewSet(viewsets.ModelViewSet):
+#     queryset = Department.objects.all()
+#     serializer_class = DepartmentSerializer
+#     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
@@ -80,6 +81,19 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
             .filter(profile__reporting_to=self.request.user)
             .select_related("profile")
             .order_by("first_name", "last_name")
+        )
+
+class UserWithGroupsViewSet(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = UserWithGroupsSerializer
+    permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
+    def get_queryset(self):
+        return (
+            User.objects
+            .filter(groups__isnull=False)
+            .prefetch_related("groups")
+            .distinct()
         )
 
 

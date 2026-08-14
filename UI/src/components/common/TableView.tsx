@@ -23,11 +23,11 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { alternatingRowSx, formatStatusLabel, getStatusColor, stickyTableCellSx, tableHeadSx, tableHeaderCellSx, tableViewBoxSx1, tableViewBoxSx2, tableViewBoxSx3, tableViewBoxSx4, tableViewBoxSx5, tableViewCallbackCallbackSx1, tableViewCallbackCallbackSx2, tableViewCallbackCallbackSx3, tableViewDynamicDynamicBadgeSx1, tableViewDynamicDynamicPaperSx1, tableViewTableChartIconSx1, tableViewTableChartIconSx2, tableViewTableContainerSx1, tableViewTableSx1, tableViewTableVirtuosoStyle1, tableViewTextFieldSx1, tableViewTypographySx1, tableViewTypographySx2 } from "../../styles/common";
 
 export interface ColumnData<T> {
-  label: string;
-  width?: number | "auto";
-  numeric?: boolean;
-  dataKey?: keyof T;
-  render?: (row: T, index: number) => React.ReactNode;
+    label: string;
+    width?: number | "auto";
+    numeric?: boolean;
+    dataKey?: keyof T;
+    render?: (row: T, index: number) => React.ReactNode;
 }
 
 interface VirtualizedTableProps<T> {
@@ -55,6 +55,19 @@ const formatDate = (value: unknown) => {
     }
 
     return value;
+};
+const formatCellValue = (value: unknown): React.ReactNode => {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) =>
+                typeof item === "object" && item !== null && "name" in item
+                    ? String(item.name)
+                    : String(item)
+            )
+            .join(", ");
+    }
+
+    return formatDate(value) as React.ReactNode;
 };
 
 export function VirtualizedTable<T extends Record<string, unknown>>({
@@ -172,33 +185,48 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
                 <TableCell
                     key={column.label}
                     align={column.numeric ? "right" : "left"}
-                    sx={tableViewCallbackCallbackSx3({ column, columns, index, stickyTableCellSx })}
-                >{
-                    column.render
-                        ? column.render(row, rowIndex)
-                        : column.dataKey
-                            ? column.label === "Status"
-                                ? (
-                                    <Box sx={tableViewBoxSx1}>
-                                        <Badge
-                                            aria-hidden="true"
-                                            variant="dot"
-                                            sx={tableViewDynamicDynamicBadgeSx1({ column, getStatusColor, row })}
-                                        />
-                                        <Typography component="span" variant="body2" sx={tableViewTypographySx1}>
+                    sx={tableViewCallbackCallbackSx3({
+                        column,
+                        columns,
+                        index,
+                        stickyTableCellSx
+                    })}
+                >
+                    {
+                        column.render
+                            ? column.render(row, rowIndex)
+                            : column.dataKey
+                                ? column.label === "Status"
+                                    ? (
+                                        <Box sx={tableViewBoxSx1}>
+                                            <Badge
+                                                aria-hidden="true"
+                                                variant="dot"
+                                                sx={tableViewDynamicDynamicBadgeSx1({
+                                                    column,
+                                                    getStatusColor,
+                                                    row
+                                                })}
+                                            />
 
-                                            {formatStatusLabel(row[column.dataKey])}
-                                        </Typography>
-                                    </Box>
-                                )
-                                : (formatDate(row[column.dataKey]) as React.ReactNode)
-                            : null
-                }
+                                            <Typography
+                                                component="span"
+                                                variant="body2"
+                                                sx={tableViewTypographySx1}
+                                            >
+                                                {formatStatusLabel(
+                                                    row[column.dataKey]
+                                                )}
+                                            </Typography>
+                                        </Box>
+                                    )
+                                    : formatCellValue(row[column.dataKey])
+                                : null
+                    }
                 </TableCell>
             ))}
         </React.Fragment>
     );
-
     return (
         <Paper
             elevation={0}

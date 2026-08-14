@@ -18,6 +18,24 @@ export interface UsersData {
   resign_date?: string | null;
 }
 
+export interface UsersFormData {
+  username: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  password?: string;
+  role?: string;
+  department?: string[];
+  groups?: string[];
+  reporting_to?: string;
+  location?: string;
+  dept_role?: boolean | false;
+  exe_role?: boolean | false;
+  designation?: string;
+  resign_date?: string | null;
+  is_active?: boolean;
+}
+
 export interface UserSummary {
   id?: number;
   users_id?: number;
@@ -32,6 +50,19 @@ export interface UserSummary {
 export interface ReportingEmployees {
   id?: number;
   first_name?: string;
+}
+
+export interface rolesData {
+  id: number;
+  name: string;
+  description: string | null;
+  permissions: any[];
+}
+
+export interface groupData {
+  [key: string]: unknown;
+  id: number;
+  name?: string;
 }
 
 export interface TicketLog {

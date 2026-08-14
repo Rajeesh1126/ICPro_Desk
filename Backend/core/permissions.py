@@ -68,7 +68,17 @@ class RoleBasedPermission(permissions.BasePermission):
         model_cls = self._get_model_class(view, obj=obj)
         if model_cls is None:
             return None
-        return f'{action_name}_{model_cls._meta.model_name}'
+
+        default_codename = f'{action_name}_{model_cls._meta.model_name}'
+        permission_codename_map = getattr(view, 'permission_codename_map', {})
+        action = getattr(view, 'action', None)
+
+        return (
+            permission_codename_map.get(action)
+            or permission_codename_map.get(action_name)
+            or permission_codename_map.get(default_codename)
+            or default_codename
+        )
 
     def _get_model_class(self, view, obj=None):
         if obj is not None:

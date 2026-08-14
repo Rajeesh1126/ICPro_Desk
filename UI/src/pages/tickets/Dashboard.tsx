@@ -3,11 +3,31 @@ import { Box, Grid, LinearProgress, Paper, Stack, Typography } from "@mui/materi
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
-import AnalysisPieChart from "../components/Dashboard/AnalysisPieChart";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
-import type { TicketData } from "../types/dataTypes";
-import api from "../api/axios";
-import { appPageSx, borderedSurfaceSx, dashboardDynamicPageDynamicBoxSx1, dashboardDynamicPageDynamicBoxSx2, dashboardDynamicPageDynamicLinearProgressSx1, dashboardDynamicPageDynamicPaperSx1, dashboardDynamicPageDynamicPaperSx2, dashboardPageBoxSx1, dashboardPageBoxSx2, dashboardPageBoxSx3, dashboardPageBoxSx4, dashboardPageBoxSx5, dashboardPageBoxSx6, dashboardPageBoxSx7, dashboardPageEventAvailableRoundedIconSx1, dashboardPageStackSx1, dashboardPageStackSx2, dashboardPageStackSx3, dashboardPageStackSx4, emptyStateSx, minWidthZeroSx } from "../styles/common";
+import AnalysisPieChart from "../../components/Dashboard/AnalysisPieChart";
+import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
+import type { TicketData } from "../../types/dataTypes";
+import api from "../../api/axios";
+import { appPageSx, 
+  borderedSurfaceSx, 
+  dashboardDynamicPageDynamicBoxSx1,
+  dashboardDynamicPageDynamicBoxSx2, 
+  dashboardDynamicPageDynamicLinearProgressSx1, 
+  dashboardDynamicPageDynamicPaperSx1, 
+  dashboardDynamicPageDynamicPaperSx2, 
+  dashboardPageBoxSx1, 
+  dashboardPageBoxSx2, 
+  dashboardPageBoxSx3, 
+  dashboardPageBoxSx4, 
+  dashboardPageBoxSx5, 
+  dashboardPageBoxSx6, 
+  dashboardPageBoxSx7, 
+  dashboardPageEventAvailableRoundedIconSx1, 
+  dashboardPageStackSx1, 
+  dashboardPageStackSx2, 
+  dashboardPageStackSx3, 
+  dashboardPageStackSx4, 
+  emptyStateSx, 
+  minWidthZeroSx } from "../../styles/common";
 
 type DepartmentLoad = { name: string; count: number; color?: string };
 type TicketSummary = {

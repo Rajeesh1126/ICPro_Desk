@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import Login from "./pages/Login.tsx";
 import HomePage from "./pages/HomePage.tsx";
 import Landing from "./pages/Landing.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import Reports from "./pages/Reports.tsx";
-import TicketDashboard from "./pages/Tickets.tsx";
-import SelfTickets from "./pages/SelfTickets.tsx";
+import Dashboard from "./pages/tickets/Dashboard.tsx";
+import Reports from "./pages/tickets/Reports.tsx";
+import TicketDashboard from "./pages/tickets/Tickets.tsx";
+import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
 

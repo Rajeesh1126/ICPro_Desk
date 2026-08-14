@@ -17,7 +17,6 @@ import {
     flexColumnFillSx,
     modalActionButtonSx,
     pageHeaderSx,
-    selfTicketsPageBoxSx2,
     selfTicketsPageStackSx1,
 } from "../styles/common";
 

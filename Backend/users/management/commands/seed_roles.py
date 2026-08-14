@@ -24,6 +24,9 @@ class Command(BaseCommand):
                 'view_assignedtask', 'add_assignedtask', 'change_assignedtask', 'delete_assignedtask',
                 'view_submission', 'add_submission', 'change_submission', 'delete_submission',
                 'view_timesheetstatus', 'add_timesheetstatus', 'change_timesheetstatus', 'delete_timesheetstatus',
+                'view_ticket', 'add_ticket', 'change_ticket', 'delete_ticket',
+                'view_self_tickets', 'add_self_ticket', 'change_self_ticket', 'delete_self_ticket',
+                'view_managementoverview', 'view_report',
             ],
             'Manager': [
                 'view_user', 'change_user',
@@ -36,6 +39,9 @@ class Command(BaseCommand):
                 'view_assignedtask', 'add_assignedtask', 'change_assignedtask',
                 'view_submission', 'add_submission', 'change_submission',
                 'view_timesheetstatus', 'add_timesheetstatus', 'change_timesheetstatus',
+                'view_ticket', 'add_ticket', 'change_ticket',
+                'view_self_tickets', 'add_self_ticket', 'change_self_ticket',
+                'view_managementoverview', 'view_report',
             ],
             'Viewer': [
                 'view_user',
@@ -48,6 +54,10 @@ class Command(BaseCommand):
                 'view_assignedtask',
                 'view_submission',
                 'view_timesheetstatus',
+                'view_ticket',
+                'view_self_tickets',
+                'view_managementoverview',
+                'view_report',
             ],
         }
 

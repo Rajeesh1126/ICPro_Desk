@@ -19,14 +19,14 @@ import {
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FilterAltRoundedIcon from "@mui/icons-material/FilterAltRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
-import type { TicketData, UserSummary, SelfTicketData } from "../types/dataTypes";
+import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
+import type { TicketData, UserSummary, SelfTicketData } from "../../types/dataTypes";
 import * as XLSX from "xlsx";
-import api from "../api/axios";
+import api from "../../api/axios";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import TicketDetailModal from "../components/Tickets/DetailModal";
-import SelfTicketDetailModel from "../components/SelfTickets/DetailModel";
-import { DRAWER_WIDTH, flexColumnFillSx, inlineCenterGapSx, marginBottomSectionSx, marginTopSectionSx, pageHeaderSx, reportsPageBoxSx2, reportsPageBoxSx4, reportsPageBoxSx5, reportsPageFilterDrawerPaperSx, responsiveRightActionsSx, TOGGLE_BUTTON } from "../styles/common";
+import TicketDetailModal from "../../components/Tickets/DetailModal";
+import SelfTicketDetailModel from "../../components/SelfTickets/DetailModel";
+import { appPageBox, DRAWER_WIDTH, flexColumnFillSx, inlineCenterGapSx, marginBottomSectionSx, marginTopSectionSx, pageHeaderSx, reportsPageBoxSx2, reportsPageBoxSx4, reportsPageBoxSx5, reportsPageFilterDrawerPaperSx, responsiveRightActionsSx, TOGGLE_BUTTON } from "../../styles/common";
 
 type Department = { id: number; name: string };
 type Filters = { startDate: string; endDate: string; status: string; priority: string; department: string; creator: string };
@@ -367,7 +367,7 @@ export default function Reports() {
   };
 
   return (
-    <Box sx={reportsPageBoxSx2}>
+    <Box sx={appPageBox}>
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
           <Box>

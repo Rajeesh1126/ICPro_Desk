@@ -11,20 +11,19 @@ import {
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
-import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import CreateSelfTicketModel from "../components/SelfTickets/CreateModel";
+
 import type {
-    UsersData
+    UsersData,
+    groupData
 } from "../types/dataTypes";
-import SelfTicketDetailModel from "../components/SelfTickets/DetailModel";
+import UserCreateModal from "../components/Users/userCreateModal"
+
 import {
+    appPageBox,
     flexColumnFillSx,
     inlineCenterGapSx,
-    modalActionButtonSx,
+    modalPrimaryActionButtonSx,
     pageHeaderSx,
-    selfTicketsPageBoxSx2,
     selfTicketsPageBoxSx4,
     selfTicketsPageStackSx1,
 } from "../styles/common";
@@ -33,8 +32,6 @@ import {
     VirtualizedTable,
     type ColumnData,
 } from "../components/common/TableView";
-
-
 
 
 function storedUserId(): number | null {
@@ -51,12 +48,18 @@ export default function Users() {
     const userId = useMemo(() => storedUserId(), []);
     const [selectedUser, setSelectedUser] = useState("");
     const [users, setUsers] = useState<UsersData[]>([]);
+    const [groups, setGroups] = useState<groupData[]>([]);
+
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [selectedRow, setSelectedRow] = useState<UsersData | null>(null);
+    const [selectedGroupRow, setSelectedGroupRow] = useState<groupData | null>(null);
+
     const [tabValue, setTabValue] = useState(0);
     const [refreshKey, setRefreshKey] = useState(0);
 
+
+    // api Request
     useEffect(() => {
         let active = true;
 
@@ -75,12 +78,45 @@ export default function Users() {
         };
     }, [userId, refreshKey]);
 
-    console.log("users list after set ", users);
+
+    // Groups
+    useEffect(() => {
+        let active = true;
+
+        void api
+            .get<{ data: groupData[] }>("/groups/")
+            .then((response) => {
+                console.log("groups ....", response)
+                if (!active) return;
+                setGroups((Array.isArray(response.data) ? response.data : []) as groupData[]);
+            })
+            .catch((error) => {
+                console.error("Failed to load users", error);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [userId, refreshKey]);
+
+
+
+
     const openCreate = useCallback(() => {
         setSelectedRow(null);
         setEditing(false);
         setDialogOpen(true);
     }, []);
+
+
+    const openCreateGroup = useCallback(() => {
+        setSelectedRow(null);
+        setEditing(false);
+        setDialogOpen(true);
+    }, []);
+
+
+
 
     const openEdit = useCallback((user: UsersData) => {
         setSelectedRow(user);
@@ -93,6 +129,17 @@ export default function Users() {
         setEditing(false);
         setDialogOpen(true);
     }, []);
+
+
+    const openGroupEdit = useCallback((id: groupData) => {
+        setSelectedGroupRow(id);
+        setEditing(true);
+        setDialogOpen(true);
+    }, []);
+
+
+
+
 
     const closeDialog = useCallback(() => {
         setDialogOpen(false);
@@ -130,7 +177,7 @@ export default function Users() {
             { label: "Name", dataKey: "first_name" },
             { label: "Email", dataKey: "email" },
             { label: "Role", dataKey: "role" },
-            { label: "Department", dataKey: "department" },
+            { label: "Exe_Teams", dataKey: "groups" },
             { label: "Designation", dataKey: "designation" },
             { label: "ReportIng To", dataKey: "reporting_to" },
             { label: "Location", dataKey: "location" },
@@ -138,8 +185,44 @@ export default function Users() {
         [openDetails, openEdit],
     );
 
+
+    const columnsGroup = useMemo<ColumnData<groupData>[]>(
+        () => [
+            {
+                label: "#",
+                width: 10,
+                render: (_row, index) => index + 1,
+                number: true,
+            },
+            {
+                label: "Name",
+                width: 145,
+                render: (row) => (
+                    <Box sx={inlineCenterGapSx}>
+                        <Tooltip title="Edit task">
+                            <IconButton
+                                aria-label={`Edit ${row.id}`}
+                                size="small"
+                                onClick={() => openGroupEdit(row)}
+                            >
+                                <EditRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Typography variant="body2">{row.name}</Typography>
+                    </Box>
+                ),
+            },
+            { label: "Name", dataKey: "name" },
+
+        ],
+        [openGroupEdit],
+    );
+
+
+
+
     return (
-        <Box sx={selfTicketsPageBoxSx2}>
+        <Box sx={appPageBox}>
             <Box component="main" sx={flexColumnFillSx}>
                 <Box sx={pageHeaderSx}>
                     <Box>
@@ -159,9 +242,18 @@ export default function Users() {
                                     startIcon={<AddRoundedIcon />}
                                     variant="contained"
                                     onClick={openCreate}
-                                    sx={modalActionButtonSx}
+                                    sx={modalPrimaryActionButtonSx}
                                 >
                                     New User
+                                </Button>
+                            )},{tabValue === 1 && (
+                                <Button
+                                    startIcon={<AddRoundedIcon />}
+                                    variant="contained"
+                                    onClick={openCreateGroup}
+                                    sx={modalPrimaryActionButtonSx}
+                                >
+                                    New Team
                                 </Button>
                             )}
 
@@ -184,6 +276,7 @@ export default function Users() {
                         <Tab label={`Teams `} />
                     </Tabs>
                 </Box>
+                 {tabValue === 0 && (
                 <Box sx={selfTicketsPageBoxSx4}>
                     <VirtualizedTable
                         columns={columns}
@@ -191,8 +284,36 @@ export default function Users() {
                         height="100%"
                         tableHead="Users"
                     />
-                </Box>
+                </Box>)},
+                   {tabValue === 1 && (
+                <Box sx={selfTicketsPageBoxSx4}>
+                    <VirtualizedTable
+                        columns={columnsGroup}
+                        rows={groups}
+                        height="100%"
+                        tableHead="Teams"
+                    />
+                </Box>)}
+
             </Box>
+            {!selectedRow && !editing && (
+                <UserCreateModal
+                    open={dialogOpen}
+                    handleClose={closeDialog}
+                    Data={null}
+                />
+            )}
+            {selectedRow && editing && (
+                <UserCreateModal
+                    open={dialogOpen}
+                    handleClose={closeDialog}
+                    Data={selectedRow}
+                />
+            )}
+
         </Box>
+
+
+
     );
 }

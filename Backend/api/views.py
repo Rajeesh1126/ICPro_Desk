@@ -99,3 +99,6 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             })
 
         return Response(project_payload, status=status.HTTP_200_OK)
+
+# class TimesheetApproveViewSet(viewsets.ViewSet):
+#     permission_classes = [RoleBasedPermission]

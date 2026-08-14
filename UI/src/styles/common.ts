@@ -301,7 +301,11 @@ export const attachmentOpenSx = {
 // common/layout.ts
 export const appPageSx = {
   bgcolor: "background.default",
-  minHeight: "100dvh",
+  height: {
+    xs: "calc(100vh - 58px)",
+    sm: "calc(100vh - 64px)",
+  },
+  overflow: "auto",
 };
 
 export const pageHeaderSx = {
@@ -345,7 +349,7 @@ export const flexColumnFillSx = {
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  minHeight: 0,
+  height: 0,
 };
 
 export const responsiveRightActionsSx = {
@@ -1107,7 +1111,7 @@ export const selfTicketsDetailModelDynamicDynamiccommentBoxSx = ({
   flexDirection: "column",
   gap: 1.5,
   p: 1,
-  height:360,
+  height: 360,
   bgcolor: alpha(theme.palette.primary.main, isDark ? 0.08 : 0.045),
 });
 
@@ -1297,7 +1301,7 @@ export const selfTicketsDetailModelTypographySx5: SxProps<Theme> = {
 
 export const selfTicketsDetailModelTypographySx6: SxProps<Theme> = {
   color: "text.secondary",
-  
+
 };
 
 // components/TableView.callback.styles.ts
@@ -2156,8 +2160,11 @@ export const loginPageTypographySx2: SxProps<Theme> = { mt: 0.75 };
 export const reportsPageBoxSx2: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
-  minHeight: "100dvh",
-  height: { lg: "100dvh" },
+  height: {
+    xs: "calc(100vh - 58px)",
+    sm: "calc(100vh - 64px)",
+  },
+  overflow: "auto",
   bgcolor: "background.default",
 };
 
@@ -2192,11 +2199,14 @@ export const reportsPageFilterDrawerPaperSx: SxProps<Theme> = {
 };
 
 // pages/SelfTickets.styles.ts
-export const selfTicketsPageBoxSx2: SxProps<Theme> = {
+export const appPageBox: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
-  minHeight: "100dvh",
-  height: { md: "100dvh" },
+  height: {
+    xs: "calc(100vh - 58px)",
+    sm: "calc(100vh - 64px)",
+  },
+  overflow: "auto",
   bgcolor: "background.default",
 };
 
@@ -2229,8 +2239,11 @@ export const selfTicketsPageBoxSx4: SxProps<Theme> = {
 export const ticketsPageBoxSx1: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
-  minHeight: "100dvh",
-  height: { md: "100dvh" },
+  height: {
+    xs: "calc(100vh - 58px)",
+    sm: "calc(100vh - 64px)",
+  },
+  overflow: "auto",
   bgcolor: "background.default",
 };
 

@@ -17,26 +17,25 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
 import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
-import CreateTicketModal from "../components/Tickets/CreateModal";
-import TicketDetailModal from "../components/Tickets/DetailModal";
-import TicketCardView from "../components/common/CardView";
+import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
+import CreateTicketModal from "../../components/Tickets/CreateModal";
+import TicketDetailModal from "../../components/Tickets/DetailModal";
+import TicketCardView from "../../components/common/CardView";
 import type {
   TicketCollections,
   TicketData,
   TicketLog,
-} from "../types/dataTypes";
-import api from "../api/axios";
+} from "../../types/dataTypes";
+import api from "../../api/axios";
 import {
+  appPageBox,
   flexColumnFillSx,
   modalActionButtonSx,
   pageHeaderSx,
   responsiveRightActionsSx,
-  ticketsPageBoxSx1,
   ticketsPageBoxSx3,
-  ticketsPagePaperSx1,
   TOGGLE_BUTTON,
-} from "../styles/common";
+} from "../../styles/common";
 
 const EMPTY_TICKETS: TicketCollections = {
   all: [],
@@ -47,25 +46,16 @@ const EMPTY_TICKETS: TicketCollections = {
   recalled: [],
 };
 
-function storeduserId(): number | null {
-  try {
-    const user: unknown = JSON.parse(
-      localStorage.getItem("user") ?? "null",
-    );
-    return typeof user === "object" &&
-      user !== null &&
-      "id" in user &&
-      typeof user.id === "number"
-      ? user.id
-      : null;
-  } catch {
-    return null;
-  }
+function loggedUser(): number | null {
+	const value = localStorage.getItem("user");
+	const id = value ? Number(value) : NaN;
+
+	return Number.isInteger(id) ? id : null;
 }
 
 
 export default function Tickets() {
-  const userId = useMemo(() => storeduserId(), []);
+  const userId = useMemo(() => loggedUser(), []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
@@ -237,7 +227,7 @@ export default function Tickets() {
     ][tabValue] ?? tickets.all;
 
   return (
-    <Box sx={ticketsPageBoxSx1}>
+    <Box sx={appPageBox}>
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
           <Box>

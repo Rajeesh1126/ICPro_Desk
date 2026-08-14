@@ -52,20 +52,19 @@ const pages = [
         codeName: "view_submission",
     },
     {
-        label: "Team Analysis",
-        path: "/Home/Dashboard",
-        icon: <AnalyticsRoundedIcon />,
-        iconColor: "#9c27b0",
-        codeName: "view_userprofile",
-    },
-    {
         label: "Executive Overview",
         path: "/Home/Reports",
         icon: <AssessmentRoundedIcon />,
         iconColor: "#ed6c02",
         codeName: "view_userprofile",
     },
-    
+    {
+        label: "Team Analysis",
+        path: "/Home/Dashboard",
+        icon: <AnalyticsRoundedIcon />,
+        iconColor: "#9c27b0",
+        codeName: "view_userprofile",
+    },
     {
         label: "Users Managment",
         path: "/Home/Users",
