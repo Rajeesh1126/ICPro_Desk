@@ -142,6 +142,7 @@ function getStoredUser(): StoredUser {
   }
 }
 const loggedUser = localStorage.getItem("first_name");
+const role = localStorage.getItem("role");
 
 type ResponsiveAppBarProps = {
   onMenuClick?: () => void;
@@ -175,7 +176,7 @@ export default function ResponsiveAppBar({
   const currentUser = getStoredUser();
   // const currentUserName = currentUser.full_name || currentUser.username || "User";
   const userGroups = Array.isArray(currentUser.groups) ? currentUser.groups : [];
-  const userRoles = Array.isArray(currentUser.role) ? currentUser.role : [];
+  const userRoles = Array.isArray(currentUser.role) ? role : [];
 
   const totalNotifications =
     notifications.selfticketOpenCount + notifications.ticketOpenCount;

@@ -23,9 +23,14 @@ export default function BasicCardComponent({ ticket, onOpen }: BasicCardProps) {
     };
 
     const styles = getPriorityStyles(ticket.priority);
-    const assignedInitials = ticket.assigned_to_details 
-        ? `${ticket.assigned_to_details.first_name?.[0] ?? ''}${ticket.assigned_to_details.last_name?.[0] ?? ''}` || '?'
-        : '?';
+    const assignedInitials = ticket.assigned_to_name
+        ? ticket.assigned_to_name
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()
+        : "?";
 
     return (
         <Card
@@ -69,7 +74,7 @@ export default function BasicCardComponent({ ticket, onOpen }: BasicCardProps) {
                                 Assigned
                             </Typography>
                             <Typography sx={detailValueSx}>
-                                {ticket.assigned_to_details?.first_name || 'Unassigned'}
+                                {ticket.assigned_to_name || 'Unassigned'}
                             </Typography>
                         </Box>
                     </Stack>

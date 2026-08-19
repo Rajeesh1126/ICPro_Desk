@@ -69,22 +69,12 @@ export default function Tickets() {
     void api
       .get("/tickets/")
       .then((response) => {
-        console.log(response.data)
+        console.log("tickets....",response)
         if (!active) return;
         const source = (
           Array.isArray(response.data) ? response.data : []
         ) as TicketData[];
         const all = source.map((ticket) => {
-          const assigned = ticket.assigned_to_details;
-          const creator = ticket.creator_details;
-          const assignedName = assigned
-            ? `${assigned.first_name ?? ""} ${assigned.last_name ?? ""}`.trim() ||
-              "Unassigned"
-            : "Unassigned";
-          const creatorName = creator
-            ? `${creator.first_name ?? ""} ${creator.last_name ?? ""}`.trim() ||
-              "Unassigned"
-            : "Unassigned";
           const latestAcceptedLog: TicketLog | null =
             ticket.current_status === "assigned"
               ? (ticket.logs?.find((log) => log.status.includes("open")) ??
@@ -92,8 +82,8 @@ export default function Tickets() {
               : null;
           return {
             ...ticket,
-            assigned_to_name: assignedName,
-            creator_name: creatorName,
+            assigned_to_name: ticket.assigned_to_name || "Unassigned",
+            creator_name: ticket.creator_name || "Unassigned",
             display_status: ticket.current_status,
             latestAcceptedLog,
           };

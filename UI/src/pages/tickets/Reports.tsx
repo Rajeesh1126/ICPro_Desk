@@ -173,21 +173,15 @@ export default function Reports() {
     void api
       .get(endpoint)
       .then((response) => {
-        console.log(response)
         if (!active) return;
         if (reportType === "tickets") {
           const source = (Array.isArray(response.data) ? response.data : []) as TicketData[];
-          const mapped = source.map((ticket) => {
-            const assigned = ticket.assigned_to_details;
-
-            const creator = ticket.creator_details;
-            return {
-              ...ticket,
-              assigned_to_name: assigned ? `${assigned.first_name ?? ""} ${assigned.last_name ?? ""}`.trim() || "Unassigned" : "Unassigned",
-              creator_name: creator ? `${creator.first_name ?? ""} ${creator.last_name ?? ""}`.trim() || "Unassigned" : "Unassigned",
-              display_status: ticket.current_status,
-            };
-          });
+          const mapped = source.map((ticket) => ({
+            ...ticket,
+            assigned_to_name: ticket.assigned_to_name || "Unassigned",
+            creator_name: ticket.creator_name || "Unassigned",
+            display_status: ticket.current_status,
+          }));
           setTickets(mapped);
         }
         else {

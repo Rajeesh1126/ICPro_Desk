@@ -25,11 +25,7 @@ class UserProfile(models.Model):
     )
     location = models.CharField(max_length=100, blank=True, null=True)
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, blank=True, null=True, related_name='profiles')
-    department = models.ManyToManyField(
-        'auth.Group',
-        related_name='profiles',
-        blank=True,
-    )
+  
     dept_role = models.BooleanField(default=False)
     exe_role = models.BooleanField(default=False)
     designation = models.CharField(max_length=150, blank=True, null=True)
@@ -39,3 +35,21 @@ class UserProfile(models.Model):
         return f"Profile for {self.user.username}"
 
 
+class DepartmentManager(models.Model):
+
+    department = models.OneToOneField(
+        Group,
+        on_delete=models.CASCADE,
+        related_name='manager_mapping'
+    )
+
+    manager = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_departments'
+    )
+
+    def __str__(self):
+        return f"{self.department.name} - {self.manager}"

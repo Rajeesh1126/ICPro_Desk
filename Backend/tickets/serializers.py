@@ -1,13 +1,8 @@
 from rest_framework import serializers
-# from django.contrib.auth.models import User
 from .models import Ticket, Ticket_Log, Ticket_File, Self_Ticket,Self_Ticket_Log
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
 from core.emailContents import ticketCreateEmailBody
-from core.microsoftGraphAPI import send_mail
-from django.utils import timezone
 from django.contrib.auth import get_user_model
-# from datetime import date
+from datetime import date
 
 
 User = get_user_model()
@@ -26,18 +21,17 @@ class TicketLogSerializer(serializers.ModelSerializer):
         model = Ticket_Log
         fields = ['id', 'status', 'changed_by', 'changed_by_name', 'remarks', 'created_at', 'assigned_to']
 
+
 # Main Ticket Serializer
 class TicketSerializer(serializers.ModelSerializer):
-    # today = date.today()
-    today = timezone.localdate()
     # Read-only nested data for GET requests
     logs = TicketLogSerializer(many=True, read_only=True)
     files = TicketFileSerializer(many=True, read_only=True)
-    creator_details = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
-    assigned_to_details = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
+    creator_name = serializers.SerializerMethodField()
+    assigned_to_name = serializers.SerializerMethodField()
     remarks = serializers.CharField(write_only=True,required=False)
-    created_at = serializers.SerializerMethodField()
-    updated_at = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True, format='%Y-%m-%d')
+    updated_at = serializers.DateTimeField(read_only=True, format='%Y-%m-%d')
     act_hours = serializers.FloatField(read_only=True)
     actual_start_date = serializers.DateField(read_only=True)
     actual_end_date = serializers.DateField(read_only=True)
@@ -59,18 +53,30 @@ class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = [
-            'id', 'number', 'task', 'description', 'creator', 'creator_details', 'department','department_name',
-            'assigned_to', 'assigned_to_details', 'est_hours', 'target_date', 'rating',
+            'id', 'number', 'task', 'description', 'creator', 'creator_name', 'department','department_name',
+            'assigned_to', 'assigned_to_name', 'est_hours', 'target_date', 'rating',
             'priority', 'current_status', 'created_at', 'updated_at', 'logs', 'files','attachments',
             'remarks', 'act_hours', 'actual_start_date', 'actual_end_date', 'work_efficiency', 'schedule_efficiency','latest_logremarks'
         ]
         read_only_fields = ['number','creator', 'created_at', 'updated_at']
-    # Explicitly convert datetime to date string
-    def get_created_at(self, obj):
-        return obj.created_at.date() if obj.created_at else None
 
-    def get_updated_at(self, obj):
-        return obj.updated_at.date() if obj.updated_at else None
+    def get_creator_name(self, obj):
+        if not obj.creator:
+            return None
+        return obj.creator.get_full_name() or obj.creator.username
+
+    def get_assigned_to_name(self, obj):
+        if not obj.assigned_to:
+            return None
+        return obj.assigned_to.get_full_name() or obj.assigned_to.username
+
+    def validate(self, attrs):
+        if self.instance is None:
+            if not attrs.get('department'):
+                raise serializers.ValidationError({'department': 'Department is required.'})
+            if not attrs.get('assigned_to'):
+                raise serializers.ValidationError({'assigned_to': 'Assigned user is required.'})
+        return attrs
     
     def create(self, validated_data):
         """
@@ -98,7 +104,7 @@ class TicketSerializer(serializers.ModelSerializer):
 
         subject = "Ticket Registration - Your ticket with Ticket Id -"+ticket.number
         text_content = "Ticket created"
-        content = f"On { self.today.strftime('%d-%m-%Y') } a new ticket with the below data has been created"
+        content = f"On { date.today().strftime('%d-%m-%Y') } a new ticket with the below data has been created"
         Heading = "New Ticket Created"
         html_content = ticketCreateEmailBody(ticket.assigned_to.first_name,
                                                 Heading,
@@ -119,16 +125,14 @@ class TicketSerializer(serializers.ModelSerializer):
         return ticket
 
     def update(self, instance, validated_data):
+        attachments = validated_data.pop("attachments", [])
         old_status = instance.current_status
         new_status = validated_data.get('current_status', old_status)
         validated_data['current_status'] = new_status
         remarks = validated_data.get('remarks')
-        assigned_to = validated_data.get('assigned_to')
+        assigned_to = validated_data.get('assigned_to', instance.assigned_to)
         # Perform the actual update on the Ticket
         instance = super().update(instance, validated_data)
-        
-        # Attachments can be added here if needed, for now, we are just sending the email without attachments.
-        attachments = validated_data.pop("attachments", [])
 
         for attachment in attachments:
             Ticket_File.objects.create(
@@ -144,8 +148,7 @@ class TicketSerializer(serializers.ModelSerializer):
                 try:
                     user = User.objects.get(id=2) 
                 except User.DoesNotExist:
-                    # Fallback to any user if 3 doesn't exist
-                    user = Users.objects.first()
+                    user = User.objects.first()
 
             # Create the log entry
             Ticket_Log.objects.create(
@@ -162,7 +165,7 @@ class TicketSerializer(serializers.ModelSerializer):
             subject = f"Ticket {new_status} - Your ticket with Ticket Id -"+instance.number
             text_content = "Ticket emails"
             Heading = "Ticket Modified"
-            today = self.today.strftime('%d-%m-%Y')
+            today = date.today().strftime('%d-%m-%Y')
             if new_status == "rejected":
                 content = f"On { today } the ticket with the below data has been rejected with the reason as mentioned below."
                 Receivermail = instance.creator.email
@@ -242,6 +245,7 @@ class TicketSerializer(serializers.ModelSerializer):
         else:
             logLatest = Ticket_Log.objects.filter(ticket=instance).latest('created_at')
             logLatest.assigned_to = assigned_to
+            logLatest.save(update_fields=['assigned_to'])
         return instance
 
 class TicketSummarySerializer(serializers.Serializer):

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -25,10 +25,9 @@ import ClearIcon from "@mui/icons-material/Clear";
 import api from "../../api/axios";
 import type { SelectChangeEvent } from "@mui/material";
 import type {
-  SelfTicketFormData,
   TicketData,
   TicketFormData,
-  UserSummary,
+  groupData
 } from "../../types/dataTypes";
 import {
   modalActionButtonSx,
@@ -55,7 +54,7 @@ type Priority = "high" | "medium" | "low" | "";
 type ValidationErrorResponse = {
   response?: {
     status?: number;
-    data?: Partial<SelfTicketFormData>;
+    data?: Partial<Record<keyof TicketFormData, string | string[]>>;
   };
 };
 
@@ -96,9 +95,10 @@ export default function CreateTicketModal({
   Data,
 }: CreateTicketModalProps) {
   const [formData, setFormData] = useState<TicketFormData>(EMPTY_FORM);
-  const [formErrorData, setFormErrorData] = useState<Partial<SelfTicketFormData>>();
-  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [formErrorData, setFormErrorData] = useState<Partial<Record<keyof TicketFormData, string | string[]>>>({});
+  const [departments, setDepartments] = useState<groupData[]>([]);
   const [loading, setLoading] = useState(false);
+  const userId = useMemo(() => loggedUser(), []);
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +119,7 @@ export default function CreateTicketModal({
         }
         : EMPTY_FORM,
     );
+    setFormErrorData({});
   }, [Data, open]);
 
   // Combine existing and newly selected attachments
@@ -139,19 +140,23 @@ export default function CreateTicketModal({
     if (!open) return;
     let active = true;
     void api
-      .get("/users/")
+      .get("/departments/")
       .then((response) => {
         if (!active) return;
         const source = (
           Array.isArray(response.data) ? response.data : []
-        ) as UserSummary[];
-        setUsers(source.filter((user) => user.users_id !== loggedUser()));
+        ) as groupData[];
+        setDepartments(
+          source.filter(
+            (dept) => dept.manager && dept.manager.id !== userId,
+          ),
+        );
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [open]);
+  }, [open, userId]);
 
   const update = <K extends keyof TicketFormData>(
     field: K,
@@ -159,11 +164,36 @@ export default function CreateTicketModal({
   ) => setFormData((current) => ({ ...current, [field]: value }));
 
   const handleGroupChange = (event: SelectChangeEvent<number | string>) => {
-    const selected = users.find(
-      (user) => user.group_id === Number(event.target.value),
+    const selectedDepartment = departments.find(
+      (item) => item.id === Number(event.target.value),
     );
-    update("department", selected?.group_id ?? "");
-    update("assigned_to", selected?.users_id ?? "");
+    setFormData((current) => ({
+      ...current,
+      department: selectedDepartment?.id ?? "",
+      assigned_to: selectedDepartment?.manager?.id ?? "",
+    }));
+  };
+
+  const selectedDepartment = useMemo(
+    () => departments.find((item) => item.id === Number(formData.department)),
+    [departments, formData.department],
+  );
+
+  const assignedToName =
+    selectedDepartment?.manager?.name ||
+    selectedDepartment?.manager?.username ||
+    Data?.assigned_to_name ||
+    "";
+
+  const errorText = (field: keyof TicketFormData) => {
+    const error = formErrorData?.[field];
+    if (Array.isArray(error)) {
+      return error.join(" ");
+    }
+    if (typeof error === "string") {
+      return error;
+    }
+    return undefined;
   };
 
   const submit = async () => {
@@ -171,12 +201,24 @@ export default function CreateTicketModal({
 
     try {
       const payload = new FormData();
-      // Append normal fields
-      Object.entries(formData).forEach(([key, value]) => {
+      const selectedDepartmentForSubmit = departments.find(
+        (item) => item.id === Number(formData.department),
+      );
+      const resolvedAssignedTo =
+        formData.assigned_to || selectedDepartmentForSubmit?.manager?.id || "";
+      const payloadData: TicketFormData = {
+        ...formData,
+        assigned_to: resolvedAssignedTo,
+        department: formData.department ? Number(formData.department) : "",
+        current_status: Data ? "open" : formData.current_status,
+      };
+
+      Object.entries(payloadData).forEach(([key, value]) => {
         if (
           key !== "id" &&
           key !== "files" &&
           key !== "newAttachments" &&
+          key !== "deletedFileIds" &&
           value !== "" &&
           value != null
         ) {
@@ -191,10 +233,6 @@ export default function CreateTicketModal({
         "deleted_file_ids",
         JSON.stringify(formData.deletedFileIds),
       );
-
-      if (Data) {
-        payload.append("current_status", "open");
-      }
 
       await api[Data ? "patch" : "post"](
         Data ? `/tickets/${Data.id}/` : "/tickets/",
@@ -213,7 +251,7 @@ export default function CreateTicketModal({
       });
     } catch (error: unknown) {
       if (isValidationErrorResponse(error) && error.response?.status === 400) {
-        setFormErrorData(error.response.data);
+        setFormErrorData(error.response.data ?? {});
       } else {
         console.error(error);
       }
@@ -271,7 +309,7 @@ export default function CreateTicketModal({
               value={formData.task}
               onChange={(event) => update("task", event.target.value)}
               error={!!formErrorData?.task}
-              helperText={formErrorData?.task}
+              helperText={errorText("task")}
             />
           </Grid>
           <Grid size={{ xs: 12 }}>
@@ -283,7 +321,7 @@ export default function CreateTicketModal({
               value={formData.description}
               onChange={(event) => update("description", event.target.value)}
               error={!!formErrorData?.description}
-              helperText={formErrorData?.description}
+              helperText={errorText("description")}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -294,12 +332,12 @@ export default function CreateTicketModal({
                 label="Teams"
                 onChange={handleGroupChange}
               >
-                {users.map((user) => (
+                {departments.map((item) => (
                   <MenuItem
-                    key={`${user.group_id}-${user.users_id}`}
-                    value={user.group_id}
+                    key={item.id}
+                    value={item.id}
                   >
-                    {user.group_name}
+                    {item.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -309,11 +347,11 @@ export default function CreateTicketModal({
             <FormControl required fullWidth>
               <InputLabel>Assigned to</InputLabel>
               <Select value={formData.assigned_to} label="Assigned to" disabled>
-                {users.map((user) => (
-                  <MenuItem key={user.users_id} value={user.users_id}>
-                    {user.first_name || user.username}
+                {formData.assigned_to && (
+                  <MenuItem value={formData.assigned_to}>
+                    {assignedToName}
                   </MenuItem>
-                ))}
+                )}
               </Select>
             </FormControl>
           </Grid>

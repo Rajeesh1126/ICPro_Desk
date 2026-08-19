@@ -58,6 +58,7 @@ function isValidationErrorResponse(error: unknown): error is ValidationErrorResp
 
 const EMPTY_FORM: UsersFormData = {
   first_name: "",
+  last_name: "",
   username: "",
   email: "",
   reporting_to: "",
@@ -96,6 +97,7 @@ export default function userCreateModal({
       Data
         ? {
           first_name: Data.first_name || "",
+          last_name: Data.last_name || "",
           username: Data.username || "",
           email: Data.email || "",
           reporting_to: Data.reporting_to || "",
@@ -225,12 +227,9 @@ export default function userCreateModal({
   };
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+ 
   const invalid =
-    !formData.first_name ||
     !formData.username ||
-    !formData.email ||
-    !formData.role ||
-    !formData.reporting_to ||
     (!Data && (!formData.password || formData.password !== confirmPassword))
 
   return (
@@ -265,12 +264,11 @@ export default function userCreateModal({
         </Stack>
       </DialogTitle>
       <DialogContent sx={modalFormContentSx}>
-        <Grid container spacing={1.5} sx={{ mt: 1 }}>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
 
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
-              required
-              label="Employee Name"
+              label="First Name"
               fullWidth
               value={formData.first_name}
               onChange={(event) => update("first_name", event.target.value)}
@@ -278,10 +276,22 @@ export default function userCreateModal({
               helperText={errorText("first_name")}
             />
           </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Last Name"
+              fullWidth
+              value={formData.last_name}
+              onChange={(event) => update("last_name", event.target.value)}
+              error={!!formErrorData?.last_name}
+              helperText={errorText("last_name")}
+            />
+          </Grid>
+
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               required
-              label="EID/User name"
+              label="EID/User Name"
               fullWidth
               value={formData.username}
               onChange={(event) => update("username", event.target.value)}
@@ -291,7 +301,6 @@ export default function userCreateModal({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
-              required
               label="Email"
               fullWidth
               value={formData.email}
@@ -300,17 +309,8 @@ export default function userCreateModal({
               helperText={errorText("email")}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              required
-              label="Designation"
-              fullWidth
-              value={formData.designation}
-              onChange={(event) => update("designation", event.target.value)}
-              error={!!formErrorData?.designation}
-              helperText={errorText("designation")}
-            />
-          </Grid>
+
+
           {!Data && (
             <>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -347,26 +347,7 @@ export default function userCreateModal({
             </>
           )}
           <Grid size={{ xs: 12, sm: 6 }}>
-            <FormControl required fullWidth>
-              <InputLabel>Reporting to</InputLabel>
-              <Select
-                value={formData.reporting_to}
-                label="Reporting to"
-                onChange={(event) => update("reporting_to", event.target.value)}
-              >
-                {users.map((user) => (
-                  <MenuItem
-                    key={`${user.id}`}
-                    value={user.username}
-                  >
-                    {user.first_name || user.username}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <FormControl required fullWidth>
+            <FormControl  fullWidth>
               <InputLabel>Role</InputLabel>
               <Select
                 value={formData.role}
@@ -385,8 +366,55 @@ export default function userCreateModal({
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              label="Designation"
+              fullWidth
+              value={formData.designation}
+              onChange={(event) => update("designation", event.target.value)}
+              error={!!formErrorData?.designation}
+              helperText={errorText("designation")}
+            />
+          </Grid>
+
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <FormControl  fullWidth>
+              <InputLabel>Reporting To</InputLabel>
+              <Select
+                value={formData.reporting_to}
+                label="Reporting To"
+                onChange={(event) => update("reporting_to", event.target.value)}
+              >
+                {users.map((user) => (
+                  <MenuItem
+                    key={`${user.id}`}
+                    value={user.username}
+                  >
+                    {user.first_name || user.username}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <FormControl fullWidth>
+              <InputLabel>Location</InputLabel>
+              <Select
+                value={formData.location}
+                label="Location"
+                onChange={(event) => update("location", event.target.value)}
+              >
+                <MenuItem value="kochi">Kochi</MenuItem>
+                <MenuItem value="banglore">Banglore</MenuItem>
+                <MenuItem value="singapore">Singapore</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 2 }}>
             <FormControlLabel
-              label="Executive role"
+              label="Executive Role"
               control={
                 <Checkbox
                   checked={checked}
@@ -403,10 +431,10 @@ export default function userCreateModal({
               sx={selfTicketsCreateModelFormControlLabelSx1}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <FormControl required fullWidth>
-              <InputLabel>Teams</InputLabel>
 
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <FormControl  fullWidth>
+              <InputLabel>Teams</InputLabel>
               <Select
                 multiple
                 value={formData.groups || []}
@@ -415,38 +443,26 @@ export default function userCreateModal({
                 onChange={(event) => {
                   const value = event.target.value;
 
-	                  update(
-	                    "groups",
-	                    typeof value === "string"
-	                      ? value.split(",")
-	                      : value
-	                  );
+                  update(
+                    "groups",
+                    typeof value === "string"
+                      ? value.split(",")
+                      : value
+                  );
                 }}
                 renderValue={(selected) =>
-	                  (selected as string[]).join(", ")
+                  (selected as string[]).join(", ")
                 }
               >
                 {groups.map((item) => (
-	                  <MenuItem key={item.id} value={item.name}>
+                  <MenuItem key={item.id} value={item.name}>
                     {item.name}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 5 }}>
-            <FormControl required fullWidth>
-              <InputLabel>Location</InputLabel>
-              <Select
-                value={formData.location}
-                label="Location"
-                onChange={(event) => update("location", event.target.value)}
-              >
-                <MenuItem value="kochi">Kochi</MenuItem>
-                <MenuItem value="banglore">Banglore</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
+
           <Grid size={{ xs: 12, sm: 2 }}>
             <FormControlLabel
               label="Active"
@@ -459,9 +475,9 @@ export default function userCreateModal({
               sx={selfTicketsCreateModelFormControlLabelSx1}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 5 }}>
+
+          <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
-              required
               label="Resigned date"
               type="date"
               fullWidth

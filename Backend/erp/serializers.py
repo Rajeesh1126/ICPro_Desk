@@ -31,16 +31,12 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class QuotationSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(read_only=True)
-    repeated_quote = serializers.PrimaryKeyRelatedField(read_only=True)
-
     class Meta:
         model = Quotation
         fields = [
             'id', 'quotation_no', 'revision_number', 'quote_date', 'quote_expiry_date', 'quote_value',
-            'remarks', 'sale_type', 'status', 'create_date', 'create_user', 'create_user_id',
-            'last_updated_date', 'last_updated_user', 'last_updated_user_id', 'version_lock',
-            'project', 'repeated_quote', 'repeated', 'customer_name', 'cost_group', 'system_name',
+            'sale_type', 'status', 'create_date', 'create_user', 'last_updated_date','total_service_price',
+            'covering_letter_subject', 'customer_name', 'custom_project_name', 'system_name',
         ]
 
 

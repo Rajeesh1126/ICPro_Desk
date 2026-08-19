@@ -35,14 +35,14 @@ const pages = [
         path: "/Home/SelfTickets",
         icon: <FormatListBulletedRoundedIcon />,
         iconColor: "#0288d1",
-        codeName: "view_userprofile",
+        codeName: "view_submission",
     },
     {
         label: "Tickets",
         path: "/Home/Tickets",
         icon: <ConfirmationNumberRoundedIcon />,
         iconColor: "#2e7d32",
-        codeName: "view_userprofile",
+        codeName: "view_submission",
     },
     {
         label: "Timesheet",
@@ -56,14 +56,14 @@ const pages = [
         path: "/Home/Reports",
         icon: <AssessmentRoundedIcon />,
         iconColor: "#ed6c02",
-        codeName: "view_userprofile",
+        codeName: "view_submission",
     },
     {
         label: "Team Analysis",
         path: "/Home/Dashboard",
         icon: <AnalyticsRoundedIcon />,
         iconColor: "#9c27b0",
-        codeName: "view_userprofile",
+        codeName: "view_submission",
     },
     {
         label: "Users Managment",

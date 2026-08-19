@@ -60,9 +60,16 @@ export interface rolesData {
 }
 
 export interface groupData {
-  [key: string]: unknown;
-  id: number;
-  name?: string;
+    [key: string]: unknown;
+
+    id: number;
+    name?: string;
+
+    manager?: {
+        id: number;
+        username: string;
+        name: string;
+    } | null;
 }
 
 export interface TicketLog {
@@ -79,6 +86,7 @@ export interface TicketLog {
 export interface TicketFile {
   id?: number;
   file?: string;
+  uploaded_at?: string;
   updated_at?: string;
 }
 
@@ -92,21 +100,17 @@ export interface TicketData {
   est_hours?: number;
   priority: string;
   current_status: string;
-
-  log_id?: number;
   target_date: string;
-  assigned_to_name: string;
+  assigned_to_name?: string | null;
   creator_name?: string;
   creator?: number;
   assigned_to: number | "";
-  assigned_to_details?: UserSummary;
-  creator_details?: UserSummary;
   logs?: TicketLog[];
   latestAcceptedLog?: TicketLog | null;
   display_status?: string;
-  status: string;
+  status?: string;
   created_at?: string;
-  created_date: string;
+  created_date?: string;
   actual_start_date?: string;
   actual_end_date?: string;
   act_hours?: number;
@@ -114,9 +118,7 @@ export interface TicketData {
   latest_logremarks?: string;
   work_efficiency?: number | string;
   schedule_efficiency?: number | string;
-  full_ticket?: unknown;
   files?: TicketFile[] | null;
-  attachments?: TicketFile[] | [] | null;
   department_name?: string;
 }
 
@@ -128,7 +130,6 @@ export interface TicketFormData {
   est_hours?: number;
   current_status?: string;
   priority: string;
-  log_id?: number;
   target_date: string;
   assigned_to: number | "";
   files: TicketFile[];   // existing files from API

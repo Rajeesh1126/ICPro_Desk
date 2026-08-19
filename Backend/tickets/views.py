@@ -8,6 +8,8 @@ from rest_framework import status
 
 from core.permissions import RoleBasedPermission
 from .models import Ticket,Ticket_File,Ticket_Log,Self_Ticket
+from users.models import DepartmentManager
+
 from api.models import Submission
 from rest_framework.decorators import action
 from django.db.models import Count, Sum, OuterRef, Subquery, DateField, F, FloatField, ExpressionWrapper, Q, DurationField, CharField, Count, Value
@@ -30,17 +32,18 @@ class DepartmentMixin:
 
     def get_department_ids(self):
         user = self.request.user
+        print(user)
 
-        groups = set(user.groups.values_list("id", flat=True))
+        groups = set(DepartmentManager.objects.filter(
+                manager=user
+            ).values_list("department_id", flat=True))
 
         include_executive = (
             self.request.query_params.get("include_executive", "false").lower()
             == "true"
         )
         if include_executive:
-            executive = set(
-                user.profile.department_mappings.values_list("id", flat=True)
-            )
+            executive = set(set(user.groups.values_list("id", flat=True)))
             groups |= executive
 
         return list(groups)

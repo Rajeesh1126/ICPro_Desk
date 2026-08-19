@@ -71,10 +71,9 @@ export default function TicketDetailModal({
   const modalPalette = getModalPalette(theme);
 
   // const User = JSON.parse(localStorage.getItem("currentUser") || "null"); // Assuming you store user info in localStorage after login
-  const currentUser = localStorage.getItem("currentUser");
+  const User = JSON.parse(localStorage.getItem("user") ?? "null");
 
-  const User = currentUser ? JSON.parse(currentUser).id : null;
-  const UserName = currentUser ? JSON.parse(currentUser).full_name : null;
+  const UserName = JSON.parse(localStorage.getItem("full_name") ?? "null");
 
   const pStyle = getPriorityPalette(theme, data.priority);
   const requiresEstimatedHours = Number(data.est_hours) === 0;
@@ -110,7 +109,7 @@ export default function TicketDetailModal({
     5: "Excellent",
   };
 
-    const statusMessages: Record<string, string> = {
+  const statusMessages: Record<string, string> = {
     accepted: "Ticket accepted successfully.",
     completed: "Ticket completed successfully.",
     "in progress": "Ticket marked as In Progress successfully.",
@@ -183,7 +182,7 @@ export default function TicketDetailModal({
 
         showNotification({
           type: "success",
-          message:  statusMessages[action ?? ""] ??"Ticket updated successfully.",
+          message: statusMessages[action ?? ""] ?? "Ticket updated successfully.",
         });
         // Optional: trigger a refresh here if you have a refresh function passed as prop
       }

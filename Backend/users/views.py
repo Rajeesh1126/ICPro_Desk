@@ -9,14 +9,13 @@ from .models import  Role
 from .serializers import (
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
-    # DepartmentSerializer,
     ForgotPasswordSerializer,
     GroupSerializer,
-    UserWithGroupsSerializer,
     ResetPasswordSerializer,
     RoleSerializer,
     UserSerializer,
-    TeamSerializer
+    TeamSerializer,
+    DepartmentSerializer
 )
 from django.http import JsonResponse
 # logger = logging.getLogger(__name__)
@@ -60,11 +59,6 @@ class RoleViewSet(viewsets.ModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
-# class DepartmentViewSet(viewsets.ModelViewSet):
-#     queryset = Department.objects.all()
-#     serializer_class = DepartmentSerializer
-#     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
-
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
@@ -83,27 +77,30 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("first_name", "last_name")
         )
 
-class UserWithGroupsViewSet(viewsets.ReadOnlyModelViewSet):
 
-    serializer_class = UserWithGroupsSerializer
+class DepartmentViewSet(viewsets.ModelViewSet):
+
+    queryset = Group.objects.all().order_by('name')
+
+    serializer_class = DepartmentSerializer
+
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
-    def get_queryset(self):
-        return (
-            User.objects
-            .filter(groups__isnull=False)
-            .prefetch_related("groups")
-            .distinct()
-        )
+    http_method_names = [
+        'get',
+        'put',
+        'patch',
+    ]
 
-
+ 
+    
 @api_view(['GET'])
 def currentUserGroups(request):
     groups = list(
         request.user.groups.values('name','id')
     )
     executive_depts = list(
-        request.user.profile.department_mappings.values('department__name','id')
+        request.user.profile.department.values('name','id')
     )
     departments = groups + executive_depts
 

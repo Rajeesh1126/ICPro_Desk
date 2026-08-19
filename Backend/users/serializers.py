@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Role, UserProfile
+from .models import Role, UserProfile,DepartmentManager
 
 User = get_user_model()
 
@@ -43,12 +43,6 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ['id', 'name', 'description', 'permissions']
-
-
-# class DepartmentSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Department
-#         fields = ['id', 'name', 'type', 'description']
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -148,12 +142,15 @@ class UserSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
+
+
     location = serializers.CharField(source='profile.location', allow_blank=True, required=False)
     dept_role = serializers.BooleanField(source='profile.dept_role', required=False)
     exe_role = serializers.BooleanField(source='profile.exe_role', required=False)
     designation = serializers.CharField(source='profile.designation', allow_blank=True, required=False)
     resign_date = serializers.DateField(source='profile.resign_date', allow_null=True, required=False)
 
+    
     class Meta:
         model = User
         fields = [
@@ -172,7 +169,7 @@ class UserSerializer(serializers.ModelSerializer):
             'dept_role',
             'exe_role',
             'designation',
-            'resign_date',
+            'resign_date'
         ]
         read_only_fields = ['id']
         extra_kwargs = {
@@ -246,16 +243,72 @@ class TeamSerializer(serializers.ModelSerializer):
         ]
 
 
-class UserWithGroupsSerializer(serializers.ModelSerializer):
-    groups = GroupSerializer(many=True, read_only=True)
+class DepartmentManagerUserSerializer(serializers.ModelSerializer):
+
+    name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            "id",
-            "username",
-            "first_name",
-            "last_name",
-            "email",
-            "groups",
+            'id',
+            'username',
+            'name',
         ]
+
+    def get_name(self, obj):
+        return obj.get_full_name() or obj.username
+
+class DepartmentSerializer(serializers.ModelSerializer):
+
+    manager = serializers.SerializerMethodField()
+    manager_id = serializers.IntegerField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Group
+        fields = [
+            'id',
+            'name',
+            'manager',
+            'manager_id',
+        ]
+
+    def get_manager(self, obj):
+
+        try:
+            manager = obj.manager_mapping.manager
+
+            if manager is None:
+                return None
+
+            return DepartmentManagerUserSerializer(manager).data
+
+        except DepartmentManager.DoesNotExist:
+            return None
+
+    def update(self, instance, validated_data):
+
+        manager_id = validated_data.pop('manager_id', None)
+
+        if manager_id is not None:
+
+            manager = User.objects.get(id=manager_id)
+
+            DepartmentManager.objects.update_or_create(
+                department=instance,
+                defaults={
+                    'manager': manager
+                }
+            )
+
+        elif 'manager_id' in self.initial_data and manager_id is None:
+
+            # Remove manager
+            DepartmentManager.objects.filter(
+                department=instance
+            ).delete()
+
+        return instance
