@@ -23,7 +23,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Quotation)
 class QuotationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'quotation_no', 'revision_number', 'quote_date', 'status', 'customer_name']
+    list_display = ['id', 'quotation_no', 'customer_name','custom_project_name','system_name','project__name','revision_number', 'quote_date', 'status']
     search_fields = ['quotation_no', 'customer_name', 'project__name']
 
 
