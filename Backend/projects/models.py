@@ -3,22 +3,20 @@ from django.db import models
 
 
 class Project(models.Model):
-    quotation = models.CharField(max_length=25, blank=True, null=True, db_index=True)
-    name = models.CharField(max_length=255, db_index=True)
-    system_name = models.CharField(max_length=255, null=True, blank=True, db_index=True)
-    customer_name = models.CharField(max_length=255, null=True, blank=True, db_index=True)
-    customer_code = models.CharField(max_length=20, null=True, blank=True, db_index=True)
-    quoted_date = models.DateField(null=True, blank=True, db_index=True)
-
+    quotation_id = models.BigIntegerField(blank=True, null=True, db_index=True)
+    name = models.CharField(max_length=25, blank=True, null=True, db_index=True)
+    description = models.CharField(max_length=255, blank=True, null=True,db_index=True)
+    
     class Meta:
         db_table = 'api_project'
 
     def __str__(self):
-        return f"{self.quotation}-{self.customer_name}-{self.name}"
+        return f"{self.name}-{self.description}"
 
 
 class Milestone(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='milestones', db_index=True)
+    category = models.BigIntegerField(blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255, db_index=True)
 
     class Meta:
@@ -30,6 +28,7 @@ class Milestone(models.Model):
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks', db_index=True)
+    cost =models.BigIntegerField(blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255, db_index=True)
     description = models.TextField(blank=True, null=True)
     milestone = models.ForeignKey(
@@ -88,4 +87,6 @@ class AssignedTask(models.Model):
 
     def __str__(self):
         return f"{self.task_obj} ({self.project_obj}) -> {self.assign_to}"
+
+
 

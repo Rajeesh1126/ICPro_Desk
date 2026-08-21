@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import IcproProject, CostSpecification, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
 
 
 class IcproProjectSerializer(serializers.ModelSerializer):
@@ -13,19 +13,13 @@ class IcproProjectSerializer(serializers.ModelSerializer):
         ]
 
 
-class CostSpecificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CostSpecification
-        fields = ['id', 'code', 'name', 'create_date', 'create_user', 'create_user_id', 'last_updated_date', 'last_updated_user', 'last_updated_user_id', 'version_lock']
-
-
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = [
             'id', 'business_value', 'code', 'company_website', 'customer_type', 'industry_domain',
             'industry_domain_name', 'is_internation', 'name', 'status', 'create_date', 'create_user',
-            'create_user_id', 'last_updated_date', 'last_updated_user', 'last_updated_user_id',
+            'create_user_id',  
             'version_lock', 'customer_manager_id', 'bom_margin_percentage',
         ]
 
@@ -35,7 +29,7 @@ class QuotationSerializer(serializers.ModelSerializer):
         model = Quotation
         fields = [
             'id', 'quotation_no', 'revision_number', 'quote_date', 'quote_expiry_date', 'quote_value',
-            'sale_type', 'status', 'create_date', 'create_user', 'last_updated_date','total_service_price',
+            'sale_type', 'status', 'create_date', 'create_user', 'total_service_price',
             'covering_letter_subject', 'customer_name', 'custom_project_name', 'system_name',
         ]
 

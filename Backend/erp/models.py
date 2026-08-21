@@ -26,25 +26,17 @@ class IcproProject(models.Model):
         managed = False
         db_table = 'icpro_project'
 
-class CostSpecification(models.Model):
+class CostCategory(models.Model):
     id = models.BigIntegerField(primary_key=True)
-    code = models.CharField(max_length=10)
-    name = models.CharField(max_length=100)
-    create_date = models.DateTimeField()
-    create_user = models.CharField(max_length=50)
-    create_user_id = models.BigIntegerField()
-    last_updated_date = models.DateTimeField()
-    last_updated_user = models.CharField(max_length=50)
-    last_updated_user_id = models.BigIntegerField()
-    version_lock = models.BigIntegerField(blank=True, null=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'cost_specification'
-        unique_together = (('code', 'name'),)
+        db_table = 'cost_category'
 
 class CostMaster(models.Model):
     id = models.BigIntegerField(primary_key=True)
+    cost_category = models.ForeignKey(CostCategory, models.DO_NOTHING)
     # Add actual ERP cost master fields here when available.
 
     class Meta:
@@ -165,7 +157,6 @@ class QuotationCost(models.Model):
     total_price = models.FloatField(blank=True, null=True)
     version_lock = models.BigIntegerField(blank=True, null=True)
     cost = models.ForeignKey('CostMaster', models.DO_NOTHING, blank=True, null=True)
-    cost_specification = models.ForeignKey(CostSpecification, models.DO_NOTHING, blank=True, null=True)
     quotation = models.ForeignKey(Quotation, models.DO_NOTHING, blank=True, null=True)
     custom_group_name = models.CharField(max_length=200, blank=True, null=True)
     table_group_name = models.CharField(max_length=200, blank=True, null=True)

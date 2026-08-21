@@ -1,17 +1,11 @@
 from django.contrib import admin
 
-from .models import IcproProject, CostSpecification, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
 
 
 @admin.register(IcproProject)
 class IcproProjectAdmin(admin.ModelAdmin):
     list_display = ['id', 'code', 'name', 'status']
-    search_fields = ['code', 'name']
-
-
-@admin.register(CostSpecification)
-class CostSpecificationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'code', 'name']
     search_fields = ['code', 'name']
 
 

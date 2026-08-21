@@ -5,19 +5,19 @@ from .models import AssignedTask, Milestone, Project, Task
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'quotation', 'system_name', 'customer_name', 'customer_code']
-    search_fields = ['name', 'quotation']
+    list_display = [ 'quotation_id','name','description']
+    search_fields = ['quotation_id','name','description']
 
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['name', 'project', 'milestone']
+    list_display = ['name', 'project', 'milestone', 'cost']
     search_fields = ['name']
 
 
 @admin.register(Milestone)
 class MilestoneAdmin(admin.ModelAdmin):
-    list_display = ['name', 'project']
+    list_display = ['name', 'project', 'category']
     search_fields = ['name']
 
 
@@ -27,4 +27,3 @@ class AssignedTaskAdmin(admin.ModelAdmin):
     search_fields = ['task_obj__name', 'project_obj__name']
     list_filter = ['project_obj', 'start_date', 'end_date']
     raw_id_fields = ['project_obj', 'task_obj', 'milestone_obj']
-
