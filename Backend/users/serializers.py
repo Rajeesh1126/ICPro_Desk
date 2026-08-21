@@ -33,6 +33,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "permissions": permissions,
         }
 
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ['id', 'name', 'codename']
+
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -43,7 +48,6 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ['id', 'name', 'description', 'permissions']
-
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -117,7 +121,6 @@ class ResetPasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save(update_fields=['password'])
         return user
-
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.SlugRelatedField(
@@ -230,7 +233,6 @@ class UserSerializer(serializers.ModelSerializer):
             user.groups.set(groups_data)
         return user
 
-
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -241,7 +243,6 @@ class TeamSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
         ]
-
 
 class DepartmentManagerUserSerializer(serializers.ModelSerializer):
 

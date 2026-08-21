@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import type {
     UsersData,
     groupData
@@ -24,6 +24,8 @@ import GroupCreateModal from "../components/Users/groupCreateModal"
 
 import {
     appPageBox,
+    deleteIconSx,
+    editIconSx,
     flexColumnFillSx,
     inlineCenterGapSx,
     modalPrimaryActionButtonSx,
@@ -37,6 +39,7 @@ import {
     type ColumnData,
 } from "../components/common/TableView";
 import { showNotification } from "../api/NotificationService";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 
 
 function storedUserId(): number | null {
@@ -62,10 +65,11 @@ export default function Users() {
     const [groupDialogOpen, setGroupDialogOpen] = useState(false);
     const [groupEditing, setGroupEditing] = useState(false);
     const [selectedGroupRow, setSelectedGroupRow] = useState<groupData | null>(null);
+    const [deleteRow, setDeleteRow] = useState<groupData | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     const [tabValue, setTabValue] = useState(0);
     const [refreshKey, setRefreshKey] = useState(0);
-
 
     // api Request
     useEffect(() => {
@@ -85,7 +89,6 @@ export default function Users() {
             active = false;
         };
     }, [userId, refreshKey]);
-
 
     // Groups
     useEffect(() => {
@@ -111,14 +114,11 @@ export default function Users() {
         };
     }, [userId, refreshKey]);
 
-
-
     const openCreate = useCallback(() => {
         setSelectedRow(null);
         setEditing(false);
         setDialogOpen(true);
     }, []);
-
 
     const openEdit = useCallback((user: UsersData) => {
         setSelectedRow(user);
@@ -143,6 +143,28 @@ export default function Users() {
         setGroupEditing(true);
         setGroupDialogOpen(true);
     }, []);
+
+    const openDelete = useCallback((row: groupData) => {
+        setDeleteRow(row);
+        setDeleteDialogOpen(true);
+        console.log("Delete role:", row);
+    }, []);
+
+    const handleDelete = useCallback(async () => {
+        if (!deleteRow) return;
+        try {
+            await api.delete(`/groups/${deleteRow.id}/`);
+            setDeleteDialogOpen(false);
+            setDeleteRow(null);
+            setRefreshKey((key) => key + 1);
+            showNotification({
+                type: "success",
+                message: "Team deleted successfully.",
+            });
+        } catch (error) {
+            console.error("Failed to delete Team", error);
+        }
+    }, [deleteRow]);
 
     const updateGroupManager = useCallback(
         async (group: groupData, managerId: number | null) => {
@@ -179,7 +201,7 @@ export default function Users() {
 
             showNotification({
                 type: "success",
-                message: managerId ? "Manger Mapped successfully." : "Managre Updated successfully.",
+                message: managerId ? "Manger Mapped successfully." : "Teams Updated successfully.",
                 });
             } catch (error) {
                 console.error("Failed to update department manager", error);
@@ -189,7 +211,6 @@ export default function Users() {
         },
         [users],
     );
-
 
     const closeDialog = useCallback(() => {
         setDialogOpen(false);
@@ -218,13 +239,14 @@ export default function Users() {
                 width: 100,
                 render: (row) => (
                     <Box sx={inlineCenterGapSx}>
+                        {/* edit btn */}
                         <Tooltip title="Edit task">
                             <IconButton
                                 aria-label={`Edit ${row.id}`}
                                 size="small"
                                 onClick={() => openEdit(row)}
                             >
-                                <EditRoundedIcon fontSize="small" />
+                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
                         <Typography variant="body2">{row.username}</Typography>
@@ -252,25 +274,33 @@ export default function Users() {
                 number: true,
             },
             {
-                label: "Name",
-                width: 200,
+                label: "Action",
                 render: (row) => (
                     <Box sx={inlineCenterGapSx}>
+                        {/* edit btn */}
                         <Tooltip title="Edit team">
                             <IconButton
                                 aria-label={`Edit ${row.name || row.id}`}
                                 size="small"
                                 onClick={() => openEditGroup(row)}
                             >
-                                <EditRoundedIcon fontSize="small" />
+                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
-                        <Typography variant="body2">
-                            {row.name}
-                        </Typography>
+                        {/* delete btn */}
+                        <Tooltip title="Delete role">
+                            <IconButton
+                                aria-label={`Delete ${row.id}`}
+                                size="small"
+                                onClick={() => openDelete(row)}
+                            >
+                                <DeleteRoundedIcon fontSize="small" sx={deleteIconSx}/>
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 ),
             },
+            { label: "Name", dataKey: "name", width: 200},
             {
                 label: "Manager",
                 render: (row) => (
@@ -305,16 +335,14 @@ export default function Users() {
         [openEditGroup, savingGroupId, updateGroupManager, users],
     );
 
-
-
     return (
         <Box sx={appPageBox}>
             <Box component="main" sx={flexColumnFillSx}>
                 <Box sx={pageHeaderSx}>
                     <Box>
-                        <Typography variant="h5">Users List</Typography>
+                        <Typography variant="h5">{tabValue === 0 ? "Users List" : "Teams List"}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Manage user accounts, profiles, access, and assignments
+                            {tabValue === 0 ? "Manage user accounts, profiles, access, and assignments" : "Create and manage teams"}
                         </Typography>
                     </Box>
                     <Stack
@@ -373,16 +401,31 @@ export default function Users() {
                     </Box>
                 )}
                 {tabValue === 1 && (
-                    <Box sx={selfTicketsPageBoxSx4}>
-                        <VirtualizedTable
-                            columns={columnsGroup}
-                            rows={groups}
-                            height="100%"
-                            tableHead="Teams"
+                    <>
+                        <Box sx={selfTicketsPageBoxSx4}>
+                            <VirtualizedTable
+                                columns={columnsGroup}
+                                rows={groups}
+                                height="100%"
+                                tableHead="Teams"
+                            />
+                        </Box>
+                        <ConfirmDialog
+                            open={deleteDialogOpen}
+                            onClose={() => {
+                                setDeleteDialogOpen(false);
+                                setDeleteRow(null);
+                            }}
+                            onConfirm={handleDelete}
+                            title="Delete Team"
+                            description={ deleteRow ? `Are you sure you want to delete the team "${deleteRow.name}"?` : "Are you sure you want to delete this team?" }
+                            confirmLabel="Delete"
+                            confirmColor="error"
+                            confirmIcon={<DeleteRoundedIcon />}
+                            tone="error"
                         />
-                    </Box>
+                    </>
                 )}
-
             </Box>
             {!selectedRow && !editing && (
                 <UserCreateModal
@@ -414,8 +457,5 @@ export default function Users() {
             )}
 
         </Box>
-
-
-
     );
 }

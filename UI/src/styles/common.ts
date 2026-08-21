@@ -106,6 +106,14 @@ export const detailLabelSx = {
   textTransform: "capitalize",
 };
 
+export const deleteIconSx = {
+  color: "error.main",
+}
+
+export const editIconSx = {
+  color: "primary.main",
+}
+
 export const detailValueSx = {
   color: "text.primary",
   fontSize: 13,
@@ -2223,6 +2231,15 @@ export const selfTicketsPagePaperSx1: SxProps<Theme> = {
   borderBlock: "1px solid",
   borderColor: "divider",
   px: { xs: 0.5, sm: 2 },
+};
+
+// pages/SelfTickets.styles.ts
+export const selfTicketsPageBoxSx2: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  minHeight: "100dvh",
+  height: { md: "100dvh" },
+  bgcolor: "background. Default",
 };
 
 export const selfTicketsPageBoxSx4: SxProps<Theme> = {

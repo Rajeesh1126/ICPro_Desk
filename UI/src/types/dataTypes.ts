@@ -53,10 +53,18 @@ export interface ReportingEmployees {
 }
 
 export interface rolesData {
+  [key: string]: unknown;
+
   id: number;
   name: string;
   description: string | null;
   permissions: any[];
+}
+
+export interface permissionData {
+  id: number;
+  name: string;
+  codename: string;
 }
 
 export interface groupData {

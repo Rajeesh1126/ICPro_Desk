@@ -4,9 +4,39 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.permissions import RoleBasedPermission
-from projects.models import AssignedTask, Milestone, Project
-from .models import Submission, TimesheetStatus
-from .serializers import SubmissionSerializer, TimesheetStatusSerializer
+from .models import AssignedTask, Submission, Project, Task, Milestone, TimesheetStatus
+from .serializers import (
+    AssignedTaskSerializer,
+    SubmissionSerializer,
+    ProjectSerializer,
+    TaskSerializer,
+    MilestoneSerializer,
+    TimesheetStatusSerializer,
+)
+
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+    permission_classes = [RoleBasedPermission]
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    permission_classes = [RoleBasedPermission]
+
+
+class MilestoneViewSet(viewsets.ModelViewSet):
+    queryset = Milestone.objects.all()
+    serializer_class = MilestoneSerializer
+    permission_classes = [RoleBasedPermission]
+
+
+class AssignedTaskViewSet(viewsets.ModelViewSet):
+    queryset = AssignedTask.objects.all()
+    serializer_class = AssignedTaskSerializer
+    permission_classes = [RoleBasedPermission]
 
 
 class SubmissionViewSet(viewsets.ModelViewSet):

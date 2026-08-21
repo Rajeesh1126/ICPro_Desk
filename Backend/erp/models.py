@@ -25,23 +25,34 @@ class IcproProject(models.Model):
     class Meta:
         managed = False
         db_table = 'icpro_project'
+        default_permissions = ()
 
-class CostCategory(models.Model):
+class CostSpecification(models.Model):
     id = models.BigIntegerField(primary_key=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
+    code = models.CharField(max_length=10)
+    name = models.CharField(max_length=100)
+    create_date = models.DateTimeField()
+    create_user = models.CharField(max_length=50)
+    create_user_id = models.BigIntegerField()
+    last_updated_date = models.DateTimeField()
+    last_updated_user = models.CharField(max_length=50)
+    last_updated_user_id = models.BigIntegerField()
+    version_lock = models.BigIntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'cost_category'
+        db_table = 'cost_specification'
+        unique_together = (('code', 'name'),)
+        default_permissions = ()
 
 class CostMaster(models.Model):
     id = models.BigIntegerField(primary_key=True)
-    cost_category = models.ForeignKey(CostCategory, models.DO_NOTHING)
     # Add actual ERP cost master fields here when available.
 
     class Meta:
         managed = False
         db_table = 'cost_master'
+        default_permissions = ()
 
 class Customer(models.Model):
     id = models.BigIntegerField(primary_key=True)
@@ -67,6 +78,7 @@ class Customer(models.Model):
     class Meta:
         managed = False
         db_table = 'customer'
+        default_permissions = ()
 
 class Quotation(models.Model):
     id = models.BigIntegerField(primary_key=True)
@@ -137,6 +149,7 @@ class Quotation(models.Model):
         managed = False
         db_table = 'quotation'
         unique_together = (('quotation_no', 'revision_number'),)
+        default_permissions = ()
 
 class QuotationCost(models.Model):
     id = models.BigIntegerField(primary_key=True)
@@ -157,6 +170,7 @@ class QuotationCost(models.Model):
     total_price = models.FloatField(blank=True, null=True)
     version_lock = models.BigIntegerField(blank=True, null=True)
     cost = models.ForeignKey('CostMaster', models.DO_NOTHING, blank=True, null=True)
+    cost_specification = models.ForeignKey(CostSpecification, models.DO_NOTHING, blank=True, null=True)
     quotation = models.ForeignKey(Quotation, models.DO_NOTHING, blank=True, null=True)
     custom_group_name = models.CharField(max_length=200, blank=True, null=True)
     table_group_name = models.CharField(max_length=200, blank=True, null=True)
@@ -167,3 +181,4 @@ class QuotationCost(models.Model):
     class Meta:
         managed = False
         db_table = 'quotation_cost'
+        default_permissions = ()

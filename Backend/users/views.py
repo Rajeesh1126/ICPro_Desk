@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group,Permission
 from rest_framework import permissions, status, viewsets
+from rest_framework.generics import ListAPIView
 from rest_framework.decorators import action,api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -15,7 +16,8 @@ from .serializers import (
     RoleSerializer,
     UserSerializer,
     TeamSerializer,
-    DepartmentSerializer
+    DepartmentSerializer,
+    PermissionSerializer
 )
 from django.http import JsonResponse
 # logger = logging.getLogger(__name__)
@@ -59,6 +61,11 @@ class RoleViewSet(viewsets.ModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
+class PermissionListView(viewsets.ReadOnlyModelViewSet):
+    queryset = Permission.objects.all().order_by('name')
+    serializer_class = PermissionSerializer
+    permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
@@ -77,7 +84,6 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("first_name", "last_name")
         )
 
-
 class DepartmentViewSet(viewsets.ModelViewSet):
 
     queryset = Group.objects.all().order_by('name')
@@ -92,8 +98,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         'patch',
     ]
 
- 
-    
 @api_view(['GET'])
 def currentUserGroups(request):
     groups = list(

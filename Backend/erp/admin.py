@@ -1,11 +1,17 @@
 from django.contrib import admin
 
-from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, CostSpecification, Customer, Quotation, QuotationCost, CostMaster
 
 
 @admin.register(IcproProject)
 class IcproProjectAdmin(admin.ModelAdmin):
     list_display = ['id', 'code', 'name', 'status']
+    search_fields = ['code', 'name']
+
+
+@admin.register(CostSpecification)
+class CostSpecificationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'code', 'name']
     search_fields = ['code', 'name']
 
 
@@ -17,7 +23,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Quotation)
 class QuotationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'quotation_no', 'customer_name','custom_project_name','system_name','project__name','revision_number', 'quote_date', 'status']
+    list_display = ['id', 'quotation_no', 'revision_number', 'quote_date', 'status', 'customer_name']
     search_fields = ['quotation_no', 'customer_name', 'project__name']
 
 

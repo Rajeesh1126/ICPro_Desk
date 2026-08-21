@@ -4,8 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from projects.models import AssignedTask, Milestone, Project, Task
-from .models import Submission
+from .models import AssignedTask, Milestone, Project, Submission, Task
 
 User = get_user_model()
 

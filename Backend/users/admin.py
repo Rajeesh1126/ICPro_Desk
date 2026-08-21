@@ -11,5 +11,5 @@ class RoleAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'role','location', 'designation']
-    search_fields = ['user__username', 'role','location', 'designation']
+    list_display = ['user', 'location', 'designation', 'resign_date']
+    search_fields = ['user__username', 'location', 'designation']
