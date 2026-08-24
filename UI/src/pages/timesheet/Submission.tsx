@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   Collapse,
   FormControl,
   IconButton,
@@ -17,177 +18,61 @@ import {
   TextField,
   useTheme,
 } from "@mui/material";
-
+import api from "../../api/axios";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { modalActionButtonSx, stickyTableCellSx, tableHeaderCellSx, tableHeadSx } from "../../styles/common";
 
-// =========================================================
-// Types
-// =========================================================
-
-interface TaskEntry {
-  [date: string]: number;
-}
-
-interface AssignedTask {
-  assign_id: number;
-  assign_by: string;
-  name: string;
-  entries: TaskEntry;
-}
-
-interface Milestone {
-  id: number;
-  name: string;
-  assigned_tasks: AssignedTask[];
-}
-
-interface SubmissionProject {
-  id: number;
-  name: string;
-  quotation: string;
-  milestones: Milestone[];
-}
-
-// =========================================================
-// Sample API Response
-// =========================================================
-
-const initialData: SubmissionProject[] = [
-  {
-    id: 1,
-    name: "HMI Migration",
-    quotation: "ICP/PR/2091",
-
-    milestones: [
-      {
-        id: 1,
-        name: "HMI Programing",
-
-        assigned_tasks: [
-          {
-            assign_id: 1,
-            assign_by: "Admin",
-            name: "HMI Scada programing",
-            entries: {
-              "2026-08-07": 4,
-            },
-          },
-
-          {
-            assign_id: 2,
-            assign_by: "Anoop Balamohan",
-            name: "HMI Screen Development",
-            entries: {
-              "2026-08-10": 5,
-              "2026-08-11": 2,
-            },
-          },
-
-          {
-            assign_id: 3,
-            assign_by: "Muralikrishnan R",
-            name: "HMI Testing",
-            entries: {
-              "2026-08-12": 3,
-            },
-          },
-        ],
-      },
-
-      {
-        id: 2,
-        name: "Engineering, Design & Documentation",
-
-        assigned_tasks: [
-          {
-            assign_id: 4,
-            assign_by: "Admin",
-            name: "Requirement Study / Site Visits",
-            entries: {
-              "2026-08-10": 2,
-              "2026-08-11": 4,
-            },
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: 2,
-    name: "ERP Software Improvements",
-    quotation: "ICP/PR/2092",
-
-    milestones: [
-      {
-        id: 3,
-        name: "ERP Development",
-
-        assigned_tasks: [
-          {
-            assign_id: 5,
-            assign_by: "Libina",
-            name: "ERP API Development",
-            entries: {
-              "2026-08-10": 4,
-              "2026-08-11": 4,
-            },
-          },
-        ],
-      },
-    ],
-  },
-];
+import type {
+  TaskEntry,
+  AssignedTask,
+  Milestone,
+  SubmissionProject,
+  UsersData
+} from "../../types/dataTypes";
+import { showNotification } from "../../api/NotificationService";
 
 // =========================================================
 // Week
 // =========================================================
 
-const weekDays = [
-  {
-    label: "Mon-10",
-    date: "2026-08-10",
-  },
-  {
-    label: "Tue-11",
-    date: "2026-08-11",
-  },
-  {
-    label: "Wed-12",
-    date: "2026-08-12",
-  },
-  {
-    label: "Thu-13",
-    date: "2026-08-13",
-  },
-  {
-    label: "Fri-14",
-    date: "2026-08-14",
-  },
-  {
-    label: "Sat-15",
-    date: "2026-08-15",
-  },
-  {
-    label: "Sun-16",
-    date: "2026-08-16",
-  },
-];
+type WeekDay = {
+  label: string;
+  date: string;
+};
 
-// =========================================================
-// Budget Owners
-// =========================================================
+type SubmissionProps = {
+  weekStart: string;
+  refreshKey: number;
+  selectedAssignedTaskIds: number[];
+  onAssignedTaskSelectionChange: (assignedTaskId: number, checked: boolean) => void;
+};
 
-const budgetOwners = [
-  "Admin",
-  "Anoop Balamohan",
-  "Muralikrishnan R",
-  "Libina",
-  "Adritha",
-];
+const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const createWeekDays = (weekStart: string): WeekDay[] => {
+  const startDate = new Date(`${weekStart}T00:00:00`);
+
+  return dayLabels.map((label, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+
+    const dayNumber = String(date.getDate()).padStart(2, "0");
+
+    return {
+      label: `${label}-${dayNumber}`,
+      date: formatLocalDate(date),
+    };
+  });
+};
 
 // =========================================================
 // Common Column Widths
@@ -198,31 +83,37 @@ const columnWidths = {
   budgetOwner: 190,
   day: 100,
   total: 90,
-  action: 45,
+  select: 70,
 };
 
 // =========================================================
 // Helpers
 // =========================================================
 
-const getTaskTotal = (task: AssignedTask) => {
+const getTaskTotal = (task: AssignedTask, weekDays: WeekDay[]) => {
   return weekDays.reduce(
     (total, day) => total + (task.entries[day.date] ?? 0),
     0,
   );
 };
 
-const getMilestoneTotal = (milestone: Milestone) => {
+const getMilestoneTotal = (milestone: Milestone, weekDays: WeekDay[]) => {
   return milestone.assigned_tasks.reduce(
-    (total, task) => total + getTaskTotal(task),
+    (total, task) => total + getTaskTotal(task, weekDays),
     0,
   );
 };
 
-const getProjectTotal = (project: SubmissionProject) => {
+const getProjectTotal = (project: SubmissionProject, weekDays: WeekDay[]) => {
   return project.milestones.reduce(
-    (total, milestone) => total + getMilestoneTotal(milestone),
+    (total, milestone) => total + getMilestoneTotal(milestone, weekDays),
     0,
+  );
+};
+
+const getProjectAssignedTaskIds = (project: SubmissionProject) => {
+  return project.milestones.flatMap((milestone) =>
+    milestone.assigned_tasks.map((task) => task.assign_id),
   );
 };
 
@@ -230,12 +121,21 @@ const getProjectTotal = (project: SubmissionProject) => {
 // Component
 // =========================================================
 
-export default function Submission() {
+export default function Submission({
+  weekStart,
+  refreshKey,
+  selectedAssignedTaskIds,
+  onAssignedTaskSelectionChange,
+}: SubmissionProps) {
 
   const theme = useTheme();
+  const weekDays = createWeekDays(weekStart);
 
   const [projects, setProjects] =
-    useState<SubmissionProject[]>(initialData);
+    useState<SubmissionProject[]>([]);
+
+  const [budgetOwners, setBudgetOwners] =
+    useState<UsersData[]>([]);
 
   const [expandedProjects, setExpandedProjects] =
     useState<number[]>([1]);
@@ -243,6 +143,42 @@ export default function Submission() {
   const [expandedMilestones, setExpandedMilestones] =
     useState<number[]>([1]);
 
+  const [savingDraft, setSavingDraft] = useState(false);
+
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .get("/timesheet-entries/", {
+        params: {
+          week_start: weekStart,
+        },
+      })
+      .then((response) => {
+        console.log(response)
+        if (active) setProjects((Array.isArray(response.data) ? response.data : []) as SubmissionProject[]);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [weekStart, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .get<UsersData[]>("/users/")
+      .then((response) => {
+        if (!active) return;
+        setBudgetOwners(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch((error) => {
+        console.error("Failed to load users", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
   // =======================================================
   // Project Expand / Collapse
   // =======================================================
@@ -336,12 +272,14 @@ export default function Submission() {
   // Update Budget Owner
   // =======================================================
 
-  const updateBudgetOwner = (
+  const updateBudgetOwner = async (
     projectId: number,
     milestoneId: number,
     taskId: number,
     owner: string,
   ) => {
+    let previousOwner = "";
+
     setProjects((current) =>
       current.map((project) => {
         if (project.id !== projectId) {
@@ -369,6 +307,8 @@ export default function Submission() {
                         return task;
                       }
 
+                      previousOwner = task.assign_by;
+
                       return {
                         ...task,
                         assign_by: owner,
@@ -381,60 +321,131 @@ export default function Submission() {
         };
       }),
     );
-  };
 
-  // =======================================================
-  // Delete Task
-  // =======================================================
+    try {
+      await api.patch(`/assigned-tasks/${taskId}/`, {
+        assign_by: owner || null,
+      });
+       showNotification({
+        type: "success",
+        message: "Updated the Budget Owner successfully .",
+      });
+    } catch {
+      setProjects((current) =>
+        current.map((project) => {
+          if (project.id !== projectId) {
+            return project;
+          }
 
-  const removeTask = (
-    projectId: number,
-    milestoneId: number,
-    taskId: number,
-  ) => {
-    setProjects((current) =>
-      current.map((project) => {
-        if (project.id !== projectId) {
-          return project;
-        }
-
-        return {
-          ...project,
-
-          milestones: project.milestones.map(
-            (milestone) => {
+          return {
+            ...project,
+            milestones: project.milestones.map((milestone) => {
               if (milestone.id !== milestoneId) {
                 return milestone;
               }
 
               return {
                 ...milestone,
-
-                assigned_tasks:
-                  milestone.assigned_tasks.filter(
-                    (task) =>
-                      task.assign_id !== taskId,
-                  ),
+                assigned_tasks: milestone.assigned_tasks.map((task) =>
+                  task.assign_id === taskId
+                    ? {
+                      ...task,
+                      assign_by: previousOwner,
+                    }
+                    : task,
+                ),
               };
-            },
-          ),
-        };
-      }),
-    );
+            }),
+          };
+        }),
+      );
+    }
   };
 
   // =======================================================
   // Save Draft
   // =======================================================
 
-  const saveDraft = () => {
-    console.log("Saving draft:", projects);
+  const saveDraft = async () => {
+    const entries = projects.flatMap((project) =>
+      project.milestones.flatMap((milestone) =>
+        milestone.assigned_tasks.flatMap((task) =>
+          weekDays
+            .map((day) => ({
+              assignId: task.assign_id,
+              date: day.date,
+              hours: task.entries[day.date] ?? 0,
+              hasEntry: Object.prototype.hasOwnProperty.call(task.entries, day.date),
+            }))
+            .filter((entry) => entry.hasEntry || entry.hours > 0)
+            .map(({ hasEntry: _hasEntry, ...entry }) => entry),
+        ),
+      ),
+    );
 
-    // API call can be added here
-    //
-    // axios.post("/api/submissions/draft/", {
-    //   projects,
-    // });
+    setSavingDraft(true);
+    try {
+      const response = await api.post("/timesheet-entries/save-draft/", {
+        entries,
+      });
+
+      const savedEntries = Array.isArray(response.data?.entries)
+        ? response.data.entries
+        : [];
+      const deletedEntries = Array.isArray(response.data?.deleted_entries)
+        ? response.data.deleted_entries
+        : [];
+
+      setProjects((current) =>
+        current.map((project) => ({
+          ...project,
+          milestones: project.milestones.map((milestone) => ({
+            ...milestone,
+            assigned_tasks: milestone.assigned_tasks.map((task) => {
+              const taskEntries = savedEntries.filter(
+                (entry: { assignId: number }) => entry.assignId === task.assign_id,
+              );
+              const taskDeletedEntries = deletedEntries.filter(
+                (entry: { assignId: number }) => entry.assignId === task.assign_id,
+              );
+
+              if (taskEntries.length === 0 && taskDeletedEntries.length === 0) {
+                return task;
+              }
+
+              const nextEntries = { ...task.entries };
+
+              taskDeletedEntries.forEach((entry: { date: string }) => {
+                delete nextEntries[entry.date];
+              });
+
+              return {
+                ...task,
+                entries: taskEntries.reduce(
+                  (
+                    entriesMap: TaskEntry,
+                    entry: { date: string; hours: number },
+                  ) => ({
+                    ...entriesMap,
+                    [entry.date]: entry.hours,
+                  }),
+                  nextEntries,
+                ),
+              };
+            }),
+          })),
+        })),
+      );
+
+      showNotification({
+        type: "success",
+        message: "Time sheet saved as draft successfully .",
+      });
+    } catch {
+      // Global axios error handling shows API failures.
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   // =======================================================
@@ -540,12 +551,16 @@ export default function Submission() {
               {/* Action */}
 
               <TableCell
+                align="center"
                 sx={{
                   ...tableHeaderCellSx(theme),
-                  width: columnWidths.action,
-                  minWidth: columnWidths.action,
+                  width: columnWidths.select,
+                  minWidth: columnWidths.select,
                 }}
-              />
+              >
+                Actions
+              </TableCell>
+
             </TableRow>
           </TableHead >
 
@@ -561,7 +576,17 @@ export default function Submission() {
                 );
 
               const projectTotal =
-                getProjectTotal(project);
+                getProjectTotal(project, weekDays);
+              const projectAssignedTaskIds = getProjectAssignedTaskIds(project);
+              const selectedProjectTaskCount = projectAssignedTaskIds.filter((taskId) =>
+                selectedAssignedTaskIds.includes(taskId),
+              ).length;
+              const allProjectTasksSelected =
+                projectAssignedTaskIds.length > 0 &&
+                selectedProjectTaskCount === projectAssignedTaskIds.length;
+              const someProjectTasksSelected =
+                selectedProjectTaskCount > 0 &&
+                selectedProjectTaskCount < projectAssignedTaskIds.length;
 
               return (
                 <React.Fragment
@@ -610,7 +635,7 @@ export default function Submission() {
                               fontWeight: 600,
                             }}
                           >
-                            {project.name}
+                            {project.description}
                           </Box>
 
                           <Box
@@ -619,7 +644,7 @@ export default function Submission() {
                               color: "text.secondary",
                             }}
                           >
-                            {project.quotation}
+                            {project.name}
                           </Box>
                         </Box>
                       </Box>
@@ -664,25 +689,35 @@ export default function Submission() {
                       {projectTotal}
                     </TableCell>
 
-                    {/* Project Action */}
+                    {/* Project Select */}
 
                     <TableCell
                       align="center"
                       sx={{
                         ...stickyTableCellSx(theme),
-                        width: columnWidths.action,
-                        minWidth: columnWidths.action,
+                        width: columnWidths.select,
+                        minWidth: columnWidths.select,
                       }}
                     >
-                      <IconButton size="small">
-                        <CloseRoundedIcon
-                          fontSize="small"
-                          sx={{
-                            color: "error.main",
-                          }}
-                        />
-                      </IconButton>
+                      <Checkbox
+                        size="small"
+                        checked={allProjectTasksSelected}
+                        indeterminate={someProjectTasksSelected}
+                        disabled={projectAssignedTaskIds.length === 0}
+                        onChange={(event) => {
+                          projectAssignedTaskIds.forEach((taskId) => {
+                            onAssignedTaskSelectionChange(
+                              taskId,
+                              event.target.checked,
+                            );
+                          });
+                        }}
+                        inputProps={{
+                          "aria-label": `Select all tasks for ${project.description || project.name}`,
+                        }}
+                      />
                     </TableCell>
+
                   </TableRow>
 
                   {/* =================================================
@@ -732,6 +767,7 @@ export default function Submission() {
                                   const milestoneTotal =
                                     getMilestoneTotal(
                                       milestone,
+                                      weekDays,
                                     );
 
                                   return (
@@ -847,14 +883,16 @@ export default function Submission() {
                                         {/* Action */}
 
                                         <TableCell
+                                          align="center"
                                           sx={{
                                             ...stickyTableCellSx(theme),
                                             width:
-                                              columnWidths.action,
+                                              columnWidths.select,
                                             minWidth:
-                                              columnWidths.action,
+                                              columnWidths.select,
                                           }}
                                         />
+
                                       </TableRow>
 
                                       {/* =================================================
@@ -867,6 +905,7 @@ export default function Submission() {
                                             const taskTotal =
                                               getTaskTotal(
                                                 task,
+                                                weekDays,
                                               );
 
                                             return (
@@ -915,9 +954,7 @@ export default function Submission() {
                                                     fullWidth
                                                   >
                                                     <Select
-                                                      value={
-                                                        task.assign_by
-                                                      }
+                                                      value={task.assign_by ?? ""}
                                                       onChange={(
                                                         event,
                                                       ) =>
@@ -935,28 +972,29 @@ export default function Submission() {
                                                           "0.8rem",
                                                       }}
                                                     >
-                                                      {budgetOwners.map(
-                                                        (
-                                                          owner,
-                                                        ) => (
+                                                      {budgetOwners.map((owner) => {
+                                                        const ownerName = [
+                                                          owner.first_name,
+                                                          owner.last_name,
+                                                        ]
+                                                          .filter(Boolean)
+                                                          .join(" ")
+                                                          .trim();
+                                                        const label = ownerName || owner.username;
+
+                                                        return (
                                                           <MenuItem
-                                                            key={
-                                                              owner
-                                                            }
-                                                            value={
-                                                              owner
-                                                            }
+                                                            key={owner.id}
+                                                            value={owner.username}
                                                             sx={{
                                                               fontSize:
                                                                 "0.8rem",
                                                             }}
                                                           >
-                                                            {
-                                                              owner
-                                                            }
+                                                            {label}
                                                           </MenuItem>
-                                                        ),
-                                                      )}
+                                                        );
+                                                      })}
                                                     </Select>
                                                   </FormControl>
                                                 </TableCell>
@@ -1054,30 +1092,26 @@ export default function Submission() {
                                                   align="center"
                                                   sx={{
                                                     width:
-                                                      columnWidths.action,
+                                                      columnWidths.select,
                                                     minWidth:
-                                                      columnWidths.action,
+                                                      columnWidths.select,
                                                   }}
                                                 >
-                                                  <IconButton
+                                                  <Checkbox
                                                     size="small"
-                                                    onClick={() =>
-                                                      removeTask(
-                                                        project.id,
-                                                        milestone.id,
+                                                    checked={selectedAssignedTaskIds.includes(task.assign_id)}
+                                                    onChange={(event) =>
+                                                      onAssignedTaskSelectionChange(
                                                         task.assign_id,
+                                                        event.target.checked,
                                                       )
                                                     }
-                                                  >
-                                                    <CloseRoundedIcon
-                                                      fontSize="small"
-                                                      sx={{
-                                                        color:
-                                                          "error.main",
-                                                      }}
-                                                    />
-                                                  </IconButton>
+                                                    inputProps={{
+                                                      "aria-label": `Select ${task.name}`,
+                                                    }}
+                                                  />
                                                 </TableCell>
+
                                               </TableRow>
                                             );
                                           },
@@ -1119,9 +1153,10 @@ export default function Submission() {
           variant="contained"
           size="small"
           onClick={saveDraft}
+          disabled={savingDraft}
           sx={modalActionButtonSx}
         >
-          Save Draft
+          {savingDraft ? "Saving..." : "Save Draft"}
         </Button>
       </Box>
     </Box>

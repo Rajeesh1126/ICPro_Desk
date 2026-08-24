@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link as RouterLink, Outlet, useLocation } from "react-router-dom";
 import {
     Box,
@@ -16,9 +16,7 @@ import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
-import AssignmentTurnedInRoundedIcon from "@mui/icons-material/AssignmentTurnedInRounded";
 import Header from "../components/AppBar/header";
-import api from "../api/axios";
 
 const SIDEBAR_WIDTH = 265;
 const SIDEBAR_COLLAPSED_WIDTH = 64;

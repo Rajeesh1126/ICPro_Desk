@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -27,7 +27,6 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import { alpha, type Theme } from "@mui/material/styles";
 import logo from "../../assets/icpro_logo.svg";
 import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
-import api from "../../api/axios";
 import { useThemeMode } from "../../styles/theme/themeModeContext";
 import {
   appBarHeaderAvatarSx1,

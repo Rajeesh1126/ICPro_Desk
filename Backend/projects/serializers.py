@@ -1,9 +1,12 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from erp.models import Quotation
+from erp.models import CostMaster, Quotation
 from .models import AssignedTask, Milestone, Project, Task
-from .services.project_service import create_project_milestones_tasks_and_assignments
+from .services.project_service import (
+    create_milestones_tasks_and_assignments_from_cost_masters,
+    create_project_milestones_tasks_and_assignments,
+)
 
 User = get_user_model()
 
@@ -122,6 +125,41 @@ class AssignedTaskSerializer(serializers.ModelSerializer):
             'start_date', 'end_date', 'created_date', 'updated_date',
         ]
 
-# ===========================================
-# to do create project 
-# ===========================================
+
+class AddCostMasterTasksSerializer(serializers.Serializer):
+    cost_master_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
+    )
+
+    def validate_cost_master_ids(self, value):
+        unique_ids = list(dict.fromkeys(value))
+        cost_masters = list(
+            CostMaster.objects
+            .select_related('cost_category')
+            .filter(id__in=unique_ids)
+        )
+        found_ids = {cost_master.id for cost_master in cost_masters}
+        missing_ids = [cost_master_id for cost_master_id in unique_ids if cost_master_id not in found_ids]
+
+        if missing_ids:
+            raise serializers.ValidationError(f'CostMaster ids not found in ERP: {missing_ids}')
+
+        self.cost_masters = cost_masters
+        return unique_ids
+
+    def save(self, **kwargs):
+        request = self.context.get('request')
+        project = self.context['project']
+        requested_user = request.user if request and request.user and request.user.is_authenticated else None
+        reporting_manager = None
+
+        if requested_user:
+            reporting_manager = getattr(getattr(requested_user, 'profile', None), 'reporting_to', None)
+
+        return create_milestones_tasks_and_assignments_from_cost_masters(
+            project=project,
+            cost_masters=self.cost_masters,
+            assign_to=requested_user,
+            assign_by=reporting_manager,
+        )

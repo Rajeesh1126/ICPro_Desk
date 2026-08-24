@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   IconButton,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -30,6 +29,7 @@ import api from "../../api/axios";
 import {
   appPageBox,
   flexColumnFillSx,
+  inlineCenterGapSx,
   modalActionButtonSx,
   pageHeaderSx,
   responsiveRightActionsSx,
@@ -159,7 +159,7 @@ export default function Tickets() {
         label: "Ticket Number",
         width: 180,
         render: (row) => (
-          <Stack direction="row" spacing={1}>
+          <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
@@ -170,7 +170,6 @@ export default function Tickets() {
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit ticket">
-              <span>
                 <IconButton
                   aria-label={`Edit ${row.number}`}
                   size="small"
@@ -187,10 +186,9 @@ export default function Tickets() {
                 >
                   <EditRoundedIcon fontSize="small" />
                 </IconButton>
-              </span>
             </Tooltip>
             <Typography variant="body2">{row.number}</Typography>
-          </Stack>
+          </Box>
         ),
       },
       { label: "Subject", dataKey: "task", width: 500 },

@@ -4,7 +4,7 @@ from django.db import models
 
 class Project(models.Model):
     quotation_id = models.BigIntegerField(blank=True, null=True, db_index=True)
-    name = models.CharField(max_length=25, blank=True, null=True, db_index=True)
+    name = models.CharField(max_length=40, blank=True, null=True, db_index=True)
     description = models.CharField(max_length=255, blank=True, null=True,db_index=True)
     
     class Meta:
@@ -87,6 +87,5 @@ class AssignedTask(models.Model):
 
     def __str__(self):
         return f"{self.task_obj} ({self.project_obj}) -> {self.assign_to}"
-
 
 
