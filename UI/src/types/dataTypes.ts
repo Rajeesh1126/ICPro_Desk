@@ -52,6 +52,18 @@ export interface ReportingEmployees {
   first_name?: string;
 }
 
+export interface ApprovalRow {
+  [key: string]: unknown;
+
+  id: number;
+  name: string;
+  reporting_to: string;
+  hours: number;
+  overview: "Submitted" | "Accepted" | "Rejected" | "Locked" | "Unlocked" | "Not Submitted";
+  submission_status: "OnTime" | "Delayed" | `Due by ${string}`;
+  approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
+}
+
 export interface rolesData {
   [key: string]: unknown;
 
@@ -212,3 +224,47 @@ export type NotificationsType = {
   selfticketOpenCount: number;
   ticketOpenCount: number;
 };
+
+// =========================================================
+// Submission Types
+// =========================================================
+
+export interface TaskEntry {
+  [date: string]: number;
+}
+
+ export interface AssignedTask {
+  assign_id: number;
+  assign_by: string;
+  name: string;
+  entries: TaskEntry;
+}
+
+export interface Milestone {
+  id: number;
+  name: string;
+  assigned_tasks: AssignedTask[];
+}
+
+export interface SubmissionProject {
+  id: number;
+  name: string;
+  quotation_id: number;
+  description:string,
+  milestones: Milestone[];
+}
+
+export interface ERPQuotation {
+  [key: string]: unknown;
+  id: number;
+  quotation_no: string;
+  revision_number: number;
+  sale_type: string;
+  status: string;
+  create_date: string;
+  customer_name: string;
+  custom_project_name: string | null;
+  system_name: string | null;
+  project__name?: string | null;
+}
+

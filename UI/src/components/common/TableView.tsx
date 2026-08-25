@@ -86,14 +86,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
             const lower = searchText.toLowerCase();
 
             filtered = rows.filter((row) =>
-                columns.some((column) => {
-                    if (!column.dataKey) return false;
-
-                    const value = row[column.dataKey];
-                    if (value == null) return false;
-
-                    return String(value).toLowerCase().includes(lower);
-                })
+                JSON.stringify(row).toLowerCase().includes(lower)
             );
         }
         if (sortField) {

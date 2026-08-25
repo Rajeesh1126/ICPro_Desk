@@ -1,44 +1,25 @@
-from django.db.models import Prefetch
+from datetime import timedelta
+
+from django.db.models import Prefetch, Q
+from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
+from rest_framework.permissions import IsAuthenticated
 from core.permissions import RoleBasedPermission
-from .models import AssignedTask, Submission, Project, Task, Milestone, TimesheetStatus
+from projects.models import AssignedTask, Milestone, Project
+from .models import Submission, TimesheetStatus
+from django.contrib.auth import get_user_model
 from .serializers import (
-    AssignedTaskSerializer,
     SubmissionSerializer,
-    ProjectSerializer,
-    TaskSerializer,
-    MilestoneSerializer,
+    TimesheetDraftSerializer,
+    TimesheetExtendTasksSerializer,
+    TimesheetRemoveTasksSerializer,
     TimesheetStatusSerializer,
+    ApprovalSerializer
 )
 
-
-class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all()
-    serializer_class = ProjectSerializer
-    permission_classes = [RoleBasedPermission]
-
-
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
-    permission_classes = [RoleBasedPermission]
-
-
-class MilestoneViewSet(viewsets.ModelViewSet):
-    queryset = Milestone.objects.all()
-    serializer_class = MilestoneSerializer
-    permission_classes = [RoleBasedPermission]
-
-
-class AssignedTaskViewSet(viewsets.ModelViewSet):
-    queryset = AssignedTask.objects.all()
-    serializer_class = AssignedTaskSerializer
-    permission_classes = [RoleBasedPermission]
-
-
+User = get_user_model()
 class SubmissionViewSet(viewsets.ModelViewSet):
     queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
@@ -56,13 +37,38 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='entries')
     def entries(self, request):
-        projects = Project.objects.prefetch_related(
+        week_start = parse_date(request.query_params.get('week_start', ''))
+        week_end = None
+        if week_start:
+            week_end = week_start + timedelta(days=6)
+
+        assigned_task_filters = Q(assign_to=request.user)
+        if week_start and week_end:
+            assigned_task_filters &= (
+                Q(end_date__isnull=True) | Q(end_date__gte=week_start)
+            ) & (
+                Q(start_date__isnull=True) | Q(start_date__lte=week_end)
+            )
+
+        assigned_tasks = AssignedTask.objects.filter(
+            assigned_task_filters,
+        ).select_related(
+            'task_obj',
+            'milestone_obj',
+            'project_obj',
+        ).order_by('id')
+
+        projects = Project.objects.filter(
+            milestones__assigned_tasks__in=assigned_tasks,
+        ).distinct().prefetch_related(
             Prefetch(
                 'milestones',
-                queryset=Milestone.objects.prefetch_related(
+                queryset=Milestone.objects.filter(
+                    assigned_tasks__in=assigned_tasks,
+                ).distinct().prefetch_related(
                     Prefetch(
                         'assigned_tasks',
-                        queryset=AssignedTask.objects.select_related('task_obj', 'milestone_obj', 'project_obj').order_by('id'),
+                        queryset=assigned_tasks,
                     )
                 ),
             )
@@ -75,7 +81,11 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                 assigned_tasks_payload = []
                 for assigned_task in milestone.assigned_tasks.all():
                     entries = {}
-                    for submission in Submission.objects.filter(assignId=assigned_task).order_by('date'):
+                    submissions = Submission.objects.filter(assignId=assigned_task)
+                    if week_start and week_end:
+                        submissions = submissions.filter(date__range=(week_start, week_end))
+
+                    for submission in submissions.order_by('date'):
                         entries[submission.date.strftime('%Y-%m-%d')] = submission.hours
 
                     assigned_tasks_payload.append({
@@ -94,11 +104,140 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             project_payload.append({
                 'id': project.id,
                 'name': project.name,
-                'quotation': project.quotation,
+                'description':project.description,
+                'quotation_id': project.quotation_id,
                 'milestones': milestones_payload,
             })
 
         return Response(project_payload, status=status.HTTP_200_OK)
 
-# class TimesheetApproveViewSet(viewsets.ViewSet):
-#     permission_classes = [RoleBasedPermission]
+    @action(detail=False, methods=['post'], url_path='save-draft')
+    def save_draft(self, request):
+        serializer = TimesheetDraftSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        saved_entries = []
+        deleted_entries = []
+        for entry in serializer.validated_data['entries']:
+            if entry['hours'] == 0:
+                deleted_count, _ = Submission.objects.filter(
+                    assignId=entry['assignId'],
+                    date=entry['date'],
+                ).delete()
+
+                if deleted_count:
+                    deleted_entries.append({
+                        'assignId': entry['assignId'].id,
+                        'date': entry['date'].strftime('%Y-%m-%d'),
+                    })
+
+                continue
+
+            submission, _ = Submission.objects.update_or_create(
+                assignId=entry['assignId'],
+                date=entry['date'],
+                defaults={
+                    'hours': entry['hours'],
+                    'rate': entry.get('rate', 0),
+                    'status': 'Draft',
+                    'approved_status': False,
+                },
+            )
+            saved_entries.append({
+                'id': submission.id,
+                'assignId': submission.assignId_id,
+                'date': submission.date.strftime('%Y-%m-%d'),
+                'hours': submission.hours,
+                'rate': submission.rate,
+                'status': submission.status,
+            })
+
+        return Response(
+            {
+                'message': 'Draft saved successfully.',
+                'entries': saved_entries,
+                'deleted_entries': deleted_entries,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='extend-tasks')
+    def extend_tasks(self, request):
+        serializer = TimesheetExtendTasksSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        assigned_tasks = serializer.validated_data['assigned_task_ids']
+        end_date = serializer.validated_data['end_date']
+
+        updated_count = AssignedTask.objects.filter(
+            id__in=[assigned_task.id for assigned_task in assigned_tasks],
+            assign_to=request.user,
+        ).update(end_date=end_date)
+
+        return Response(
+            {
+                'message': 'Assigned tasks extended successfully.',
+                'updated_count': updated_count,
+                'end_date': end_date.strftime('%Y-%m-%d'),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='remove-tasks')
+    def remove_tasks(self, request):
+        serializer = TimesheetRemoveTasksSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        assigned_tasks = serializer.validated_data['assigned_task_ids']
+        week_start = serializer.validated_data['week_start']
+        week_end = week_start + timedelta(days=6)
+        previous_week_end = week_start - timedelta(days=1)
+
+        removed_task_ids = []
+        shortened_task_ids = []
+        blocked_task_ids = []
+
+        for assigned_task in assigned_tasks:
+            submissions = Submission.objects.filter(assignId=assigned_task)
+
+            if submissions.filter(date__range=(week_start, week_end)).exists():
+                blocked_task_ids.append(assigned_task.id)
+                continue
+
+            if submissions.exists():
+                assigned_task.end_date = previous_week_end
+                assigned_task.save(update_fields=['end_date'])
+                shortened_task_ids.append(assigned_task.id)
+                continue
+
+            assigned_task_id = assigned_task.id
+            assigned_task.delete()
+            removed_task_ids.append(assigned_task_id)
+
+        return Response(
+            {
+                'message': 'Selected tasks removed where possible.',
+                'removed_task_ids': removed_task_ids,
+                'shortened_task_ids': shortened_task_ids,
+                'blocked_task_ids': blocked_task_ids,
+                'end_date': previous_week_end.strftime('%Y-%m-%d'),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ApprovalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = User.objects.select_related(
+            "profile",
+            "profile__reporting_to",
+        ).filter(
+            is_active=True
+        )
+
+        weeknumber = self.request.query_params.get("weeknumber")
+        weekyear = self.request.query_params.get("weekyear")
+
+        return queryset

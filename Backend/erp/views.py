@@ -1,10 +1,22 @@
 from rest_framework import viewsets
 from datetime import datetime
+from django.db.models import (
+    Case,
+    CharField,
+    F,
+    Max,
+    OuterRef,
+    Prefetch,
+    Q,
+    Subquery,
+    Sum,
+    Value,
+    When
+)
 from core.permissions import RoleBasedPermission
-from .models import IcproProject, CostSpecification, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
 from .serializers import (
     IcproProjectSerializer,
-    CostSpecificationSerializer,
     CustomerSerializer,
     QuotationSerializer,
     QuotationCostSerializer,
@@ -16,10 +28,6 @@ class IcproProjectViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IcproProjectSerializer
     permission_classes = [RoleBasedPermission]
 
-class CostSpecificationViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CostSpecification.objects.all()
-    serializer_class = CostSpecificationSerializer
-    permission_classes = [RoleBasedPermission]
 
 class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Customer.objects.all()
@@ -28,12 +36,31 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class QuotationViewSet(viewsets.ReadOnlyModelViewSet):
+
     serializer_class = QuotationSerializer
     permission_classes = [RoleBasedPermission]
+
     def get_queryset(self):
-        return Quotation.objects.filter(
-            create_date__gte=datetime(2026, 1, 1, 0, 0)
-        ).order_by('-create_date')[:10]
+
+        latest_ids = (
+            Quotation.objects
+            .filter(
+                quotation_no__isnull=False,
+                customer_name__isnull=False,
+                # custom_project_name__isnull=False,
+                create_date__gte=datetime(2026, 1, 1, 0, 0),
+            )
+            .exclude(status__in=["Closed", "Lost"])
+            .values("quotation_no")
+            .annotate(latest_id=Max("id"))
+            .values_list("latest_id", flat=True)
+        )
+
+        return (
+            Quotation.objects
+            .filter(id__in=latest_ids)
+            .order_by("-create_date")[:10]
+        )
 
 
 class QuotationCostViewSet(viewsets.ReadOnlyModelViewSet):

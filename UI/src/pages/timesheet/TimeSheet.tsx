@@ -2,6 +2,7 @@ import * as React from "react";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
+import api from "../../api/axios";
 
 import Approval from "./Approval";
 import Submission from "./Submission";
@@ -18,6 +19,7 @@ import {
   LockOpenOutlined,
   UpdateOutlined,
   SendOutlined,
+  DeleteOutline,
 } from "@mui/icons-material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
@@ -27,6 +29,14 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "@mui/icons-material";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { showNotification } from "../../api/NotificationService";
+import type {
+  ERPQuotation
+} from "../../types/dataTypes";
+import ERPQuotationModal from "../../components/Timesheet/erpQuotaion";
+
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -63,9 +73,74 @@ function TimeSheet() {
   const [selectedWeek, setSelectedWeek] = useState<Dayjs>(dayjs());
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
+  const [quotationModalOpen, setQuotationModalOpen] = useState(false);
+
+  const [quotations, setQuotations] = useState<ERPQuotation[]>([]);
+  const [loadingQuotations, setLoadingQuotations] = useState(false);
+  const [assigningQuotations, setAssigningQuotations] = useState(false);
+
+  const openQuotationModal = async () => {
+    handleClose();
+    setQuotationModalOpen(true);
+
+    if (quotations.length > 0) {
+      return;
+    }
+
+    setLoadingQuotations(true);
+    try {
+      const response = await api.get<ERPQuotation[]>("/erp/quotations/");
+      setQuotations(Array.isArray(response.data) ? response.data : []);
+    } finally {
+      setLoadingQuotations(false);
+    }
+  };
+
+  const getQuotationDescription = (quotation: ERPQuotation) => {
+    return (
+      quotation.custom_project_name ||
+      quotation.system_name ||
+      quotation.project__name ||
+      quotation.quotation_no
+    );
+  };
+
+  const handleQuotationSelect = async (selectedQuotations: ERPQuotation[]) => {
+    setAssigningQuotations(true);
+
+    try {
+      await Promise.all(
+        selectedQuotations.map((quotation) =>
+          api.post("/projects/", {
+            quotation_id: quotation.id,
+            name: quotation.quotation_no,
+            description: getQuotationDescription(quotation),
+          }),
+        ),
+      );
+
+      showNotification({
+        type: "success",
+        message: "ERP quotation tasks assigned successfully.",
+      });
+      setQuotationModalOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setAssigningQuotations(false);
+    }
+  };
+
+  const [selectedAssignedTaskIds, setSelectedAssignedTaskIds] = useState<number[]>([]);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [extendingTasks, setExtendingTasks] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removingTasks, setRemovingTasks] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // Monday - Sunday
-  const weekStart = selectedWeek.startOf("week").add(1, "day");
+  const weekStart = selectedWeek.startOf("isoWeek");
   const weekEnd = weekStart.add(6, "day");
+  const weekStartKey = weekStart.format("YYYY-MM-DD");
 
   const weekNumber = weekStart.isoWeek();
 
@@ -77,12 +152,88 @@ function TimeSheet() {
     setSelectedWeek((prev) => prev.add(1, "week"));
   };
 
+  const nextWeekEnd = weekEnd.add(1, "week");
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const toggleAssignedTaskSelection = (assignedTaskId: number, checked: boolean) => {
+    setSelectedAssignedTaskIds((current) => {
+      if (checked) {
+        return current.includes(assignedTaskId) ? current : [...current, assignedTaskId];
+      }
+
+      return current.filter((id) => id !== assignedTaskId);
+    });
+  };
+
+  const openExtendDialog = () => {
+    handleClose();
+    setExtendDialogOpen(true);
+  };
+
+  const openRemoveDialog = () => {
+    handleClose();
+    setRemoveDialogOpen(true);
+  };
+
+  const extendSelectedTasks = async () => {
+    setExtendingTasks(true);
+
+    try {
+      await api.post("/timesheet-entries/extend-tasks/", {
+        assigned_task_ids: selectedAssignedTaskIds,
+        end_date: nextWeekEnd.format("YYYY-MM-DD"),
+      });
+
+      showNotification({
+        type: "success",
+        message: "Selected tasks extended to next week successfully.",
+      });
+      setSelectedAssignedTaskIds([]);
+      setExtendDialogOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setExtendingTasks(false);
+    }
+  };
+
+  const removeSelectedTasks = async () => {
+    setRemovingTasks(true);
+
+    try {
+      const response = await api.post("/timesheet-entries/remove-tasks/", {
+        assigned_task_ids: selectedAssignedTaskIds,
+        week_start: weekStartKey,
+      });
+
+      const blockedCount = Array.isArray(response.data?.blocked_task_ids)
+        ? response.data.blocked_task_ids.length
+        : 0;
+
+      if (blockedCount > 0) {
+        showNotification({
+          type: "warning",
+          message: "Some selected tasks have time entries and cannot be removed.",
+        });
+      } else {
+        showNotification({
+          type: "success",
+          message: "Selected tasks removed successfully.",
+        });
+      }
+
+      setSelectedAssignedTaskIds([]);
+      setRemoveDialogOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setRemovingTasks(false);
+    }
   };
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -108,7 +259,14 @@ function TimeSheet() {
     {
       permission: "view_submission",
       label: "Submission",
-      component: < Submission />,
+      component: (
+        <Submission
+          weekStart={weekStartKey}
+          refreshKey={refreshKey}
+          selectedAssignedTaskIds={selectedAssignedTaskIds}
+          onAssignedTaskSelectionChange={toggleAssignedTaskSelection}
+        />
+      ),
     },
     {
       permission: "view_approval",
@@ -131,6 +289,10 @@ function TimeSheet() {
       setValue(0);
     }
   }, [availableTabs.length, value]);
+
+  useEffect(() => {
+    setSelectedAssignedTaskIds([]);
+  }, [weekStartKey]);
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -241,7 +403,7 @@ function TimeSheet() {
               },
             }}
           >
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openQuotationModal}>
               <ListItemIcon>
                 <WorkOutline fontSize="small" />
               </ListItemIcon>
@@ -276,13 +438,19 @@ function TimeSheet() {
               Unlock Time Sheet Request
             </MenuItem>
 
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openExtendDialog}>
               <ListItemIcon>
                 <UpdateOutlined fontSize="small" />
               </ListItemIcon>
               Extend Task To Next Week
             </MenuItem>
 
+            <MenuItem onClick={openRemoveDialog}>
+              <ListItemIcon>
+                <DeleteOutline fontSize="small" />
+              </ListItemIcon>
+              Remove Task/project
+            </MenuItem>
             <MenuItem onClick={handleClose}>
               <ListItemIcon>
                 <SendOutlined fontSize="small" />
@@ -366,6 +534,35 @@ function TimeSheet() {
           </Stack>
         </Box>
       </Drawer>
+      <ConfirmDialog
+        open={extendDialogOpen}
+        title="Extend Tasks"
+        description={`Update ${selectedAssignedTaskIds.length} selected assigned task(s) end date to ${nextWeekEnd.format("DD-MMM-YYYY")}?`}
+        confirmLabel={extendingTasks ? "Extending..." : "Extend"}
+        confirmDisabled={extendingTasks || selectedAssignedTaskIds.length === 0}
+        titleIcon={<UpdateOutlined fontSize="small" />}
+        onClose={() => setExtendDialogOpen(false)}
+        onConfirm={extendSelectedTasks}
+      />
+      <ConfirmDialog
+        open={removeDialogOpen}
+        title="Remove Tasks"
+        description={`Remove ${selectedAssignedTaskIds.length} selected assigned task(s) from this week? Tasks with entries in this week cannot be removed.`}
+        confirmLabel={removingTasks ? "Removing..." : "Remove"}
+        confirmColor="error"
+        confirmDisabled={removingTasks || selectedAssignedTaskIds.length === 0}
+        titleIcon={<SendOutlined fontSize="small" />}
+        onClose={() => setRemoveDialogOpen(false)}
+        onConfirm={removeSelectedTasks}
+      />
+      <ERPQuotationModal
+        open={quotationModalOpen}
+        onClose={() => setQuotationModalOpen(false)}
+        quotations={quotations}
+        loading={loadingQuotations}
+        submitting={assigningQuotations}
+        onSelect={handleQuotationSelect}
+      />
     </Box>
   );
 }

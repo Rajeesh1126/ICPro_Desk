@@ -57,7 +57,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         try:
             department_ids = self.get_department_ids()
             submission_qs = Submission.objects.filter(
-                assignId__project_obj__quotation=OuterRef("number")
+                assignId__project_obj__name=OuterRef("number")
             )
 
             log_qs = Ticket_Log.objects.filter(
@@ -83,7 +83,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                     act_hours=Coalesce(
                         Subquery(
                             submission_qs
-                            .values("assignId__project_obj__quotation")
+                            .values("assignId__project_obj__name")
                             .annotate(
                                 total_hours=ExpressionWrapper(
                                     Sum("hours") / Value(3600.0),

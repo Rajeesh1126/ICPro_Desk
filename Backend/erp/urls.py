@@ -3,7 +3,6 @@ from rest_framework import routers
 
 from .views import (
     IcproProjectViewSet,
-    CostSpecificationViewSet,
     CustomerViewSet,
     QuotationViewSet,
     QuotationCostViewSet,
@@ -12,7 +11,6 @@ from .views import (
 
 router = routers.DefaultRouter()
 router.register(r'projects', IcproProjectViewSet, basename='icproproject')
-router.register(r'cost-specifications', CostSpecificationViewSet, basename='costspecification')
 router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'quotations', QuotationViewSet, basename='quotation')
 router.register(r'quotation-costs', QuotationCostViewSet, basename='quotationcost')

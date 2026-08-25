@@ -1,38 +1,33 @@
 from django.contrib import admin
 
-from .models import IcproProject, CostSpecification, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
 
 
 @admin.register(IcproProject)
 class IcproProjectAdmin(admin.ModelAdmin):
-    list_display = ['id', 'code', 'name', 'status']
-    search_fields = ['code', 'name']
-
-
-@admin.register(CostSpecification)
-class CostSpecificationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'code', 'name']
-    search_fields = ['code', 'name']
+    list_display = ['id', 'name']
+    search_fields = ['name']
 
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ['id', 'code', 'name', 'status']
-    search_fields = ['code', 'name']
+    list_display = ['id', 'name']
+    search_fields = ['name']
 
 
 @admin.register(Quotation)
 class QuotationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'quotation_no', 'revision_number', 'quote_date', 'status', 'customer_name']
-    search_fields = ['quotation_no', 'customer_name', 'project__name']
+    list_display = ['id', 'quotation_no','revision_number','customer_name','custom_project_name',
+                    'system_name','create_date', 'status']
+    search_fields = ['quotation_no', 'customer_name','custom_project_name',]
 
 
 @admin.register(QuotationCost)
 class QuotationCostAdmin(admin.ModelAdmin):
-    list_display = ['id', 'cost_name', 'quotation', 'total_price']
+    list_display = ['id', 'cost_name', 'quotation']
     search_fields = ['cost_name', 'quotation__quotation_no']
 
 
 @admin.register(CostMaster)
 class CostMasterAdmin(admin.ModelAdmin):
-    list_display = ['id']
+    list_display = ['id','name']
