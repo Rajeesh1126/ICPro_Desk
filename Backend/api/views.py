@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.db.models import Prefetch, Q
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
@@ -10,6 +8,7 @@ from core.permissions import RoleBasedPermission
 from projects.models import AssignedTask, Milestone, Project
 from .models import Submission, TimesheetStatus
 from django.contrib.auth import get_user_model
+from datetime import date, datetime, timedelta
 from .serializers import (
     SubmissionSerializer,
     TimesheetDraftSerializer,
@@ -25,12 +24,44 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     serializer_class = SubmissionSerializer
     permission_classes = [RoleBasedPermission]
 
-
 class TimesheetStatusViewSet(viewsets.ModelViewSet):
-    queryset = TimesheetStatus.objects.all()
     serializer_class = TimesheetStatusSerializer
     permission_classes = [RoleBasedPermission]
 
+    def get_queryset(self):
+        queryset = TimesheetStatus.objects.select_related("uid")
+
+        week_start_param = self.request.query_params.get("weekStart")
+        timesheet_status = self.request.query_params.get(
+            "timesheetstatus"
+        )
+
+        # Filter by weekStart
+        if week_start_param:
+            try:
+                week_start = date.fromisoformat(
+                    week_start_param
+                )
+
+                weekyear, weeknumber, _ = (
+                    week_start.isocalendar()
+                )
+
+                queryset = queryset.filter(
+                    weeknumber=weeknumber,
+                    weekyear=weekyear,
+                )
+
+            except ValueError:
+                return queryset.none()
+
+        # Filter by timesheet status
+        if timesheet_status:
+            queryset = queryset.filter(
+                timesheet_status__iexact=timesheet_status
+            )
+
+        return queryset
 
 class TimesheetEntryViewSet(viewsets.ViewSet):
     permission_classes = [RoleBasedPermission]
@@ -230,14 +261,11 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = User.objects.select_related(
-            "profile",
-            "profile__reporting_to",
-        ).filter(
-            is_active=True
+        return (
+            User.objects
+            .select_related(
+                "profile",
+                "profile__reporting_to",
+            )
+            .filter(is_active=True)
         )
-
-        weeknumber = self.request.query_params.get("weeknumber")
-        weekyear = self.request.query_params.get("weekyear")
-
-        return queryset

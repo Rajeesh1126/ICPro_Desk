@@ -2374,3 +2374,174 @@ export const TOGGLE_BUTTON = {
   },
 
 }
+
+/* ================= APPROVAL PAGE ================= */
+
+export const approvalPageContainerSx: SxProps<Theme> = {
+  width: "100%",
+  height: "100%",
+  minHeight: 0,
+  display: "flex",
+  gap: "5px",
+  overflow: "hidden",
+};
+
+export const approvalTableContainerSx: SxProps<Theme> = {
+  flex: 1,
+  minHeight: 0,
+  overflow: "hidden",
+};
+
+/* ================= RIGHT UNLOCK REQUESTS ================= */
+export const unlockRequestStyles: {
+    container: SxProps<Theme>;
+    header: SxProps<Theme>;
+    headerTitle: SxProps<Theme>;
+    requestList: SxProps<Theme>;
+    card: SxProps<Theme>;
+    cardHeader: SxProps<Theme>;
+    cardHeaderText: SxProps<Theme>;
+    cardContent: SxProps<Theme>;
+    reason: SxProps<Theme>;
+    buttonContainer: SxProps<Theme>;
+    acceptButton: SxProps<Theme>;
+    rejectButton: SxProps<Theme>;
+    emptyState: SxProps<Theme>;
+    emptyText: SxProps<Theme>;
+} = {
+    container: {
+        width: 300,
+        flexShrink: 0,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        backgroundColor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "10px",
+    },
+
+    header: {
+        height: 37,
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        px: 1,
+        backgroundColor: "background.paper",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+    },
+
+    headerTitle: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: "text.primary",
+    },
+
+    requestList: {
+        flex: 1,
+        minHeight: 0,
+        overflowY: "auto",
+        p: 0.5,
+
+        "&::-webkit-scrollbar": {
+            width: 7,
+        },
+
+        "&::-webkit-scrollbar-track": {
+            backgroundColor: "background.paper",
+        },
+
+        "&::-webkit-scrollbar-thumb": {
+            backgroundColor: "action.disabled",
+            borderRadius: 4,
+        },
+
+        "&::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: "action.active",
+        },
+    },
+
+    card: {
+        mb: 0.75,
+        borderRadius: "4px",
+        overflow: "hidden",
+        backgroundColor: "background.default",
+        border: "1px solid",
+        borderColor: "divider",
+    },
+
+    cardHeader: {
+        px: 1,
+        py: 0.65,
+        backgroundColor: "primary.main",
+    },
+
+    cardHeaderText: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: "primary.contrastText",
+    },
+
+    cardContent: {
+        p: 1,
+
+        "&:last-child": {
+            pb: 1,
+        },
+    },
+
+    reason: {
+        fontSize: 12,
+        color: "text.primary",
+        mb: 1,
+    },
+
+    buttonContainer: {
+        display: "flex",
+        gap: 1,
+    },
+
+    acceptButton: {
+        minWidth: 70,
+        height: 28,
+        fontSize: 10,
+        fontWeight: 600,
+        color: "#06120b",
+        backgroundColor: "#00b84a",
+        boxShadow: "none",
+
+        "&:hover": {
+            backgroundColor: "#00a642",
+            boxShadow: "none",
+        },
+    },
+
+    rejectButton: {
+        minWidth: 70,
+        height: 28,
+        fontSize: 10,
+        fontWeight: 600,
+        color: "#ffffff",
+        backgroundColor: "#e84668",
+        boxShadow: "none",
+
+        "&:hover": {
+            backgroundColor: "#d63859",
+            boxShadow: "none",
+        },
+    },
+
+    emptyState: {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: 100,
+    },
+
+    emptyText: {
+        fontSize: 12,
+        color: "text.secondary",
+    },
+};

@@ -10,53 +10,44 @@ import {
     Typography,
 } from "@mui/material";
 
+import {
+  approvalPageContainerSx,
+  approvalTableContainerSx,
+  unlockRequestStyles 
+} from "../../styles/common";
+
 // import SearchIcon from "@mui/icons-material/Search";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
 import { VirtualizedTable, type ColumnData, } from "../../components/common/TableView";
 import api from "../../api/axios";
-import type { ApprovalRow } from "../../types/dataTypes";
-import ApprovalDetailModal from "../../components/Approval/ApprovalDetailModal";
-// const [refreshKey, setRefreshKey] = useState(0);
+import type { ApprovalRow,timesheetStatusData } from "../../types/dataTypes";
+import ApprovalDetailedView from "../../components/Approval/ApprovalDetailedView";
 
-interface UnlockRequest {
-    id: number;
-    employee_name: string;
-    reason: string;
+interface ApprovalProps {
+    weekStart: string;
+    refreshKey: number;
 }
-
-const initialUnlockRequests: UnlockRequest[] = [
-    {
-        id: 1,
-        employee_name: "Sithosh TS",
-        reason: "missed to enter",
-    },
-    {
-        id: 2,
-        employee_name: "Mamatha",
-        reason: "forgot",
-    },
-    {
-        id: 3,
-        employee_name: "Arjun S",
-        reason: "Not submitted",
-    },
-];
-
-const Approval: React.FC = () => {
-    // const [search, setSearch] = useState("");
-
-    const [unlockRequests, setUnlockRequests] = useState<UnlockRequest[]>(initialUnlockRequests);
+const Approval: React.FC<ApprovalProps> = ({ weekStart,refreshKey, }: ApprovalProps) => {
+    const [unlockRequests, setUnlockRequests] = useState<timesheetStatusData[]>([]);
     const [approvalData, setApprovalData] = useState<ApprovalRow[]>([]);
+    const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRow | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [weeknumber, setWeeknumber] = useState<number>(35);
+    const [weekyear, setWeekyear] = useState<number>(2026);
 
-    // role Data
+    // Approval first table Data
     useEffect(() => {
         // if (!open) return;
         let active = true;
         void api
-        .get("/approvals/")
+        .get("/approvals/", {
+                params: {
+                    weekStart,
+                },
+            })
         .then((response) => {
-            console.log("Roles",response.data)
+            console.log("Approval Data",response.data)
             if (!active) return;
             setApprovalData(response.data);
         })
@@ -66,8 +57,37 @@ const Approval: React.FC = () => {
         return () => {
             active = false;
         };
-    // }, [open, refreshKey]);
-    }, []);
+    }, [weekStart, refreshKey]);
+
+    // timesheet_status Data
+    useEffect(() => {
+        let active = true;
+
+        void api
+            .get("/timesheet-statuses/", {
+                params: {
+                    weekStart,
+                    timesheetstatus:"locked"
+                },
+            })
+            .then((response) => {
+                if (!active) return;
+
+                console.log("timesheet-statuses", response.data);
+
+                setUnlockRequests(response.data);
+            })
+            .catch((error) => {
+                console.error(
+                    "Failed to load timesheet statuses",
+                    error
+                );
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [weekStart, refreshKey]);
 
     const handleAccept = (id: number) => {
         setUnlockRequests((previous) =>
@@ -83,70 +103,10 @@ const Approval: React.FC = () => {
 
     const columns = useMemo(
         () => [
-            {
-                dataKey: "id",
-                label: "#",
-                width: 45,
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color: "#ffffff",
-                        }}
-                    >
-                        {row.id}
-                    </Typography>
-                ),
-            },
-            {
-                dataKey: "name",
-                label: "Name",
-                width: 200,
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color: "#168bd1",
-                            cursor: "pointer",
-                            "&:hover": {
-                                textDecoration: "underline",
-                            },
-                        }}
-                    >
-                        {row.name}
-                    </Typography>
-                ),
-            },
-            {
-                dataKey: "reporting_to",
-                label: "Reporting To",
-                width: 210,
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color: "#168bd1",
-                        }}
-                    >
-                        {row.reporting_to}
-                    </Typography>
-                ),
-            },
-            {
-                dataKey: "hours",
-                label: "Hours",
-                width: 90,
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color: "#ffffff",
-                        }}
-                    >
-                        {row.hours.toFixed(2)}
-                    </Typography>
-                ),
-            },
+            { label: "#", width: 10, render: (_row: ApprovalRow, index: number) => index + 1, number: true, },
+            { dataKey: "name",label: "Name", width: 200, },
+            { dataKey: "reporting_to",label: "Reporting To", width: 210, },
+            { dataKey: "hours", label: "Hours", width: 90, },
             {
                 dataKey: "overview",
                 label: "Overview",
@@ -210,9 +170,7 @@ const Approval: React.FC = () => {
                 render: (row: ApprovalRow) => (
                     <IconButton
                         size="small"
-                        onClick={() =>
-                            console.log("View employee:", row)
-                        }
+                        onClick={() => handleViewEmployee(row)}
                         sx={{
                             p: 0,
                             color: "#38b5d0",
@@ -226,225 +184,114 @@ const Approval: React.FC = () => {
         []
     );
 
+    const handleViewEmployee = (row: ApprovalRow) => {
+        setSelectedEmployee(row);
+        setDetailOpen(true);
+    };
+
+    const handleCloseDetail = () => {
+        setDetailOpen(false);
+        setSelectedEmployee(null);
+    };
+
     return (
-        <Box
-            sx={{
-                width: "100%",
-                height: "100%",
-                minHeight: 0,
-                display: "flex",
-                gap: "5px",
-                overflow: "hidden",
-                p: "4px",
-            }}
-        >
-            {/* Virtualized Table */}
-            <Box
-                sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    overflow: "hidden",
-                }}
-            >
-                <VirtualizedTable<ApprovalRow>
-                    columns={columns}
-                    rows={approvalData}
-                    height="100%"
-                />
+        <Box sx={approvalPageContainerSx}>
+
+        {/* Virtualized Table */}
+        <Box sx={approvalTableContainerSx}>
+            <VirtualizedTable<ApprovalRow>
+            columns={columns}
+            rows={approvalData}
+            height="400px"
+            />
+        </Box>
+
+        {/* ================= RIGHT UNLOCK REQUESTS ================= */}
+        <Box sx={unlockRequestStyles.container}>
+
+            {/* Header */}
+            <Box sx={unlockRequestStyles.header}>
+                <Typography sx={unlockRequestStyles.headerTitle}>
+                    Unlock Requests ({unlockRequests.length})
+                </Typography>
             </Box>
 
-            {/* ================= RIGHT UNLOCK REQUESTS ================= */}
-            <Box
-                sx={{
-                    width: 300,
-                    flexShrink: 0,
-                    minHeight: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                    backgroundColor: "#111a28",
-                    border: "1px solid #4b5665",
-                    borderRadius:"10px"
-                }}
-            >
-                {/* Header */}
-                <Box
-                    sx={{
-                        height: 37,
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        px: 1,
-                        backgroundColor: "#111a28",
-                        borderBottom: "1px solid #4b5665",
-                    }}
-                >
-                    <Typography
-                        sx={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "#ffffff",
-                        }}
+            {/* Request List */}
+            <Box sx={unlockRequestStyles.requestList}>
+
+                {unlockRequests.map((request) => (
+                    <Card
+                        key={request.id}
+                        elevation={0}
+                        sx={unlockRequestStyles.card}
                     >
-                        Unlock Requests ({unlockRequests.length})
-                    </Typography>
-                </Box>
-
-                {/* Request List */}
-                <Box
-                    sx={{
-                        flex: 1,
-                        minHeight: 0,
-                        overflowY: "auto",
-                        p: 0.5,
-
-                        "&::-webkit-scrollbar": {
-                            width: 7,
-                        },
-
-                        "&::-webkit-scrollbar-track": {
-                            backgroundColor: "#111a28",
-                        },
-
-                        "&::-webkit-scrollbar-thumb": {
-                            backgroundColor: "#4c5969",
-                            borderRadius: 4,
-                        },
-                    }}
-                >
-                    {unlockRequests.map((request) => (
-                        <Card
-                            key={request.id}
-                            elevation={0}
-                            sx={{
-                                mb: 0.75,
-                                borderRadius: "4px",
-                                overflow: "hidden",
-                                backgroundColor: "#172232",
-                                border: "1px solid #465568",
-                            }}
-                        >
-                            {/* Blue Header */}
-                            <Box
-                                sx={{
-                                    px: 1,
-                                    py: 0.65,
-                                    backgroundColor: "#3f78c9",
-                                }}
-                            >
-                                <Typography
-                                    sx={{
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "#ffffff",
-                                    }}
-                                >
-                                    {request.employee_name} -
-                                    Unlock Request
-                                </Typography>
-                            </Box>
-
-                            {/* Body */}
-                            <CardContent
-                                sx={{
-                                    p: 1,
-                                    "&:last-child": {
-                                        pb: 1,
-                                    },
-                                }}
-                            >
-                                <Typography
-                                    sx={{
-                                        fontSize: 12,
-                                        color: "#ffffff",
-                                        mb: 1,
-                                    }}
-                                >
-                                    <strong>Reason:</strong>{" "}
-                                    {request.reason}
-                                </Typography>
-
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        gap: 1,
-                                    }}
-                                >
-                                    <Button
-                                        variant="contained"
-                                        size="small"
-                                        onClick={() =>
-                                            handleAccept(request.id)
-                                        }
-                                        sx={{
-                                            minWidth: 70,
-                                            height: 28,
-                                            fontSize: 10,
-                                            fontWeight: 600,
-                                            color: "#06120b",
-                                            backgroundColor:
-                                                "#00b84a",
-                                            boxShadow: "none",
-                                            "&:hover": {
-                                                backgroundColor:
-                                                    "#00a642",
-                                                boxShadow: "none",
-                                            },
-                                        }}
-                                    >
-                                        ACCEPT
-                                    </Button>
-
-                                    <Button
-                                        variant="contained"
-                                        size="small"
-                                        onClick={() =>
-                                            handleReject(request.id)
-                                        }
-                                        sx={{
-                                            minWidth: 70,
-                                            height: 28,
-                                            fontSize: 10,
-                                            fontWeight: 600,
-                                            backgroundColor:
-                                                "#e84668",
-                                            boxShadow: "none",
-                                            "&:hover": {
-                                                backgroundColor:
-                                                    "#d63859",
-                                                boxShadow: "none",
-                                            },
-                                        }}
-                                    >
-                                        REJECT
-                                    </Button>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    ))}
-
-                    {unlockRequests.length === 0 && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                height: 100,
-                            }}
-                        >
+                        {/* Request Header */}
+                        <Box sx={unlockRequestStyles.cardHeader}>
                             <Typography
-                                sx={{
-                                    fontSize: 12,
-                                    color: "#7f8da0",
-                                }}
+                                sx={unlockRequestStyles.cardHeaderText}
                             >
-                                No unlock requests
+                                {request.first_name} - Unlock Request
                             </Typography>
                         </Box>
-                    )}
-                </Box>
+
+                        {/* Body */}
+                        <CardContent sx={unlockRequestStyles.cardContent}>
+
+                            <Typography sx={unlockRequestStyles.reason}>
+                                <strong>Reason:</strong>{" "}
+                                {request.unlock_reason}
+                            </Typography>
+
+                            <Box sx={unlockRequestStyles.buttonContainer}>
+
+                                {/* ACCEPT */}
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={() =>
+                                        handleAccept(request.id)
+                                    }
+                                    sx={unlockRequestStyles.acceptButton}
+                                >
+                                    ACCEPT
+                                </Button>
+
+                                {/* REJECT */}
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={() =>
+                                        handleReject(request.id)
+                                    }
+                                    sx={unlockRequestStyles.rejectButton}
+                                >
+                                    REJECT
+                                </Button>
+
+                            </Box>
+                        </CardContent>
+                    </Card>
+                ))}
+
+                {/* Empty State */}
+                {unlockRequests.length === 0 && (
+                    <Box sx={unlockRequestStyles.emptyState}>
+                        <Typography sx={unlockRequestStyles.emptyText}>
+                            No unlock requests
+                        </Typography>
+                    </Box>
+                )}
+
             </Box>
+
         </Box>
+
+    <ApprovalDetailedView
+        open={detailOpen}
+        employee={selectedEmployee}
+        onClose={handleCloseDetail}
+    />
+    </Box>
     );
 };
 

@@ -271,7 +271,11 @@ function TimeSheet() {
     {
       permission: "view_approval",
       label: "Approval",
-      component: <Approval />,
+      component: 
+        <Approval 
+          weekStart={weekStartKey}
+          refreshKey={refreshKey}
+        />,
     },
     {
       permission: "New",

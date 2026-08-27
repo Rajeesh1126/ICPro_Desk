@@ -64,6 +64,22 @@ export interface ApprovalRow {
   approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
 }
 
+export interface timesheetStatusData {
+    id: number;
+    uid: string;
+    first_name: string;
+    timesheet_status: string;
+    weeknumber: number;
+    submission_status: boolean;
+    action_status: boolean;
+    weekyear: number;
+    created_date: string;
+    unlock_reason: string;
+    unlock_status: string | null;
+    updated_date: string;
+    comments: string | null;
+}
+
 export interface rolesData {
   [key: string]: unknown;
 
