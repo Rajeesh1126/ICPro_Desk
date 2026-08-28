@@ -22,6 +22,11 @@ urlpatterns = [
         name='timesheet-entries-save-draft',
     ),
     path(
+        'timesheet-entries/submit/',
+        TimesheetEntryViewSet.as_view({'post': 'submit'}),
+        name='timesheet-entries-submit',
+    ),
+    path(
         'timesheet-entries/extend-tasks/',
         TimesheetEntryViewSet.as_view({'post': 'extend_tasks'}),
         name='timesheet-entries-extend-tasks',

@@ -87,15 +87,26 @@ class TimesheetStatusSerializer(serializers.ModelSerializer):
         read_only=True
     )
     timesheet_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
-    unlock_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
 
     class Meta:
         model = TimesheetStatus
         fields = [
             'id', 'uid','first_name' , 'timesheet_status', 'weeknumber', 'submission_status', 'action_status',
-            'weekyear', 'created_date', 'unlock_reason', 'unlock_status', 'updated_date', 'comments',
+            'weekyear', 'created_date', 'unlock_reason', 'updated_date', 'comments',
         ]
 
+class TimesheetSubmitSerializer(TimesheetDraftSerializer):
+    week_start = serializers.DateField()
+    comments = serializers.CharField(
+        max_length=1000,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+class TimesheetUnlockRequestSerializer(serializers.Serializer):
+    week_start = serializers.DateField()
+    unlock_reason = serializers.CharField(max_length=1000)
 
 class ApprovalSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
@@ -249,12 +260,13 @@ class ApprovalSerializer(serializers.ModelSerializer):
             "Accepted": "Accepted",
             "Rejected": "Rejected",
             "Requested": "Requested",
+            "Unlocked": "Unlocked",
+            "Submitted": "Submitted",
+            "Unlock Rejected": "Unlock Rejected"
         }
 
         if status.timesheet_status in status_map:
             return status_map[status.timesheet_status]
-        if status.submission_status:
-            return "Submitted"
 
         return "Not Submitted"
     def get_submission_status(self, obj):
