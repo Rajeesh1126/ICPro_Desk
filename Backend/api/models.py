@@ -29,6 +29,7 @@ class TimesheetStatus(models.Model):
         ('Requested', 'Requested'),
         ('Accepted', 'Accepted'),
         ('Rejected', 'Rejected'),
+        ('Submitted', 'Submitted'),
     ]
     uid = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -43,7 +44,7 @@ class TimesheetStatus(models.Model):
     weekyear = models.IntegerField(default=None, null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     unlock_reason = models.CharField(max_length=1000, default=None, null=True)
-    unlock_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Requested', null=True)
+    # unlock_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Requested', null=True)
     updated_date = models.DateTimeField(auto_now=True)
     comments = models.CharField(max_length=1000, blank=True, null=True, default=None)
 

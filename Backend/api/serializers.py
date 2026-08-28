@@ -41,6 +41,21 @@ class TimesheetDraftSerializer(serializers.Serializer):
         return entries
 
 
+class TimesheetSubmitSerializer(TimesheetDraftSerializer):
+    week_start = serializers.DateField()
+    comments = serializers.CharField(
+        max_length=1000,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
+class TimesheetUnlockRequestSerializer(serializers.Serializer):
+    week_start = serializers.DateField()
+    unlock_reason = serializers.CharField(max_length=1000)
+
+
 class TimesheetExtendTasksSerializer(serializers.Serializer):
     assigned_task_ids = serializers.ListField(
         child=serializers.PrimaryKeyRelatedField(queryset=AssignedTask.objects.all()),
@@ -79,15 +94,17 @@ class TimesheetRemoveTasksSerializer(serializers.Serializer):
         return assigned_tasks
 
 
+
+
 # (querysets provided above)
 class TimesheetStatusSerializer(serializers.ModelSerializer):
     uid = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
     timesheet_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
-    unlock_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
+    # unlock_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
 
     class Meta:
         model = TimesheetStatus
         fields = [
             'id', 'uid', 'timesheet_status', 'weeknumber', 'submission_status', 'action_status',
-            'weekyear', 'created_date', 'unlock_reason', 'unlock_status', 'updated_date', 'comments',
+            'weekyear', 'created_date', 'unlock_reason',  'updated_date', 'comments',
         ]

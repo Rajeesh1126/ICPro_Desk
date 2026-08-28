@@ -67,14 +67,14 @@ class Ticket(models.Model):
     def __str__(self):
         return f"{self.number} - {self.task}"
 
-    class Meta:
-        default_permissions = ()
-        # customise the permissions for the Notice model
-        permissions = [
-            ('view_ticket', 'Handle View Ticket'),
-            ('add_ticket', 'Handle Create Ticket'),
-            ('change_ticket', 'Handle Change Ticket'),
-            ('delete_ticket', 'Handle Delete Ticket')]
+    # class Meta:
+    #     default_permissions = ()
+    #     # customise the permissions for the Notice model
+    #     permissions = [
+    #         ('view_ticket', 'Handle View Ticket'),
+    #         ('add_ticket', 'Handle Create Ticket'),
+    #         ('change_ticket', 'Handle Change Ticket'),
+    #         ('delete_ticket', 'Handle Delete Ticket')]
 
 class Ticket_Log(models.Model): # Renamed from Ticket_Logs (PEP8 style)
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='logs')
@@ -144,16 +144,16 @@ class Self_Ticket(models.Model):
     def __str__(self):
         return f"{self.number} - {self.task}"
 
-    class Meta:
-        default_permissions = ()
-        # customise the permissions for the Notice model
-        permissions = [
-            ('view_self_tickets', 'Handle Self Ticket'),
-            ('add_self_ticket', 'Handle Create Self Ticket'),
-            ('change_self_ticket', 'Handle Change Self Ticket'),
-            ('delete_self_ticket', 'Handle Delete Self Ticket'),
-            ('view_managementoverview', 'Handle Management Overview'),
-            ('view_report', 'Handle Ticket Report')]
+    # class Meta:
+    #     default_permissions = ()
+    #     # customise the permissions for the Notice model
+    #     permissions = [
+    #         ('view_self_tickets', 'Handle Self Ticket'),
+    #         ('add_self_ticket', 'Handle Create Self Ticket'),
+    #         ('change_self_ticket', 'Handle Change Self Ticket'),
+    #         ('delete_self_ticket', 'Handle Delete Self Ticket'),
+    #         ('view_managementoverview', 'Handle Management Overview'),
+    #         ('view_report', 'Handle Ticket Report')]
 
 class Self_Ticket_Log(models.Model):
     self_ticket = models.ForeignKey(Self_Ticket, on_delete=models.CASCADE, related_name='selfLogs')

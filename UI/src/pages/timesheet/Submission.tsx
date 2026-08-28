@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Collapse,
   FormControl,
   IconButton,
@@ -46,9 +47,23 @@ type SubmissionProps = {
   refreshKey: number;
   selectedAssignedTaskIds: number[];
   onAssignedTaskSelectionChange: (assignedTaskId: number, checked: boolean) => void;
+  onPreviewDaysChange?: (days: { day: string; hours: number }[]) => void;
+  onSubmitEntriesChange?: (entries: TimesheetSubmitEntry[]) => void;
 };
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const fullDayLabels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+export type TimesheetSubmitEntry = {
+  assignId: number;
+  date: string;
+  hours: number;
+};
+
+type WeeklyTimesheetStatus = {
+  timesheet_status: string;
+  submission_status?: boolean;
+};
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -56,6 +71,12 @@ const formatLocalDate = (date: Date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+};
+
+const addDays = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(date.getDate() + days);
+  return nextDate;
 };
 
 const createWeekDays = (weekStart: string): WeekDay[] => {
@@ -126,10 +147,12 @@ export default function Submission({
   refreshKey,
   selectedAssignedTaskIds,
   onAssignedTaskSelectionChange,
+  onPreviewDaysChange,
+  onSubmitEntriesChange,
 }: SubmissionProps) {
 
   const theme = useTheme();
-  const weekDays = createWeekDays(weekStart);
+  const weekDays = useMemo(() => createWeekDays(weekStart), [weekStart]);
 
   const [projects, setProjects] =
     useState<SubmissionProject[]>([]);
@@ -144,6 +167,30 @@ export default function Submission({
     useState<number[]>([1]);
 
   const [savingDraft, setSavingDraft] = useState(false);
+  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetStatus>({
+    timesheet_status: "Not Submitted",
+    submission_status: false,
+  });
+
+  const submitEntries = useMemo(
+    () =>
+      projects.flatMap((project) =>
+        project.milestones.flatMap((milestone) =>
+          milestone.assigned_tasks.flatMap((task) =>
+            weekDays
+              .map((day) => ({
+                assignId: task.assign_id,
+                date: day.date,
+                hours: task.entries[day.date] ?? 0,
+                hasEntry: Object.prototype.hasOwnProperty.call(task.entries, day.date),
+              }))
+              .filter((entry) => entry.hasEntry || entry.hours > 0)
+              .map(({ hasEntry: _hasEntry, ...entry }) => entry),
+          ),
+        ),
+      ),
+    [projects, weekDays],
+  );
 
 
   useEffect(() => {
@@ -161,6 +208,59 @@ export default function Submission({
       .catch(() => undefined);
     return () => { active = false; };
   }, [weekStart, refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .get<WeeklyTimesheetStatus>("/timesheet-statuses/current/", {
+        params: {
+          week_start: weekStart,
+        },
+      })
+      .then((response) => {
+        if (!active) return;
+        setWeeklyStatus(response.data);
+      })
+      .catch(() => {
+        if (!active) return;
+        setWeeklyStatus({
+          timesheet_status: "Not Submitted",
+          submission_status: false,
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [weekStart, refreshKey]);
+
+  useEffect(() => {
+    onPreviewDaysChange?.(
+      weekDays.map((day, index) => ({
+        day: fullDayLabels[index],
+        hours: projects.reduce(
+          (dayTotal, project) =>
+            dayTotal +
+            project.milestones.reduce(
+              (projectTotal, milestone) =>
+                projectTotal +
+                milestone.assigned_tasks.reduce(
+                  (milestoneTotal, task) =>
+                    milestoneTotal + (task.entries[day.date] ?? 0),
+                  0,
+                ),
+              0,
+            ),
+          0,
+        ),
+      })),
+    );
+  }, [onPreviewDaysChange, projects, weekDays]);
+
+  useEffect(() => {
+    onSubmitEntriesChange?.(submitEntries);
+  }, [onSubmitEntriesChange, submitEntries]);
 
   useEffect(() => {
     let active = true;
@@ -367,26 +467,10 @@ export default function Submission({
   // =======================================================
 
   const saveDraft = async () => {
-    const entries = projects.flatMap((project) =>
-      project.milestones.flatMap((milestone) =>
-        milestone.assigned_tasks.flatMap((task) =>
-          weekDays
-            .map((day) => ({
-              assignId: task.assign_id,
-              date: day.date,
-              hours: task.entries[day.date] ?? 0,
-              hasEntry: Object.prototype.hasOwnProperty.call(task.entries, day.date),
-            }))
-            .filter((entry) => entry.hasEntry || entry.hours > 0)
-            .map(({ hasEntry: _hasEntry, ...entry }) => entry),
-        ),
-      ),
-    );
-
     setSavingDraft(true);
     try {
       const response = await api.post("/timesheet-entries/save-draft/", {
-        entries,
+        entries: submitEntries,
       });
 
       const savedEntries = Array.isArray(response.data?.entries)
@@ -447,6 +531,18 @@ export default function Submission({
       setSavingDraft(false);
     }
   };
+
+  const today = new Date();
+  const editableDates = new Set([
+    formatLocalDate(addDays(today, -1)),
+    formatLocalDate(today),
+    formatLocalDate(addDays(today, 1)),
+  ]);
+  const isUnlocked = ["Unlocked"].includes(weeklyStatus.timesheet_status);
+  const isSubmitted = weeklyStatus.timesheet_status === "Submitted" || Boolean(weeklyStatus.submission_status);
+  const isOthersProject = (project: SubmissionProject) => project.name?.toLowerCase() === "others";
+  const canEditDate = (date: string, project: SubmissionProject) =>
+    isUnlocked || (!isSubmitted && (isOthersProject(project) || editableDates.has(date)));
 
   // =======================================================
   // Render
@@ -1031,6 +1127,7 @@ export default function Submission({
                                                           value={
                                                             value
                                                           }
+                                                          disabled={!canEditDate(day.date, project)}
                                                           onChange={(
                                                             event,
                                                           ) =>
@@ -1153,11 +1250,17 @@ export default function Submission({
           variant="contained"
           size="small"
           onClick={saveDraft}
-          disabled={savingDraft}
+          disabled={savingDraft || (isSubmitted && !isUnlocked)}
           sx={modalActionButtonSx}
         >
           {savingDraft ? "Saving..." : "Save Draft"}
         </Button>
+        <Chip
+          size="small"
+          label={`Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`}
+          color={isSubmitted ? "success" : "default"}
+          variant={isSubmitted ? "filled" : "outlined"}
+        />
       </Box>
     </Box>
   );

@@ -9,6 +9,7 @@ import TicketDashboard from "./pages/tickets/Tickets.tsx";
 import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
+import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
 
 import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
 
@@ -24,6 +25,7 @@ const homeRoutes = [
   { path: "TimeSheet", element: <TimeSheet /> },
   { path: "Users", element: <Users /> },
   { path: "Roles", element: <Roles /> },
+  { path: "ProjectConfiguration", element: <ProjectConfiguration /> },
 ];
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -58,4 +60,4 @@ function App() {
 
 export default App;
 
- 
+

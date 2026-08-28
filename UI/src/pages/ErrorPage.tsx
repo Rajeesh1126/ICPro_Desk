@@ -54,7 +54,7 @@ const configs: Record<string, ErrorConfig> = {
       "Your account does not have the required permission. Contact an administrator if you believe this is incorrect.",
     icon: <BlockRoundedIcon />,
     primary: "retry",
-    secondary: "back",
+    secondary: "home",
   },
   "404": {
     code: 404,

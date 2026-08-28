@@ -53,10 +53,11 @@ export interface ReportingEmployees {
 }
 
 export interface rolesData {
+  [key: string]: unknown;
   id: number;
   name: string;
   description: string | null;
-  permissions: any[];
+  permissions: number[];
 }
 
 export interface groupData {
@@ -248,4 +249,12 @@ export interface ERPQuotation {
   custom_project_name: string | null;
   system_name: string | null;
   project__name?: string | null;
+}
+export interface permissionData {
+  [key: string]: unknown;
+  id: number;
+  name: string;
+  codename: string;
+  app_label?: string;
+  model?: string;
 }

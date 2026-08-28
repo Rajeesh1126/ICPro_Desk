@@ -1,11 +1,12 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Role, UserProfile
+from .models import DepartmentManager, Role, UserProfile
 
 User = get_user_model()
 
@@ -86,3 +87,49 @@ class PasswordAPITests(APITestCase):
         response = self.client.get('/api/users/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_current_user_groups_returns_user_and_managed_departments(self):
+        group = Group.objects.create(name='Engineering')
+        managed_department = Group.objects.create(name='Operations')
+        teammate = User.objects.create_user(username='teammate', email='team@example.com')
+
+        self.user.groups.add(group)
+        teammate.groups.add(managed_department)
+        DepartmentManager.objects.create(
+            department=managed_department,
+            manager=self.user,
+        )
+
+        response = self.client.get('/api/users/currentUserGroups/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertCountEqual(
+            response.data['department_ids'],
+            [group.id, managed_department.id],
+        )
+        self.assertCountEqual(
+            [department['name'] for department in response.data['departments']],
+            ['Engineering', 'Operations'],
+        )
+        self.assertEqual(
+            response.data['managed_departments'][0]['name'],
+            'Operations',
+        )
+        self.assertTrue(
+            any(user['username'] == 'teammate' for user in response.data['userslist'])
+        )
+
+    def test_permissions_endpoint_returns_only_business_view_permissions(self):
+        session_content_type = ContentType.objects.get(app_label='sessions', model='session')
+        Permission.objects.get_or_create(
+            content_type=session_content_type,
+            codename='view_session',
+            defaults={'name': 'Can view session'},
+        )
+
+        response = self.client.get('/api/permissions/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(all(item['codename'].startswith('view_') for item in response.data))
+        self.assertNotIn('sessions', {item['app_label'] for item in response.data})
+        self.assertNotIn('contenttypes', {item['app_label'] for item in response.data})

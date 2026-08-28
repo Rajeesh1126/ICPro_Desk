@@ -2357,3 +2357,11 @@ export const TOGGLE_BUTTON = {
   },
 
 }
+
+export const deleteIconSx = {
+  color: "error.main",
+}
+
+export const editIconSx = {
+  color: "primary.main",
+}

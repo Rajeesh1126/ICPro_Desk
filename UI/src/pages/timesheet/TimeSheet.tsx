@@ -5,12 +5,12 @@ import Box from "@mui/material/Box";
 import api from "../../api/axios";
 
 import Approval from "./Approval";
-import Submission from "./Submission";
+import Submission, { type TimesheetSubmitEntry } from "./Submission";
 import Temp from "./Temp";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AssignmentOutlined,
   WorkOutline,
@@ -35,6 +35,8 @@ import type {
   ERPQuotation
 } from "../../types/dataTypes";
 import ERPQuotationModal from "../../components/Timesheet/erpQuotaion";
+import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/Timesheet/TimeSheetPreviewModal"
+import TimeSheetUnlockRequestModal from "../../components/Timesheet/TimeSheetUnlockRequestModal";
 
 
 interface TabPanelProps {
@@ -74,6 +76,10 @@ function TimeSheet() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const [quotationModalOpen, setQuotationModalOpen] = useState(false);
+  const [timeSheetPreviewOpen, setTimeSheetPreviewOpen] = useState(false);
+  const [timeSheetPreviewDays, setTimeSheetPreviewDays] = useState<TimeSheetDay[]>([]);
+  const [timeSheetSubmitEntries, setTimeSheetSubmitEntries] = useState<TimesheetSubmitEntry[]>([]);
+  const [submittingTimeSheet, setSubmittingTimeSheet] = useState(false);
 
   const [quotations, setQuotations] = useState<ERPQuotation[]>([]);
   const [loadingQuotations, setLoadingQuotations] = useState(false);
@@ -135,6 +141,9 @@ function TimeSheet() {
   const [extendingTasks, setExtendingTasks] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removingTasks, setRemovingTasks] = useState(false);
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [unlockReason, setUnlockReason] = useState("");
+  const [requestingUnlock, setRequestingUnlock] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Monday - Sunday
@@ -162,6 +171,40 @@ function TimeSheet() {
     setAnchorEl(null);
   };
 
+  const openTimeSheetPreview = () => {
+    handleClose();
+    setTimeSheetPreviewOpen(true);
+  };
+
+  const handlePreviewDaysChange = useCallback((days: TimeSheetDay[]) => {
+    setTimeSheetPreviewDays(days);
+  }, []);
+
+  const handleSubmitEntriesChange = useCallback((entries: TimesheetSubmitEntry[]) => {
+    setTimeSheetSubmitEntries(entries);
+  }, []);
+
+  const submitTimeSheet = async (comments: string) => {
+    setSubmittingTimeSheet(true);
+
+    try {
+      await api.post("/timesheet-entries/submit/", {
+        week_start: weekStartKey,
+        comments,
+        entries: timeSheetSubmitEntries,
+      });
+
+      showNotification({
+        type: "success",
+        message: "Time sheet submitted successfully.",
+      });
+      setTimeSheetPreviewOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setSubmittingTimeSheet(false);
+    }
+  };
+
   const toggleAssignedTaskSelection = (assignedTaskId: number, checked: boolean) => {
     setSelectedAssignedTaskIds((current) => {
       if (checked) {
@@ -180,6 +223,12 @@ function TimeSheet() {
   const openRemoveDialog = () => {
     handleClose();
     setRemoveDialogOpen(true);
+  };
+
+  const openUnlockDialog = () => {
+    handleClose();
+    setFilterDrawerOpen(false);
+    setUnlockDialogOpen(true);
   };
 
   const extendSelectedTasks = async () => {
@@ -235,6 +284,27 @@ function TimeSheet() {
       setRemovingTasks(false);
     }
   };
+
+  const requestUnlock = async () => {
+    setRequestingUnlock(true);
+
+    try {
+      await api.post("/timesheet-statuses/request-unlock/", {
+        week_start: weekStartKey,
+        unlock_reason: unlockReason.trim(),
+      });
+
+      showNotification({
+        type: "success",
+        message: "Unlock request submitted successfully.",
+      });
+      setUnlockReason("");
+      setUnlockDialogOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setRequestingUnlock(false);
+    }
+  };
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -265,6 +335,8 @@ function TimeSheet() {
           refreshKey={refreshKey}
           selectedAssignedTaskIds={selectedAssignedTaskIds}
           onAssignedTaskSelectionChange={toggleAssignedTaskSelection}
+          onPreviewDaysChange={handlePreviewDaysChange}
+          onSubmitEntriesChange={handleSubmitEntriesChange}
         />
       ),
     },
@@ -431,7 +503,7 @@ function TimeSheet() {
               Assigned Tickets
             </MenuItem>
 
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openUnlockDialog}>
               <ListItemIcon>
                 <LockOpenOutlined fontSize="small" />
               </ListItemIcon>
@@ -451,7 +523,7 @@ function TimeSheet() {
               </ListItemIcon>
               Remove Task/project
             </MenuItem>
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openTimeSheetPreview}>
               <ListItemIcon>
                 <SendOutlined fontSize="small" />
               </ListItemIcon>
@@ -517,7 +589,7 @@ function TimeSheet() {
               Tickets
             </Button>
             <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
+              onClick={openUnlockDialog}
               sx={modalActionButtonSx}>
               Unlock Time Sheet Request
             </Button>
@@ -555,6 +627,16 @@ function TimeSheet() {
         onClose={() => setRemoveDialogOpen(false)}
         onConfirm={removeSelectedTasks}
       />
+      <TimeSheetUnlockRequestModal
+        open={unlockDialogOpen}
+        weekNumber={weekNumber}
+        weekRange={`${weekStart.format("DD-MMM-YYYY")} | ${weekEnd.format("DD-MMM-YYYY")}`}
+        reason={unlockReason}
+        submitting={requestingUnlock}
+        onReasonChange={setUnlockReason}
+        onClose={() => setUnlockDialogOpen(false)}
+        onSubmit={requestUnlock}
+      />
       <ERPQuotationModal
         open={quotationModalOpen}
         onClose={() => setQuotationModalOpen(false)}
@@ -562,6 +644,13 @@ function TimeSheet() {
         loading={loadingQuotations}
         submitting={assigningQuotations}
         onSelect={handleQuotationSelect}
+      />
+      <TimeSheetPreviewModal
+        open={timeSheetPreviewOpen}
+        onClose={() => setTimeSheetPreviewOpen(false)}
+        days={timeSheetPreviewDays}
+        submitting={submittingTimeSheet}
+        onSubmit={(data) => void submitTimeSheet(data.comments)}
       />
     </Box>
   );

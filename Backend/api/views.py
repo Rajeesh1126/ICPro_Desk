@@ -1,20 +1,24 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.permissions import RoleBasedPermission
-from projects.models import AssignedTask, Milestone, Project
+from projects.models import AssignedTask, Milestone, Project, Task
 from .models import Submission, TimesheetStatus
 from .serializers import (
     SubmissionSerializer,
     TimesheetDraftSerializer,
     TimesheetExtendTasksSerializer,
     TimesheetRemoveTasksSerializer,
+    TimesheetSubmitSerializer,
     TimesheetStatusSerializer,
+    TimesheetUnlockRequestSerializer,
 )
 
 
@@ -29,9 +33,147 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
     serializer_class = TimesheetStatusSerializer
     permission_classes = [RoleBasedPermission]
 
+    def get_permissions(self):
+        if self.action in {'current', 'request_unlock'}:
+            return [IsAuthenticated()]
+
+        return super().get_permissions()
+
+    @action(detail=False, methods=['get'], url_path='current')
+    def current(self, request):
+        week_start = parse_date(request.query_params.get('week_start', ''))
+        if not week_start:
+            return Response(
+                {'detail': 'week_start query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        iso_year, iso_week, _ = week_start.isocalendar()
+        timesheet_status = TimesheetStatus.objects.filter(
+            uid=request.user,
+            weeknumber=iso_week,
+            weekyear=iso_year,
+        ).first()
+
+        if not timesheet_status:
+            return Response(
+                {
+                    'timesheet_status': 'Not Submitted',
+                    'weeknumber': iso_week,
+                    'weekyear': iso_year,
+                    'submission_status': False,
+                    'comments': None,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            TimesheetStatusSerializer(timesheet_status).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='request-unlock')
+    def request_unlock(self, request):
+        serializer = TimesheetUnlockRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        week_start = serializer.validated_data['week_start']
+        iso_year, iso_week, _ = week_start.isocalendar()
+
+        existing_status = TimesheetStatus.objects.filter(
+            uid=request.user,
+            weeknumber=iso_week,
+            weekyear=iso_year,
+        ).first()
+
+        if existing_status and existing_status.timesheet_status in {'Submitted', 'Accepted'}:
+            return Response(
+                {
+                    'detail': 'Submitted or accepted time sheets cannot request unlock.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        timesheet_status, _ = TimesheetStatus.objects.update_or_create(
+            uid=request.user,
+            weeknumber=iso_week,
+            weekyear=iso_year,
+            defaults={
+                'timesheet_status': 'Requested',
+                # 'unlock_status': 'Requested',
+                'unlock_reason': serializer.validated_data['unlock_reason'],
+                'submission_status': False,
+            },
+        )
+
+        return Response(
+            {
+                'message': 'Unlock request submitted successfully.',
+                'timesheet_status': TimesheetStatusSerializer(timesheet_status).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class TimesheetEntryViewSet(viewsets.ViewSet):
     permission_classes = [RoleBasedPermission]
+
+    def _ensure_other_activity_assignments(self, user):
+        others_project = Project.objects.filter(name__iexact='Others').first()
+        if not others_project:
+            return
+
+        other_tasks = Task.objects.filter(project=others_project).select_related('milestone')
+        for task in other_tasks:
+            AssignedTask.objects.get_or_create(
+                assign_to=user,
+                project_obj=others_project,
+                task_obj=task,
+                milestone_obj=task.milestone,
+                defaults={
+                    'assign_by': None,
+                },
+            )
+
+    def _save_entries(self, entries, entry_status):
+        saved_entries = []
+        deleted_entries = []
+
+        for entry in entries:
+            if entry['hours'] == 0:
+                deleted_count, _ = Submission.objects.filter(
+                    assignId=entry['assignId'],
+                    date=entry['date'],
+                ).delete()
+
+                if deleted_count:
+                    deleted_entries.append({
+                        'assignId': entry['assignId'].id,
+                        'date': entry['date'].strftime('%Y-%m-%d'),
+                    })
+
+                continue
+
+            submission, _ = Submission.objects.update_or_create(
+                assignId=entry['assignId'],
+                date=entry['date'],
+                defaults={
+                    'hours': entry['hours'],
+                    'rate': entry.get('rate', 0),
+                    'status': entry_status,
+                    'approved_status': False,
+                },
+            )
+            saved_entries.append({
+                'id': submission.id,
+                'assignId': submission.assignId_id,
+                'date': submission.date.strftime('%Y-%m-%d'),
+                'hours': submission.hours,
+                'rate': submission.rate,
+                'status': submission.status,
+            })
+
+        return saved_entries, deleted_entries
 
     @action(detail=False, methods=['get'], url_path='entries')
     def entries(self, request):
@@ -39,6 +181,8 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         week_end = None
         if week_start:
             week_end = week_start + timedelta(days=6)
+
+        self._ensure_other_activity_assignments(request.user)
 
         assigned_task_filters = Q(assign_to=request.user)
         if week_start and week_end:
@@ -71,6 +215,8 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                 ),
             )
         ).order_by('id')
+
+        projects = sorted(projects, key=lambda project: project.name.lower() == 'others')
 
         project_payload = []
         for project in projects:
@@ -114,47 +260,53 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         serializer = TimesheetDraftSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
 
-        saved_entries = []
-        deleted_entries = []
-        for entry in serializer.validated_data['entries']:
-            if entry['hours'] == 0:
-                deleted_count, _ = Submission.objects.filter(
-                    assignId=entry['assignId'],
-                    date=entry['date'],
-                ).delete()
-
-                if deleted_count:
-                    deleted_entries.append({
-                        'assignId': entry['assignId'].id,
-                        'date': entry['date'].strftime('%Y-%m-%d'),
-                    })
-
-                continue
-
-            submission, _ = Submission.objects.update_or_create(
-                assignId=entry['assignId'],
-                date=entry['date'],
-                defaults={
-                    'hours': entry['hours'],
-                    'rate': entry.get('rate', 0),
-                    'status': 'Draft',
-                    'approved_status': False,
-                },
-            )
-            saved_entries.append({
-                'id': submission.id,
-                'assignId': submission.assignId_id,
-                'date': submission.date.strftime('%Y-%m-%d'),
-                'hours': submission.hours,
-                'rate': submission.rate,
-                'status': submission.status,
-            })
+        saved_entries, deleted_entries = self._save_entries(
+            serializer.validated_data['entries'],
+            'Draft',
+        )
 
         return Response(
             {
                 'message': 'Draft saved successfully.',
                 'entries': saved_entries,
                 'deleted_entries': deleted_entries,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='submit')
+    def submit(self, request):
+        serializer = TimesheetSubmitSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        week_start = serializer.validated_data['week_start']
+        week_number = week_start.isocalendar()[1]
+        week_year = week_start.isocalendar()[0]
+        comments = serializer.validated_data.get('comments') or None
+
+        with transaction.atomic():
+            saved_entries, deleted_entries = self._save_entries(
+                serializer.validated_data['entries'],
+                'Submitted',
+            )
+
+            timesheet_status, _ = TimesheetStatus.objects.update_or_create(
+                uid=request.user,
+                weeknumber=week_number,
+                weekyear=week_year,
+                defaults={
+                    'timesheet_status': 'Submitted',
+                    'submission_status': True,
+                    'comments': comments,
+                },
+            )
+
+        return Response(
+            {
+                'message': 'Time sheet submitted successfully.',
+                'entries': saved_entries,
+                'deleted_entries': deleted_entries,
+                'timesheet_status': TimesheetStatusSerializer(timesheet_status).data,
             },
             status=status.HTTP_200_OK,
         )

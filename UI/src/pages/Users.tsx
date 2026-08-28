@@ -24,6 +24,7 @@ import GroupCreateModal from "../components/Users/groupCreateModal"
 
 import {
     appPageBox,
+    editIconSx,
     flexColumnFillSx,
     inlineCenterGapSx,
     modalPrimaryActionButtonSx,
@@ -224,7 +225,7 @@ export default function Users() {
                                 size="small"
                                 onClick={() => openEdit(row)}
                             >
-                                <EditRoundedIcon fontSize="small" />
+                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
                         <Typography variant="body2">{row.username}</Typography>
@@ -262,7 +263,7 @@ export default function Users() {
                                 size="small"
                                 onClick={() => openEditGroup(row)}
                             >
-                                <EditRoundedIcon fontSize="small" />
+                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
                         <Typography variant="body2">

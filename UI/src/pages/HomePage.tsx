@@ -10,12 +10,15 @@ import {
     useMediaQuery,
 } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import BadgeIcon from '@mui/icons-material/Badge';
 import FormatListBulletedRoundedIcon from "@mui/icons-material/FormatListBulletedRounded";
 import ConfirmationNumberRoundedIcon from "@mui/icons-material/ConfirmationNumberRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
+import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
 import Header from "../components/AppBar/header";
 
 const SIDEBAR_WIDTH = 265;
@@ -49,6 +52,7 @@ const pages = [
         iconColor: "#d32f2f",
         codeName: "view_submission",
     },
+    
     {
         label: "Executive Overview",
         path: "/Home/Reports",
@@ -66,16 +70,23 @@ const pages = [
     {
         label: "Users Managment",
         path: "/Home/Users",
-        icon: <FactCheckRoundedIcon />,
+        icon: <ManageAccountsIcon />,
         iconColor: "#088da5",
         codeName: "view_user",
     },
     {
         label: "Roles Managment",
         path: "/Home/Roles",
-        icon: <FactCheckRoundedIcon />,
+        icon: <BadgeIcon/>,
         iconColor: "#088da5",
         codeName: "view_role",
+    },
+    {
+        label: "Project Configuration",
+        path: "/Home/ProjectConfiguration",
+        icon: <AccountTreeRoundedIcon />,
+        iconColor: "#00695c",
+        codeName: "view_project",
     },
 ] as const satisfies readonly {
     label: string;

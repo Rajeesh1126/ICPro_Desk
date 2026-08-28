@@ -269,9 +269,9 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         # ----------------------------------
         submission_hours = (
             Submission.objects.filter(
-                assignId__project_obj__quotation=OuterRef("number")
+                assignId__project_obj__quotation_id=OuterRef("number")
             )
-            .values("assignId__project_obj__quotation")
+            .values("assignId__project_obj__quotation_id")
             .annotate(
                 total_hours=ExpressionWrapper(
                     Sum("hours") / 3600.0,

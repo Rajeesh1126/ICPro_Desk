@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group,Permission
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import action,api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from core.permissions import RoleBasedPermission
@@ -15,9 +15,9 @@ from .serializers import (
     RoleSerializer,
     UserSerializer,
     TeamSerializer,
-    DepartmentSerializer
+    DepartmentSerializer,
+    PermissionSerializer
 )
-from django.http import JsonResponse
 # logger = logging.getLogger(__name__)
 
 User = get_user_model()
@@ -95,25 +95,63 @@ class DepartmentViewSet(viewsets.ModelViewSet):
  
     
 @api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
 def currentUserGroups(request):
-    groups = list(
-        request.user.groups.values('name','id')
+    user_groups = Group.objects.filter(
+        user=request.user
     )
-    executive_depts = list(
-        request.user.profile.department.values('name','id')
+
+    managed_departments = Group.objects.filter(
+        manager_mapping__manager=request.user
     )
-    departments = groups + executive_depts
 
-    unique_departments = list({
-        dept['id']: dept
-        for dept in departments
-    }.values())
-    department_ids = [dept['id'] for dept in unique_departments]
+    departments = (
+        (user_groups | managed_departments)
+        .distinct()
+        .order_by('name')
+    )
+    department_ids = list(departments.values_list('id', flat=True))
 
-    userslist = User.objects.filter(groups__id__in = department_ids).values('first_name',"id").distinct()
+    userslist = (
+        User.objects
+        .filter(groups__id__in=department_ids)
+        .values('id', 'username', 'first_name', 'last_name', 'email')
+        .distinct()
+        .order_by('first_name', 'last_name', 'username')
+    )
     data = {
-        "department_ids":department_ids,
-        "departments": unique_departments,
-        "userslist":list(userslist)
+        "department_ids": department_ids,
+        "departments": DepartmentSerializer(departments, many=True).data,
+        "groups": GroupSerializer(user_groups.order_by('name'), many=True).data,
+        "managed_departments": DepartmentSerializer(
+            managed_departments.order_by('name'),
+            many=True,
+        ).data,
+        "userslist": list(userslist),
     }
-    return JsonResponse(data)
+    return Response(data)
+
+class PermissionListViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = PermissionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        allowed_app_labels = [
+            'api',
+            # 'erp',
+            'projects',
+            'tickets',
+            'users',
+        ]
+
+        return (
+            Permission.objects
+            .select_related('content_type')
+            .filter(
+                content_type__app_label__in=allowed_app_labels,
+                codename__startswith='view_',
+            )
+            .exclude(content_type__model__in=['contenttype', 'session', 'logentry'])
+            .order_by('content_type__app_label', 'content_type__model', 'name', 'id')
+            .distinct()
+        )
