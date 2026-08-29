@@ -7,8 +7,14 @@ from rest_framework.permissions import IsAuthenticated
 from core.permissions import RoleBasedPermission
 from projects.models import AssignedTask, Milestone, Project, Task
 from .models import Submission, TimesheetStatus
+from projects.models import AssignedTask
 from django.contrib.auth import get_user_model
 from datetime import date, datetime, timedelta
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from django.utils import timezone
 from .serializers import (
     SubmissionSerializer,
     TimesheetDraftSerializer,
@@ -335,4 +341,643 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
                 "profile__reporting_to",
             )
             .filter(is_active=True)
+        )
+
+class ApprovalDetailData(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def parse_week_start(week_start):
+        """
+        Convert YYYY-MM-DD to date and make sure it is Monday.
+        """
+
+        if not week_start:
+            return None, Response(
+                {
+                    "error": "weekStart is required"
+                },
+                status=400
+            )
+
+        try:
+            week_start_date = datetime.strptime(
+                week_start,
+                "%Y-%m-%d"
+            ).date()
+
+        except ValueError:
+            return None, Response(
+                {
+                    "error": (
+                        "weekStart must be in "
+                        "YYYY-MM-DD format"
+                    )
+                },
+                status=400
+            )
+
+        if week_start_date.weekday() != 0:
+            return None, Response(
+                {
+                    "error": "weekStart must be a Monday"
+                },
+                status=400
+            )
+
+        return week_start_date, None
+
+    @staticmethod
+    def get_week_info(week_start_date):
+        """
+        Returns:
+            week_end_date
+            approval_end_date
+            week_number
+            week_year
+        """
+
+        week_end_date = (
+            week_start_date + timedelta(days=6)
+        )
+
+        approval_end_date = (
+            week_start_date + timedelta(days=13)
+        )
+
+        iso_calendar = (
+            week_start_date.isocalendar()
+        )
+
+        week_number = iso_calendar.week
+        week_year = iso_calendar.year
+
+        return (
+            week_end_date,
+            approval_end_date,
+            week_number,
+            week_year,
+        )
+
+    @staticmethod
+    def get_employee(employee_id):
+        """
+        Get employee safely.
+        """
+
+        if not employee_id:
+            return None, Response(
+                {
+                    "error": "employeeId is required"
+                },
+                status=400
+            )
+
+        try:
+            employee_id = int(employee_id)
+
+        except (TypeError, ValueError):
+            return None, Response(
+                {
+                    "error": "employeeId must be a number"
+                },
+                status=400
+            )
+
+        try:
+            employee = User.objects.get(
+                id=employee_id
+            )
+
+        except User.DoesNotExist:
+            return None, Response(
+                {
+                    "error": "Employee not found"
+                },
+                status=404
+            )
+
+        return employee, None
+
+    @staticmethod
+    def get_timesheet_status(
+        employee_id,
+        week_number,
+        week_year
+    ):
+        """
+        IMPORTANT:
+        uid is assumed to be a ForeignKey to User.
+
+        Therefore use uid_id instead of:
+            uid=employee.username
+        """
+
+        return (
+            TimesheetStatus.objects
+            .filter(
+                uid_id=employee_id,
+                weeknumber=week_number,
+                weekyear=week_year,
+            )
+            .first()
+        )
+
+    def get(self, request):
+
+        week_start = request.query_params.get(
+            "weekStart"
+        )
+
+        employee_id = request.query_params.get(
+            "employeeId"
+        )
+        week_start_date, error_response = (
+            self.parse_week_start(
+                week_start
+            )
+        )
+
+        if error_response:
+            return error_response
+
+        employee, error_response = (
+            self.get_employee(
+                employee_id
+            )
+        )
+
+        if error_response:
+            return error_response
+
+        # Convert to integer after validation.
+        employee_id = employee.id
+
+        (
+            week_end_date,
+            approval_end_date,
+            week_number,
+            week_year,
+        ) = self.get_week_info(
+            week_start_date
+        )
+
+        timesheet_status = (
+            self.get_timesheet_status(
+                employee_id,
+                week_number,
+                week_year
+            )
+        )
+
+        comments = ""
+
+        action_status = False
+
+        if timesheet_status:
+
+            comments = (
+                timesheet_status.comments
+                or ""
+            )
+
+            action_status = bool(
+                timesheet_status.action_status
+            )
+
+        submissions = (
+            Submission.objects
+            .filter(
+                assignId__assign_to_id=employee_id,
+                date__range=[
+                    week_start_date,
+                    week_end_date
+                ]
+            )
+            .select_related(
+                "assignId",
+                "assignId__assign_by",
+                "assignId__project_obj",
+                "assignId__task_obj",
+                "assignId__milestone_obj",
+            )
+            .order_by(
+                "assignId_id",
+                "date"
+            )
+        )
+
+        task_map = {}
+
+        for submission in submissions:
+
+            assigned_task = submission.assignId
+
+            if not assigned_task:
+                continue
+
+            task_id = assigned_task.id
+
+            if task_id not in task_map:
+
+                task_map[task_id] = {
+                    "assigned_task": assigned_task,
+                    "submissions": [],
+                }
+
+            task_map[task_id][
+                "submissions"
+            ].append(
+                submission
+            )
+
+        rows = []
+
+        for task_id, task_data in task_map.items():
+
+            assigned_task = (
+                task_data["assigned_task"]
+            )
+
+            task_submissions = (
+                task_data["submissions"]
+            )
+
+            project = (
+                assigned_task.project_obj
+            )
+
+            project_id = (
+                project.id
+                if project
+                else None
+            )
+
+            project_name = (
+                project.name
+                if project
+                else ""
+            )
+
+            task_name = ""
+
+            if assigned_task.milestone_obj:
+
+                task_name = str(
+                    assigned_task.milestone_obj
+                )
+
+            elif assigned_task.task_obj:
+
+                task_name = str(
+                    assigned_task.task_obj
+                )
+
+            budget_owner = ""
+
+            if assigned_task.assign_by:
+
+                budget_owner = (
+                    assigned_task.assign_by.get_full_name()
+                    or assigned_task.assign_by.username
+                )
+
+            hours = [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ]
+
+            rating = ""
+
+            status = ""
+
+            approved_status = False
+
+            rejection_reason = None
+
+            for submission in task_submissions:
+
+                day_index = (
+                    submission.date
+                    - week_start_date
+                ).days
+
+                if (
+                    day_index < 0
+                    or day_index > 6
+                ):
+                    continue
+
+                if submission.hours is not None:
+
+                    hours[day_index] = (
+                        f"{submission.hours:02d}.00"
+                    )
+
+                if submission.rate is not None:
+
+                    rating = str(
+                        submission.rate
+                    )
+
+                if submission.status:
+
+                    status = (
+                        submission.status
+                    )
+
+
+                if submission.approved_status:
+
+                    approved_status = True
+
+                if submission.rejection_reason:
+
+                    rejection_reason = (
+                        submission.rejection_reason
+                    )
+
+            rows.append(
+                {
+                    "id": assigned_task.id,
+                    "projectId": project_id,
+                    "project": project_name,
+                    "task": task_name,
+                    "budgetOwner": budget_owner,
+                    "hours": hours,
+                    "rating": rating,
+                    "status": status,
+                    "approvedStatus": approved_status,
+                    "rejectionReason": rejection_reason,
+                }
+            )
+
+        return Response(
+            {
+                "rows": rows,
+                "comments": comments,
+                "action_status": action_status,
+            },
+            status=200
+        )
+
+    def patch(self, request):
+
+        week_start = request.data.get(
+            "weekStart"
+        )
+
+        employee_id = request.data.get(
+            "employeeId"
+        )
+
+        assign_id = request.data.get(
+            "assignId"
+        )
+
+        action = request.data.get(
+            "action"
+        )
+
+        rating = request.data.get(
+            "rating"
+        )
+
+        comments = request.data.get(
+            "comments"
+        )
+
+        if action not in [
+            "Accepted",
+            "Rejected"
+        ]:
+            return Response(
+                {
+                    "error": (
+                        "action must be "
+                        "Accepted or Rejected"
+                    )
+                },
+                status=400
+            )
+
+        if rating in [
+            None,
+            "",
+            "0",
+            0
+        ]:
+            return Response(
+                {
+                    "error": "rating is required"
+                },
+                status=400
+            )
+
+        try:
+
+            rating = int(rating)
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return Response(
+                {
+                    "error": (
+                        "rating must be a number"
+                    )
+                },
+                status=400
+            )
+
+        if rating < 1 or rating > 5:
+
+            return Response(
+                {
+                    "error": (
+                        "rating must be "
+                        "between 1 and 5"
+                    )
+                },
+                status=400
+            )
+
+        if not assign_id:
+
+            return Response(
+                {
+                    "error": "assignId is required"
+                },
+                status=400
+            )
+
+        try:
+
+            assign_id = int(assign_id)
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            return Response(
+                {
+                    "error": (
+                        "assignId must be a number"
+                    )
+                },
+                status=400
+            )
+
+        week_start_date, error_response = (
+            self.parse_week_start(
+                week_start
+            )
+        )
+
+        if error_response:
+            return error_response
+
+        employee, error_response = (
+            self.get_employee(
+                employee_id
+            )
+        )
+
+        if error_response:
+            return error_response
+
+        employee_id = employee.id
+
+        (
+            week_end_date,
+            approval_end_date,
+            week_number,
+            week_year,
+        ) = self.get_week_info(
+            week_start_date
+        )
+
+        current_date = (
+            timezone.localdate()
+        )
+
+        is_delayed = (
+            current_date > approval_end_date
+        )
+
+        action_status_value = (
+            not is_delayed
+        )
+
+        submissions = (
+            Submission.objects
+            .filter(
+                assignId_id=assign_id,
+                assignId__assign_to_id=employee_id,
+                date__range=[
+                    week_start_date,
+                    week_end_date
+                ]
+            )
+        )
+
+        if not submissions.exists():
+
+            return Response(
+                {
+                    "error": (
+                        "No submission records "
+                        "found for the selected "
+                        "employee, task and week"
+                    )
+                },
+                status=404
+            )
+
+        with transaction.atomic():
+
+            updated_count = (
+                submissions.update(
+                    status=action,
+                    rate=rating
+                )
+            )
+
+            timesheet_status = (
+                self.get_timesheet_status(
+                    employee_id,
+                    week_number,
+                    week_year
+                )
+            )
+
+            if not timesheet_status:
+
+                return Response(
+                    {
+                        "error": (
+                            "Timesheet status "
+                            "record not found"
+                        )
+                    },
+                    status=404
+                )
+
+            timesheet_status.action_status = (
+                action_status_value
+            )
+
+            update_fields = [
+                "action_status"
+            ]
+
+            if comments is not None:
+
+                timesheet_status.comments = (
+                    comments
+                )
+
+                update_fields.append(
+                    "comments"
+                )
+
+            timesheet_status.save(
+                update_fields=update_fields
+            )
+
+        return Response(
+            {
+                "message": (
+                    f"Submission records "
+                    f"{action.lower()} successfully"
+                ),
+                "weekStart": week_start,
+                "weekEnd": str(
+                    week_end_date
+                ),
+                "approvalEndDate": str(
+                    approval_end_date
+                ),
+                "currentDate": str(
+                    current_date
+                ),
+                "employeeId": employee_id,
+                "assignId": assign_id,
+                "status": action,
+                "rating": rating,
+                "updatedRecords": updated_count,
+                "isDelayed": is_delayed,
+                "action_status": (
+                    action_status_value
+                ),
+            },
+            status=200
         )

@@ -1,5 +1,6 @@
 import React, {
     useCallback,
+    useEffect,
     useMemo,
     useState,
 } from "react";
@@ -9,6 +10,8 @@ import {
     Button,
     Dialog,
     IconButton,
+    MenuItem,
+    Select,
     Typography,
 } from "@mui/material";
 
@@ -20,238 +23,400 @@ import {
     type ColumnData,
 } from "../../components/common/TableView";
 
-import type { ApprovalRow } from "../../types/dataTypes";
+import type {
+    ApprovalRow,
+    ApiTaskRow,
+    TaskRow,
+} from "../../types/dataTypes";
+
+import api from "../../api/axios";
+
+import {
+    ApproveDetailDialogPaperSx,
+} from "../../styles/common";
+
+interface ApprovalDetailResponse {
+    rows: ApiTaskRow[];
+    comments?: string;
+    action_status?: boolean;
+}
 
 interface ApprovalDetailedViewProps {
     open: boolean;
     employee: ApprovalRow | null;
     onClose: () => void;
+    weekStart: string;
 }
 
-interface TaskRow {
-    [key: string]: unknown;
+const ApprovalDetailedView: React.FC<
+    ApprovalDetailedViewProps
+> = ({
+    open,
+    employee,
+    onClose,
+    weekStart,
+}) => {
 
-    id: number;
-    projectId: number;
-
-    project: string;
-    task: string;
-    budgetOwner: string;
-    hours: string[];
-    rating: string;
-
-    status:
-        | "Accepted"
-        | "Rejected"
-        | "Pending";
-    rowType:
-        | "project"
-        | "milestone";
-}
-
-const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open,employee,onClose,}) => {
+    const [tasks, setTasks] =
+        useState<TaskRow[]>([]);
 
     const [expandedProjects, setExpandedProjects] =
-        useState<number[]>([1, 2, 3]);
+        useState<number[]>([]);
 
-    const handleToggleProject = useCallback(
-        (projectId: number) => {
-            setExpandedProjects((previous) => {
-                if (
-                    previous.includes(projectId)
-                ) {
-                    return previous.filter(
-                        (id) => id !== projectId
-                    );
+    const [loading, setLoading] =
+        useState(false);
+
+    const [updatingTaskId, setUpdatingTaskId] =
+        useState<number | null>(null);
+
+    const [comments, setComments] =
+        useState("");
+
+    const [actionStatus, setActionStatus] =
+        useState(false);
+
+    const days = useMemo(() => {
+
+        if (!weekStart) {
+            return [];
+        }
+
+        const startDate = new Date(
+            `${weekStart}T00:00:00`
+        );
+
+        const dayNames = [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+        ];
+
+        const result: {
+            label: string;
+            date: string;
+        }[] = [];
+
+        for (
+            let index = 0;
+            index < 7;
+            index++
+        ) {
+
+            const currentDate =
+                new Date(startDate);
+
+            currentDate.setDate(
+                startDate.getDate() + index
+            );
+
+            const dayName =
+                dayNames[
+                    currentDate.getDay()
+                ];
+
+            const dayNumber =
+                String(
+                    currentDate.getDate()
+                ).padStart(2, "0");
+
+            result.push({
+                label:
+                    `${dayName}-${dayNumber}`,
+
+                date:
+                    currentDate
+                        .toISOString()
+                        .split("T")[0],
+            });
+        }
+
+        return result;
+
+    }, [weekStart]);
+
+    useEffect(() => {
+
+        if (
+            !open ||
+            !employee?.id ||
+            !weekStart
+        ) {
+            return;
+        }
+
+        let active = true;
+
+        setLoading(true);
+        setTasks([]);
+        setComments("");
+        setActionStatus(false);
+
+        void api
+            .get<ApprovalDetailResponse>(
+                "/ApprovalDetailData/",
+                {
+                    params: {
+                        weekStart,
+                        employeeId:
+                            employee.id,
+                    },
+                }
+            )
+            .then((response) => {
+
+                if (!active) {
+                    return;
                 }
 
-                return [
-                    ...previous,
-                    projectId,
-                ];
+                console.log(
+                    "Approval Detail Data:",
+                    response.data
+                );
+
+                const apiRows =
+                    response.data?.rows || [];
+
+                setComments(
+                    response.data?.comments || ""
+                );
+
+                setActionStatus(
+                    Boolean(
+                        response.data
+                            ?.action_status
+                    )
+                );
+
+                const projectMap =
+                    new Map<
+                        number,
+                        {
+                            projectId: number;
+                            project: string;
+                            tasks: ApiTaskRow[];
+                        }
+                    >();
+
+                apiRows.forEach((row) => {
+
+                    if (
+                        row.projectId === null ||
+                        row.projectId === undefined
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        !projectMap.has(
+                            row.projectId
+                        )
+                    ) {
+
+                        projectMap.set(
+                            row.projectId,
+                            {
+                                projectId:
+                                    row.projectId,
+
+                                project:
+                                    row.project,
+
+                                tasks: [],
+                            }
+                        );
+                    }
+
+                    projectMap
+                        .get(row.projectId)!
+                        .tasks
+                        .push(row);
+                });
+
+                const tableRows: TaskRow[] = [];
+
+                projectMap.forEach(
+                    (projectData) => {
+
+                        tableRows.push({
+                            id:
+                                projectData.projectId,
+
+                            projectId:
+                                projectData.projectId,
+
+                            project:
+                                projectData.project,
+
+                            task: "",
+
+                            budgetOwner: "",
+
+                            hours: [
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                            ],
+
+                            rating: "",
+
+                            status: "",
+
+                            rowType:
+                                "project",
+                        });
+
+                        projectData.tasks.forEach(
+                            (task) => {
+
+                                tableRows.push({
+
+                                    id:
+                                        task.id,
+
+                                    projectId:
+                                        task.projectId,
+
+                                    project: "",
+
+                                    task:
+                                        task.task,
+
+                                    budgetOwner:
+                                        task.budgetOwner,
+
+                                    hours:
+                                        Array.isArray(
+                                            task.hours
+                                        )
+                                            ? task.hours
+                                            : [
+                                                "",
+                                                "",
+                                                "",
+                                                "",
+                                                "",
+                                                "",
+                                                "",
+                                            ],
+
+                                    rating:
+                                        String(
+                                            task.rating ??
+                                            ""
+                                        ),
+
+                                    status:
+                                        task.status ||
+                                        "Pending",
+
+                                    rowType:
+                                        "milestone",
+
+                                    approvedStatus:
+                                        task.approvedStatus,
+
+                                    rejectionReason:
+                                        task.rejectionReason,
+                                });
+                            }
+                        );
+                    }
+                );
+
+                setTasks(tableRows);
+
+                setExpandedProjects(
+                    Array.from(
+                        projectMap.keys()
+                    )
+                );
+            })
+            .catch((error) => {
+
+                console.error(
+                    "Failed to load approval data",
+                    error
+                );
+
+                if (active) {
+
+                    setTasks([]);
+                    setExpandedProjects([]);
+                    setComments("");
+                    setActionStatus(false);
+                }
+            })
+            .finally(() => {
+
+                if (active) {
+                    setLoading(false);
+                }
             });
-        },
-        []
-    );
 
-    const tasks: TaskRow[] = useMemo(() => [
-        {
-            id: 1,
-            projectId: 1,
+        return () => {
+            active = false;
+        };
 
-            project:
-                "ICP/UN/2022 - TICKET MANAGEMENT",
+    }, [
+        open,
+        employee?.id,
+        weekStart,
+    ]);
 
-            task: "",
+    const handleToggleProject =
+        useCallback(
+            (projectId: number) => {
 
-            budgetOwner: "",
+                setExpandedProjects(
+                    (previous) => {
 
-            hours: [
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-            ],
+                        if (
+                            previous.includes(
+                                projectId
+                            )
+                        ) {
 
-            rating: "",
+                            return previous.filter(
+                                (id) =>
+                                    id !==
+                                    projectId
+                            );
+                        }
 
-            status: "Pending",
-
-            rowType: "project",
-        },
-        {
-            id: 101,
-            projectId: 1,
-
-            project:
-                "ICP/UN/2022 - TICKET MANAGEMENT",
-
-            task:
-                "Software-Development",
-
-            budgetOwner:
-                employee?.reporting_to ||
-                "Rajeesh k",
-
-            hours: [
-                "09.00",
-                "",
-                "09.00",
-                "09.00",
-                "08.00",
-                "",
-                "",
-            ],
-
-            rating: "Good",
-
-            status: "Accepted",
-
-            rowType: "milestone",
-        },
-        {
-            id: 2,
-            projectId: 2,
-
-            project: "Non Projects",
-
-            task: "",
-
-            budgetOwner: "",
-
-            hours: [
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-            ],
-
-            rating: "",
-
-            status: "Pending",
-
-            rowType: "project",
-        },
-        {
-            id: 102,
-            projectId: 2,
-
-            project: "Non Projects",
-
-            task: "Team building",
-
-            budgetOwner:
-                employee?.reporting_to ||
-                "Rajeesh k",
-
-            hours: [
-                "09.00",
-                "00.00",
-                "00.00",
-                "00.00",
-                "00.00",
-                "00.00",
-                "00.00",
-            ],
-
-            rating: "",
-
-            status: "Accepted",
-
-            rowType: "milestone",
-        },
-        {
-            id: 3,
-            projectId: 3,
-
-            project: "Training",
-
-            task: "",
-
-            budgetOwner: "",
-
-            hours: [
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-            ],
-
-            rating: "",
-
-            status: "Pending",
-
-            rowType: "project",
-        },
-        {
-            id: 103,
-            projectId: 3,
-
-            project: "Training",
-
-            task: "Internal Training",
-
-            budgetOwner:
-                employee?.reporting_to ||
-                "Rajeesh k",
-
-            hours: [
-                "",
-                "",
-                "01.00",
-                "01.00",
-                "01.00",
-                "",
-                "",
-            ],
-
-            rating: "",
-
-            status: "Accepted",
-
-            rowType: "milestone",
-        },],[employee]
-    );
+                        return [
+                            ...previous,
+                            projectId,
+                        ];
+                    }
+                );
+            },
+            []
+        );
 
     const visibleTasks = useMemo(() => {
+
         const result: TaskRow[] = [];
 
         tasks.forEach((row) => {
+
             if (
-                row.rowType === "project"
+                row.rowType ===
+                "project"
             ) {
+
                 result.push(row);
+
                 return;
             }
+
             if (
                 row.rowType ===
                     "milestone" &&
@@ -259,27 +424,23 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open,employ
                     row.projectId
                 )
             ) {
+
                 result.push(row);
             }
         });
 
         return result;
+
     }, [
         tasks,
         expandedProjects,
     ]);
-    const days = [
-        "Mon-17",
-        "Tue-18",
-        "Wed-19",
-        "Thu-20",
-        "Fri-21",
-        "Sat-22",
-        "Sun-23",
-    ];
+
     const totals = useMemo(() => {
+
         return days.map(
             (_, dayIndex) => {
+
                 return tasks
                     .filter(
                         (task) =>
@@ -291,612 +452,732 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open,employ
                             total,
                             task
                         ) => {
+
                             const value =
                                 parseFloat(
-                                    task
-                                        .hours[
+                                    task.hours[
                                         dayIndex
-                                    ] ||
-                                        "0"
+                                    ] || "0"
                                 );
 
+                            if (
+                                Number.isNaN(
+                                    value
+                                )
+                            ) {
+                                return total;
+                            }
+
                             return (
-                                total +
-                                value
+                                total + value
                             );
                         },
                         0
                     );
             }
         );
-    }, [tasks]);
+
+    }, [
+        tasks,
+        days,
+    ]);
+
     const actualHours = useMemo(
         () => {
+
             return totals.reduce(
                 (
                     total,
                     value
                 ) =>
-                    total +
-                    value,
+                    total + value,
                 0
             );
+
         },
         [totals]
     );
-    const columns: ColumnData<TaskRow>[] =
-        useMemo(
-            () => [
-                {
-                    key: "project",
-                    label: "Jobs",
-                    width: 240,
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            const isExpanded =
-                                expandedProjects.includes(
-                                    row.projectId
-                                );
+    const handleRatingChange =
+        useCallback(
+            (
+                taskId: number,
+                value: string
+            ) => {
 
-                            return (
-                                <Box
-                                    sx={{
-                                        width:
-                                            "100%",
-                                        height:
-                                            45,
-                                        display:
-                                            "flex",
-                                        alignItems:
-                                            "center",
-                                    }}
-                                >
-                                    <IconButton
-                                        size="small"
-                                        onClick={() =>
-                                            handleToggleProject(
-                                                row.projectId
-                                            )
-                                        }
-                                        sx={{
-                                            p: 0,
-                                            mr: 0.5,
-                                            color:
-                                                "#555",
-                                        }}
-                                    >
-                                        <KeyboardArrowDownIcon
-                                            sx={{
-                                                fontSize: 18,
+                setTasks(
+                    (previous) =>
+                        previous.map(
+                            (row) => {
 
-                                                transition:
-                                                    "transform 0.2s ease",
-
-                                                transform:
-                                                    isExpanded
-                                                        ? "rotate(0deg)"
-                                                        : "rotate(-90deg)",
-                                            }}
-                                        />
-                                    </IconButton>
-
-                                    <Typography
-                                        sx={{
-                                            fontSize:
-                                                12,
-                                            fontWeight:
-                                                500,
-                                            color:
-                                                "#444",
-                                            whiteSpace:
-                                                "nowrap",
-                                            overflow:
-                                                "hidden",
-                                            textOverflow:
-                                                "ellipsis",
-                                        }}
-                                    >
-                                        {
-                                            row.project
-                                        }
-                                    </Typography>
-                                </Box>
-                            );
-                        }
-                        return (
-                            <Box
-                                sx={{
-                                    width:
-                                        "100%",
-                                    height:
-                                        45,
-                                    display:
-                                        "flex",
-                                    alignItems:
-                                        "center",
-                                    pl: 3.5,
-                                }}
-                            >
-                                <Typography
-                                    sx={{
-                                        fontSize:
-                                            12,
-                                        color:
-                                            "#555",
-                                        whiteSpace:
-                                            "nowrap",
-                                        overflow:
-                                            "hidden",
-                                        textOverflow:
-                                            "ellipsis",
-                                    }}
-                                >
-                                    {row.task}
-                                </Typography>
-                            </Box>
-                        );
-                    },
-                },
-                {
-                    key: "budgetOwner",
-                    label: "Budget Owner",
-                    width: 120,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <Typography
-                                sx={{
-                                    fontSize:
-                                        12,
-                                    color:
-                                        "#555",
-                                    whiteSpace:
-                                        "nowrap",
-                                }}
-                            >
-                                {
-                                    row.budgetOwner
+                                if (
+                                    row.id !==
+                                    taskId
+                                ) {
+                                    return row;
                                 }
-                            </Typography>
+
+                                return {
+                                    ...row,
+                                    rating:
+                                        value,
+                                };
+                            }
+                        )
+                );
+            },
+            []
+        );
+
+    const handleApprovalAction =
+        useCallback(
+            async (
+                row: TaskRow,
+                action:
+                    | "Accepted"
+                    | "Rejected"
+            ) => {
+
+                if (!employee?.id) {
+                    return;
+                }
+
+                if (
+                    !row.rating ||
+                    row.rating === "0"
+                ) {
+
+                    alert(
+                        "Please select a rating."
+                    );
+
+                    return;
+                }
+
+                const ratingNumber =
+                    Number(row.rating);
+
+                if (
+                    Number.isNaN(
+                        ratingNumber
+                    ) ||
+                    ratingNumber < 1 ||
+                    ratingNumber > 5
+                ) {
+
+                    alert(
+                        "Please select a valid rating."
+                    );
+
+                    return;
+                }
+
+                if (
+                    updatingTaskId !== null
+                ) {
+                    return;
+                }
+
+                try {
+
+                    setUpdatingTaskId(
+                        row.id
+                    );
+
+                    const response =
+                        await api.patch(
+                            "/ApprovalDetailData/",
+                            {
+                                weekStart,
+
+                                employeeId:
+                                    employee.id,
+
+                                // row.id is AssignedTask.id
+                                assignId:
+                                    row.id,
+
+                                action,
+
+                                rating:
+                                    ratingNumber,
+
+                                comments,
+                            }
                         );
-                    },
-                },
-                {
-                    key: "mon",
-                    label: "Mon-17",
-                    width: 58,
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
+                    console.log(
+                        "Approval updated:",
+                        response.data
+                    );
 
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[0]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "tue",
-                    label: "Tue-18",
-                    width: 58,
+                    setTasks(
+                        (previous) =>
+                            previous.map(
+                                (task) => {
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[1]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "wed",
-                    label: "Wed-19",
-                    width: 58,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[2]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "thu",
-                    label: "Thu-20",
-                    width: 58,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[3]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "fri",
-                    label: "Fri-21",
-                    width: 58,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[4]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "sat",
-                    label: "Sat-22",
-                    width: 58,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[5]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "sun",
-                    label: "Sun-23",
-                    width: 58,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <HourCell
-                                value={
-                                    row.hours[6]
-                                }
-                            />
-                        );
-                    },
-                },
-                {
-                    key: "rating",
-                    label: "Rating",
-                    width: 90,
-
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                                "project" ||
-                            !row.rating
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <Box
-                                sx={{
-                                    width:
-                                        "100%",
-                                    height:
-                                        30,
-                                    px: 1,
-                                    boxSizing:
-                                        "border-box",
-                                    display:
-                                        "flex",
-                                    alignItems:
-                                        "center",
-                                    justifyContent:
-                                        "space-between",
-                                    backgroundColor:
-                                        "#eeeeee",
-                                    border:
-                                        "1px solid #ddd",
-                                    borderRadius:
-                                        "3px",
-                                    fontSize:
-                                        11,
-                                    color:
-                                        "#555",
-                                }}
-                            >
-                                <span>
-                                    {
-                                        row.rating
+                                    if (
+                                        task.id !==
+                                        row.id
+                                    ) {
+                                        return task;
                                     }
-                                </span>
 
-                                <KeyboardArrowDownIcon
-                                    sx={{
-                                        fontSize:
-                                            15,
-                                    }}
-                                />
-                            </Box>
-                        );
-                    },
-                },
-                {
-                    key: "status",
-                    label: "Status",
-                    width: 90,
+                                    return {
+                                        ...task,
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
+                                        status:
+                                            action,
 
-                        return (
-                            <Typography
-                                sx={{
-                                    fontSize:
-                                        12,
-
-                                    color:
-                                        row.status ===
-                                        "Accepted"
-                                            ? "#00a651"
-                                            : row.status ===
-                                              "Rejected"
-                                            ? "#ff3b3b"
-                                            : "#168bd1",
-                                }}
-                            >
-                                {
-                                    row.status
+                                        rating:
+                                            String(
+                                                ratingNumber
+                                            ),
+                                    };
                                 }
-                            </Typography>
+                            )
+                    );
+
+                    if (
+                        typeof response
+                            .data
+                            ?.action_status ===
+                        "boolean"
+                    ) {
+
+                        setActionStatus(
+                            response.data
+                                .action_status
                         );
-                    },
-                },
-                {
-                    key: "accept",
-                    label: "Accept",
-                    width: 65,
+                    }
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
+                } catch (error) {
 
-                        return (
-                            <Button
-                                size="small"
-                                variant="contained"
-                                disabled={
-                                    row.status ===
-                                    "Accepted"
-                                }
-                                sx={{
-                                    minWidth:
-                                        58,
-                                    height:
-                                        28,
-                                    fontSize:
-                                        9,
-                                    fontWeight:
-                                        600,
-                                    backgroundColor:
-                                        "#5fc58b",
-                                    boxShadow:
-                                        "none",
+                    console.error(
+                        `Failed to ${action.toLowerCase()} submission:`,
+                        error
+                    );
 
-                                    "&:hover":
-                                        {
-                                            backgroundColor:
-                                                "#4db77c",
-                                            boxShadow:
-                                                "none",
-                                        },
-                                }}
-                            >
-                                ACCEPT
-                            </Button>
-                        );
-                    },
-                },
-                {
-                    key: "reject",
-                    label: "Reject",
-                    width: 65,
+                    alert(
+                        `Failed to ${action.toLowerCase()} submission.`
+                    );
 
-                    render: (
-                        row: TaskRow
-                    ) => {
-                        if (
-                            row.rowType ===
-                            "project"
-                        ) {
-                            return null;
-                        }
+                } finally {
 
-                        return (
-                            <Button
-                                size="small"
-                                variant="contained"
-                                disabled={
-                                    row.status ===
-                                    "Rejected"
-                                }
-                                sx={{
-                                    minWidth:
-                                        58,
-                                    height:
-                                        28,
-                                    fontSize:
-                                        9,
-                                    fontWeight:
-                                        600,
-                                    backgroundColor:
-                                        "#e9819a",
-                                    boxShadow:
-                                        "none",
-
-                                    "&:hover":
-                                        {
-                                            backgroundColor:
-                                                "#db6f88",
-                                            boxShadow:
-                                                "none",
-                                        },
-                                }}
-                            >
-                                REJECT
-                            </Button>
-                        );
-                    },
-                },
-            ],
+                    setUpdatingTaskId(
+                        null
+                    );
+                }
+            },
             [
-                expandedProjects,
-                handleToggleProject,
+                employee?.id,
+                weekStart,
+                comments,
+                updatingTaskId,
             ]
         );
+
+    const columns:
+        ColumnData<TaskRow>[] =
+        useMemo(
+            () => {
+
+                const result:
+                    ColumnData<TaskRow>[] =
+                    [
+
+                        {
+                            label: "Jobs",
+
+                            width: 240,
+
+                            render:
+                                (
+                                    row: TaskRow
+                                ) => {
+
+                                    if (
+                                        row.rowType ===
+                                        "project"
+                                    ) {
+
+                                        const isExpanded =
+                                            expandedProjects.includes(
+                                                row.projectId
+                                            );
+
+                                        return (
+                                            <Box
+                                                sx={{
+                                                    display:
+                                                        "flex",
+
+                                                    alignItems:
+                                                        "center",
+                                                }}
+                                            >
+
+                                                <IconButton
+                                                    size="small"
+
+                                                    onClick={() =>
+                                                        handleToggleProject(
+                                                            row.projectId
+                                                        )
+                                                    }
+
+                                                    sx={{
+                                                        p: 0,
+                                                        mr: 0.5,
+                                                    }}
+                                                >
+
+                                                    <KeyboardArrowDownIcon
+                                                        sx={{
+                                                            fontSize:
+                                                                18,
+
+                                                            transition:
+                                                                "transform 0.2s ease",
+
+                                                            transform:
+                                                                isExpanded
+                                                                    ? "rotate(0deg)"
+                                                                    : "rotate(-90deg)",
+                                                        }}
+                                                    />
+
+                                                </IconButton>
+
+                                                <Typography
+                                                    component="span"
+
+                                                    sx={{
+                                                        fontSize:
+                                                            13,
+
+                                                        fontWeight:
+                                                            500,
+                                                    }}
+                                                >
+                                                    {
+                                                        row.project
+                                                    }
+                                                </Typography>
+
+                                            </Box>
+                                        );
+                                    }
+
+                                    return (
+                                        <Typography
+                                            component="span"
+
+                                            sx={{
+                                                fontSize:
+                                                    13,
+                                            }}
+                                        >
+                                            {
+                                                row.task
+                                            }
+                                        </Typography>
+                                    );
+                                },
+                        },
+
+                        {
+                            label:
+                                "Budget Owner",
+
+                            width: 120,
+
+                            render:
+                                (
+                                    row: TaskRow
+                                ) => {
+
+                                    if (
+                                        row.rowType ===
+                                        "project"
+                                    ) {
+                                        return null;
+                                    }
+
+                                    return row.budgetOwner;
+                                },
+                        },
+                    ];
+
+                days.forEach(
+                    (
+                        day,
+                        dayIndex
+                    ) => {
+
+                        result.push({
+
+                            label:
+                                day.label,
+
+                            width: 58,
+
+                            render:
+                                (
+                                    row: TaskRow
+                                ) => {
+
+                                    if (
+                                        row.rowType ===
+                                        "project"
+                                    ) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <HourCell
+                                            value={
+                                                row.hours[
+                                                    dayIndex
+                                                ] || ""
+                                            }
+                                        />
+                                    );
+                                },
+                        });
+                    }
+                );
+
+                result.push({
+
+                    label: "Rating",
+
+                    width: 90,
+
+                    render:
+                        (
+                            row: TaskRow
+                        ) => {
+
+                            if (
+                                row.rowType ===
+                                "project"
+                            ) {
+                                return null;
+                            }
+
+                            return (
+                                <Select
+                                    size="small"
+
+                                    value={
+                                        row.rating ||
+                                        ""
+                                    }
+
+                                    displayEmpty
+
+                                    disabled={
+                                        updatingTaskId ===
+                                        row.id
+                                    }
+
+                                    onChange={(
+                                        event
+                                    ) => {
+
+                                        handleRatingChange(
+                                            row.id,
+
+                                            String(
+                                                event
+                                                    .target
+                                                    .value
+                                            )
+                                        );
+                                    }}
+
+                                    sx={{
+                                        minWidth: 70,
+                                        height: 32,
+                                        fontSize: 12,
+                                    }}
+                                >
+
+                                    <MenuItem
+                                        value="0"
+                                    >
+                                        Select
+                                    </MenuItem>
+
+                                    <MenuItem
+                                        value="1"
+                                    >
+                                        Poor
+                                    </MenuItem>
+
+                                    <MenuItem
+                                        value="2"
+                                    >
+                                        Average
+                                    </MenuItem>
+
+                                    <MenuItem
+                                        value="3"
+                                    >
+                                        Good
+                                    </MenuItem>
+
+                                    <MenuItem
+                                        value="4"
+                                    >
+                                        Very Good
+                                    </MenuItem>
+
+                                    <MenuItem
+                                        value="5"
+                                    >
+                                        Excellent
+                                    </MenuItem>
+
+                                </Select>
+                            );
+                        },
+                });
+
+                result.push({
+
+                    label: "Status",
+
+                    width: 90,
+
+                    render:
+                        (
+                            row: TaskRow
+                        ) => {
+
+                            if (
+                                row.rowType ===
+                                "project"
+                            ) {
+                                return null;
+                            }
+
+                            return (
+                                <Typography
+                                    sx={{
+                                        fontSize: 12,
+                                    }}
+                                >
+                                    {
+                                        row.status
+                                    }
+                                </Typography>
+                            );
+                        },
+                });
+
+                result.push({
+
+                    label: "Accept",
+
+                    width: 75,
+
+                    render:
+                        (
+                            row: TaskRow
+                        ) => {
+
+                            if (
+                                row.rowType ===
+                                "project"
+                            ) {
+                                return null;
+                            }
+
+                            const isUpdating =
+                                updatingTaskId ===
+                                row.id;
+
+                            const isAccepted =
+                                row.status ===
+                                "Accepted";
+
+                            return (
+                                <Button
+                                    size="small"
+
+                                    variant="contained"
+
+                                    disabled={
+                                        isAccepted ||
+                                        isUpdating
+                                    }
+
+                                    onClick={() =>
+                                        void handleApprovalAction(
+                                            row,
+                                            "Accepted"
+                                        )
+                                    }
+
+                                    sx={{
+                                        minWidth: 65,
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {
+                                        isUpdating
+                                            ? "..."
+                                            : "ACCEPT"
+                                    }
+                                </Button>
+                            );
+                        },
+                });
+
+                result.push({
+
+                    label: "Reject",
+
+                    width: 75,
+
+                    render:
+                        (
+                            row: TaskRow
+                        ) => {
+
+                            if (
+                                row.rowType ===
+                                "project"
+                            ) {
+                                return null;
+                            }
+
+                            const isUpdating =
+                                updatingTaskId ===
+                                row.id;
+
+                            const isRejected =
+                                row.status ===
+                                "Rejected";
+
+                            return (
+                                <Button
+                                    size="small"
+
+                                    variant="contained"
+
+                                    disabled={
+                                        isRejected ||
+                                        isUpdating
+                                    }
+
+                                    onClick={() =>
+                                        void handleApprovalAction(
+                                            row,
+                                            "Rejected"
+                                        )
+                                    }
+
+                                    sx={{
+                                        minWidth: 65,
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {
+                                        isUpdating
+                                            ? "..."
+                                            : "REJECT"
+                                    }
+                                </Button>
+                            );
+                        },
+                });
+
+
+                return result;
+
+            },
+            [
+                days,
+                expandedProjects,
+                handleToggleProject,
+                handleRatingChange,
+                handleApprovalAction,
+                updatingTaskId,
+            ]
+        );
+
     if (!employee) {
         return null;
     }
+
     return (
         <Dialog
             open={open}
             onClose={onClose}
             fullWidth
-            maxWidth="xl"
+            maxWidth={false}
+
             PaperProps={{
-                sx: {
-                    width: "100%",
-                    maxWidth: "1250px",
-                    borderRadius: 0,
-                    margin: 1,
-                    overflow: "hidden",
-                },
+                sx:
+                    ApproveDetailDialogPaperSx,
             }}
         >
+
             <Box
-                sx={{
+                sx={(theme) => ({
                     height: 40,
+
                     display: "flex",
-                    alignItems: "center",
+
+                    alignItems:
+                        "center",
+
                     px: 1.5,
+
                     borderBottom:
-                        "1px solid #ddd",
-                }}
+                        `1px solid ${theme.palette.divider}`,
+
+                    backgroundColor:
+                        theme.palette
+                            .background.paper,
+                })}
             >
+
                 <Typography
-                    sx={{
+                    sx={(theme) => ({
                         fontSize: 13,
+
                         fontWeight: 600,
-                        color: "#555",
-                    }}
+
+                        color:
+                            theme.palette
+                                .text.primary,
+                    })}
                 >
                     Project Detailed View of{" "}
                     {employee.name}
                 </Typography>
 
+
                 <Typography
-                    sx={{
+                    sx={(theme) => ({
                         ml: "auto",
+
                         mr: 2,
+
                         fontSize: 12,
-                        color: "#168bd1",
-                    }}
+
+                        fontWeight: 500,
+
+                        color:
+                            theme.palette
+                                .primary.main,
+                    })}
                 >
                     {employee.overview ===
                     "Accepted"
@@ -904,12 +1185,26 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open,employ
                         : employee.approval_status}
                 </Typography>
 
+
                 <IconButton
                     size="small"
                     onClick={onClose}
-                    sx={{
-                        color: "#777",
-                    }}
+
+                    sx={(theme) => ({
+                        color:
+                            theme.palette
+                                .text.secondary,
+
+                        "&:hover": {
+                            backgroundColor:
+                                theme.palette
+                                    .action.hover,
+
+                            color:
+                                theme.palette
+                                    .text.primary,
+                        },
+                    })}
                 >
                     <CloseIcon
                         sx={{
@@ -917,193 +1212,357 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open,employ
                         }}
                     />
                 </IconButton>
+
             </Box>
+
             <Box
-                sx={{
+                sx={(theme) => ({
                     p: 1.5,
+
                     overflowX: "auto",
-                }}
+
+                    backgroundColor:
+                        theme.palette
+                            .background.default,
+                })}
             >
-                <VirtualizedTable<TaskRow>
-                    columns={columns}
-                    rows={visibleTasks}
-                    height="300px"
-                />
-                <Box
-                    sx={{
-                        mt: 1,
-                        minWidth: 1080,
-                        height: 42,
-                        display: "flex",
-                        alignItems: "center",
-                        borderTop:
-                            "2px solid #222",
-                    }}
-                >
-                    <Typography
+
+                {loading ? (
+
+                    <Box
                         sx={{
+                            height: 300,
+
+                            display: "flex",
+
+                            alignItems:
+                                "center",
+
+                            justifyContent:
+                                "center",
+                        }}
+                    >
+
+                        <Typography
+                            sx={{
+                                fontSize: 13,
+                            }}
+                        >
+                            Loading...
+                        </Typography>
+
+                    </Box>
+
+                ) : (
+
+                    <VirtualizedTable<TaskRow>
+                        columns={
+                            columns
+                        }
+
+                        rows={
+                            visibleTasks
+                        }
+
+                        height="300px"
+                    />
+                )}
+
+                <Box
+                    sx={(theme) => ({
+                        mt: 1,
+
+                        minWidth: 1080,
+
+                        height: 42,
+
+                        display: "flex",
+
+                        alignItems:
+                            "center",
+
+                        borderTop:
+                            `2px solid ${theme.palette.divider}`,
+
+                        backgroundColor:
+                            theme.palette
+                                .background.paper,
+                    })}
+                >
+
+                    <Typography
+                        sx={(theme) => ({
                             width: 360,
+
                             textAlign:
                                 "right",
+
                             pr: 2,
+
                             fontSize: 12,
+
                             fontWeight: 600,
-                        }}
+
+                            color:
+                                theme.palette
+                                    .text.primary,
+                        })}
                     >
                         Total
                     </Typography>
+
+
                     {totals.map(
                         (
                             total,
                             index
                         ) => (
+
                             <Typography
-                                key={
-                                    index
-                                }
-                                sx={{
+                                key={index}
+
+                                sx={(theme) => ({
                                     width: 58,
+
                                     textAlign:
                                         "center",
-                                    fontSize:
-                                        12,
-                                    fontWeight:
-                                        600,
+
+                                    fontSize: 12,
+
+                                    fontWeight: 600,
+
                                     color:
-                                        "#555",
-                                }}
+                                        theme.palette
+                                            .text.secondary,
+                                })}
                             >
-                                {total.toFixed(
-                                    2
-                                )}
+                                {total.toFixed(2)}
                             </Typography>
                         )
                     )}
+
+
                     <Box
                         sx={{
                             ml: "auto",
-                            display:
-                                "flex",
+
+                            display: "flex",
+
                             alignItems:
                                 "center",
+
                             gap: 3,
+
                             pr: 2,
                         }}
                     >
-                        <Typography
-                            sx={{
-                                fontSize:
-                                    12,
-                                color:
-                                    "#168bd1",
-                                whiteSpace:
-                                    "nowrap",
-                            }}
-                        >
-                            Estimated
-                            Hours:{" "}
-                            {Number(
-                                employee.hours ||
-                                    0
-                            ).toFixed(
-                                2
-                            )}
-                        </Typography>
 
                         <Typography
-                            sx={{
-                                fontSize:
-                                    12,
+                            sx={(theme) => ({
+                                fontSize: 12,
+
                                 color:
-                                    "#168bd1",
+                                    theme.palette
+                                        .primary.main,
+
                                 whiteSpace:
                                     "nowrap",
-                            }}
+                            })}
                         >
-                            Actual
-                            Hours:{" "}
-                            {actualHours.toFixed(
-                                2
-                            )}
+                            Estimated Hours:{" "}
+                            {Number(
+                                employee.hours ||
+                                0
+                            ).toFixed(2)}
                         </Typography>
+
+
+                        <Typography
+                            sx={(theme) => ({
+                                fontSize: 12,
+
+                                color:
+                                    theme.palette
+                                        .primary.main,
+
+                                whiteSpace:
+                                    "nowrap",
+                            })}
+                        >
+                            Actual Hours:{" "}
+                            {actualHours.toFixed(2)}
+                        </Typography>
+
                     </Box>
+
                 </Box>
+
                 <Box
                     sx={{
-                        mt: 1,
+                        mt: 1.5,
                     }}
                 >
+
                     <Typography
-                        sx={{
+                        sx={(theme) => ({
                             fontSize: 12,
-                            color: "#666",
+
+                            fontWeight: 500,
+
+                            color:
+                                theme.palette
+                                    .text.secondary,
+
                             mb: 0.5,
-                        }}
+                        })}
                     >
                         Comments
                     </Typography>
 
+
                     <Box
                         component="textarea"
-                        sx={{
-                            width:
-                                "100%",
-                            height: 65,
-                            resize:
-                                "vertical",
+
+                        value={comments}
+
+                        onChange={(event) =>
+                            setComments(
+                                event.target.value
+                            )
+                        }
+
+                        placeholder={
+                            "Enter your comments..."
+                        }
+
+                        sx={(theme) => ({
+                            width: "100%",
+
+                            minHeight: 65,
+
+                            resize: "vertical",
+
                             border:
-                                "1px solid #d5d5d5",
-                            borderRadius:
-                                "3px",
+                                `1px solid ${theme.palette.divider}`,
+
+                            borderRadius: 1,
+
                             backgroundColor:
-                                "#eeeeee",
-                            outline:
-                                "none",
+                                theme.palette
+                                    .background.paper,
+
+                            color:
+                                theme.palette
+                                    .text.primary,
+
+                            outline: "none",
+
                             p: 1,
-                            fontFamily:
-                                "inherit",
-                            fontSize:
-                                12,
+
+                            fontFamily: "inherit",
+
+                            fontSize: 12,
+
                             boxSizing:
                                 "border-box",
-                        }}
+
+                            "&::placeholder": {
+                                color:
+                                    theme
+                                        .palette
+                                        .text
+                                        .secondary,
+
+                                opacity: 0.7,
+                            },
+
+                            "&:focus": {
+                                borderColor:
+                                    theme
+                                        .palette
+                                        .primary
+                                        .main,
+
+                                boxShadow:
+                                    `0 0 0 1px ${theme.palette.primary.main}`,
+                            },
+                        })}
                     />
+
                 </Box>
+
             </Box>
+
         </Dialog>
     );
 };
+
 const HourCell: React.FC<{
     value: string;
-}> = ({ value }) => {
+}> = ({
+    value,
+}) => {
+
     if (!value) {
         return null;
     }
 
     return (
         <Box
-            sx={{
+            sx={(theme) => ({
                 width: 48,
-                height: 30,
+
+                height: 28,
+
                 display: "flex",
+
                 alignItems:
                     "center",
+
                 justifyContent:
                     "center",
-                backgroundColor:
-                    "#eeeeee",
-                border:
-                    "1px solid #d8d8d8",
-                borderRadius:
-                    "3px",
-                fontSize: 12,
-                color: "#555",
+
                 mx: "auto",
-            }}
+
+                borderRadius: 1,
+
+                backgroundColor:
+                    theme.palette.mode ===
+                    "dark"
+                        ? theme.palette
+                            .grey[800]
+                        : theme.palette
+                            .grey[100],
+
+                border:
+                    `1px solid ${theme.palette.divider}`,
+
+                color:
+                    theme.palette
+                        .text.primary,
+
+                fontSize: 11.5,
+
+                fontWeight: 500,
+
+                transition:
+                    "background-color 0.15s ease, border-color 0.15s ease",
+
+                "&:hover": {
+                    backgroundColor:
+                        theme.palette
+                            .action.hover,
+
+                    borderColor:
+                        theme.palette
+                            .primary.main,
+                },
+            })}
         >
             {value}
         </Box>
     );
 };
+
 
 export default ApprovalDetailedView;

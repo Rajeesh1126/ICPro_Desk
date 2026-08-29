@@ -130,20 +130,6 @@ class ApprovalSerializer(serializers.ModelSerializer):
             "approval_status",
         ]
     def get_selected_week(self):
-        """
-        Reads weekStart from request query parameters.
-
-        Example:
-        /api/approvals/?weekStart=2026-08-24
-
-        Returns:
-        (
-            weeknumber,
-            weekyear,
-            week_start,
-            week_end
-        )
-        """
 
         if hasattr(self, "_selected_week"):
             return self._selected_week
@@ -189,9 +175,6 @@ class ApprovalSerializer(serializers.ModelSerializer):
 
         return self._selected_week
     def get_timesheet_status(self, obj):
-        """
-        Get TimesheetStatus for the selected user and week.
-        """
 
         cache_key = f"_timesheet_status_{obj.pk}"
 
@@ -234,9 +217,6 @@ class ApprovalSerializer(serializers.ModelSerializer):
 
         return full_name or reporting_user.username
     def get_hours(self, obj):
-        """
-        Get total submission hours for the selected week.
-        """
 
         _, _, week_start, week_end = self.get_selected_week()
 

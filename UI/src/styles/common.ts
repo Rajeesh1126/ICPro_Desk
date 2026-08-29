@@ -106,14 +106,6 @@ export const detailLabelSx = {
   textTransform: "capitalize",
 };
 
-export const deleteIconSx = {
-  color: "error.main",
-}
-
-export const editIconSx = {
-  color: "primary.main",
-}
-
 export const detailValueSx = {
   color: "text.primary",
   fontSize: 13,
@@ -846,6 +838,15 @@ export const dashboardAnalysisPieChartBoxSx3: SxProps<Theme> = {
 
 export const dashboardAnalysisPieChartDonutLargeRoundedIconSx1: SxProps<Theme> =
   { fontSize: 46, opacity: 0.35 };
+
+// pages/SelfTickets.styles.ts
+export const selfTicketsPageBoxSx2: SxProps<Theme> = {
+  display: "flex",
+  flexDirection: "column",
+  minHeight: "100dvh",
+  height: { md: "100dvh" },
+  bgcolor: "background. Default",
+};
 
 // components/SelfTickets/BasicCard.dynamic.styles.ts
 export const selfTicketsBasicCardDynamicDynamicCardSx1 = ({
@@ -2233,15 +2234,6 @@ export const selfTicketsPagePaperSx1: SxProps<Theme> = {
   px: { xs: 0.5, sm: 2 },
 };
 
-// pages/SelfTickets.styles.ts
-export const selfTicketsPageBoxSx2: SxProps<Theme> = {
-  display: "flex",
-  flexDirection: "column",
-  minHeight: "100dvh",
-  height: { md: "100dvh" },
-  bgcolor: "background. Default",
-};
-
 export const selfTicketsPageBoxSx4: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
@@ -2373,6 +2365,14 @@ export const TOGGLE_BUTTON = {
     bgcolor: "primary.50",
   },
 
+}
+
+export const deleteIconSx = {
+  color: "error.main",
+}
+
+export const editIconSx = {
+  color: "primary.main",
 }
 
 /* ================= APPROVAL PAGE ================= */
@@ -2545,3 +2545,9 @@ export const unlockRequestStyles: {
         color: "text.secondary",
     },
 };
+
+export const ApproveDetailDialogPaperSx = (theme: Theme) => ({
+  ...modalFormPaperSx(theme),
+  width: "95vw",
+  maxWidth: "95vw",
+});

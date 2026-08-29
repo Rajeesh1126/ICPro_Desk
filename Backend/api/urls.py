@@ -5,7 +5,8 @@ from .views import (
     SubmissionViewSet,
     TimesheetStatusViewSet,
     TimesheetEntryViewSet,
-    ApprovalViewSet
+    ApprovalViewSet,
+    ApprovalDetailData
 )
 
 router = routers.DefaultRouter()
@@ -16,6 +17,11 @@ router.register(r"approvals",ApprovalViewSet,basename="approvals")
 urlpatterns = [
     path('', include(router.urls)),
     path('timesheet-entries/', TimesheetEntryViewSet.as_view({'get': 'entries'}), name='timesheet-entries'),
+    path(
+        "ApprovalDetailData/",
+        ApprovalDetailData.as_view(),
+        name="ApprovalDetailData"
+    ),
     path(
         'timesheet-entries/save-draft/',
         TimesheetEntryViewSet.as_view({'post': 'save_draft'}),

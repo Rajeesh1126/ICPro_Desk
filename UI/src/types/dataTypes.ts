@@ -52,47 +52,12 @@ export interface ReportingEmployees {
   first_name?: string;
 }
 
-export interface ApprovalRow {
-  [key: string]: unknown;
-
-  id: number;
-  name: string;
-  reporting_to: string;
-  hours: number;
-  overview: "Submitted" | "Accepted" | "Rejected" | "Locked" | "Unlocked" | "Not Submitted";
-  submission_status: "OnTime" | "Delayed" | `Due by ${string}`;
-  approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
-}
-
-export interface timesheetStatusData {
-    id: number;
-    uid: string;
-    first_name: string;
-    timesheet_status: string;
-    weeknumber: number;
-    submission_status: boolean;
-    action_status: boolean;
-    weekyear: number;
-    created_date: string;
-    unlock_reason: string;
-    unlock_status: string | null;
-    updated_date: string;
-    comments: string | null;
-}
-
 export interface rolesData {
   [key: string]: unknown;
-
   id: number;
   name: string;
   description: string | null;
-  permissions: any[];
-}
-
-export interface permissionData {
-  id: number;
-  name: string;
-  codename: string;
+  permissions: number[];
 }
 
 export interface groupData {
@@ -283,4 +248,90 @@ export interface ERPQuotation {
   system_name: string | null;
   project__name?: string | null;
 }
+export interface permissionData {
+  [key: string]: unknown;
+  id: number;
+  name: string;
+  codename: string;
+  app_label?: string;
+  model?: string;
+}
 
+// approval
+export interface timesheetStatusData {
+    id: number;
+    uid: string;
+    first_name: string;
+    timesheet_status: string;
+    weeknumber: number;
+    submission_status: boolean;
+    action_status: boolean;
+    weekyear: number;
+    created_date: string;
+    unlock_reason: string;
+    unlock_status: string | null;
+    updated_date: string;
+    comments: string | null;
+}
+
+export interface ApprovalRow {
+  [key: string]: unknown;
+
+  id: number;
+  name: string;
+  reporting_to: string;
+  hours: number;
+  overview: "Submitted" | "Accepted" | "Rejected" | "Requested" | "Unlocked" | "Not Submitted" | "Unlock Rejected";
+  submission_status: "OnTime" | "Delayed" | `Due by ${string}`;
+  approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
+}
+
+export interface ApiTaskRow {
+    id: number;
+
+    projectId: number;
+
+    project: string;
+
+    task: string;
+
+    budgetOwner: string;
+
+    hours: string[];
+
+    rating: string | number;
+
+    status: string;
+
+    approvedStatus?: boolean;
+
+    rejectionReason?: string | null;
+}
+
+export interface TaskRow {
+    [key: string]: unknown;
+
+    id: number;
+
+    projectId: number;
+
+    project: string;
+
+    task: string;
+
+    budgetOwner: string;
+
+    hours: string[];
+
+    rating: string;
+
+    status: string;
+
+    rowType:
+        | "project"
+        | "milestone";
+
+    approvedStatus?: boolean;
+
+    rejectionReason?: string | null;
+}
