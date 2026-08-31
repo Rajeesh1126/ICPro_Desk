@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
-from projects.models import AssignedTask
+from projects.models import AssignedTask, Project
+from tickets.models import Ticket
 from .models import Submission, TimesheetStatus
 
 User = get_user_model()
@@ -38,6 +39,11 @@ class TimesheetDraftSerializer(serializers.Serializer):
                     f"Assigned task {entry['assignId'].id} is not assigned to the current user."
                 )
 
+            if entry['hours'] > 0 and not entry['assignId'].assign_by_id:
+                raise serializers.ValidationError(
+                    f"Budget owner is required for assigned task {entry['assignId'].id}."
+                )
+
         return entries
 
 
@@ -54,6 +60,26 @@ class TimesheetSubmitSerializer(TimesheetDraftSerializer):
 class TimesheetUnlockRequestSerializer(serializers.Serializer):
     week_start = serializers.DateField()
     unlock_reason = serializers.CharField(max_length=1000)
+
+
+class TimesheetAssignTicketsSerializer(serializers.Serializer):
+    ticket_ids = serializers.ListField(
+        child=serializers.PrimaryKeyRelatedField(queryset=Ticket.objects.all()),
+        allow_empty=False,
+    )
+
+    def validate_ticket_ids(self, tickets):
+        for ticket in tickets:
+            if ticket.current_status in {'open', 'closed'}:
+                raise serializers.ValidationError(
+                    f"Ticket {ticket.number} cannot be assigned from status {ticket.current_status}."
+                )
+
+        return tickets
+
+
+class TimesheetAssignProjectSerializer(serializers.Serializer):
+    project_id = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
 
 
 class TimesheetExtendTasksSerializer(serializers.Serializer):
@@ -94,17 +120,35 @@ class TimesheetRemoveTasksSerializer(serializers.Serializer):
         return assigned_tasks
 
 
+class ApprovalActionSerializer(serializers.Serializer):
+    weekStart = serializers.DateField()
+    employeeId = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    assignId = serializers.PrimaryKeyRelatedField(queryset=AssignedTask.objects.all())
+    action = serializers.ChoiceField(choices=['Accepted', 'Rejected'])
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comments = serializers.CharField(
+        max_length=1000,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
 
 
 # (querysets provided above)
 class TimesheetStatusSerializer(serializers.ModelSerializer):
     uid = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
+    first_name = serializers.SerializerMethodField()
     timesheet_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
     # unlock_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
 
     class Meta:
         model = TimesheetStatus
         fields = [
-            'id', 'uid', 'timesheet_status', 'weeknumber', 'submission_status', 'action_status',
+            'id', 'uid', 'first_name', 'timesheet_status', 'weeknumber', 'submission_status', 'action_status',
             'weekyear', 'created_date', 'unlock_reason',  'updated_date', 'comments',
         ]
+
+    def get_first_name(self, obj):
+        return obj.uid.get_full_name() or obj.uid.username

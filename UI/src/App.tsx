@@ -10,22 +10,51 @@ import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
 import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
+import PhaseConfiguration from "./pages/PhaseConfiguration.tsx";
 
 import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
 
 import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
 import { isTokenExpired } from "./api/axios.ts";
 
+function getStoredPermissions(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem("permissions") ?? "[]");
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function PageAccessRoute({
+  children,
+  permission,
+}: {
+  children: ReactNode;
+  permission?: string;
+}) {
+  if (!permission) {
+    return children;
+  }
+
+  return getStoredPermissions().includes(permission)
+    ? children
+    : <Navigate to="/error/403" replace />;
+}
+
 const homeRoutes = [
   { index: true, element: <Landing /> },
-  { path: "Dashboard", element: <Dashboard /> },
-  { path: "Tickets", element: <TicketDashboard /> },
-  { path: "SelfTickets", element: <SelfTickets /> },
-  { path: "Reports", element: <Reports /> },
-  { path: "TimeSheet", element: <TimeSheet /> },
-  { path: "Users", element: <Users /> },
-  { path: "Roles", element: <Roles /> },
-  { path: "ProjectConfiguration", element: <ProjectConfiguration /> },
+  { path: "Dashboard", element: <Dashboard />, permission: "access_team_analysis" },
+  { path: "Tickets", element: <TicketDashboard />, permission: "access_tickets" },
+  { path: "SelfTickets", element: <SelfTickets />, permission: "access_self_tickets" },
+  { path: "Reports", element: <Reports />, permission: "access_executive_overview" },
+  { path: "TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
+  { path: "Users", element: <Users />, permission: "access_user_management" },
+  { path: "Roles", element: <Roles />, permission: "access_role_management" },
+  { path: "ProjectConfiguration", element: <ProjectConfiguration />, permission: "access_project_configuration" },
+  { path: "PhaseConfiguration", element: <PhaseConfiguration />, permission: "access_phase_configuration" },
 ];
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -48,7 +77,15 @@ function App() {
           route.index ? (
             <Route key="home-index" index element={route.element} />
           ) : (
-            <Route key={route.path} path={route.path} element={route.element} />
+            <Route
+              key={route.path}
+              path={route.path}
+              element={
+                <PageAccessRoute permission={route.permission}>
+                  {route.element}
+                </PageAccessRoute>
+              }
+            />
           ),
         )}
       </Route>
@@ -59,5 +96,3 @@ function App() {
 }
 
 export default App;
-
-

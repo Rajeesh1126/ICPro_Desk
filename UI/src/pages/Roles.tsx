@@ -153,20 +153,23 @@ export default function Roles() {
 
     const handleSelectAllForRole = useCallback(
         (roleId: number, checked: boolean) => {
+            const visiblePermissionIds = permissions.map((permission) => permission.id);
+
             setRoles((previousRoles) =>
                 previousRoles.map((role) => {
                     if (role.id !== roleId) {
                         return role;
                     }
 
+                    const hiddenPermissions = role.permissions.filter(
+                        (permissionId) => !visiblePermissionIds.includes(permissionId)
+                    );
+
                     return {
                         ...role,
                         permissions: checked
-                            ? permissions.map(
-                                (permission) =>
-                                    permission.id
-                            )
-                            : [],
+                            ? [...hiddenPermissions, ...visiblePermissionIds]
+                            : hiddenPermissions,
                     };
                 })
             );
@@ -245,8 +248,13 @@ export default function Roles() {
             width: 180,
 
             render: (row) => {
+                const visiblePermissionIds = permissions.map((permission) => permission.id);
+                const selectedVisibleCount = visiblePermissionIds.filter((permissionId) =>
+                    row.permissions.includes(permissionId)
+                ).length;
                 const allSelected =
-                    row.permissions.length === permissions.length;
+                    visiblePermissionIds.length > 0 &&
+                    selectedVisibleCount === visiblePermissionIds.length;
 
                 return (
                     <FormControlLabel
@@ -255,7 +263,7 @@ export default function Roles() {
                                 size="small"
                                 checked={allSelected}
                                 indeterminate={
-                                    row.permissions.length > 0 &&
+                                    selectedVisibleCount > 0 &&
                                     !allSelected
                                 }
                                 onChange={(event) =>

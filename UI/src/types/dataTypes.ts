@@ -217,7 +217,7 @@ export interface TaskEntry {
 
  export interface AssignedTask {
   assign_id: number;
-  assign_by: string;
+  assign_by: string | null;
   name: string;
   entries: TaskEntry;
 }
@@ -230,7 +230,7 @@ export interface Milestone {
 
 export interface SubmissionProject {
   id: number;
-  name: string;
+  code: string;
   quotation_id: number;
   description:string,
   milestones: Milestone[];
@@ -257,4 +257,84 @@ export interface permissionData {
   codename: string;
   app_label?: string;
   model?: string;
+}
+
+
+
+export interface timesheetStatusData {
+    id: number;
+    uid: string;
+    first_name: string;
+    timesheet_status: string;
+    weeknumber: number;
+    submission_status: boolean;
+    action_status: boolean;
+    weekyear: number;
+    created_date: string;
+    unlock_reason: string;
+    unlock_status: string | null;
+    updated_date: string;
+    comments: string | null;
+}
+
+export interface ApprovalRow {
+  [key: string]: unknown;
+
+  id: number;
+  name: string;
+  reporting_to: string;
+  hours: number;
+  overview: "Submitted" | "Accepted" | "Rejected" | "Requested" | "Unlocked" | "Not Submitted" | "Unlock Rejected";
+  submission_status: "OnTime" | "Delayed" | `Due by ${string}`;
+  approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
+}
+
+export interface ApiTaskRow {
+    id: number;
+
+    projectId: number;
+
+    project: string;
+
+    task: string;
+
+    budgetOwner: string;
+
+    hours: string[];
+
+    rating: string | number;
+
+    status: string;
+
+    approvedStatus?: boolean;
+
+    rejectionReason?: string | null;
+}
+
+export interface TaskRow {
+    [key: string]: unknown;
+
+    id: number;
+
+    projectId: number;
+
+    project: string;
+
+    task: string;
+
+    budgetOwner: string;
+
+    hours: string[];
+
+    rating: string;
+
+    status: string;
+
+    rowType:
+        | "project"
+        | "milestone";
+
+    approvedStatus?: boolean;
+
+    rejectionReason?: string | null;
 }

@@ -7,6 +7,7 @@ from .views import (
     QuotationViewSet,
     QuotationCostViewSet,
     CostMasterViewSet,
+    CostCategoryViewSet,
 )
 
 router = routers.DefaultRouter()
@@ -15,6 +16,7 @@ router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'quotations', QuotationViewSet, basename='quotation')
 router.register(r'quotation-costs', QuotationCostViewSet, basename='quotationcost')
 router.register(r'cost-masters', CostMasterViewSet, basename='costmaster')
+router.register(r'cost-categories', CostCategoryViewSet, basename='costcategory')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -19,6 +19,7 @@ import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
+import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import Header from "../components/AppBar/header";
 
 const SIDEBAR_WIDTH = 265;
@@ -36,21 +37,21 @@ const pages = [
         path: "/Home/SelfTickets",
         icon: <FormatListBulletedRoundedIcon />,
         iconColor: "#0288d1",
-        codeName: "view_self_tickets",
+        codeName: "access_self_tickets",
     },
     {
         label: "Tickets",
         path: "/Home/Tickets",
         icon: <ConfirmationNumberRoundedIcon />,
         iconColor: "#2e7d32",
-        codeName: "view_ticket",
+        codeName: "access_tickets",
     },
     {
         label: "Timesheet",
         path: "/Home/TimeSheet",
         icon: <FactCheckRoundedIcon />,
         iconColor: "#d32f2f",
-        codeName: "view_submission",
+        codeName: "access_timesheet",
     },
     
     {
@@ -58,35 +59,42 @@ const pages = [
         path: "/Home/Reports",
         icon: <AssessmentRoundedIcon />,
         iconColor: "#ed6c02",
-        codeName: "view_managementoverview",
+        codeName: "access_executive_overview",
     },
     {
         label: "Team Analysis",
         path: "/Home/Dashboard",
         icon: <AnalyticsRoundedIcon />,
         iconColor: "#9c27b0",
-        codeName: "view_managementoverview",
+        codeName: "access_team_analysis",
     },
     {
         label: "Users Managment",
         path: "/Home/Users",
         icon: <ManageAccountsIcon />,
         iconColor: "#088da5",
-        codeName: "view_user",
+        codeName: "access_user_management",
     },
     {
         label: "Roles Managment",
         path: "/Home/Roles",
         icon: <BadgeIcon/>,
         iconColor: "#088da5",
-        codeName: "view_role",
+        codeName: "access_role_management",
     },
     {
         label: "Project Configuration",
         path: "/Home/ProjectConfiguration",
         icon: <AccountTreeRoundedIcon />,
         iconColor: "#00695c",
-        codeName: "view_project",
+        codeName: "access_project_configuration",
+    },
+    {
+        label: "Phase Configuration",
+        path: "/Home/PhaseConfiguration",
+        icon: <CategoryRoundedIcon />,
+        iconColor: "#5d4037",
+        codeName: "access_phase_configuration",
     },
 ] as const satisfies readonly {
     label: string;
@@ -151,8 +159,7 @@ export default function HomePage() {
     const isSidebarLayout = useMediaQuery("(min-width:600px)");
     const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-    const [permissions, setPermissions] =
-        useState<string[]>(getStoredPermissions);
+    const [permissions] = useState<string[]>(getStoredPermissions);
 
     const visiblePages = useMemo(
         () =>

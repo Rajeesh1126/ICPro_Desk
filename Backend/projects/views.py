@@ -3,11 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.permissions import RoleBasedPermission
-from .models import AssignedTask, Milestone, Project, Task
+from .models import AssignedTask, Milestone, Phases, Project, Task
 from .serializers import (
     AddCostMasterTasksSerializer,
     AssignedTaskSerializer,
     MilestoneSerializer,
+    PhaseSerializer,
     ProjectSerializer,
     TaskSerializer,
 )
@@ -41,6 +42,12 @@ class TaskViewSet(viewsets.ModelViewSet):
 class MilestoneViewSet(viewsets.ModelViewSet):
     queryset = Milestone.objects.all()
     serializer_class = MilestoneSerializer
+    permission_classes = [RoleBasedPermission]
+
+
+class PhaseViewSet(viewsets.ModelViewSet):
+    queryset = Phases.objects.all().order_by('phase', 'cost_category')
+    serializer_class = PhaseSerializer
     permission_classes = [RoleBasedPermission]
 
 

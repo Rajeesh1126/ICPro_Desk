@@ -32,7 +32,7 @@ import {
 
 type ProjectConfig = {
   id: number;
-  name: string | null;
+  code: string | null;
   description: string | null;
   quotation_id?: number | null;
 };
@@ -69,7 +69,7 @@ type ConfigTableRow = Record<string, unknown> & {
 };
 
 const emptyProjectForm = {
-  name: "",
+  code: "",
   description: "",
 };
 
@@ -163,7 +163,7 @@ export default function ProjectConfiguration() {
     setDialogMode(mode);
     setEditingId(project?.id ?? null);
     setProjectForm({
-      name: project?.name ?? "",
+      code: project?.code ?? "",
       description: project?.description ?? "",
     });
   };
@@ -202,11 +202,11 @@ export default function ProjectConfiguration() {
 
   const saveProject = async () => {
     const payload = {
-      name: projectForm.name.trim(),
+      code: projectForm.code.trim(),
       description: projectForm.description.trim() || null,
     };
 
-    if (!payload.name) return;
+    if (!payload.code) return;
 
     if (dialogMode === "edit" && editingId) {
       await api.patch(`/projects/${editingId}/`, payload);
@@ -314,7 +314,7 @@ export default function ProjectConfiguration() {
   };
 
   const projectColumns: ColumnData<ConfigTableRow>[] = [
-    { label: "Name", dataKey: "name" },
+    { label: "Code", dataKey: "name" },
     { label: "Description", dataKey: "description" },
     actionColumn,
   ];
@@ -384,7 +384,7 @@ export default function ProjectConfiguration() {
               >
                 {projects.map((project) => (
                   <MenuItem key={project.id} value={project.id}>
-                    {project.name}
+                    {project.code}
                   </MenuItem>
                 ))}
               </Select>
@@ -401,7 +401,7 @@ export default function ProjectConfiguration() {
           columns={projectColumns}
           rows={projects.map((project) => ({
             id: project.id,
-            name: project.name || "",
+            name: project.code || "",
             description: project.description || "",
             actions: null,
             onEdit: () => openProjectDialog("edit", project),
@@ -409,13 +409,13 @@ export default function ProjectConfiguration() {
               setDeleteTarget({
                 type: "project",
                 id: project.id,
-                label: project.name || `Project ${project.id}`,
+                label: project.code || `Project ${project.id}`,
               }),
           }))}
         />
 
         <VirtualizedTable
-          tableHead={selectedProject ? `Milestones - ${selectedProject.name}` : "Milestones"}
+          tableHead={selectedProject ? `Milestones - ${selectedProject.code}` : "Milestones"}
           height="360px"
           columns={milestoneColumns}
           rows={visibleMilestones.map((milestone) => ({
@@ -434,7 +434,7 @@ export default function ProjectConfiguration() {
         />
 
         <VirtualizedTable
-          tableHead={selectedProject ? `Tasks - ${selectedProject.name}` : "Tasks"}
+          tableHead={selectedProject ? `Tasks - ${selectedProject.code}` : "Tasks"}
           height="420px"
           columns={taskColumns}
           rows={visibleTasks.map((task) => {
@@ -467,9 +467,9 @@ export default function ProjectConfiguration() {
           {dialogType === "project" && (
             <Stack spacing={2}>
               <TextField
-                label="Project Name"
-                value={projectForm.name}
-                onChange={(event) => setProjectForm((current) => ({ ...current, name: event.target.value }))}
+                label="Project Code"
+                value={projectForm.code}
+                onChange={(event) => setProjectForm((current) => ({ ...current, code: event.target.value }))}
                 size="small"
                 fullWidth
               />
@@ -498,7 +498,7 @@ export default function ProjectConfiguration() {
                 >
                   {projects.map((project) => (
                     <MenuItem key={project.id} value={String(project.id)}>
-                      {project.name}
+                      {project.code}
                     </MenuItem>
                   ))}
                 </Select>
@@ -538,7 +538,7 @@ export default function ProjectConfiguration() {
                 >
                   {projects.map((project) => (
                     <MenuItem key={project.id} value={String(project.id)}>
-                      {project.name}
+                      {project.code}
                     </MenuItem>
                   ))}
                 </Select>

@@ -30,6 +30,8 @@ class TimesheetStatus(models.Model):
         ('Accepted', 'Accepted'),
         ('Rejected', 'Rejected'),
         ('Submitted', 'Submitted'),
+        ('Unlocked', 'Unlocked'),
+        ('Unlock Rejected', 'Unlock Rejected'),
     ]
     uid = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -44,7 +46,6 @@ class TimesheetStatus(models.Model):
     weekyear = models.IntegerField(default=None, null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     unlock_reason = models.CharField(max_length=1000, default=None, null=True)
-    # unlock_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Requested', null=True)
     updated_date = models.DateTimeField(auto_now=True)
     comments = models.CharField(max_length=1000, blank=True, null=True, default=None)
 
@@ -52,7 +53,6 @@ class TimesheetStatus(models.Model):
         indexes = [
             models.Index(fields=['uid', 'weeknumber']),
         ]
-        default_permissions = ()
 
     def __str__(self):
         return f"TimesheetStatus({self.uid} - {self.weekyear}: W{self.weeknumber})"

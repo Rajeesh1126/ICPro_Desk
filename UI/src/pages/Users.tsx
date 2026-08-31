@@ -313,9 +313,9 @@ export default function Users() {
             <Box component="main" sx={flexColumnFillSx}>
                 <Box sx={pageHeaderSx}>
                     <Box>
-                        <Typography variant="h5">Users List</Typography>
+                        <Typography variant="h5">{tabValue === 0 ? "Users List" : "Teams List"}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Manage user accounts, profiles, access, and assignments
+                            {tabValue === 0 ? "Manage user accounts, profiles, access, and assignments" : "Manage Teams and Its Mangers"}
                         </Typography>
                     </Box>
                     <Stack

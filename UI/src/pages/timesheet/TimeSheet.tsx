@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import api from "../../api/axios";
 
 import Approval from "./Approval";
-import Submission, { type TimesheetSubmitEntry } from "./Submission";
+import Submission, { type BudgetOwnerValidation, type TimesheetSubmitEntry } from "./Submission";
 import Temp from "./Temp";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
@@ -32,11 +32,19 @@ import {
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showNotification } from "../../api/NotificationService";
 import type {
-  ERPQuotation
+  ERPQuotation,
+  SubmissionProject,
 } from "../../types/dataTypes";
-import ERPQuotationModal from "../../components/Timesheet/erpQuotaion";
+import ERPQuotationModal from "../../components/Timesheet/ERPQuotaion";
+import CreateUndefinedModal from "../../components/Timesheet/CreateUndefinedModal"
 import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/Timesheet/TimeSheetPreviewModal"
 import TimeSheetUnlockRequestModal from "../../components/Timesheet/TimeSheetUnlockRequestModal";
+import TimeSheetTicketsModal, { type TimeSheetTicketOption } from "../../components/Timesheet/TimeSheetTicketsModal";
+import AssignCostMasterTasksModal, {
+  type TimeSheetCostCategory,
+  type TimeSheetCostMaster,
+  type TimeSheetPhaseMapping,
+} from "../../components/Timesheet/AssignCostMasterTasksModal";
 
 
 interface TabPanelProps {
@@ -79,11 +87,31 @@ function TimeSheet() {
   const [timeSheetPreviewOpen, setTimeSheetPreviewOpen] = useState(false);
   const [timeSheetPreviewDays, setTimeSheetPreviewDays] = useState<TimeSheetDay[]>([]);
   const [timeSheetSubmitEntries, setTimeSheetSubmitEntries] = useState<TimesheetSubmitEntry[]>([]);
+  const [budgetOwnerValidation, setBudgetOwnerValidation] = useState<BudgetOwnerValidation>({
+    missingCount: 0,
+    missingTaskNames: [],
+  });
   const [submittingTimeSheet, setSubmittingTimeSheet] = useState(false);
 
   const [quotations, setQuotations] = useState<ERPQuotation[]>([]);
   const [loadingQuotations, setLoadingQuotations] = useState(false);
   const [assigningQuotations, setAssigningQuotations] = useState(false);
+
+
+  const [undefinedModalOpen, setUndefinedModalOpen] = useState(false);
+  const [creatingUndefinedJob, setCreatingUndefinedJob] = useState(false);
+  const [ticketsModalOpen, setTicketsModalOpen] = useState(false);
+  const [ticketOptions, setTicketOptions] = useState<TimeSheetTicketOption[]>([]);
+  const [loadingTicketOptions, setLoadingTicketOptions] = useState(false);
+  const [assigningTickets, setAssigningTickets] = useState(false);
+  const [assignTasksModalOpen, setAssignTasksModalOpen] = useState(false);
+  const [assignedWeekProjects, setAssignedWeekProjects] = useState<SubmissionProject[]>([]);
+  const [phaseMappings, setPhaseMappings] = useState<TimeSheetPhaseMapping[]>([]);
+  const [costCategories, setCostCategories] = useState<TimeSheetCostCategory[]>([]);
+  const [costMasters, setCostMasters] = useState<TimeSheetCostMaster[]>([]);
+  const [loadingAssignTaskOptions, setLoadingAssignTaskOptions] = useState(false);
+  const [assignTaskOptionsError, setAssignTaskOptionsError] = useState("");
+  const [assigningCostMasterTasks, setAssigningCostMasterTasks] = useState(false);
 
   const openQuotationModal = async () => {
     handleClose();
@@ -99,6 +127,56 @@ function TimeSheet() {
       setQuotations(Array.isArray(response.data) ? response.data : []);
     } finally {
       setLoadingQuotations(false);
+    }
+  };
+
+  const openUndefinedModal = () => {
+    handleClose();
+    setUndefinedModalOpen(true);
+  };
+
+  const openTicketsModal = async () => {
+    handleClose();
+    setTicketsModalOpen(true);
+    setLoadingTicketOptions(true);
+
+    try {
+      const response = await api.get<TimeSheetTicketOption[]>("/timesheet-entries/ticket-options/");
+      setTicketOptions(Array.isArray(response.data) ? response.data : []);
+    } finally {
+      setLoadingTicketOptions(false);
+    }
+  };
+
+  const openAssignTasksModal = async () => {
+    handleClose();
+    setFilterDrawerOpen(false);
+    setAssignTasksModalOpen(true);
+    setLoadingAssignTaskOptions(true);
+    setAssignTaskOptionsError("");
+
+    try {
+      const [projectsResponse, phasesResponse, categoriesResponse, costMastersResponse] = await Promise.all([
+        api.get<SubmissionProject[]>("/timesheet-entries/", {
+          params: { week_start: weekStartKey },
+        }),
+        api.get<TimeSheetPhaseMapping[]>("/phases/"),
+        api.get<TimeSheetCostCategory[]>("/erp/cost-categories/"),
+        api.get<TimeSheetCostMaster[]>("/erp/cost-masters/"),
+      ]);
+
+      setAssignedWeekProjects(Array.isArray(projectsResponse.data) ? projectsResponse.data : []);
+      setPhaseMappings(Array.isArray(phasesResponse.data) ? phasesResponse.data : []);
+      setCostCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : []);
+      setCostMasters(Array.isArray(costMastersResponse.data) ? costMastersResponse.data : []);
+    } catch {
+      setAssignedWeekProjects([]);
+      setPhaseMappings([]);
+      setCostCategories([]);
+      setCostMasters([]);
+      setAssignTaskOptionsError("Could not load assigned projects or mapped cost master items.");
+    } finally {
+      setLoadingAssignTaskOptions(false);
     }
   };
 
@@ -119,7 +197,7 @@ function TimeSheet() {
         selectedQuotations.map((quotation) =>
           api.post("/projects/", {
             quotation_id: quotation.id,
-            name: quotation.quotation_no,
+            code: quotation.quotation_no,
             description: getQuotationDescription(quotation),
           }),
         ),
@@ -133,6 +211,83 @@ function TimeSheet() {
       setRefreshKey((current) => current + 1);
     } finally {
       setAssigningQuotations(false);
+    }
+  };
+
+  const createUndefinedJob = async (data: {
+    description: string;
+    customerName: string;
+    jobNumber: string;
+  }) => {
+    const trimmedDescription = data.description.trim();
+    const trimmedCustomerName = data.customerName.trim();
+    const trimmedJobNumber = data.jobNumber.trim();
+    const description = trimmedJobNumber
+      ? `${trimmedDescription} - ${trimmedJobNumber}`
+      : trimmedDescription;
+
+    setCreatingUndefinedJob(true);
+    try {
+      const response = await api.post("/projects/", {
+        description,
+        customer: trimmedCustomerName || null,
+      });
+      if (response.data?.id) {
+        await api.post("/timesheet-entries/assign-project/", {
+          project_id: response.data.id,
+        });
+      }
+
+      showNotification({
+        type: "success",
+        message: "Undefined job created successfully.",
+      });
+      setUndefinedModalOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setCreatingUndefinedJob(false);
+    }
+  };
+
+  const assignSelectedTickets = async (ticketIds: number[]) => {
+    setAssigningTickets(true);
+
+    try {
+      await api.post("/timesheet-entries/assign-tickets/", {
+        ticket_ids: ticketIds,
+      });
+
+      showNotification({
+        type: "success",
+        message: "Selected tickets assigned to time sheet successfully.",
+      });
+      setTicketsModalOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setAssigningTickets(false);
+    }
+  };
+
+  const assignCostMasterTasks = async (selection: Record<number, number[]>) => {
+    setAssigningCostMasterTasks(true);
+
+    try {
+      await Promise.all(
+        Object.entries(selection).map(([projectId, costMasterIds]) =>
+          api.post(`/projects/${projectId}/cost-master-tasks/`, {
+            cost_master_ids: costMasterIds,
+          }),
+        ),
+      );
+
+      showNotification({
+        type: "success",
+        message: "Selected cost master tasks assigned successfully.",
+      });
+      setAssignTasksModalOpen(false);
+      setRefreshKey((current) => current + 1);
+    } finally {
+      setAssigningCostMasterTasks(false);
     }
   };
 
@@ -184,7 +339,23 @@ function TimeSheet() {
     setTimeSheetSubmitEntries(entries);
   }, []);
 
+  const handleBudgetOwnerValidationChange = useCallback((validation: BudgetOwnerValidation) => {
+    setBudgetOwnerValidation(validation);
+  }, []);
+
   const submitTimeSheet = async (comments: string) => {
+    if (budgetOwnerValidation.missingCount > 0) {
+      const visibleNames = budgetOwnerValidation.missingTaskNames.slice(0, 3).join(", ");
+      const remainingCount = budgetOwnerValidation.missingCount - 3;
+      const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+
+      showNotification({
+        type: "error",
+        message: `Select Budget Owner before submitting: ${visibleNames}${remainingText}.`,
+      });
+      return;
+    }
+
     setSubmittingTimeSheet(true);
 
     try {
@@ -337,13 +508,19 @@ function TimeSheet() {
           onAssignedTaskSelectionChange={toggleAssignedTaskSelection}
           onPreviewDaysChange={handlePreviewDaysChange}
           onSubmitEntriesChange={handleSubmitEntriesChange}
+          onBudgetOwnerValidationChange={handleBudgetOwnerValidationChange}
         />
       ),
     },
     {
       permission: "view_approval",
       label: "Approval",
-      component: <Approval />,
+      component: (
+        <Approval
+          weekStart={weekStartKey}
+          refreshKey={refreshKey}
+        />
+      ),
     },
     {
       permission: "New",
@@ -482,21 +659,21 @@ function TimeSheet() {
               Assign Jobs From ERP
             </MenuItem>
 
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openUndefinedModal}>
               <ListItemIcon>
                 <HelpOutline fontSize="small" />
               </ListItemIcon>
               Create Undefined Jobs
             </MenuItem>
 
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openAssignTasksModal}>
               <ListItemIcon>
                 <AssignmentOutlined fontSize="small" />
               </ListItemIcon>
               Undefined Tasks Import To Job
             </MenuItem>
 
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={openTicketsModal}>
               <ListItemIcon>
                 <ConfirmationNumberOutlined fontSize="small" />
               </ListItemIcon>
@@ -579,12 +756,12 @@ function TimeSheet() {
               Job Undefined
             </Button>
             <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
+              onClick={openAssignTasksModal}
               sx={modalActionButtonSx}>
               Task Undefined
             </Button>
             <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
+              onClick={openTicketsModal}
               sx={modalActionButtonSx}>
               Tickets
             </Button>
@@ -651,6 +828,33 @@ function TimeSheet() {
         days={timeSheetPreviewDays}
         submitting={submittingTimeSheet}
         onSubmit={(data) => void submitTimeSheet(data.comments)}
+      />
+
+      <CreateUndefinedModal
+        open={undefinedModalOpen}
+        onClose={() => setUndefinedModalOpen(false)}
+        submitting={creatingUndefinedJob}
+        onSubmit={createUndefinedJob}
+      />
+      <TimeSheetTicketsModal
+        open={ticketsModalOpen}
+        tickets={ticketOptions}
+        loading={loadingTicketOptions}
+        submitting={assigningTickets}
+        onClose={() => setTicketsModalOpen(false)}
+        onSubmit={assignSelectedTickets}
+      />
+      <AssignCostMasterTasksModal
+        open={assignTasksModalOpen}
+        projects={assignedWeekProjects}
+        phases={phaseMappings}
+        costCategories={costCategories}
+        costMasters={costMasters}
+        loading={loadingAssignTaskOptions}
+        errorMessage={assignTaskOptionsError}
+        submitting={assigningCostMasterTasks}
+        onClose={() => setAssignTasksModalOpen(false)}
+        onSubmit={assignCostMasterTasks}
       />
     </Box>
   );

@@ -49,6 +49,7 @@ type SubmissionProps = {
   onAssignedTaskSelectionChange: (assignedTaskId: number, checked: boolean) => void;
   onPreviewDaysChange?: (days: { day: string; hours: number }[]) => void;
   onSubmitEntriesChange?: (entries: TimesheetSubmitEntry[]) => void;
+  onBudgetOwnerValidationChange?: (validation: BudgetOwnerValidation) => void;
 };
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -58,6 +59,11 @@ export type TimesheetSubmitEntry = {
   assignId: number;
   date: string;
   hours: number;
+};
+
+export type BudgetOwnerValidation = {
+  missingCount: number;
+  missingTaskNames: string[];
 };
 
 type WeeklyTimesheetStatus = {
@@ -149,6 +155,7 @@ export default function Submission({
   onAssignedTaskSelectionChange,
   onPreviewDaysChange,
   onSubmitEntriesChange,
+  onBudgetOwnerValidationChange,
 }: SubmissionProps) {
 
   const theme = useTheme();
@@ -191,6 +198,29 @@ export default function Submission({
       ),
     [projects, weekDays],
   );
+
+  const missingBudgetOwnerTaskNames = useMemo(
+    () =>
+      projects.flatMap((project) =>
+        project.milestones.flatMap((milestone) =>
+          milestone.assigned_tasks
+            .filter((task) =>
+              !task.assign_by &&
+              weekDays.some((day) => (task.entries[day.date] ?? 0) > 0),
+            )
+            .map((task) => task.name || `Assigned task ${task.assign_id}`),
+        ),
+      ),
+    [projects, weekDays],
+  );
+
+  const getBudgetOwnerMessage = (action: string) => {
+    const visibleNames = missingBudgetOwnerTaskNames.slice(0, 3).join(", ");
+    const remainingCount = missingBudgetOwnerTaskNames.length - 3;
+    const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+
+    return `Select Budget Owner before ${action}: ${visibleNames}${remainingText}.`;
+  };
 
 
   useEffect(() => {
@@ -261,6 +291,13 @@ export default function Submission({
   useEffect(() => {
     onSubmitEntriesChange?.(submitEntries);
   }, [onSubmitEntriesChange, submitEntries]);
+
+  useEffect(() => {
+    onBudgetOwnerValidationChange?.({
+      missingCount: missingBudgetOwnerTaskNames.length,
+      missingTaskNames: missingBudgetOwnerTaskNames,
+    });
+  }, [missingBudgetOwnerTaskNames, onBudgetOwnerValidationChange]);
 
   useEffect(() => {
     let active = true;
@@ -378,7 +415,7 @@ export default function Submission({
     taskId: number,
     owner: string,
   ) => {
-    let previousOwner = "";
+    let previousOwner: string | null = null;
 
     setProjects((current) =>
       current.map((project) => {
@@ -467,6 +504,14 @@ export default function Submission({
   // =======================================================
 
   const saveDraft = async () => {
+    if (missingBudgetOwnerTaskNames.length > 0) {
+      showNotification({
+        type: "error",
+        message: getBudgetOwnerMessage("saving draft"),
+      });
+      return;
+    }
+
     setSavingDraft(true);
     try {
       const response = await api.post("/timesheet-entries/save-draft/", {
@@ -540,7 +585,7 @@ export default function Submission({
   ]);
   const isUnlocked = ["Unlocked"].includes(weeklyStatus.timesheet_status);
   const isSubmitted = weeklyStatus.timesheet_status === "Submitted" || Boolean(weeklyStatus.submission_status);
-  const isOthersProject = (project: SubmissionProject) => project.name?.toLowerCase() === "others";
+  const isOthersProject = (project: SubmissionProject) => project.code?.toLowerCase() === "others";
   const canEditDate = (date: string, project: SubmissionProject) =>
     isUnlocked || (!isSubmitted && (isOthersProject(project) || editableDates.has(date)));
 
@@ -740,7 +785,7 @@ export default function Submission({
                               color: "text.secondary",
                             }}
                           >
-                            {project.name}
+                            {project.code}
                           </Box>
                         </Box>
                       </Box>
@@ -809,7 +854,7 @@ export default function Submission({
                           });
                         }}
                         inputProps={{
-                          "aria-label": `Select all tasks for ${project.description || project.name}`,
+                          "aria-label": `Select all tasks for ${project.description || project.code}`,
                         }}
                       />
                     </TableCell>

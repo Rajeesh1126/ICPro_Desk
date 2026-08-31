@@ -136,22 +136,14 @@ class PermissionListViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        allowed_app_labels = [
-            'api',
-            # 'erp',
-            'projects',
-            'tickets',
-            'users',
-        ]
-
         return (
             Permission.objects
             .select_related('content_type')
             .filter(
-                content_type__app_label__in=allowed_app_labels,
-                codename__startswith='view_',
+                content_type__app_label='users',
+                content_type__model='role',
+                codename__startswith='access_',
             )
-            .exclude(content_type__model__in=['contenttype', 'session', 'logentry'])
-            .order_by('content_type__app_label', 'content_type__model', 'name', 'id')
+            .order_by('name', 'id')
             .distinct()
         )

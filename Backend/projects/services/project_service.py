@@ -37,6 +37,19 @@ def _assignment_defaults(assign_by):
     }
 
 
+def _assign_project_without_task(project, assign_to=None, assign_by=None):
+    if not assign_to:
+        return
+
+    AssignedTask.objects.get_or_create(
+        project_obj=project,
+        milestone_obj=None,
+        task_obj=None,
+        assign_to=assign_to,
+        defaults=_assignment_defaults(assign_by),
+    )
+
+
 @transaction.atomic
 def create_project_milestones_tasks_and_assignments(project, quotation, assign_to = None, assign_by=None):
     """
@@ -46,12 +59,16 @@ def create_project_milestones_tasks_and_assignments(project, quotation, assign_t
     CostMaster category when available, otherwise by quotation cost grouping
     fields from ERP.
     """
-    quotation_costs = (
+    quotation_costs = list(
         quotation.quotationcost_set
         .select_related('cost__cost_category')
         .filter(cost__isnull=False)
         .all()
     )
+
+    if not quotation_costs:
+        _assign_project_without_task(project, assign_to=assign_to, assign_by=assign_by)
+        return
 
     for quotation_cost in quotation_costs:
         cost = quotation_cost.cost

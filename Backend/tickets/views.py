@@ -57,7 +57,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         try:
             department_ids = self.get_department_ids()
             submission_qs = Submission.objects.filter(
-                assignId__project_obj__name=OuterRef("number")
+                assignId__project_obj__code=OuterRef("number")
             )
 
             log_qs = Ticket_Log.objects.filter(
@@ -83,7 +83,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                     act_hours=Coalesce(
                         Subquery(
                             submission_qs
-                            .values("assignId__project_obj__name")
+                            .values("assignId__project_obj__code")
                             .annotate(
                                 total_hours=ExpressionWrapper(
                                     Sum("hours") / Value(3600.0),
@@ -370,13 +370,7 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
     queryset = Self_Ticket.objects.all()
     permission_classes = [RoleBasedPermission]
     serializer_class = SelfTicketSerializer
-    permission_codename_map = {
-        "view": "view_self_tickets",
-        "list": "view_self_tickets",
-        "retrieve": "view_self_tickets",
-        "summary": "view_managementoverview",
-    }
-    
+   
     def get_queryset(self):
         try:
             department_ids = self.get_department_ids()

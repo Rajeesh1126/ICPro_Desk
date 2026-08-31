@@ -10,6 +10,20 @@ class Role(models.Model):
     description = models.TextField(blank=True, null=True)
     permissions = models.ManyToManyField(Permission, blank=True, related_name='roles')
 
+    class Meta:
+        permissions = [
+            ('access_home', 'Can access Home page'),
+            ('access_self_tickets', 'Can access Do List page'),
+            ('access_tickets', 'Can access Tickets page'),
+            ('access_timesheet', 'Can access Timesheet page'),
+            ('access_executive_overview', 'Can access Executive Overview page'),
+            ('access_team_analysis', 'Can access Team Analysis page'),
+            ('access_user_management', 'Can access User Management page'),
+            ('access_role_management', 'Can access Role Management page'),
+            ('access_project_configuration', 'Can access Project Configuration page'),
+            ('access_phase_configuration', 'Can access Phase Configuration page'),
+        ]
+
     def __str__(self):
         return self.name
 

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster, CostCategory
 
 
 class IcproProjectSerializer(serializers.ModelSerializer):
@@ -34,4 +34,10 @@ class QuotationCostSerializer(serializers.ModelSerializer):
 class CostMasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CostMaster
-        fields = ['id','name']
+        fields = ['id','name', 'cost_category']
+
+
+class CostCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CostCategory
+        fields = ['id', 'name']

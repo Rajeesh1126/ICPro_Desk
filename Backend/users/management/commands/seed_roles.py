@@ -27,6 +27,10 @@ class Command(BaseCommand):
                 'view_ticket', 'add_ticket', 'change_ticket', 'delete_ticket',
                 'view_self_tickets', 'add_self_ticket', 'change_self_ticket', 'delete_self_ticket',
                 'view_managementoverview', 'view_report',
+                'access_home', 'access_self_tickets', 'access_tickets',
+                'access_timesheet', 'access_executive_overview', 'access_team_analysis',
+                'access_user_management', 'access_role_management',
+                'access_project_configuration', 'access_phase_configuration',
             ],
             'Manager': [
                 'view_user', 'change_user',
@@ -42,6 +46,8 @@ class Command(BaseCommand):
                 'view_ticket', 'add_ticket', 'change_ticket',
                 'view_self_tickets', 'add_self_ticket', 'change_self_ticket',
                 'view_managementoverview', 'view_report',
+                'access_home', 'access_self_tickets', 'access_tickets',
+                'access_timesheet', 'access_executive_overview', 'access_team_analysis',
             ],
             'Viewer': [
                 'view_user',
@@ -58,6 +64,7 @@ class Command(BaseCommand):
                 'view_self_tickets',
                 'view_managementoverview',
                 'view_report',
+                'access_home', 'access_self_tickets', 'access_timesheet',
             ],
         }
 

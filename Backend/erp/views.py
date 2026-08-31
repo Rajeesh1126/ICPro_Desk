@@ -14,13 +14,14 @@ from django.db.models import (
     When
 )
 from core.permissions import RoleBasedPermission
-from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster
+from .models import IcproProject, Customer, Quotation, QuotationCost, CostMaster, CostCategory
 from .serializers import (
     IcproProjectSerializer,
     CustomerSerializer,
     QuotationSerializer,
     QuotationCostSerializer,
     CostMasterSerializer,
+    CostCategorySerializer,
 )
 
 class IcproProjectViewSet(viewsets.ReadOnlyModelViewSet):
@@ -72,4 +73,10 @@ class QuotationCostViewSet(viewsets.ReadOnlyModelViewSet):
 class CostMasterViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CostMaster.objects.all()
     serializer_class = CostMasterSerializer
+    permission_classes = [RoleBasedPermission]
+
+
+class CostCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = CostCategory.objects.all().order_by('name')
+    serializer_class = CostCategorySerializer
     permission_classes = [RoleBasedPermission]

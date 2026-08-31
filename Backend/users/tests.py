@@ -119,7 +119,7 @@ class PasswordAPITests(APITestCase):
             any(user['username'] == 'teammate' for user in response.data['userslist'])
         )
 
-    def test_permissions_endpoint_returns_only_business_view_permissions(self):
+    def test_permissions_endpoint_returns_only_page_access_permissions(self):
         session_content_type = ContentType.objects.get(app_label='sessions', model='session')
         Permission.objects.get_or_create(
             content_type=session_content_type,
@@ -130,6 +130,9 @@ class PasswordAPITests(APITestCase):
         response = self.client.get('/api/permissions/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(all(item['codename'].startswith('view_') for item in response.data))
-        self.assertNotIn('sessions', {item['app_label'] for item in response.data})
-        self.assertNotIn('contenttypes', {item['app_label'] for item in response.data})
+        self.assertTrue(all(item['codename'].startswith('access_') for item in response.data))
+        self.assertEqual({'users'}, {item['app_label'] for item in response.data})
+        self.assertEqual({'role'}, {item['model'] for item in response.data})
+        self.assertIn('access_tickets', {item['codename'] for item in response.data})
+        self.assertIn('access_self_tickets', {item['codename'] for item in response.data})
+        self.assertNotIn('view_user', {item['codename'] for item in response.data})
