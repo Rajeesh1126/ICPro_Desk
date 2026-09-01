@@ -27,6 +27,7 @@ import type {
     ApprovalRow,
     ApiTaskRow,
     TaskRow,
+    ApprovalDetailResponse
 } from "../../types/dataTypes";
 
 import api from "../../api/axios";
@@ -35,12 +36,6 @@ import {
     ApproveDetailDialogPaperSx,
 } from "../../styles/common";
 
-interface ApprovalDetailResponse {
-    rows: ApiTaskRow[];
-    comments?: string;
-    action_status?: boolean;
-}
-
 interface ApprovalDetailedViewProps {
     open: boolean;
     employee: ApprovalRow | null;
@@ -48,9 +43,7 @@ interface ApprovalDetailedViewProps {
     weekStart: string;
 }
 
-const ApprovalDetailedView: React.FC<
-    ApprovalDetailedViewProps
-> = ({
+const ApprovalDetailedView: React.FC< ApprovalDetailedViewProps > = ({
     open,
     employee,
     onClose,
@@ -371,35 +364,32 @@ const ApprovalDetailedView: React.FC<
         weekStart,
     ]);
 
-    const handleToggleProject =
-        useCallback(
-            (projectId: number) => {
+    const handleToggleProject =  useCallback( (projectId: number) => {
+            setExpandedProjects(
+                (previous) => {
 
-                setExpandedProjects(
-                    (previous) => {
+                    if (
+                        previous.includes(
+                            projectId
+                        )
+                    ) {
 
-                        if (
-                            previous.includes(
+                        return previous.filter(
+                            (id) =>
+                                id !==
                                 projectId
-                            )
-                        ) {
-
-                            return previous.filter(
-                                (id) =>
-                                    id !==
-                                    projectId
-                            );
-                        }
-
-                        return [
-                            ...previous,
-                            projectId,
-                        ];
+                        );
                     }
-                );
-            },
-            []
-        );
+
+                    return [
+                        ...previous,
+                        projectId,
+                    ];
+                }
+            );
+        },
+        []
+    );
 
     const visibleTasks = useMemo(() => {
 
@@ -498,54 +488,38 @@ const ApprovalDetailedView: React.FC<
         [totals]
     );
 
-    const handleRatingChange =
-        useCallback(
-            (
-                taskId: number,
-                value: string
-            ) => {
+    const handleRatingChange = useCallback( ( taskId: number, value: string ) => {
+            setTasks(
+                (previous) =>
+                    previous.map(
+                        (row) => {
 
-                setTasks(
-                    (previous) =>
-                        previous.map(
-                            (row) => {
-
-                                if (
-                                    row.id !==
-                                    taskId
-                                ) {
-                                    return row;
-                                }
-
-                                return {
-                                    ...row,
-                                    rating:
-                                        value,
-                                };
+                            if (
+                                row.id !==
+                                taskId
+                            ) {
+                                return row;
                             }
-                        )
-                );
-            },
-            []
-        );
 
-    const handleApprovalAction =
-        useCallback(
-            async (
-                row: TaskRow,
-                action:
-                    | "Accepted"
-                    | "Rejected"
-            ) => {
+                            return {
+                                ...row,
+                                rating:
+                                    value,
+                            };
+                        }
+                    )
+            );
+        },
+        []
+    );
+
+    const handleApprovalAction =  useCallback( async ( row: TaskRow, action: | "Accepted" | "Rejected" ) => {
 
                 if (!employee?.id) {
                     return;
                 }
 
-                if (
-                    !row.rating ||
-                    row.rating === "0"
-                ) {
+                if ( !row.rating || row.rating === "0" ) {
 
                     alert(
                         "Please select a rating."
@@ -558,9 +532,7 @@ const ApprovalDetailedView: React.FC<
                     Number(row.rating);
 
                 if (
-                    Number.isNaN(
-                        ratingNumber
-                    ) ||
+                    Number.isNaN( ratingNumber ) ||
                     ratingNumber < 1 ||
                     ratingNumber > 5
                 ) {
@@ -1420,7 +1392,7 @@ const ApprovalDetailedView: React.FC<
                     </Typography>
 
 
-                    <Box
+                    <Box disabled
                         component="textarea"
 
                         value={comments}

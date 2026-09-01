@@ -6,7 +6,8 @@ from .views import (
     TimesheetStatusViewSet,
     TimesheetEntryViewSet,
     ApprovalViewSet,
-    ApprovalDetailData
+    ApprovalDetailData,
+    WeeklyTimesheetStatusAPIView
 )
 
 router = routers.DefaultRouter()
@@ -17,11 +18,6 @@ router.register(r"approvals",ApprovalViewSet,basename="approvals")
 urlpatterns = [
     path('', include(router.urls)),
     path('timesheet-entries/', TimesheetEntryViewSet.as_view({'get': 'entries'}), name='timesheet-entries'),
-    path(
-        "ApprovalDetailData/",
-        ApprovalDetailData.as_view(),
-        name="ApprovalDetailData"
-    ),
     path(
         'timesheet-entries/save-draft/',
         TimesheetEntryViewSet.as_view({'post': 'save_draft'}),
@@ -41,5 +37,15 @@ urlpatterns = [
         'timesheet-entries/remove-tasks/',
         TimesheetEntryViewSet.as_view({'post': 'remove_tasks'}),
         name='timesheet-entries-remove-tasks',
+    ),
+    path(
+        "ApprovalDetailData/",
+        ApprovalDetailData.as_view(),
+        name="ApprovalDetailData"
+    ),
+    path(
+        "weekly-timesheet-status/",
+        WeeklyTimesheetStatusAPIView.as_view(),
+        name="weekly-timesheet-status",
     ),
 ]

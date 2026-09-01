@@ -233,7 +233,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
                     fontWeight={700}
                     sx={tableViewTypographySx2}
                 >
-                    <TableChartIcon color="action" fontSize="small" sx={tableViewTableChartIconSx1} /> {tableHead ? tableHead : "Tickets"}
+                    <TableChartIcon color="action" fontSize="small" sx={tableViewTableChartIconSx1} /> {tableHead ? tableHead : "Data"}
                 </Typography>
                 <TextField
                     size="small"

@@ -9,8 +9,9 @@ import TicketDashboard from "./pages/tickets/Tickets.tsx";
 import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
-
 import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
+import WeeklyStatus from "./pages/WeeklyStatus.tsx";
+import TeamMemberPerformance from "./pages/TeamMemberPerformance.tsx";
 
 import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
 import { isTokenExpired } from "./api/axios.ts";
@@ -24,6 +25,8 @@ const homeRoutes = [
   { path: "TimeSheet", element: <TimeSheet /> },
   { path: "Users", element: <Users /> },
   { path: "Roles", element: <Roles /> },
+  { path: "Analysis", element: <WeeklyStatus /> },
+  { path: "TeamMemberPerformance", element: <TeamMemberPerformance /> },
 ];
 
 function ProtectedRoute({ children }: { children: ReactNode }) {

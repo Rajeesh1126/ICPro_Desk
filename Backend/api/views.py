@@ -1,4 +1,4 @@
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, F, Value, BooleanField
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -15,6 +15,19 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.utils import timezone
+
+from collections import defaultdict
+# from django.core.cache import cache
+from django.db.models.functions import (
+    Coalesce,
+    ExtractWeek,
+    ExtractYear,
+)
+from rest_framework import status
+
+# Import your existing function
+# from .utils import getApprovalStatusFromCache
+
 from .serializers import (
     SubmissionSerializer,
     TimesheetDraftSerializer,
@@ -348,9 +361,6 @@ class ApprovalDetailData(APIView):
 
     @staticmethod
     def parse_week_start(week_start):
-        """
-        Convert YYYY-MM-DD to date and make sure it is Monday.
-        """
 
         if not week_start:
             return None, Response(
@@ -389,13 +399,6 @@ class ApprovalDetailData(APIView):
 
     @staticmethod
     def get_week_info(week_start_date):
-        """
-        Returns:
-            week_end_date
-            approval_end_date
-            week_number
-            week_year
-        """
 
         week_end_date = (
             week_start_date + timedelta(days=6)
@@ -421,9 +424,6 @@ class ApprovalDetailData(APIView):
 
     @staticmethod
     def get_employee(employee_id):
-        """
-        Get employee safely.
-        """
 
         if not employee_id:
             return None, Response(
@@ -460,18 +460,7 @@ class ApprovalDetailData(APIView):
         return employee, None
 
     @staticmethod
-    def get_timesheet_status(
-        employee_id,
-        week_number,
-        week_year
-    ):
-        """
-        IMPORTANT:
-        uid is assumed to be a ForeignKey to User.
-
-        Therefore use uid_id instead of:
-            uid=employee.username
-        """
+    def get_timesheet_status( employee_id, week_number, week_year ):
 
         return (
             TimesheetStatus.objects
@@ -980,4 +969,1005 @@ class ApprovalDetailData(APIView):
                 ),
             },
             status=200
+        )
+
+class WeeklyTimesheetStatusAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    # =========================================================
+    # CURRENT WEEK DETAILS
+    # =========================================================
+
+    def get_current_week_details(self):
+
+        current_date = timezone.localtime()
+
+        # Monday
+        week_start_date = (
+            current_date
+            - timedelta(days=current_date.weekday())
+        )
+
+        # Sunday
+        week_end_date = (
+            week_start_date
+            + timedelta(days=6)
+        )
+
+        # ISO year/week
+        iso_year, iso_week, _ = (
+            week_start_date.isocalendar()
+        )
+
+        # Show current week + previous 8 weeks
+        if iso_week <= 8:
+
+            selected_week_start = 1
+            selected_week_end = 8
+
+        else:
+
+            selected_week_start = (
+                iso_week - 8
+            )
+
+            selected_week_end = iso_week
+
+        return {
+            "current_date": current_date,
+
+            "current_year": iso_year,
+
+            "current_week": iso_week,
+
+            "week_start": selected_week_start,
+
+            "week_end": selected_week_end,
+
+            "week_start_date": week_start_date,
+
+            "week_end_date": week_end_date,
+        }
+
+    # =========================================================
+    # REQUEST PARAMETERS
+    # =========================================================
+
+    def get_parameters(self, request):
+
+        current = (
+            self.get_current_week_details()
+        )
+
+        selected_year = current[
+            "current_year"
+        ]
+
+        selected_week_start = current[
+            "week_start"
+        ]
+
+        selected_week_end = current[
+            "week_end"
+        ]
+
+        selected_employee = ""
+
+        employee_status = True
+
+        # GET -> query params
+        # POST -> request body
+        if request.method == "POST":
+
+            data = request.data
+
+        else:
+
+            data = request.query_params
+
+        # -----------------------------------------------------
+        # Year
+        # -----------------------------------------------------
+
+        try:
+
+            selected_year = int(
+                data.get(
+                    "weekYear",
+                    selected_year
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            selected_year = current[
+                "current_year"
+            ]
+
+        # -----------------------------------------------------
+        # Week Start
+        # -----------------------------------------------------
+
+        try:
+
+            selected_week_start = int(
+                data.get(
+                    "weekStart",
+                    selected_week_start
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            selected_week_start = current[
+                "week_start"
+            ]
+
+        # -----------------------------------------------------
+        # Week End
+        # -----------------------------------------------------
+
+        try:
+
+            selected_week_end = int(
+                data.get(
+                    "weekEnd",
+                    selected_week_end
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            selected_week_end = current[
+                "week_end"
+            ]
+
+        # -----------------------------------------------------
+        # Employee
+        # -----------------------------------------------------
+
+        selected_employee = data.get(
+            "employeeId",
+            ""
+        )
+
+        # -----------------------------------------------------
+        # Active / Inactive
+        # -----------------------------------------------------
+
+        employee_status = data.get(
+            "selectedEmpStatus",
+            True
+        )
+
+        if isinstance(
+            employee_status,
+            str
+        ):
+
+            employee_status = (
+                employee_status.lower()
+                == "true"
+            )
+
+        else:
+
+            employee_status = bool(
+                employee_status
+            )
+
+        # -----------------------------------------------------
+        # Validate week range
+        # -----------------------------------------------------
+
+        if selected_week_start < 1:
+
+            selected_week_start = 1
+
+        if selected_week_end > 53:
+
+            selected_week_end = 53
+
+        if (
+            selected_week_start
+            > selected_week_end
+        ):
+
+            selected_week_start = (
+                selected_week_end
+            )
+
+        return {
+            "selected_year":
+                selected_year,
+
+            "selected_week_start":
+                selected_week_start,
+
+            "selected_week_end":
+                selected_week_end,
+
+            "selected_employee":
+                selected_employee,
+
+            "employee_status":
+                employee_status,
+        }
+
+    # =========================================================
+    # APPROVAL STATUS
+    # =========================================================
+
+    def get_approval_status(
+        self,
+        task_status_lookup,
+        user_id,
+        weeknumber,
+        year
+    ):
+
+        key = (
+            user_id,
+            weeknumber,
+            year
+        )
+
+        task_items = (
+            task_status_lookup.get(
+                key,
+                []
+            )
+        )
+
+        # No submissions
+        if not task_items:
+
+            return "notsubmitted"
+
+        statuses = [
+            item.get("status")
+            for item in task_items
+        ]
+
+        approved_statuses = [
+            item.get("approved_status")
+            for item in task_items
+        ]
+
+        # -----------------------------------------------------
+        # Rejected / incomplete
+        # -----------------------------------------------------
+
+        if (
+            "Rejected" in statuses
+            or None in statuses
+        ):
+
+            return "notsubmitted"
+
+        # -----------------------------------------------------
+        # All tasks accepted
+        # -----------------------------------------------------
+
+        if (
+            len(set(statuses)) == 1
+            and statuses[0] == "Accepted"
+        ):
+
+            # Approved on time
+            if 1 in approved_statuses:
+
+                return "ontime"
+
+            # Approved but delayed
+            return "delayedapproval"
+
+        # -----------------------------------------------------
+        # Nothing accepted
+        # -----------------------------------------------------
+
+        if all(
+            value != "Accepted"
+            for value in statuses
+        ):
+
+            return "approvalpending"
+
+        # -----------------------------------------------------
+        # Mixed status
+        # -----------------------------------------------------
+
+        return "missed"
+
+    # =========================================================
+    # GET EMPLOYEES
+    # =========================================================
+
+    def get_employees(
+        self,
+        employee_status,
+        selected_employee=None
+    ):
+
+        filters = {
+            "is_active": employee_status
+        }
+
+        # Employee selected
+        if selected_employee:
+
+            filters["id"] = selected_employee
+
+        queryset = (
+            User.objects
+
+            # -------------------------------------------------
+            # UserProfile contains role
+            # -------------------------------------------------
+
+            .filter(
+                Q(
+                    profile__role__permissions__codename__in=[
+                        "view_submission",
+                        "view_approval",
+                    ]
+                ),
+                **filters
+            )
+
+            # -------------------------------------------------
+            # User fields
+            # -------------------------------------------------
+
+            .annotate(
+
+                joinedWeek=ExtractWeek(
+                    "date_joined"
+                ),
+
+                joinedYear=ExtractYear(
+                    "date_joined"
+                ),
+
+                resignedWeek=ExtractWeek(
+                    "profile__resign_date"
+                ),
+
+                resignedYear=ExtractYear(
+                    "profile__resign_date"
+                ),
+            )
+
+            # -------------------------------------------------
+            # Values
+            # -------------------------------------------------
+
+            .values(
+                "id",
+                "first_name",
+
+                "profile__reporting_to",
+
+                "joinedWeek",
+                "joinedYear",
+
+                "resignedWeek",
+                "resignedYear",
+            )
+
+            .order_by("id")
+
+            .distinct()
+        )
+
+        return list(queryset)
+
+    # =========================================================
+    # TIMESHEET STATUS LOOKUP
+    # =========================================================
+
+    def get_timesheet_statuses(
+        self,
+        selected_year,
+        week_start,
+        week_end,
+        employee_status,
+        employee_ids=None
+    ):
+
+        filters = {
+
+            "weekyear":
+                selected_year,
+
+            "weeknumber__range": [
+                week_start,
+                week_end,
+            ],
+
+            "uid__is_active":
+                employee_status,
+        }
+
+        # Only selected employees
+        if employee_ids:
+
+            filters[
+                "uid__in"
+            ] = employee_ids
+
+        queryset = (
+            TimesheetStatus.objects
+
+            .annotate(
+
+                submissionStatus=Coalesce(
+                    F("submission_status"),
+                    Value(False),
+                    output_field=BooleanField(),
+                ),
+
+                actionStatus=Coalesce(
+                    F("action_status"),
+                    Value(False),
+                    output_field=BooleanField(),
+                ),
+
+                timesheetStatus=F(
+                    "timesheet_status"
+                ),
+
+                weekNumber=F(
+                    "weeknumber"
+                ),
+
+                weekYear=Coalesce(
+                    F("weekyear"),
+                    Value(selected_year),
+                ),
+            )
+
+            .filter(**filters)
+
+            .values(
+                "submissionStatus",
+                "actionStatus",
+                "timesheetStatus",
+                "weekNumber",
+                "weekYear",
+                "uid",
+            )
+
+            .order_by(
+                "uid",
+                "weeknumber"
+            )
+        )
+
+        lookup = {}
+
+        for item in queryset:
+
+            key = (
+                item["uid"],
+                item["weekNumber"],
+                item["weekYear"],
+            )
+
+            lookup[key] = item
+
+        return lookup
+
+    # =========================================================
+    # SUBMISSION LOOKUP
+    # =========================================================
+
+    def get_submission_lookup(
+        self,
+        week_start_date,
+        week_end_date,
+        employee_ids=None
+    ):
+        """
+        IMPORTANT:
+
+        This version assumes:
+
+            Submission.assignId -> User
+
+        Therefore we use:
+
+            assignId
+
+        NOT:
+
+            assignId__assignTo
+        """
+
+        # -----------------------------------------------------
+        # Employee IDs
+        # -----------------------------------------------------
+
+        employee_ids_set = set(
+            employee_ids or []
+        )
+
+        # -----------------------------------------------------
+        # Submission query
+        # -----------------------------------------------------
+
+        submissions = (
+            Submission.objects
+
+            .filter(
+                date__range=[
+                    week_start_date,
+                    week_end_date,
+                ]
+            )
+
+            .values(
+                "assignId",
+                "date",
+                "status",
+                "approved_status",
+            )
+        )
+
+        lookup = defaultdict(list)
+
+        # -----------------------------------------------------
+        # Build lookup
+        # -----------------------------------------------------
+
+        for item in submissions:
+
+            user_id = item[
+                "assignId"
+            ]
+
+            # -------------------------------------------------
+            # Selected employee filtering
+            # -------------------------------------------------
+
+            if (
+                employee_ids_set
+                and user_id not in employee_ids_set
+            ):
+
+                continue
+
+            submission_date = item[
+                "date"
+            ]
+
+            # -------------------------------------------------
+            # ISO week
+            # -------------------------------------------------
+
+            iso_year, iso_week, _ = (
+                submission_date.isocalendar()
+            )
+
+            key = (
+                user_id,
+                iso_week,
+                iso_year,
+            )
+
+            lookup[key].append(
+                {
+                    "status":
+                        item["status"],
+
+                    "approved_status":
+                        item[
+                            "approved_status"
+                        ],
+                }
+            )
+
+        return lookup
+
+    # =========================================================
+    # EMPLOYEE DROPDOWN
+    # =========================================================
+
+    def get_employee_list(
+        self,
+        employee_status
+    ):
+
+        return list(
+            User.objects
+
+            .filter(
+                is_active=employee_status
+            )
+
+            .values(
+                "id",
+                "first_name",
+            )
+
+            .order_by(
+                "first_name"
+            )
+        )
+
+    # =========================================================
+    # BUILD RESPONSE
+    # =========================================================
+
+    def build_response(
+        self,
+        request
+    ):
+
+        # -----------------------------------------------------
+        # Current week
+        # -----------------------------------------------------
+
+        current = (
+            self.get_current_week_details()
+        )
+
+        # -----------------------------------------------------
+        # Request parameters
+        # -----------------------------------------------------
+
+        params = (
+            self.get_parameters(
+                request
+            )
+        )
+
+        selected_year = params[
+            "selected_year"
+        ]
+
+        selected_week_start = params[
+            "selected_week_start"
+        ]
+
+        selected_week_end = params[
+            "selected_week_end"
+        ]
+
+        selected_employee = params[
+            "selected_employee"
+        ]
+
+        employee_status = params[
+            "employee_status"
+        ]
+
+        # =====================================================
+        # EMPLOYEES
+        # =====================================================
+
+        employees = (
+            self.get_employees(
+                employee_status,
+                selected_employee
+            )
+        )
+
+        employee_ids = [
+            employee["id"]
+            for employee in employees
+        ]
+
+        # =====================================================
+        # WEEK DATES
+        # =====================================================
+
+        try:
+
+            week_start_date = (
+                datetime.fromisocalendar(
+                    selected_year,
+                    selected_week_start,
+                    1,
+                )
+            )
+
+            week_end_date = (
+                datetime.fromisocalendar(
+                    selected_year,
+                    selected_week_end,
+                    7,
+                )
+            )
+
+        except ValueError:
+
+            return Response(
+                {
+                    "detail":
+                        "Invalid ISO week/year selected."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # =====================================================
+        # TIMESHEET STATUS
+        # =====================================================
+
+        timesheet_lookup = (
+            self.get_timesheet_statuses(
+                selected_year,
+                selected_week_start,
+                selected_week_end,
+                employee_status,
+                employee_ids,
+            )
+        )
+
+        # =====================================================
+        # SUBMISSION STATUS
+        # =====================================================
+
+        task_status_lookup = (
+            self.get_submission_lookup(
+                week_start_date,
+                week_end_date,
+                employee_ids,
+            )
+        )
+
+        # =====================================================
+        # RESULT
+        # =====================================================
+
+        result = {}
+
+        # -----------------------------------------------------
+        # Employees
+        # -----------------------------------------------------
+
+        for employee in employees:
+
+            employee_id = employee[
+                "id"
+            ]
+
+            employee_data = {
+
+                "first_name":
+                    employee[
+                        "first_name"
+                    ],
+
+                "joinedWeek":
+                    employee[
+                        "joinedWeek"
+                    ],
+
+                "joinedYear":
+                    employee[
+                        "joinedYear"
+                    ],
+
+                "resignedWeek":
+                    employee[
+                        "resignedWeek"
+                    ],
+
+                "resignedYear":
+                    employee[
+                        "resignedYear"
+                    ],
+
+                "weekYear":
+                    selected_year,
+            }
+
+            # =================================================
+            # Weeks
+            # =================================================
+
+            for week_number in range(
+                selected_week_start,
+                selected_week_end + 1
+            ):
+
+                key = (
+                    employee_id,
+                    week_number,
+                    selected_year,
+                )
+
+                timesheet = (
+                    timesheet_lookup.get(
+                        key
+                    )
+                )
+
+                # -------------------------------------------------
+                # No TimesheetStatus
+                # -------------------------------------------------
+
+                if not timesheet:
+
+                    # We can still return N/A
+                    employee_data[
+                        str(week_number)
+                    ] = {
+
+                        "action_status":
+                            False,
+
+                        "submission_status":
+                            False,
+
+                        "timesheet_status":
+                            None,
+
+                        "approval_status":
+                            "notsubmitted",
+                    }
+
+                    continue
+
+                # -------------------------------------------------
+                # Approval status
+                # -------------------------------------------------
+
+                approval_status = (
+                    self.get_approval_status(
+                        task_status_lookup,
+                        employee_id,
+                        week_number,
+                        selected_year,
+                    )
+                )
+
+                # -------------------------------------------------
+                # Week data
+                # -------------------------------------------------
+
+                employee_data[
+                    str(week_number)
+                ] = {
+
+                    "action_status":
+                        timesheet[
+                            "actionStatus"
+                        ],
+
+                    "submission_status":
+                        timesheet[
+                            "submissionStatus"
+                        ],
+
+                    "timesheet_status":
+                        timesheet[
+                            "timesheetStatus"
+                        ],
+
+                    "approval_status":
+                        approval_status,
+                }
+
+            result[
+                employee_id
+            ] = employee_data
+
+        # =====================================================
+        # EMPLOYEE DROPDOWN
+        # =====================================================
+
+        employee_list = (
+            self.get_employee_list(
+                employee_status
+            )
+        )
+
+        # =====================================================
+        # RESPONSE
+        # =====================================================
+
+        return Response(
+            {
+
+                # ---------------------------------------------
+                # Main table
+                # ---------------------------------------------
+
+                "employees":
+                    result,
+
+                # ---------------------------------------------
+                # Current values
+                # ---------------------------------------------
+
+                "year":
+                    current[
+                        "current_year"
+                    ],
+
+                "current_week":
+                    current[
+                        "current_week"
+                    ],
+
+                # ---------------------------------------------
+                # Dropdown defaults
+                # ---------------------------------------------
+
+                "DropDownWeekStart":
+                    current[
+                        "week_start"
+                    ],
+
+                "DropDownWeekEnd":
+                    current[
+                        "week_end"
+                    ],
+
+                # ---------------------------------------------
+                # Employee dropdown
+                # ---------------------------------------------
+
+                "employeeList":
+                    employee_list,
+
+                # ---------------------------------------------
+                # Selected values
+                # ---------------------------------------------
+
+                "selectedYear":
+                    selected_year,
+
+                "selectedWeekStart":
+                    selected_week_start,
+
+                "selectedWeekEnd":
+                    selected_week_end,
+
+                "selectedEmployee":
+                    selected_employee,
+
+                "selectedEmpStatus":
+                    employee_status,
+            },
+
+            status=status.HTTP_200_OK
+        )
+
+    # =========================================================
+    # GET
+    # =========================================================
+
+    def get(
+        self,
+        request
+    ):
+
+        return self.build_response(
+            request
+        )
+
+    # =========================================================
+    # POST
+    # =========================================================
+
+    def post(
+        self,
+        request
+    ):
+
+        return self.build_response(
+            request
         )

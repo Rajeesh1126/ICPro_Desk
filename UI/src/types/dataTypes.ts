@@ -335,3 +335,9 @@ export interface TaskRow {
 
     rejectionReason?: string | null;
 }
+
+export interface ApprovalDetailResponse {
+    rows: ApiTaskRow[];
+    comments?: string;
+    action_status?: boolean;
+}

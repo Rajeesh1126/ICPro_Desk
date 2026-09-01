@@ -129,6 +129,7 @@ class ApprovalSerializer(serializers.ModelSerializer):
             "submission_status",
             "approval_status",
         ]
+    
     def get_selected_week(self):
 
         if hasattr(self, "_selected_week"):
@@ -269,6 +270,6 @@ class ApprovalSerializer(serializers.ModelSerializer):
 
         if status and status.action_status:
             return "OnTime"
-        if today > week_end:
+        if today > week_end + timedelta(days=7):
             return "Delayed"
-        return f"Due by {week_end:%d-%b-%Y}"
+        return f"Due by {week_end + timedelta(days=7):%d-%b-%Y}"

@@ -17,6 +17,7 @@ import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import AssignmentTurnedInRoundedIcon from "@mui/icons-material/AssignmentTurnedInRounded";
+import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import Header from "../components/AppBar/header";
 import api from "../api/axios";
 
@@ -76,7 +77,21 @@ const pages = [
         label: "Roles Managment",
         path: "/Home/Roles",
         icon: <FactCheckRoundedIcon />,
-        iconColor: "#088da5",
+        iconColor: "#1208a5",
+        codeName: "view_submission",
+    },
+    {
+        label: "Analysis",
+        path: "/Home/Analysis",
+        icon: <InsightsRoundedIcon />,
+        iconColor: "#57dd7f",
+        codeName: "view_submission",
+    },
+    {
+        label: "TeamMemberPerformance",
+        path: "/Home/TeamMemberPerformance",
+        icon: <InsightsRoundedIcon />,
+        iconColor: "#57dd7f",
         codeName: "view_submission",
     },
 ] as const satisfies readonly {
