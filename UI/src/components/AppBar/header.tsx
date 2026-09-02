@@ -173,9 +173,7 @@ export default function ResponsiveAppBar({
   // }, []);
 
   const currentUser = getStoredUser();
-  // const currentUserName = currentUser.full_name || currentUser.username || "User";
   const userGroups = Array.isArray(currentUser.groups) ? currentUser.groups : [];
-  const userRoles = Array.isArray(currentUser.role) ? role : [];
 
   const totalNotifications =
     notifications.selfticketOpenCount + notifications.ticketOpenCount;
@@ -476,7 +474,14 @@ export default function ResponsiveAppBar({
         <Box sx={{ maxHeight: "min(58dvh, 520px)", overflowY: "auto", p: 2 }}>
           <Stack spacing={1.5}>
 
-            <Box>
+           
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="caption" color="text.secondary" fontWeight={900}>
+                Roles:
+              </Typography>
+              <Chip label={role || "No roles assigned"} size="small" color="secondary" />
+            </Box>
+             <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={900}>
                 Groups
               </Typography>
@@ -493,27 +498,6 @@ export default function ResponsiveAppBar({
               </Stack>
             </Box>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={900}>
-                Roles
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 0.75 }}>
-                {userRoles.length ? (
-                  userRoles.map((role) => (
-                    <Chip
-                      key={role.id ?? role.name}
-                      label={role.name || `Role ${role.id}`}
-                      size="small"
-                      color="secondary"
-                    />
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No roles assigned
-                  </Typography>
-                )}
-              </Stack>
-            </Box>
 
           </Stack>
         </Box>

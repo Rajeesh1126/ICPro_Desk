@@ -4,6 +4,7 @@ import {
     TableBody,
     TableCell,
     TableContainer,
+    TableFooter,
     TableHead,
     TableRow,
     Paper,
@@ -36,6 +37,7 @@ interface VirtualizedTableProps<T> {
     height?: string;
     onRowClick?: (row: T) => void;
     tableHead?: string;
+    fixedFooterContent?: (rows: T[]) => React.ReactNode;
 }
 
 const formatDate = (value: unknown) => {
@@ -75,7 +77,8 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
     rows,
     height,
     onRowClick,
-    tableHead
+    tableHead,
+    fixedFooterContent
 }: VirtualizedTableProps<T>) {
     const [sortField, setSortField] = React.useState<keyof T | null>(null);
     const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
@@ -129,6 +132,9 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
         ),
         TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
             <TableHead {...props} ref={ref} sx={tableHeadSx} />
+        )),
+        TableFoot: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
+            <TableFooter {...props} ref={ref} />
         )),
         TableRow: ({ item, ...props }) => (
             <TableRow
@@ -240,7 +246,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
                     fontWeight={700}
                     sx={tableViewTypographySx2}
                 >
-                    <TableChartIcon color="action" fontSize="small" sx={tableViewTableChartIconSx1} /> {tableHead ? tableHead : "Tickets"}
+                    <TableChartIcon color="action" fontSize="small" sx={tableViewTableChartIconSx1} /> {tableHead ? tableHead : "Data"}
                 </Typography>
                 <TextField
                     size="small"
@@ -259,6 +265,11 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
                     data={processedRows}
                     components={VirtuosoTableComponents}
                     fixedHeaderContent={fixedHeaderContent}
+                    fixedFooterContent={
+                        fixedFooterContent
+                            ? () => fixedFooterContent(processedRows)
+                            : undefined
+                    }
                     itemContent={rowContent}
                 />
                 {processedRows.length === 0 && (

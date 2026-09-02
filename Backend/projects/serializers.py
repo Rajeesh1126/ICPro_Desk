@@ -40,6 +40,11 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'code', 'quotation_id', 'description','customer']
+        extra_kwargs = {
+            'code': {
+                'validators': [],
+            },
+        }
 
     @transaction.atomic
     def create(self, validated_data):

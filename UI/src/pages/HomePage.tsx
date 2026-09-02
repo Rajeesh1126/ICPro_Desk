@@ -18,6 +18,7 @@ import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
+import RuleFolderRoundedIcon from "@mui/icons-material/RuleFolderRounded";
 import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import Header from "../components/AppBar/header";
@@ -51,6 +52,13 @@ const pages = [
         path: "/Home/TimeSheet",
         icon: <FactCheckRoundedIcon />,
         iconColor: "#d32f2f",
+        codeName: "access_timesheet_log",
+    },
+    {
+        label: "Timesheet Logs",
+        path: "/Home/TimesheetLogs",
+        icon: <RuleFolderRoundedIcon />,
+        iconColor: "#7b1fa2",
         codeName: "access_timesheet",
     },
     

@@ -9,9 +9,15 @@ import {
     Box,
     Button,
     Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     IconButton,
     MenuItem,
     Select,
+    TableCell,
+    TableRow,
+    TextField,
     Typography,
 } from "@mui/material";
 
@@ -49,6 +55,49 @@ interface ApprovalDetailedViewProps {
     weekStart: string;
 }
 
+const timeValueToSeconds = (value: number | string) => {
+    const rawValue = String(value).trim();
+
+    if (!rawValue) {
+        return 0;
+    }
+
+    const [hoursPart = "0", minutesPart = ""] =
+        rawValue.split(".");
+    const hours = Number(hoursPart || 0);
+    const minutes =
+        minutesPart === ""
+            ? 0
+            : Number(minutesPart.padEnd(2, "0").slice(0, 2));
+
+    if (
+        Number.isNaN(hours) ||
+        Number.isNaN(minutes) ||
+        minutes < 0 ||
+        minutes > 59
+    ) {
+        return 0;
+    }
+
+    return hours * 3600 + minutes * 60;
+};
+
+const secondsToTimeValue = (seconds: number) => {
+    const totalSeconds = Number(seconds || 0);
+
+    if (totalSeconds <= 0) {
+        return 0;
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.round((totalSeconds % 3600) / 60);
+
+    return Number(`${hours}.${String(minutes).padStart(2, "0")}`);
+};
+
+const isOthersProject = (project?: string) =>
+    (project || "").trim().toLowerCase() === "others";
+
 const ApprovalDetailedView: React.FC<
     ApprovalDetailedViewProps
 > = ({
@@ -57,1230 +106,1246 @@ const ApprovalDetailedView: React.FC<
     onClose,
     weekStart,
 }) => {
-    const { showNotification } = useNotification();
+        const { showNotification } = useNotification();
 
-    const [tasks, setTasks] =
-        useState<TaskRow[]>([]);
+        const [tasks, setTasks] =
+            useState<TaskRow[]>([]);
 
-    const tableMinWidth = 1096;
+        const tableMinWidth = 1096;
 
-    const [expandedProjects, setExpandedProjects] =
-        useState<number[]>([]);
+        const [expandedProjects, setExpandedProjects] =
+            useState<number[]>([]);
 
-    const [loading, setLoading] =
-        useState(false);
+        const [loading, setLoading] =
+            useState(false);
 
-    const [updatingTaskId, setUpdatingTaskId] =
-        useState<number | null>(null);
+        const [updatingTaskId, setUpdatingTaskId] =
+            useState<number | null>(null);
 
-    const [comments, setComments] =
-        useState("");
+        const [comments, setComments] =
+            useState("");
 
-    const days = useMemo(() => {
+        const [rejectDialogOpen, setRejectDialogOpen] =
+            useState(false);
 
-        if (!weekStart) {
-            return [];
-        }
+        const [rejectReason, setRejectReason] =
+            useState("");
 
-        const startDate = new Date(
-            `${weekStart}T00:00:00`
-        );
+        const [rejectReasonError, setRejectReasonError] =
+            useState("");
 
-        const dayNames = [
-            "Sun",
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-        ];
+        const [pendingRejectTask, setPendingRejectTask] =
+            useState<TaskRow | null>(null);
 
-        const result: {
-            label: string;
-            date: string;
-        }[] = [];
+        const days = useMemo(() => {
 
-        for (
-            let index = 0;
-            index < 7;
-            index++
-        ) {
+            if (!weekStart) {
+                return [];
+            }
 
-            const currentDate =
-                new Date(startDate);
-
-            currentDate.setDate(
-                startDate.getDate() + index
+            const startDate = new Date(
+                `${weekStart}T00:00:00`
             );
 
-            const dayName =
-                dayNames[
-                    currentDate.getDay()
-                ];
+            const dayNames = [
+                "Sun",
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri",
+                "Sat",
+            ];
 
-            const dayNumber =
-                String(
-                    currentDate.getDate()
-                ).padStart(2, "0");
+            const result: {
+                label: string;
+                date: string;
+            }[] = [];
 
-            result.push({
-                label:
-                    `${dayName}-${dayNumber}`,
-
-                date:
-                    currentDate
-                        .toISOString()
-                        .split("T")[0],
-            });
-        }
-
-        return result;
-
-    }, [weekStart]);
-
-    useEffect(() => {
-
-        if (
-            !open ||
-            !employee?.id ||
-            !weekStart
-        ) {
-            return;
-        }
-
-        let active = true;
-
-        setLoading(true);
-        setTasks([]);
-        setComments("");
-        void api
-            .get<ApprovalDetailResponse>(
-                "/ApprovalDetailData/",
-                {
-                    params: {
-                        weekStart,
-                        employeeId:
-                            employee.id,
-                    },
-                }
-            )
-            .then((response) => {
-
-                if (!active) {
-                    return;
-                }
-
-                console.log(
-                    "Approval Detail Data:",
-                    response.data
-                );
-
-                const apiRows =
-                    response.data?.rows || [];
-
-                setComments(
-                    response.data?.comments || ""
-                );
-
-                const projectMap =
-                    new Map<
-                        number,
-                        {
-                            projectId: number;
-                            project: string;
-                            tasks: ApiTaskRow[];
-                        }
-                    >();
-
-                apiRows.forEach((row) => {
-
-                    if (
-                        row.projectId === null ||
-                        row.projectId === undefined
-                    ) {
-                        return;
-                    }
-
-                    if (
-                        !projectMap.has(
-                            row.projectId
-                        )
-                    ) {
-
-                        projectMap.set(
-                            row.projectId,
-                            {
-                                projectId:
-                                    row.projectId,
-
-                                project:
-                                    row.project,
-
-                                tasks: [],
-                            }
-                        );
-                    }
-
-                    projectMap
-                        .get(row.projectId)!
-                        .tasks
-                        .push(row);
-                });
-
-                const tableRows: TaskRow[] = [];
-
-                projectMap.forEach(
-                    (projectData) => {
-
-                        tableRows.push({
-                            id:
-                                projectData.projectId,
-
-                            projectId:
-                                projectData.projectId,
-
-                            project:
-                                projectData.project,
-
-                            task: "",
-
-                            budgetOwner: "",
-
-                            hours: [
-                                "",
-                                "",
-                                "",
-                                "",
-                                "",
-                                "",
-                                "",
-                            ],
-
-                            rating: "",
-
-                            status: "",
-
-                            rowType:
-                                "project",
-                        });
-
-                        projectData.tasks.forEach(
-                            (task) => {
-
-                                tableRows.push({
-
-                                    id:
-                                        task.id,
-
-                                    projectId:
-                                        task.projectId,
-
-                                    project: "",
-
-                                    task:
-                                        task.task,
-
-                                    budgetOwner:
-                                        task.budgetOwner,
-
-                                    hours:
-                                        Array.isArray(
-                                            task.hours
-                                        )
-                                            ? task.hours
-                                            : [
-                                                "",
-                                                "",
-                                                "",
-                                                "",
-                                                "",
-                                                "",
-                                                "",
-                                            ],
-
-                                    rating:
-                                        String(
-                                            task.rating ??
-                                            ""
-                                        ),
-
-                                    status:
-                                        task.status ||
-                                        "Pending",
-
-                                    rowType:
-                                        "milestone",
-
-                                    approvedStatus:
-                                        task.approvedStatus,
-
-                                    rejectionReason:
-                                        task.rejectionReason,
-                                });
-                            }
-                        );
-                    }
-                );
-
-                setTasks(tableRows);
-
-                setExpandedProjects(
-                    Array.from(
-                        projectMap.keys()
-                    )
-                );
-            })
-            .catch((error) => {
-
-                console.error(
-                    "Failed to load approval data",
-                    error
-                );
-
-                if (active) {
-
-                    setTasks([]);
-                    setExpandedProjects([]);
-                    setComments("");
-                }
-            })
-            .finally(() => {
-
-                if (active) {
-                    setLoading(false);
-                }
-            });
-
-        return () => {
-            active = false;
-        };
-
-    }, [
-        open,
-        employee?.id,
-        weekStart,
-    ]);
-
-    const handleToggleProject =
-        useCallback(
-            (projectId: number) => {
-
-                setExpandedProjects(
-                    (previous) => {
-
-                        if (
-                            previous.includes(
-                                projectId
-                            )
-                        ) {
-
-                            return previous.filter(
-                                (id) =>
-                                    id !==
-                                    projectId
-                            );
-                        }
-
-                        return [
-                            ...previous,
-                            projectId,
-                        ];
-                    }
-                );
-            },
-            []
-        );
-
-    const visibleTasks = useMemo(() => {
-
-        const result: TaskRow[] = [];
-
-        tasks.forEach((row) => {
-
-            if (
-                row.rowType ===
-                "project"
+            for (
+                let index = 0;
+                index < 7;
+                index++
             ) {
 
-                result.push(row);
+                const currentDate =
+                    new Date(startDate);
 
+                currentDate.setDate(
+                    startDate.getDate() + index
+                );
+
+                const dayName =
+                    dayNames[
+                    currentDate.getDay()
+                    ];
+
+                const dayNumber =
+                    String(
+                        currentDate.getDate()
+                    ).padStart(2, "0");
+
+                result.push({
+                    label:
+                        `${dayName}-${dayNumber}`,
+
+                    date:
+                        currentDate
+                            .toISOString()
+                            .split("T")[0],
+                });
+            }
+
+            return result;
+
+        }, [weekStart]);
+
+        useEffect(() => {
+
+            if (
+                !open ||
+                !employee?.id ||
+                !weekStart
+            ) {
                 return;
             }
 
-            if (
-                row.rowType ===
-                    "milestone" &&
-                expandedProjects.includes(
-                    row.projectId
-                )
-            ) {
+            let active = true;
 
-                result.push(row);
-            }
-        });
-
-        return result;
-
-    }, [
-        tasks,
-        expandedProjects,
-    ]);
-
-    const totals = useMemo(() => {
-
-        return days.map(
-            (_, dayIndex) => {
-
-                return tasks
-                    .filter(
-                        (task) =>
-                            task.rowType ===
-                            "milestone"
-                    )
-                    .reduce(
-                        (
-                            total,
-                            task
-                        ) => {
-
-                            const value =
-                                parseFloat(
-                                    task.hours[
-                                        dayIndex
-                                    ] || "0"
-                                );
-
-                            if (
-                                Number.isNaN(
-                                    value
-                                )
-                            ) {
-                                return total;
-                            }
-
-                            return (
-                                total + value
-                            );
+            setLoading(true);
+            setTasks([]);
+            setComments("");
+            void api
+                .get<ApprovalDetailResponse>(
+                    "/ApprovalDetailData/",
+                    {
+                        params: {
+                            weekStart,
+                            employeeId:
+                                employee.id,
                         },
-                        0
-                    );
-            }
-        );
+                    }
+                )
+                .then((response) => {
 
-    }, [
-        tasks,
-        days,
-    ]);
-
-    const actualHours = useMemo(
-        () => {
-
-            return totals.reduce(
-                (
-                    total,
-                    value
-                ) =>
-                    total + value,
-                0
-            );
-
-        },
-        [totals]
-    );
-
-    const handleRatingChange =
-        useCallback(
-            (
-                taskId: number,
-                value: string
-            ) => {
-
-                setTasks(
-                    (previous) =>
-                        previous.map(
-                            (row) => {
-
-                                if (
-                                    row.id !==
-                                    taskId
-                                ) {
-                                    return row;
-                                }
-
-                                return {
-                                    ...row,
-                                    rating:
-                                        value,
-                                };
-                            }
-                        )
-                );
-            },
-            []
-        );
-
-    const handleApprovalAction =
-        useCallback(
-            async (
-                row: TaskRow,
-                action:
-                    | "Accepted"
-                    | "Rejected"
-            ) => {
-
-                if (!employee?.id) {
-                    return;
-                }
-
-                if (
-                    !row.rating ||
-                    row.rating === "0"
-                ) {
-
-                    showNotification(
-                        "Please select a rating before approving or rejecting.",
-                        "warning"
-                    );
-
-                    return;
-                }
-
-                const ratingNumber =
-                    Number(row.rating);
-
-                if (
-                    Number.isNaN(
-                        ratingNumber
-                    ) ||
-                    ratingNumber < 1 ||
-                    ratingNumber > 5
-                ) {
-
-                    showNotification(
-                        "Please select a valid rating.",
-                        "warning"
-                    );
-
-                    return;
-                }
-
-                if (
-                    updatingTaskId !== null
-                ) {
-                    return;
-                }
-
-                try {
-
-                    setUpdatingTaskId(
-                        row.id
-                    );
-
-                    const response =
-                        await api.patch(
-                            "/ApprovalDetailData/",
-                            {
-                                weekStart,
-
-                                employeeId:
-                                    employee.id,
-
-                                // row.id is AssignedTask.id
-                                assignId:
-                                    row.id,
-
-                                action,
-
-                                rating:
-                                    ratingNumber,
-
-                                comments,
-                            }
-                        );
+                    if (!active) {
+                        return;
+                    }
 
                     console.log(
-                        "Approval updated:",
+                        "Approval Detail Data:",
                         response.data
                     );
 
-                    showNotification(
-                        `Submission ${action.toLowerCase()} successfully.`,
-                        "success"
+                    const apiRows =
+                        response.data?.rows || [];
+
+                    setComments(
+                        response.data?.comments || ""
                     );
+
+                    const projectMap =
+                        new Map<
+                            number,
+                            {
+                                projectId: number;
+                                project: string;
+                                tasks: ApiTaskRow[];
+                            }
+                        >();
+
+                    apiRows.forEach((row) => {
+
+                        if (
+                            row.projectId === null ||
+                            row.projectId === undefined
+                        ) {
+                            return;
+                        }
+
+                        if (
+                            !projectMap.has(
+                                row.projectId
+                            )
+                        ) {
+
+                            projectMap.set(
+                                row.projectId,
+                                {
+                                    projectId:
+                                        row.projectId,
+
+                                    project:
+                                        row.project,
+
+                                    tasks: [],
+                                }
+                            );
+                        }
+
+                        projectMap
+                            .get(row.projectId)!
+                            .tasks
+                            .push(row);
+                    });
+
+                    const tableRows: TaskRow[] = [];
+
+                    projectMap.forEach(
+                        (projectData) => {
+
+                            tableRows.push({
+                                id:
+                                    projectData.projectId,
+
+                                projectId:
+                                    projectData.projectId,
+
+                                project:
+                                    projectData.project,
+
+                                task: "",
+
+                                budgetOwner: "",
+
+                                hours: [
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                    "",
+                                ],
+
+                                rating: "",
+
+                                status: "",
+
+                                rowType:
+                                    "project",
+                            });
+
+                            projectData.tasks.forEach(
+                                (task) => {
+
+                                    tableRows.push({
+
+                                        id:
+                                            task.id,
+
+                                        projectId:
+                                            task.projectId,
+
+                                        project:
+                                            projectData.project,
+
+                                        task:
+                                            task.task,
+
+                                        budgetOwner:
+                                            task.budgetOwner,
+
+                                        hours:
+                                            Array.isArray(
+                                                task.hours
+                                            )
+                                                ? task.hours
+                                                : [
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    "",
+                                                    "",
+                                                ],
+
+                                        rating:
+                                            String(
+                                                task.rating ??
+                                                ""
+                                            ),
+
+                                        status:
+                                            task.status ||
+                                            "Pending",
+
+                                        rowType:
+                                            "milestone",
+
+                                        approvedStatus:
+                                            task.approvedStatus,
+
+                                        rejectionReason:
+                                            task.rejectionReason,
+                                    });
+                                }
+                            );
+                        }
+                    );
+
+                    setTasks(tableRows);
+
+                    setExpandedProjects(
+                        Array.from(
+                            projectMap.keys()
+                        )
+                    );
+                })
+                .catch((error) => {
+
+                    console.error(
+                        "Failed to load approval data",
+                        error
+                    );
+
+                    if (active) {
+
+                        setTasks([]);
+                        setExpandedProjects([]);
+                        setComments("");
+                    }
+                })
+                .finally(() => {
+
+                    if (active) {
+                        setLoading(false);
+                    }
+                });
+
+            return () => {
+                active = false;
+            };
+
+        }, [
+            open,
+            employee?.id,
+            weekStart,
+        ]);
+
+        const handleToggleProject =
+            useCallback(
+                (projectId: number) => {
+
+                    setExpandedProjects(
+                        (previous) => {
+
+                            if (
+                                previous.includes(
+                                    projectId
+                                )
+                            ) {
+
+                                return previous.filter(
+                                    (id) =>
+                                        id !==
+                                        projectId
+                                );
+                            }
+
+                            return [
+                                ...previous,
+                                projectId,
+                            ];
+                        }
+                    );
+                },
+                []
+            );
+
+        const visibleTasks = useMemo(() => {
+
+            const result: TaskRow[] = [];
+
+            tasks.forEach((row) => {
+
+                if (
+                    row.rowType ===
+                    "project"
+                ) {
+
+                    result.push(row);
+
+                    return;
+                }
+
+                if (
+                    row.rowType ===
+                    "milestone" &&
+                    expandedProjects.includes(
+                        row.projectId
+                    )
+                ) {
+
+                    result.push(row);
+                }
+            });
+
+            return result;
+
+        }, [
+            tasks,
+            expandedProjects,
+        ]);
+
+        const totals = useMemo(() => {
+
+            return days.map(
+                (_, dayIndex) => {
+
+                    return tasks
+                        .filter(
+                            (task) =>
+                                task.rowType ===
+                                "milestone"
+                        )
+                        .reduce(
+                            (
+                                total,
+                                task
+                            ) => {
+
+                                return (
+                                    total +
+                                    timeValueToSeconds(
+                                        task.hours[
+                                        dayIndex
+                                        ] || "0"
+                                    )
+                                );
+                            },
+                            0
+                        );
+                }
+            );
+
+        }, [
+            tasks,
+            days,
+        ]);
+
+        const handleRatingChange =
+            useCallback(
+                (
+                    taskId: number,
+                    value: string
+                ) => {
 
                     setTasks(
                         (previous) =>
                             previous.map(
-                                (task) => {
+                                (row) => {
 
                                     if (
-                                        task.id !==
-                                        row.id
+                                        row.id !==
+                                        taskId
                                     ) {
-                                        return task;
+                                        return row;
                                     }
 
                                     return {
-                                        ...task,
-
-                                        status:
-                                            action,
-
+                                        ...row,
                                         rating:
-                                            String(
-                                                ratingNumber
-                                            ),
+                                            value,
                                     };
                                 }
                             )
                     );
+                },
+                []
+            );
 
-                } catch (error) {
+        const handleApprovalAction =
+            useCallback(
+                async (
+                    row: TaskRow,
+                    action:
+                        | "Accepted"
+                        | "Rejected",
+                    actionComments = comments
+                ) => {
 
-                    console.error(
-                        `Failed to ${action.toLowerCase()} submission:`,
-                        error
-                    );
+                    if (!employee?.id) {
+                        return false;
+                    }
 
-                    showNotification(
-                        `Failed to ${action.toLowerCase()} submission.`,
-                        "error"
-                    );
+                    if (
+                        !isOthersProject(row.project) &&
+                        (
+                            !row.rating ||
+                            row.rating === "0"
+                        )
+                    ) {
 
-                } finally {
+                        showNotification(
+                            "Please select a rating before approving or rejecting.",
+                            "warning"
+                        );
 
-                    setUpdatingTaskId(
-                        null
-                    );
+                        return false;
+                    }
+
+                    const ratingNumber =
+                        isOthersProject(row.project)
+                            ? 0
+                            : Number(row.rating);
+
+                    const requiresRating =
+                        !isOthersProject(row.project);
+
+                    if (
+                        requiresRating &&
+                        (
+                            Number.isNaN(
+                                ratingNumber
+                            ) ||
+                            ratingNumber < 1 ||
+                            ratingNumber > 5
+                        )
+                    ) {
+
+                        showNotification(
+                            "Please select a valid rating.",
+                            "warning"
+                        );
+
+                        return false;
+                    }
+
+                    if (
+                        updatingTaskId !== null
+                    ) {
+                        return false;
+                    }
+
+                    try {
+
+                        setUpdatingTaskId(
+                            row.id
+                        );
+
+                        const response =
+                            await api.patch(
+                                "/ApprovalDetailData/",
+                                {
+                                    weekStart,
+
+                                    employeeId:
+                                        employee.id,
+
+                                    assignId:
+                                        row.id,
+
+                                    action,
+
+                                    rating:
+                                        ratingNumber,
+
+                                    comments:
+                                        actionComments,
+                                }
+                            );
+
+                        console.log(
+                            "Approval updated:",
+                            response.data
+                        );
+
+                        showNotification(
+                            `Submission ${action.toLowerCase()} successfully.`,
+                            "success"
+                        );
+
+                        setTasks(
+                            (previous) =>
+                                previous.map(
+                                    (task) => {
+
+                                        if (
+                                            task.id !==
+                                            row.id
+                                        ) {
+                                            return task;
+                                        }
+
+                                        return {
+                                            ...task,
+
+                                            status:
+                                                action,
+
+                                            rating:
+                                                String(
+                                                    ratingNumber
+                                                ),
+
+                                            rejectionReason:
+                                                action ===
+                                                    "Rejected"
+                                                    ? actionComments
+                                                    : null,
+                                        };
+                                    }
+                                )
+                        );
+
+                        return true;
+
+                    } catch (error) {
+
+                        console.error(
+                            `Failed to ${action.toLowerCase()} submission:`,
+                            error
+                        );
+
+                        showNotification(
+                            `Failed to ${action.toLowerCase()} submission.`,
+                            "error"
+                        );
+
+                        return false;
+
+                    } finally {
+
+                        setUpdatingTaskId(
+                            null
+                        );
+                    }
+                },
+                [
+                    employee?.id,
+                    weekStart,
+                    comments,
+                    updatingTaskId,
+                    showNotification,
+                ]
+            );
+
+        const openRejectDialog = useCallback(
+            (row: TaskRow) => {
+                setPendingRejectTask(row);
+                setRejectReason(row.rejectionReason || "");
+                setRejectReasonError("");
+                setRejectDialogOpen(true);
+            },
+            []
+        );
+
+        const closeRejectDialog = useCallback(
+            () => {
+                if (updatingTaskId !== null) {
+                    return;
                 }
+
+                setRejectDialogOpen(false);
+                setPendingRejectTask(null);
+                setRejectReason("");
+                setRejectReasonError("");
+            },
+            [updatingTaskId]
+        );
+
+        const submitRejectReason = useCallback(
+            async () => {
+                const reason = rejectReason.trim();
+
+                if (!pendingRejectTask) {
+                    return;
+                }
+
+                if (!reason) {
+                    setRejectReasonError(
+                        "Rejection reason is required."
+                    );
+                    showNotification(
+                        "Please enter a rejection reason.",
+                        "warning"
+                    );
+                    return;
+                }
+
+                const success = await handleApprovalAction(
+                    pendingRejectTask,
+                    "Rejected",
+                    reason
+                );
+
+                if (!success) {
+                    return;
+                }
+
+                setRejectDialogOpen(false);
+                setPendingRejectTask(null);
+                setRejectReason("");
+                setRejectReasonError("");
             },
             [
-                employee?.id,
-                weekStart,
-                comments,
-                updatingTaskId,
+                handleApprovalAction,
+                pendingRejectTask,
+                rejectReason,
                 showNotification,
             ]
         );
 
-    const columns:
-        ColumnData<TaskRow>[] =
-        useMemo(
-            () => {
+        const columns:
+            ColumnData<TaskRow>[] =
+            useMemo(
+                () => {
 
-                const result:
-                    ColumnData<TaskRow>[] =
-                    [
+                    const result:
+                        ColumnData<TaskRow>[] =
+                        [
 
-                        {
-                            label: "Jobs",
+                            {
+                                label: "Jobs",
 
-                            width: 240,
+                                width: 350,
 
-                            render:
-                                (
-                                    row: TaskRow
-                                ) => {
-
-                                    if (
-                                        row.rowType ===
-                                        "project"
-                                    ) {
-
-                                        const isExpanded =
-                                            expandedProjects.includes(
-                                                row.projectId
-                                            );
-
-                                        return (
-                                            <Box
-                                                sx={{
-                                                    display:
-                                                        "flex",
-
-                                                    alignItems:
-                                                        "center",
-                                                }}
-                                            >
-
-                                                <IconButton
-                                                    size="small"
-
-                                                    onClick={() =>
-                                                        handleToggleProject(
-                                                            row.projectId
-                                                        )
-                                                    }
-
-                                                    sx={{
-                                                        p: 0,
-                                                        mr: 0.5,
-                                                    }}
-                                                >
-
-                                                    <KeyboardArrowDownIcon
-                                                        sx={{
-                                                            fontSize:
-                                                                18,
-
-                                                            transition:
-                                                                "transform 0.2s ease",
-
-                                                            transform:
-                                                                isExpanded
-                                                                    ? "rotate(0deg)"
-                                                                    : "rotate(-90deg)",
-                                                        }}
-                                                    />
-
-                                                </IconButton>
-
-                                                <Typography
-                                                    component="span"
-
-                                                    sx={{
-                                                        fontSize:
-                                                            13,
-
-                                                        fontWeight:
-                                                            500,
-                                                    }}
-                                                >
-                                                    {
-                                                        row.project
-                                                    }
-                                                </Typography>
-
-                                            </Box>
-                                        );
-                                    }
-
-                                    return (
-                                        <Typography
-                                            component="span"
-
-                                            sx={{
-                                                fontSize:
-                                                    13,
-                                            }}
-                                        >
-                                            {
-                                                row.task
-                                            }
-                                        </Typography>
-                                    );
-                                },
-                        },
-
-                        {
-                            label:
-                                "Budget Owner",
-
-                            width: 120,
-
-                            render:
-                                (
-                                    row: TaskRow
-                                ) => {
-
-                                    if (
-                                        row.rowType ===
-                                        "project"
-                                    ) {
-                                        return null;
-                                    }
-
-                                    return row.budgetOwner;
-                                },
-                        },
-                    ];
-
-                days.forEach(
-                    (
-                        day,
-                        dayIndex
-                    ) => {
-
-                        result.push({
-
-                            label:
-                                day.label,
-
-                            width: 58,
-
-                            render:
-                                (
-                                    row: TaskRow
-                                ) => {
-
-                                    if (
-                                        row.rowType ===
-                                        "project"
-                                    ) {
-                                        return null;
-                                    }
-
-                                    return (
-                                        <HourCell
-                                            value={
-                                                row.hours[
-                                                    dayIndex
-                                                ] || ""
-                                            }
-                                        />
-                                    );
-                                },
-                        });
-                    }
-                );
-
-                result.push({
-
-                    label: "Rating",
-
-                    width: 90,
-
-                    render:
-                        (
-                            row: TaskRow
-                        ) => {
-
-                            if (
-                                row.rowType ===
-                                "project"
-                            ) {
-                                return null;
-                            }
-
-                            return (
-                                <Select
-                                    size="small"
-
-                                    value={
-                                        row.rating ||
-                                        ""
-                                    }
-
-                                    displayEmpty
-
-                                    disabled={
-                                        updatingTaskId ===
-                                        row.id
-                                    }
-
-                                    onChange={(
-                                        event
+                                render:
+                                    (
+                                        row: TaskRow
                                     ) => {
 
-                                        handleRatingChange(
-                                            row.id,
+                                        if (
+                                            row.rowType ===
+                                            "project"
+                                        ) {
 
-                                            String(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
+                                            const isExpanded =
+                                                expandedProjects.includes(
+                                                    row.projectId
+                                                );
+
+                                            return (
+                                                <Box
+                                                    sx={{
+                                                        display:
+                                                            "flex",
+
+                                                        alignItems:
+                                                            "center",
+                                                    }}
+                                                >
+
+                                                    <IconButton
+                                                        size="small"
+
+                                                        onClick={() =>
+                                                            handleToggleProject(
+                                                                row.projectId
+                                                            )
+                                                        }
+
+                                                        sx={{
+                                                            p: 0,
+                                                            mr: 0.5,
+                                                        }}
+                                                    >
+
+                                                        <KeyboardArrowDownIcon
+                                                            sx={{
+                                                                fontSize:
+                                                                    18,
+
+                                                                transition:
+                                                                    "transform 0.2s ease",
+
+                                                                transform:
+                                                                    isExpanded
+                                                                        ? "rotate(0deg)"
+                                                                        : "rotate(-90deg)",
+                                                            }}
+                                                        />
+
+                                                    </IconButton>
+
+                                                    <Typography
+                                                        component="span"
+
+                                                        sx={{
+                                                            fontSize:
+                                                                13,
+
+                                                            fontWeight:
+                                                                500,
+                                                        }}
+                                                    >
+                                                        {
+                                                            row.project
+                                                        }
+                                                    </Typography>
+
+                                                </Box>
+                                            );
+                                        }
+
+                                        return (
+                                            <Typography
+                                                component="span"
+
+                                                sx={{
+                                                    marginLeft: 5,
+                                                    fontSize:
+                                                        13,
+                                                }}
+                                            >
+                                                {
+                                                    row.task
+                                                }
+                                            </Typography>
                                         );
-                                    }}
+                                    },
+                            },
 
-                                    sx={{
-                                        width: 76,
-                                        height: 32,
-                                        fontSize: 12,
-                                        "& .MuiSelect-select": {
-                                            py: 0.5,
-                                            px: 1,
-                                        },
-                                    }}
-                                >
+                            {
+                                label:
+                                    "Budget Owner",
 
-                                    <MenuItem
-                                        value="0"
-                                    >
-                                        Select
-                                    </MenuItem>
+                                width: 120,
 
-                                    <MenuItem
-                                        value="1"
-                                    >
-                                        Poor
-                                    </MenuItem>
+                                render:
+                                    (
+                                        row: TaskRow
+                                    ) => {
 
-                                    <MenuItem
-                                        value="2"
-                                    >
-                                        Average
-                                    </MenuItem>
+                                        if (
+                                            row.rowType ===
+                                            "project"
+                                        ) {
+                                            return null;
+                                        }
 
-                                    <MenuItem
-                                        value="3"
-                                    >
-                                        Good
-                                    </MenuItem>
+                                        return row.budgetOwner;
+                                    },
+                            },
+                        ];
 
-                                    <MenuItem
-                                        value="4"
-                                    >
-                                        Very Good
-                                    </MenuItem>
-
-                                    <MenuItem
-                                        value="5"
-                                    >
-                                        Excellent
-                                    </MenuItem>
-
-                                </Select>
-                            );
-                        },
-                });
-
-                result.push({
-
-                    label: "Status",
-
-                    width: 90,
-
-                    render:
+                    days.forEach(
                         (
-                            row: TaskRow
+                            day,
+                            dayIndex
                         ) => {
 
-                            if (
-                                row.rowType ===
-                                "project"
-                            ) {
-                                return null;
-                            }
+                            result.push({
 
-                            return (
-                                <Typography
-                                    sx={{
-                                        fontSize: 12,
-                                    }}
-                                >
-                                    {
-                                        row.status
-                                    }
-                                </Typography>
-                            );
-                        },
-                });
+                                label:
+                                    day.label,
 
-                result.push({
+                                width: 58,
 
-                    label: "Accept",
+                                render:
+                                    (
+                                        row: TaskRow
+                                    ) => {
 
-                    width: 75,
+                                        if (
+                                            row.rowType ===
+                                            "project"
+                                        ) {
+                                            return null;
+                                        }
 
-                    render:
-                        (
-                            row: TaskRow
-                        ) => {
+                                        return (
+                                            <HourCell
+                                                value={
+                                                    row.hours[
+                                                    dayIndex
+                                                    ] || ""
+                                                }
+                                            />
+                                        );
+                                    },
+                            });
+                        }
+                    );
 
-                            if (
-                                row.rowType ===
-                                "project"
-                            ) {
-                                return null;
-                            }
+                    result.push({
 
-                            const isUpdating =
-                                updatingTaskId ===
-                                row.id;
+                        label: "Rating",
 
-                            const isAccepted =
-                                row.status ===
-                                "Accepted";
+                        width: 90,
 
-                            return (
-                                <Button
-                                    size="small"
+                        render:
+                            (
+                                row: TaskRow
+                            ) => {
 
-                                    variant="contained"
+                                if (
+                                    row.rowType ===
+                                    "project"
+                                ) {
+                                    return null;
+                                }
 
-                                    disabled={
-                                        isAccepted ||
-                                        isUpdating
-                                    }
+                                if (
+                                    isOthersProject(
+                                        row.project
+                                    )
+                                ) {
+                                    return null;
+                                }
 
-                                    onClick={() =>
-                                        void handleApprovalAction(
-                                            row,
-                                            "Accepted"
-                                        )
-                                    }
+                                const isAccepted =
+                                    row.status ===
+                                    "Accepted";
+                                const isRejected =
+                                    row.status ===
+                                    "Rejected";
 
-                                    sx={{
-                                        width: 68,
-                                        minWidth: 68,
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    {
-                                        isUpdating
-                                            ? "..."
-                                            : "ACCEPT"
-                                    }
-                                </Button>
-                            );
-                        },
-                });
+                                return (
+                                    <Select
+                                        size="small"
 
-                result.push({
+                                        value={
+                                            row.rating ||
+                                            ""
+                                        }
 
-                    label: "Reject",
+                                        displayEmpty
 
-                    width: 75,
+                                        disabled={
+                                            updatingTaskId ===
+                                            row.id||
+                                            isRejected||
+                                            isAccepted
 
-                    render:
-                        (
-                            row: TaskRow
-                        ) => {
+                                        }
 
-                            if (
-                                row.rowType ===
-                                "project"
-                            ) {
-                                return null;
-                            }
+                                        onChange={(
+                                            event
+                                        ) => {
 
-                            const isUpdating =
-                                updatingTaskId ===
-                                row.id;
+                                            handleRatingChange(
+                                                row.id,
 
-                            const isRejected =
-                                row.status ===
-                                "Rejected";
+                                                String(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                            );
+                                        }}
 
-                            return (
-                                <Button
-                                    size="small"
+                                        sx={{
+                                            width: 100,
+                                            height: 32,
+                                            fontSize: 12,
+                                            "& .MuiSelect-select": {
+                                                py: 0.5,
+                                                px: 1,
+                                            },
+                                        }}
+                                    >
 
-                                    variant="contained"
+                                        <MenuItem
+                                            value="0"
+                                        >
+                                            Select
+                                        </MenuItem>
 
-                                    disabled={
-                                        isRejected ||
-                                        isUpdating
-                                    }
+                                        <MenuItem
+                                            value="1"
+                                        >
+                                            Poor
+                                        </MenuItem>
 
-                                    onClick={() =>
-                                        void handleApprovalAction(
-                                            row,
-                                            "Rejected"
-                                        )
-                                    }
+                                        <MenuItem
+                                            value="2"
+                                        >
+                                            Average
+                                        </MenuItem>
 
-                                    sx={{
-                                        width: 68,
-                                        minWidth: 68,
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    {
-                                        isUpdating
-                                            ? "..."
-                                            : "REJECT"
-                                    }
-                                </Button>
-                            );
-                        },
-                });
+                                        <MenuItem
+                                            value="3"
+                                        >
+                                            Good
+                                        </MenuItem>
 
+                                        <MenuItem
+                                            value="4"
+                                        >
+                                            Very Good
+                                        </MenuItem>
 
-                return result;
+                                        <MenuItem
+                                            value="5"
+                                        >
+                                            Excellent
+                                        </MenuItem>
 
-            },
+                                    </Select>
+                                );
+                            },
+                    });
+
+                    result.push({
+
+                        label: "Status",
+
+                        width: 70,
+
+                        render:
+                            (
+                                row: TaskRow
+                            ) => {
+
+                                if (
+                                    row.rowType ===
+                                    "project"
+                                ) {
+                                    return null;
+                                }
+
+                                return (
+                                    <Typography
+                                        sx={{
+                                            fontSize: 12,
+                                            color: row.status === "Accepted"
+                                                ? "success.main"
+                                                : "error.main",
+                                        }}
+                                    >
+                                        {row.status}
+                                    </Typography>
+                                );
+                            },
+                    });
+
+                    result.push({
+
+                        label: "Accept",
+
+                        width: 75,
+
+                        render:
+                            (
+                                row: TaskRow
+                            ) => {
+
+                                if (
+                                    row.rowType ===
+                                    "project"
+                                ) {
+                                    return null;
+                                }
+
+                                const isUpdating =
+                                    updatingTaskId ===
+                                    row.id;
+
+                                const isAccepted =
+                                    row.status ===
+                                    "Accepted";
+                                const isRejected =
+                                    row.status ===
+                                    "Rejected";
+
+                                return (
+                                    <Button
+                                        size="small"
+
+                                        variant="contained"
+                                        color="success"
+                                        disabled={
+                                            isAccepted ||
+                                            isRejected ||
+                                            isUpdating
+                                        }
+
+                                        onClick={() =>
+                                            void handleApprovalAction(
+                                                row,
+                                                "Accepted"
+                                            )
+                                        }
+
+                                        sx={{
+                                            width: 68,
+                                            minWidth: 68,
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {
+                                            isUpdating
+                                                ? "..."
+                                                : "ACCEPT"
+                                        }
+                                    </Button>
+                                );
+                            },
+                    });
+
+                    result.push({
+
+                        label: "Reject",
+
+                        width: 75,
+
+                        render:
+                            (
+                                row: TaskRow
+                            ) => {
+
+                                if (
+                                    row.rowType ===
+                                    "project"
+                                ) {
+                                    return null;
+                                }
+
+                                const isUpdating =
+                                    updatingTaskId ===
+                                    row.id;
+
+                                const isRejected =
+                                    row.status ===
+                                    "Rejected";
+                                const isAccepted =
+                                    row.status ===
+                                    "Accepted";
+                                return (
+                                    <Button
+                                        size="small"
+
+                                        variant="contained"
+                                        color="error"
+
+                                        disabled={
+                                            isRejected ||
+                                            isAccepted ||
+                                            isUpdating
+                                        }
+
+                                        onClick={() =>
+                                            openRejectDialog(
+                                                row
+                                            )
+                                        }
+
+                                        sx={{
+                                            width: 68,
+                                            minWidth: 68,
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {
+                                            isUpdating
+                                                ? "..."
+                                                : "REJECT"
+                                        }
+                                    </Button>
+                                );
+                            },
+                    });
+                    return result;
+
+                },
+                [
+                    days,
+                    expandedProjects,
+                    handleToggleProject,
+                    handleRatingChange,
+                    handleApprovalAction,
+                    openRejectDialog,
+                    updatingTaskId,
+                ]
+            );
+
+        const footerContent = useCallback(
+            (_rows: TaskRow[]) => (
+                <TableRow>
+                    {columns.map((column) => {
+                        const dayIndex = days.findIndex(
+                            (day) => day.label === column.label
+                        );
+
+                        return (
+                            <TableCell
+                                key={column.label}
+                                align={
+                                    dayIndex >= 0
+                                        ? "center"
+                                        : "left"
+                                }
+                                sx={(theme) => ({
+                                    width:
+                                        column.width,
+
+                                    minWidth:
+                                        column.width,
+
+                                    fontSize: 12,
+
+                                    fontWeight: 700,
+
+                                    color:
+                                        theme.palette
+                                            .text.primary,
+
+                                    backgroundColor:
+                                        theme.palette
+                                            .background.paper,
+
+                                    borderTop:
+                                        `1px solid ${theme.palette.divider}`,
+                                })}
+                            >
+                                {column.label ===
+                                    "Budget Owner"
+                                    ? "Total"
+                                    : dayIndex >= 0
+                                        ? secondsToTimeValue(
+                                            totals[
+                                            dayIndex
+                                            ]
+                                        ).toFixed(2)
+                                        : ""}
+                            </TableCell>
+                        );
+                    })}
+                </TableRow>
+            ),
             [
+                columns,
                 days,
-                expandedProjects,
-                handleToggleProject,
-                handleRatingChange,
-                handleApprovalAction,
-                updatingTaskId,
+                totals,
             ]
         );
 
-    if (!employee) {
-        return null;
-    }
+        if (!employee) {
+            return null;
+        }
 
-    return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            fullWidth
-            maxWidth={false}
+        return (
+            <>
+            <Dialog
+                open={open}
+                onClose={onClose}
+                fullWidth
+                maxWidth={false}
 
-            PaperProps={{
-                sx:
-                    ApproveDetailDialogPaperSx,
-            }}
-        >
-
-            <Box
-                sx={(theme) => ({
-                    height: 40,
-
-                    display: "flex",
-
-                    alignItems:
-                        "center",
-
-                    px: 1.5,
-
-                    borderBottom:
-                        `1px solid ${theme.palette.divider}`,
-
-                    backgroundColor:
-                        theme.palette
-                            .background.paper,
-                })}
+                PaperProps={{
+                    sx:
+                        ApproveDetailDialogPaperSx,
+                }}
             >
-
-                <Typography
-                    sx={(theme) => ({
-                        fontSize: 13,
-
-                        fontWeight: 600,
-
-                        color:
-                            theme.palette
-                                .text.primary,
-                    })}
-                >
-                    Project Detailed View of{" "}
-                    {employee.name}
-                </Typography>
-
-
-                <Typography
-                    sx={(theme) => ({
-                        ml: "auto",
-
-                        mr: 2,
-
-                        fontSize: 12,
-
-                        fontWeight: 500,
-
-                        color:
-                            theme.palette
-                                .primary.main,
-                    })}
-                >
-                    {employee.overview ===
-                    "Accepted"
-                        ? "Timesheet is already Accepted"
-                        : employee.approval_status}
-                </Typography>
-
-
-                <IconButton
-                    size="small"
-                    onClick={onClose}
-
-                    sx={(theme) => ({
-                        color:
-                            theme.palette
-                                .text.secondary,
-
-                        "&:hover": {
-                            backgroundColor:
-                                theme.palette
-                                    .action.hover,
-
-                            color:
-                                theme.palette
-                                    .text.primary,
-                        },
-                    })}
-                >
-                    <CloseIcon
-                        sx={{
-                            fontSize: 20,
-                        }}
-                    />
-                </IconButton>
-
-            </Box>
-
-            <Box
-                sx={(theme) => ({
-                    p: 1.5,
-
-                    overflowX: "auto",
-
-                    backgroundColor:
-                        theme.palette
-                            .background.default,
-                })}
-            >
-
-                {loading ? (
-
-                    <Box
-                        sx={{
-                            height: 300,
-
-                            display: "flex",
-
-                            alignItems:
-                                "center",
-
-                            justifyContent:
-                                "center",
-                        }}
-                    >
-
-                        <Typography
-                            sx={{
-                                fontSize: 13,
-                            }}
-                        >
-                            Loading...
-                        </Typography>
-
-                    </Box>
-
-                ) : (
-
-                    <Box sx={{ minWidth: tableMinWidth }}>
-                        <VirtualizedTable<TaskRow>
-                            columns={
-                                columns
-                            }
-
-                            rows={
-                                visibleTasks
-                            }
-
-                            height="300px"
-                        />
-                    </Box>
-                )}
 
                 <Box
                     sx={(theme) => ({
-                        mt: 1,
+                        height: 54,
 
-                        minWidth: tableMinWidth,
-
-                        height: 42,
-
-                        display: "grid",
-
-                        gridTemplateColumns:
-                            "240px 120px repeat(7, 58px) 90px 90px 75px 75px",
+                        display: "flex",
 
                         alignItems:
                             "center",
 
-                        borderTop:
-                            `2px solid ${theme.palette.divider}`,
+                        px: 1.5,
+
+                        borderBottom:
+                            `1px solid ${theme.palette.divider}`,
 
                         backgroundColor:
                             theme.palette
@@ -1290,15 +1355,7 @@ const ApprovalDetailedView: React.FC<
 
                     <Typography
                         sx={(theme) => ({
-                            gridColumn:
-                                "1 / span 2",
-
-                            textAlign:
-                                "right",
-
-                            pr: 2,
-
-                            fontSize: 12,
+                            fontSize: 13,
 
                             fontWeight: 600,
 
@@ -1307,198 +1364,295 @@ const ApprovalDetailedView: React.FC<
                                     .text.primary,
                         })}
                     >
-                        Total
+                        Project Detailed View of{" "}
+                        {employee.name}
                     </Typography>
 
 
-                    {totals.map(
-                        (
-                            total,
-                            index
-                        ) => (
-
-                            <Typography
-                                key={index}
-
-                                sx={(theme) => ({
-                                    width: 58,
-
-                                    textAlign:
-                                        "center",
-
-                                    fontSize: 12,
-
-                                    fontWeight: 600,
-
-                                    color:
-                                        theme.palette
-                                            .text.secondary,
-                                })}
-                            >
-                                {total.toFixed(2)}
-                            </Typography>
-                        )
-                    )}
-
-
-                    <Box
-                        sx={{
-                            gridColumn:
-                                "10 / span 4",
-
-                            display: "flex",
-
-                            alignItems:
-                                "center",
-
-                            gap: 3,
-
-                            pr: 2,
-
-                            justifyContent:
-                                "flex-end",
-                        }}
-                    >
-
-                        <Typography
-                            sx={(theme) => ({
-                                fontSize: 12,
-
-                                color:
-                                    theme.palette
-                                        .primary.main,
-
-                                whiteSpace:
-                                    "nowrap",
-                            })}
-                        >
-                            Estimated Hours:{" "}
-                            {Number(
-                                employee.hours ||
-                                0
-                            ).toFixed(2)}
-                        </Typography>
-
-
-                        <Typography
-                            sx={(theme) => ({
-                                fontSize: 12,
-
-                                color:
-                                    theme.palette
-                                        .primary.main,
-
-                                whiteSpace:
-                                    "nowrap",
-                            })}
-                        >
-                            Actual Hours:{" "}
-                            {actualHours.toFixed(2)}
-                        </Typography>
-
-                    </Box>
-
-                </Box>
-
-                <Box
-                    sx={{
-                        mt: 1.5,
-                    }}
-                >
-
                     <Typography
                         sx={(theme) => ({
+                            ml: "auto",
+
+                            mr: 2,
+
                             fontSize: 12,
 
                             fontWeight: 500,
 
                             color:
                                 theme.palette
-                                    .text.secondary,
-
-                            mb: 0.5,
+                                    .primary.main,
                         })}
                     >
-                        Comments
+                        {employee.overview ===
+                            "Accepted"
+                            ? "Timesheet is already Accepted"
+                            : employee.approval_status}
                     </Typography>
 
 
-                    <Box
-                        component="textarea"
-
-                        value={comments}
-
-                        onChange={(event) =>
-                            setComments(
-                                event.target.value
-                            )
-                        }
-
-                        placeholder={
-                            "Enter your comments..."
-                        }
+                    <IconButton
+                        size="small"
+                        onClick={onClose}
 
                         sx={(theme) => ({
-                            width: "100%",
-
-                            minHeight: 65,
-
-                            resize: "vertical",
-
-                            border:
-                                `1px solid ${theme.palette.divider}`,
-
-                            borderRadius: 1,
-
-                            backgroundColor:
-                                theme.palette
-                                    .background.paper,
-
                             color:
                                 theme.palette
-                                    .text.primary,
+                                    .text.secondary,
 
-                            outline: "none",
+                            "&:hover": {
+                                backgroundColor:
+                                    theme.palette
+                                        .action.hover,
 
-                            p: 1,
-
-                            fontFamily: "inherit",
-
-                            fontSize: 12,
-
-                            boxSizing:
-                                "border-box",
-
-                            "&::placeholder": {
                                 color:
-                                    theme
-                                        .palette
-                                        .text
-                                        .secondary,
-
-                                opacity: 0.7,
-                            },
-
-                            "&:focus": {
-                                borderColor:
-                                    theme
-                                        .palette
-                                        .primary
-                                        .main,
-
-                                boxShadow:
-                                    `0 0 0 1px ${theme.palette.primary.main}`,
+                                    theme.palette
+                                        .text.primary,
                             },
                         })}
-                    />
+                    >
+                        <CloseIcon
+                            sx={{
+                                fontSize: 20,
+                            }}
+                        />
+                    </IconButton>
 
                 </Box>
 
-            </Box>
+                <Box
+                    sx={(theme) => ({
+                        p: 1.5,
 
-        </Dialog>
-    );
-};
+                        overflowX: "auto",
+
+                        backgroundColor:
+                            theme.palette
+                                .background.default,
+                    })}
+                >
+
+                    {loading ? (
+
+                        <Box
+                            sx={{
+                                height: "40dvh",
+
+                                display: "flex",
+
+                                alignItems:
+                                    "center",
+
+                                justifyContent:
+                                    "center",
+                            }}
+                        >
+
+                            <Typography
+                                sx={{
+                                    fontSize: 13,
+                                }}
+                            >
+                                Loading...
+                            </Typography>
+
+                        </Box>
+
+                    ) : (
+
+                        <Box sx={{ minWidth: tableMinWidth }}>
+                            <VirtualizedTable<TaskRow>
+                                columns={
+                                    columns
+                                }
+
+                                rows={
+                                    visibleTasks
+                                }
+                                tableHead="Submitted Data"
+                                height="60dvh"
+
+                                fixedFooterContent={
+                                    footerContent
+                                }
+                            />
+                        </Box>
+                    )}
+                    {comments.trim() && (
+                        <Box
+                            sx={{
+                                mt: 1.5,
+                            }}
+                        >
+
+                        <Typography
+                            sx={(theme) => ({
+                                fontSize: 12,
+
+                                fontWeight: 500,
+
+                                color:
+                                    theme.palette
+                                        .text.secondary,
+
+                                mb: 0.5,
+                            })}
+                        >
+                            Comments
+                        </Typography>
+
+
+                        <Box
+                            component="textarea"
+
+                            value={comments}
+                            disabled
+                            onChange={(event) =>
+                                setComments(
+                                    event.target.value
+                                )
+                            }
+
+                            placeholder={
+                                "NO comments..."
+                            }
+
+                            sx={(theme) => ({
+                                width: "100%",
+
+                                minHeight: 65,
+
+                                resize: "vertical",
+
+                                border:
+                                    `1px solid ${theme.palette.divider}`,
+
+                                borderRadius: 1,
+
+                                backgroundColor:
+                                    theme.palette
+                                        .background.paper,
+
+                                color:
+                                    theme.palette
+                                        .text.primary,
+
+                                outline: "none",
+
+                                p: 1,
+
+                                fontFamily: "inherit",
+
+                                fontSize: 12,
+
+                                boxSizing:
+                                    "border-box",
+
+                                "&::placeholder": {
+                                    color:
+                                        theme
+                                            .palette
+                                            .text
+                                            .secondary,
+
+                                    opacity: 0.7,
+                                },
+
+                                "&:focus": {
+                                    borderColor:
+                                        theme
+                                            .palette
+                                            .primary
+                                            .main,
+
+                                    boxShadow:
+                                        `0 0 0 1px ${theme.palette.primary.main}`,
+                                },
+                            })}
+                        />
+
+                        </Box>
+                    )}
+
+                </Box>
+
+            </Dialog>
+
+            <Dialog
+                open={rejectDialogOpen}
+                onClose={closeRejectDialog}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle
+                    sx={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                    }}
+                >
+                    Rejection Reason
+                </DialogTitle>
+
+                <DialogContent>
+                    <Typography
+                        sx={{
+                            fontSize: 13,
+                            color: "text.secondary",
+                            mb: 1.5,
+                        }}
+                    >
+                        {pendingRejectTask?.task}
+                    </Typography>
+
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        multiline
+                        minRows={4}
+                        value={rejectReason}
+                        onChange={(event) => {
+                            setRejectReason(event.target.value);
+
+                            if (rejectReasonError) {
+                                setRejectReasonError("");
+                            }
+                        }}
+                        error={Boolean(rejectReasonError)}
+                        helperText={rejectReasonError}
+                        placeholder="Enter rejection reason..."
+                    />
+                </DialogContent>
+
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 2,
+                    }}
+                >
+                    <Button
+                        onClick={closeRejectDialog}
+                        disabled={updatingTaskId !== null}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() =>
+                            void submitRejectReason()
+                        }
+                        disabled={updatingTaskId !== null}
+                    >
+                        {updatingTaskId !== null
+                            ? "Submitting..."
+                            : "Submit"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            </>
+        );
+    };
 
 const HourCell: React.FC<{
     value: string;
@@ -1506,66 +1660,66 @@ const HourCell: React.FC<{
     value,
 }) => {
 
-    if (!value) {
-        return null;
-    }
+        if (!value) {
+            return null;
+        }
 
-    return (
-        <Box
-            sx={(theme) => ({
-                width: 48,
+        return (
+            <Box
+                sx={(theme) => ({
+                    width: 48,
 
-                height: 28,
+                    height: 28,
 
-                display: "flex",
+                    display: "flex",
 
-                alignItems:
-                    "center",
+                    alignItems:
+                        "center",
 
-                justifyContent:
-                    "center",
+                    justifyContent:
+                        "center",
 
-                mx: "auto",
+                    mx: "auto",
 
-                borderRadius: 1,
+                    borderRadius: 1,
 
-                backgroundColor:
-                    theme.palette.mode ===
-                    "dark"
-                        ? theme.palette
-                            .grey[800]
-                        : theme.palette
-                            .grey[100],
-
-                border:
-                    `1px solid ${theme.palette.divider}`,
-
-                color:
-                    theme.palette
-                        .text.primary,
-
-                fontSize: 11.5,
-
-                fontWeight: 500,
-
-                transition:
-                    "background-color 0.15s ease, border-color 0.15s ease",
-
-                "&:hover": {
                     backgroundColor:
-                        theme.palette
-                            .action.hover,
+                        theme.palette.mode ===
+                            "dark"
+                            ? theme.palette
+                                .grey[800]
+                            : theme.palette
+                                .grey[100],
 
-                    borderColor:
+                    border:
+                        `1px solid ${theme.palette.divider}`,
+
+                    color:
                         theme.palette
-                            .primary.main,
-                },
-            })}
-        >
-            {value}
-        </Box>
-    );
-};
+                            .text.primary,
+
+                    fontSize: 11.5,
+
+                    fontWeight: 500,
+
+                    transition:
+                        "background-color 0.15s ease, border-color 0.15s ease",
+
+                    "&:hover": {
+                        backgroundColor:
+                            theme.palette
+                                .action.hover,
+
+                        borderColor:
+                            theme.palette
+                                .primary.main,
+                    },
+                })}
+            >
+                {value}
+            </Box>
+        );
+    };
 
 
 export default ApprovalDetailedView;

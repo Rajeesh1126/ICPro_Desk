@@ -17,7 +17,7 @@ router.register(r'approvals', TimesheetApprovalViewSet, basename='approval')
 urlpatterns = [
     path('', include(router.urls)),
     path(
-        'ApprovalDetailData/',
+        'approval-detail-data/',
         ApprovalDetailDataViewSet.as_view({'get': 'list', 'patch': 'partial_update'}),
         name='approval-detail-data',
     ),

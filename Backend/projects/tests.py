@@ -45,6 +45,27 @@ class ProjectAPITests(APITestCase):
             ).exists()
         )
 
+    def test_existing_project_code_reuses_project(self):
+        existing_project = Project.objects.create(
+            code='Q-001',
+            quotation_id=1,
+            description='Original project',
+        )
+
+        response = self.client.post(
+            '/api/projects/',
+            {
+                'code': 'Q-001',
+                'quotation_id': 1,
+                'description': 'Original project',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['id'], existing_project.id)
+        self.assertEqual(Project.objects.filter(code='Q-001').count(), 1)
+
     def test_phase_mapping_allows_same_category_in_multiple_phases(self):
         create_response = self.client.post(
             '/api/phases/',

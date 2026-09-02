@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import api from "../../api/axios";
 
 import Approval from "./Approval";
-import Submission, { type BudgetOwnerValidation, type TimesheetSubmitEntry } from "./Submission";
+import Submission, { type BudgetOwnerValidation, type DailyHoursValidation, type TimesheetSubmitEntry, type WeeklyHoursValidation } from "./Submission";
 import Temp from "./Temp";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
@@ -90,6 +90,14 @@ function TimeSheet() {
   const [budgetOwnerValidation, setBudgetOwnerValidation] = useState<BudgetOwnerValidation>({
     missingCount: 0,
     missingTaskNames: [],
+  });
+  const [dailyHoursValidation, setDailyHoursValidation] = useState<DailyHoursValidation>({
+    exceededDays: [],
+  });
+  const [weeklyHoursValidation, setWeeklyHoursValidation] = useState<WeeklyHoursValidation>({
+    estimatedHours: 54,
+    actualHours: 0,
+    isSatisfied: false,
   });
   const [submittingTimeSheet, setSubmittingTimeSheet] = useState(false);
 
@@ -328,6 +336,15 @@ function TimeSheet() {
 
   const openTimeSheetPreview = () => {
     handleClose();
+
+    if (!weeklyHoursValidation.isSatisfied) {
+      showNotification({
+        type: "error",
+        message: `Entered hours must be at least estimated hours before submitting. Estimated: ${weeklyHoursValidation.estimatedHours}, Entered: ${weeklyHoursValidation.actualHours.toFixed(2)}.`,
+      });
+      return;
+    }
+
     setTimeSheetPreviewOpen(true);
   };
 
@@ -343,7 +360,35 @@ function TimeSheet() {
     setBudgetOwnerValidation(validation);
   }, []);
 
+  const handleDailyHoursValidationChange = useCallback((validation: DailyHoursValidation) => {
+    setDailyHoursValidation(validation);
+  }, []);
+
+  const handleWeeklyHoursValidationChange = useCallback((validation: WeeklyHoursValidation) => {
+    setWeeklyHoursValidation(validation);
+  }, []);
+
   const submitTimeSheet = async (comments: string) => {
+    if (dailyHoursValidation.exceededDays.length > 0) {
+      const visibleDays = dailyHoursValidation.exceededDays.slice(0, 3).join(", ");
+      const remainingCount = dailyHoursValidation.exceededDays.length - 3;
+      const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+
+      showNotification({
+        type: "error",
+        message: `Daily total cannot exceed 14 hours before submitting: ${visibleDays}${remainingText}.`,
+      });
+      return;
+    }
+
+    if (!weeklyHoursValidation.isSatisfied) {
+      showNotification({
+        type: "error",
+        message: `Entered hours must be at least estimated hours before submitting. Estimated: ${weeklyHoursValidation.estimatedHours}, Entered: ${weeklyHoursValidation.actualHours.toFixed(2)}.`,
+      });
+      return;
+    }
+
     if (budgetOwnerValidation.missingCount > 0) {
       const visibleNames = budgetOwnerValidation.missingTaskNames.slice(0, 3).join(", ");
       const remainingCount = budgetOwnerValidation.missingCount - 3;
@@ -479,6 +524,10 @@ function TimeSheet() {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+
+    if (availableTabs[newValue]?.permission === "view_approval") {
+      setAnchorEl(null);
+    }
   };
 
   // const permissionList = JSON.parse(
@@ -486,14 +535,10 @@ function TimeSheet() {
   // ) as string[];
 
   const permissionList = [
-    "view_ticket",
-    "add_ticket",
-    "view_self_tickets",
-    "view_managementoverview",
-    "view_report",
+   
     "view_submission",
     "view_approval",
-    "New",
+    // "New",
   ];
 
   const tabConfig = [
@@ -509,6 +554,8 @@ function TimeSheet() {
           onPreviewDaysChange={handlePreviewDaysChange}
           onSubmitEntriesChange={handleSubmitEntriesChange}
           onBudgetOwnerValidationChange={handleBudgetOwnerValidationChange}
+          onDailyHoursValidationChange={handleDailyHoursValidationChange}
+          onWeeklyHoursValidationChange={handleWeeklyHoursValidationChange}
         />
       ),
     },
@@ -532,6 +579,7 @@ function TimeSheet() {
   const availableTabs = tabConfig.filter((tab) =>
     permissionList.includes(tab.permission),
   );
+  const isApprovalTab = availableTabs[value]?.permission === "view_approval";
 
   useEffect(() => {
     if (availableTabs.length && value >= availableTabs.length) {
@@ -607,106 +655,110 @@ function TimeSheet() {
             <ChevronRight />
           </IconButton>
 
-          <Button
-            sx={modalPrimaryActionButtonSx}
-            variant="contained"
-            onClick={handleClick}
-          >
-            Actions
-          </Button>
+          {!isApprovalTab && (
+            <>
+              <Button
+                sx={modalPrimaryActionButtonSx}
+                variant="contained"
+                onClick={handleClick}
+              >
+                Actions
+              </Button>
 
-          <Menu
-            id="simple-menu"
-            anchorEl={anchorEl}
-            keepMounted
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
-            slotProps={{
-              paper: {
-                sx: {
-                  mt: 0.8,
-                  minWidth: 250,
-                  borderRadius: 1.5,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  boxShadow: 4,
-                  overflow: "hidden",
-                  "& .MuiMenuItem-root": {
-                    minHeight: 40,
-                    px: 1.5,
-                    py: 0.75,
-                    fontSize: "0.875rem",
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                    transition: "background-color 0.15s ease",
+              <Menu
+                id="simple-menu"
+                anchorEl={anchorEl}
+                keepMounted
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      mt: 0.8,
+                      minWidth: 250,
+                      borderRadius: 1.5,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      boxShadow: 4,
+                      overflow: "hidden",
+                      "& .MuiMenuItem-root": {
+                        minHeight: 40,
+                        px: 1.5,
+                        py: 0.75,
+                        fontSize: "0.875rem",
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        transition: "background-color 0.15s ease",
 
-                    "&:last-child": {
-                      borderBottom: "none",
-                    },
+                        "&:last-child": {
+                          borderBottom: "none",
+                        },
 
-                    "&:hover": {
-                      backgroundColor: "action.hover",
+                        "&:hover": {
+                          backgroundColor: "action.hover",
+                        },
+                      },
                     },
                   },
-                },
-              },
-            }}
-          >
-            <MenuItem onClick={openQuotationModal}>
-              <ListItemIcon>
-                <WorkOutline fontSize="small" />
-              </ListItemIcon>
-              Assign Jobs From ERP
-            </MenuItem>
+                }}
+              >
+                <MenuItem onClick={openQuotationModal}>
+                  <ListItemIcon>
+                    <WorkOutline fontSize="small" />
+                  </ListItemIcon>
+                  Assign Jobs From ERP
+                </MenuItem>
 
-            <MenuItem onClick={openUndefinedModal}>
-              <ListItemIcon>
-                <HelpOutline fontSize="small" />
-              </ListItemIcon>
-              Create Undefined Jobs
-            </MenuItem>
+                <MenuItem onClick={openUndefinedModal}>
+                  <ListItemIcon>
+                    <HelpOutline fontSize="small" />
+                  </ListItemIcon>
+                  Create Undefined Jobs
+                </MenuItem>
 
-            <MenuItem onClick={openAssignTasksModal}>
-              <ListItemIcon>
-                <AssignmentOutlined fontSize="small" />
-              </ListItemIcon>
-              Undefined Tasks Import To Job
-            </MenuItem>
+                <MenuItem onClick={openAssignTasksModal}>
+                  <ListItemIcon>
+                    <AssignmentOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Undefined Tasks Import To Job
+                </MenuItem>
 
-            <MenuItem onClick={openTicketsModal}>
-              <ListItemIcon>
-                <ConfirmationNumberOutlined fontSize="small" />
-              </ListItemIcon>
-              Assigned Tickets
-            </MenuItem>
+                <MenuItem onClick={openTicketsModal}>
+                  <ListItemIcon>
+                    <ConfirmationNumberOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Assigned Tickets
+                </MenuItem>
 
-            <MenuItem onClick={openUnlockDialog}>
-              <ListItemIcon>
-                <LockOpenOutlined fontSize="small" />
-              </ListItemIcon>
-              Unlock Time Sheet Request
-            </MenuItem>
+                <MenuItem onClick={openUnlockDialog}>
+                  <ListItemIcon>
+                    <LockOpenOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Unlock Time Sheet Request
+                </MenuItem>
 
-            <MenuItem onClick={openExtendDialog}>
-              <ListItemIcon>
-                <UpdateOutlined fontSize="small" />
-              </ListItemIcon>
-              Extend Task To Next Week
-            </MenuItem>
+                <MenuItem onClick={openExtendDialog}>
+                  <ListItemIcon>
+                    <UpdateOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Extend Task To Next Week
+                </MenuItem>
 
-            <MenuItem onClick={openRemoveDialog}>
-              <ListItemIcon>
-                <DeleteOutline fontSize="small" />
-              </ListItemIcon>
-              Remove Task/project
-            </MenuItem>
-            <MenuItem onClick={openTimeSheetPreview}>
-              <ListItemIcon>
-                <SendOutlined fontSize="small" />
-              </ListItemIcon>
-              Preview / Submit
-            </MenuItem>
-          </Menu>
+                <MenuItem onClick={openRemoveDialog}>
+                  <ListItemIcon>
+                    <DeleteOutline fontSize="small" />
+                  </ListItemIcon>
+                  Remove Task/project
+                </MenuItem>
+                <MenuItem onClick={openTimeSheetPreview}>
+                  <ListItemIcon>
+                    <SendOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Preview / Submit
+                </MenuItem>
+              </Menu>
+            </>
+          )}
 
         </Stack>
       </Box>
@@ -731,7 +783,7 @@ function TimeSheet() {
         </CustomTabPanel>
       ))}
 
-      <Drawer anchor="right" open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} PaperProps={{ sx: reportsPageFilterDrawerPaperSx }}>
+      {/* <Drawer anchor="right" open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} PaperProps={{ sx: reportsPageFilterDrawerPaperSx }}>
         <Box sx={reportsPageBoxSx5}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={marginBottomSectionSx} spacing={1.5}>
             <Typography variant="h6">Assign / Submit</Typography>
@@ -782,7 +834,9 @@ function TimeSheet() {
             </Button>
           </Stack>
         </Box>
-      </Drawer>
+      </Drawer> */}
+
+
       <ConfirmDialog
         open={extendDialogOpen}
         title="Extend Tasks"

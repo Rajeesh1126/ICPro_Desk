@@ -1,11 +1,29 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from datetime import timedelta
 
 from projects.models import AssignedTask, Project
 from tickets.models import Ticket
 from .models import Submission, TimesheetStatus
 
 User = get_user_model()
+
+
+def _saturday_of_month_occurrence(date):
+    return ((date.day - 1) // 7) + 1
+
+
+def _estimated_week_seconds(week_start):
+    for index in range(7):
+        current_date = week_start + timedelta(days=index)
+
+        if (
+            current_date.weekday() == 5 and
+            _saturday_of_month_occurrence(current_date) in {2, 4}
+        ):
+            return 45 * 3600
+
+    return 54 * 3600
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
@@ -32,6 +50,7 @@ class TimesheetDraftSerializer(serializers.Serializer):
 
     def validate_entries(self, entries):
         request = self.context['request']
+        daily_totals = {}
 
         for entry in entries:
             if entry['assignId'].assign_to_id != request.user.id:
@@ -44,6 +63,18 @@ class TimesheetDraftSerializer(serializers.Serializer):
                     f"Budget owner is required for assigned task {entry['assignId'].id}."
                 )
 
+            daily_totals[entry['date']] = daily_totals.get(entry['date'], 0) + entry['hours']
+
+        exceeded_days = [
+            date.strftime('%Y-%m-%d')
+            for date, total_seconds in daily_totals.items()
+            if total_seconds > 14 * 3600
+        ]
+        if exceeded_days:
+            raise serializers.ValidationError(
+                f"Daily total cannot exceed 14 hours for: {', '.join(exceeded_days)}."
+            )
+
         return entries
 
 
@@ -55,6 +86,21 @@ class TimesheetSubmitSerializer(TimesheetDraftSerializer):
         allow_blank=True,
         allow_null=True,
     )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        total_seconds = sum(entry['hours'] for entry in attrs.get('entries', []))
+        estimated_seconds = _estimated_week_seconds(attrs['week_start'])
+
+        if total_seconds < estimated_seconds:
+            raise serializers.ValidationError({
+                'entries': (
+                    'Entered hours must be at least estimated hours before submitting. '
+                    f'Estimated: {estimated_seconds / 3600:.0f}, Entered: {total_seconds / 3600:.2f}.'
+                )
+            })
+
+        return attrs
 
 
 class TimesheetUnlockRequestSerializer(serializers.Serializer):
@@ -125,13 +171,26 @@ class ApprovalActionSerializer(serializers.Serializer):
     employeeId = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     assignId = serializers.PrimaryKeyRelatedField(queryset=AssignedTask.objects.all())
     action = serializers.ChoiceField(choices=['Accepted', 'Rejected'])
-    rating = serializers.IntegerField(min_value=1, max_value=5)
+    rating = serializers.IntegerField(required=False, min_value=0, max_value=5, default=0)
     comments = serializers.CharField(
         max_length=1000,
         required=False,
         allow_blank=True,
         allow_null=True,
     )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        assigned_task = attrs['assignId']
+        project_code = getattr(assigned_task.project_obj, 'code', '') or ''
+        is_others_project = project_code.strip().lower() == 'others'
+
+        if not is_others_project and attrs.get('rating', 0) < 1:
+            raise serializers.ValidationError({
+                'rating': 'Rating is required before approving or rejecting.'
+            })
+
+        return attrs
 
 
 

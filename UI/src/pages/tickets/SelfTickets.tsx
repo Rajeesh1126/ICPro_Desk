@@ -180,6 +180,7 @@ export default function SelfTickets() {
 				),
 			},
 			{ label: "Subject", dataKey: "task", width: 600 },
+			{ label: "Owner", dataKey: "creator_name" },
 			{ label: "Status", dataKey: "current_status" },
 			{ label: "Type", dataKey: "type" },
 			{ label: "Priority", dataKey: "priority" },

@@ -14,9 +14,11 @@ import {
   TableBody,
   TableCell,
   TableContainer,
+  TableFooter,
   TableHead,
   TableRow,
   TextField,
+  Typography,
   useTheme,
 } from "@mui/material";
 import api from "../../api/axios";
@@ -50,6 +52,8 @@ type SubmissionProps = {
   onPreviewDaysChange?: (days: { day: string; hours: number }[]) => void;
   onSubmitEntriesChange?: (entries: TimesheetSubmitEntry[]) => void;
   onBudgetOwnerValidationChange?: (validation: BudgetOwnerValidation) => void;
+  onDailyHoursValidationChange?: (validation: DailyHoursValidation) => void;
+  onWeeklyHoursValidationChange?: (validation: WeeklyHoursValidation) => void;
 };
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -64,6 +68,16 @@ export type TimesheetSubmitEntry = {
 export type BudgetOwnerValidation = {
   missingCount: number;
   missingTaskNames: string[];
+};
+
+export type DailyHoursValidation = {
+  exceededDays: string[];
+};
+
+export type WeeklyHoursValidation = {
+  estimatedHours: number;
+  actualHours: number;
+  isSatisfied: boolean;
 };
 
 type WeeklyTimesheetStatus = {
@@ -119,7 +133,7 @@ const columnWidths = {
 
 const getTaskTotal = (task: AssignedTask, weekDays: WeekDay[]) => {
   return weekDays.reduce(
-    (total, day) => total + (task.entries[day.date] ?? 0),
+    (total, day) => total + timeValueToSeconds(task.entries[day.date] ?? 0),
     0,
   );
 };
@@ -144,6 +158,85 @@ const getProjectAssignedTaskIds = (project: SubmissionProject) => {
   );
 };
 
+const getWeekDayTotals = (projects: SubmissionProject[], weekDays: WeekDay[]) => {
+  return weekDays.map((day) => ({
+    date: day.date,
+    hours: projects.reduce(
+      (dayTotal, project) =>
+        dayTotal +
+        project.milestones.reduce(
+          (projectTotal, milestone) =>
+            projectTotal +
+            milestone.assigned_tasks.reduce(
+              (milestoneTotal, task) =>
+                milestoneTotal + timeValueToSeconds(task.entries[day.date] ?? 0),
+              0,
+            ),
+          0,
+        ),
+      0,
+    ),
+  }));
+};
+
+const timeValueToSeconds = (value: number | string) => {
+  const rawValue = String(value).trim();
+
+  if (!rawValue) {
+    return 0;
+  }
+
+  const [hoursPart = "0", minutesPart = ""] = rawValue.split(".");
+  const hours = Number(hoursPart || 0);
+  const minutes = minutesPart === "" ? 0 : Number(minutesPart.padEnd(2, "0").slice(0, 2));
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return 0;
+  }
+
+  return (hours * 3600) + (minutes * 60);
+};
+
+const secondsToTimeValue = (seconds: number) => {
+  const totalSeconds = Number(seconds || 0);
+
+  if (totalSeconds <= 0) {
+    return 0;
+  }
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.round((totalSeconds % 3600) / 60);
+
+  return Number(`${hours}.${String(minutes).padStart(2, "0")}`);
+};
+
+const secondsToDecimalHours = (seconds: number) => Number((seconds / 3600).toFixed(2));
+
+const getSaturdayOfMonthOccurrence = (date: Date) =>
+  Math.ceil(date.getDate() / 7);
+
+const getEstimatedWeekHours = (weekStart: string) => {
+  const startDate = new Date(`${weekStart}T00:00:00`);
+
+  for (let index = 0; index < 7; index++) {
+    const currentDate = addDays(startDate, index);
+
+    if (
+      currentDate.getDay() === 6 &&
+      [2, 4].includes(getSaturdayOfMonthOccurrence(currentDate))
+    ) {
+      return 45;
+    }
+  }
+
+  return 54;
+};
+
 // =========================================================
 // Component
 // =========================================================
@@ -156,6 +249,8 @@ export default function Submission({
   onPreviewDaysChange,
   onSubmitEntriesChange,
   onBudgetOwnerValidationChange,
+  onDailyHoursValidationChange,
+  onWeeklyHoursValidationChange,
 }: SubmissionProps) {
 
   const theme = useTheme();
@@ -179,6 +274,50 @@ export default function Submission({
     submission_status: false,
   });
 
+  const weekDayTotals = useMemo(
+    () => getWeekDayTotals(projects, weekDays),
+    [projects, weekDays],
+  );
+
+  const weekTotal = useMemo(
+    () => weekDayTotals.reduce((total, day) => total + day.hours, 0),
+    [weekDayTotals],
+  );
+
+  const estimatedWeekHours = useMemo(
+    () => getEstimatedWeekHours(weekStart),
+    [weekStart],
+  );
+
+  const weeklyHoursValidation = useMemo<WeeklyHoursValidation>(
+    () => {
+      const actualHours = secondsToDecimalHours(weekTotal);
+
+      return {
+        estimatedHours: estimatedWeekHours,
+        actualHours,
+        isSatisfied: actualHours >= estimatedWeekHours,
+      };
+    },
+    [estimatedWeekHours, weekTotal],
+  );
+
+  const dailyHoursValidation = useMemo<DailyHoursValidation>(
+    () => ({
+      exceededDays: weekDayTotals
+        .map((dayTotal, index) => ({
+          label: weekDays[index]?.label ?? dayTotal.date,
+          hours: dayTotal.hours,
+        }))
+        .filter((dayTotal) => dayTotal.hours > 14 * 3600)
+        .map(
+          (dayTotal) =>
+            `${dayTotal.label} (${secondsToTimeValue(dayTotal.hours).toFixed(2)} hrs)`,
+        ),
+    }),
+    [weekDayTotals, weekDays],
+  );
+
   const submitEntries = useMemo(
     () =>
       projects.flatMap((project) =>
@@ -188,7 +327,7 @@ export default function Submission({
               .map((day) => ({
                 assignId: task.assign_id,
                 date: day.date,
-                hours: task.entries[day.date] ?? 0,
+                hours: timeValueToSeconds(task.entries[day.date] ?? 0),
                 hasEntry: Object.prototype.hasOwnProperty.call(task.entries, day.date),
               }))
               .filter((entry) => entry.hasEntry || entry.hours > 0)
@@ -206,7 +345,7 @@ export default function Submission({
           milestone.assigned_tasks
             .filter((task) =>
               !task.assign_by &&
-              weekDays.some((day) => (task.entries[day.date] ?? 0) > 0),
+              weekDays.some((day) => timeValueToSeconds(task.entries[day.date] ?? 0) > 0),
             )
             .map((task) => task.name || `Assigned task ${task.assign_id}`),
         ),
@@ -220,6 +359,14 @@ export default function Submission({
     const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
 
     return `Select Budget Owner before ${action}: ${visibleNames}${remainingText}.`;
+  };
+
+  const getDailyHoursMessage = (action: string) => {
+    const visibleDays = dailyHoursValidation.exceededDays.slice(0, 3).join(", ");
+    const remainingCount = dailyHoursValidation.exceededDays.length - 3;
+    const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+
+    return `Daily total cannot exceed 14 hours before ${action}: ${visibleDays}${remainingText}.`;
   };
 
 
@@ -269,20 +416,22 @@ export default function Submission({
     onPreviewDaysChange?.(
       weekDays.map((day, index) => ({
         day: fullDayLabels[index],
-        hours: projects.reduce(
-          (dayTotal, project) =>
-            dayTotal +
-            project.milestones.reduce(
-              (projectTotal, milestone) =>
-                projectTotal +
-                milestone.assigned_tasks.reduce(
-                  (milestoneTotal, task) =>
-                    milestoneTotal + (task.entries[day.date] ?? 0),
-                  0,
-                ),
-              0,
-            ),
-          0,
+        hours: secondsToDecimalHours(
+          projects.reduce(
+            (dayTotal, project) =>
+              dayTotal +
+              project.milestones.reduce(
+                (projectTotal, milestone) =>
+                  projectTotal +
+                  milestone.assigned_tasks.reduce(
+                    (milestoneTotal, task) =>
+                      milestoneTotal + timeValueToSeconds(task.entries[day.date] ?? 0),
+                    0,
+                  ),
+                0,
+              ),
+            0,
+          ),
         ),
       })),
     );
@@ -298,6 +447,14 @@ export default function Submission({
       missingTaskNames: missingBudgetOwnerTaskNames,
     });
   }, [missingBudgetOwnerTaskNames, onBudgetOwnerValidationChange]);
+
+  useEffect(() => {
+    onDailyHoursValidationChange?.(dailyHoursValidation);
+  }, [dailyHoursValidation, onDailyHoursValidationChange]);
+
+  useEffect(() => {
+    onWeeklyHoursValidationChange?.(weeklyHoursValidation);
+  }, [weeklyHoursValidation, onWeeklyHoursValidationChange]);
 
   useEffect(() => {
     let active = true;
@@ -351,14 +508,26 @@ export default function Submission({
     date: string,
     value: string,
   ) => {
-    if (value !== "" && Number.isNaN(Number(value))) {
+    if (value !== "" && !/^\d*(\.\d{0,2})?$/.test(value)) {
+      return;
+    }
+
+    if (value !== "" && value.includes(".")) {
+      const minutes = Number(value.split(".")[1].padEnd(2, "0").slice(0, 2));
+
+      if (minutes > 59) {
+        return;
+      }
+    }
+
+    if (timeValueToSeconds(value) > 14 * 3600) {
       return;
     }
 
     const hours =
       value === ""
         ? 0
-        : Number(value);
+        : value;
 
     setProjects((current) =>
       current.map((project) => {
@@ -504,6 +673,14 @@ export default function Submission({
   // =======================================================
 
   const saveDraft = async () => {
+    if (dailyHoursValidation.exceededDays.length > 0) {
+      showNotification({
+        type: "error",
+        message: getDailyHoursMessage("saving draft"),
+      });
+      return;
+    }
+
     if (missingBudgetOwnerTaskNames.length > 0) {
       showNotification({
         type: "error",
@@ -827,7 +1004,7 @@ export default function Submission({
                         fontWeight: 600,
                       }}
                     >
-                      {projectTotal}
+                      {secondsToTimeValue(projectTotal).toFixed(2)}
                     </TableCell>
 
                     {/* Project Select */}
@@ -1017,7 +1194,7 @@ export default function Submission({
                                           }}
                                         >
                                           {
-                                            milestoneTotal
+                                            secondsToTimeValue(milestoneTotal).toFixed(2)
                                           }
                                         </TableCell>
 
@@ -1153,6 +1330,11 @@ export default function Submission({
                                                         .date
                                                       ] ??
                                                       "";
+                                                    const isEditable =
+                                                      canEditDate(
+                                                        day.date,
+                                                        project,
+                                                      );
 
                                                     return (
                                                       <TableCell
@@ -1172,7 +1354,7 @@ export default function Submission({
                                                           value={
                                                             value
                                                           }
-                                                          disabled={!canEditDate(day.date, project)}
+                                                          disabled={!isEditable}
                                                           onChange={(
                                                             event,
                                                           ) =>
@@ -1186,21 +1368,42 @@ export default function Submission({
                                                                 .value,
                                                             )
                                                           }
-                                                          type="number"
+                                                          type="text"
                                                           size="small"
                                                           inputProps={{
-                                                            min: 0,
-                                                            max: 14,
-                                                            step: 0.5,
+                                                            inputMode:
+                                                              "decimal",
+                                                            placeholder:
+                                                              "0.00",
                                                           }}
                                                           sx={{
                                                             width: 90,
+
+                                                            "& .MuiOutlinedInput-root.Mui-disabled":
+                                                            {
+                                                              bgcolor:
+                                                                "#f5f5f5",
+
+                                                              "& fieldset":
+                                                              {
+                                                                borderColor:
+                                                                  "#d6d6d6",
+                                                              },
+                                                            },
 
                                                             "& input":
                                                             {
                                                               textAlign:
                                                                 "center",
                                                               py: 0.8,
+                                                            },
+
+                                                            "& .MuiInputBase-input.Mui-disabled":
+                                                            {
+                                                              WebkitTextFillColor:
+                                                                "#6f6f6f",
+                                                              cursor:
+                                                                "not-allowed",
                                                             },
                                                           }}
                                                         />
@@ -1224,7 +1427,7 @@ export default function Submission({
                                                   }}
                                                 >
                                                   {
-                                                    taskTotal
+                                                    secondsToTimeValue(taskTotal).toFixed(2)
                                                   }
                                                 </TableCell>
 
@@ -1272,6 +1475,74 @@ export default function Submission({
               );
             })}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell
+                sx={{
+                  ...stickyTableCellSx(theme),
+                  width: columnWidths.job,
+                  minWidth: columnWidths.job,
+                  fontWeight: 700,
+                  bgcolor: "background.default",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                Total
+              </TableCell>
+
+              <TableCell
+                sx={{
+                  ...stickyTableCellSx(theme),
+                  width: columnWidths.budgetOwner,
+                  minWidth: columnWidths.budgetOwner,
+                  bgcolor: "background.default",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              />
+
+              {weekDayTotals.map((dayTotal) => (
+                <TableCell
+                  key={dayTotal.date}
+                  align="center"
+                  sx={{
+                    ...stickyTableCellSx(theme),
+                    width: columnWidths.day,
+                    minWidth: columnWidths.day,
+                    fontWeight: 700,
+                    bgcolor: "background.default",
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  {secondsToTimeValue(dayTotal.hours).toFixed(2)}
+                </TableCell>
+              ))}
+
+              <TableCell
+                align="center"
+                sx={{
+                  ...stickyTableCellSx(theme),
+                  width: columnWidths.total,
+                  minWidth: columnWidths.total,
+                  fontWeight: 700,
+                  bgcolor: "background.default",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                {secondsToTimeValue(weekTotal).toFixed(2)}
+              </TableCell>
+
+              <TableCell
+                align="center"
+                sx={{
+                  ...stickyTableCellSx(theme),
+                  width: columnWidths.select,
+                  minWidth: columnWidths.select,
+                  bgcolor: "background.default",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                }}
+              />
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
 
@@ -1282,30 +1553,50 @@ export default function Submission({
       <Box
         sx={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           alignItems: "center",
           gap: 1,
+          flexWrap: "wrap",
           py: 1.5,
           px: 1,
           borderTop: `1px solid ${theme.palette.divider}`,
           backgroundColor: theme.palette.background.paper,
         }}
       >
-        <Button
-          variant="contained"
-          size="small"
-          onClick={saveDraft}
-          disabled={savingDraft || (isSubmitted && !isUnlocked)}
-          sx={modalActionButtonSx}
+        <Typography
+          sx={(theme) => ({
+            fontSize: 13,
+            fontWeight: 600,
+            color: weeklyHoursValidation.isSatisfied
+              ? theme.palette.success.main
+              : theme.palette.text.secondary,
+          })}
         >
-          {savingDraft ? "Saving..." : "Save Draft"}
-        </Button>
-        <Chip
-          size="small"
-          label={`Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`}
-          color={isSubmitted ? "success" : "default"}
-          variant={isSubmitted ? "filled" : "outlined"}
-        />
+          Estimated Hours: {estimatedWeekHours}
+          {" | "}
+          Entered: {weeklyHoursValidation.actualHours.toFixed(2)}
+          {" | "}
+          Note: After entering your hours, you must Save as Draft or Submit the Timesheet before closing. Auto-save is not available.
+        </Typography>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+           <Chip
+            size="small"
+            label={`Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`}
+            color={isSubmitted ? "success" : "default"}
+            variant={isSubmitted ? "filled" : "outlined"}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            onClick={saveDraft}
+            disabled={savingDraft || (isSubmitted && !isUnlocked)}
+            sx={modalActionButtonSx}
+          >
+            {savingDraft ? "Saving..." : "Save Draft"}
+          </Button>
+         
+        </Box>
       </Box>
     </Box>
   );

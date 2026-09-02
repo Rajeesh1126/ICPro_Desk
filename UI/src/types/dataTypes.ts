@@ -212,7 +212,7 @@ export type NotificationsType = {
 // =========================================================
 
 export interface TaskEntry {
-  [date: string]: number;
+  [date: string]: number | string;
 }
 
  export interface AssignedTask {

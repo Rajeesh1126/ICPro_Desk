@@ -13,6 +13,7 @@ import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
 import PhaseConfiguration from "./pages/PhaseConfiguration.tsx";
 
 import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
+import TimesheetLogs from "./pages/timesheet/TimesheetLogs.tsx";
 
 import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
 import { isTokenExpired } from "./api/axios.ts";
@@ -51,6 +52,7 @@ const homeRoutes = [
   { path: "SelfTickets", element: <SelfTickets />, permission: "access_self_tickets" },
   { path: "Reports", element: <Reports />, permission: "access_executive_overview" },
   { path: "TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
+  { path: "TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
   { path: "Users", element: <Users />, permission: "access_user_management" },
   { path: "Roles", element: <Roles />, permission: "access_role_management" },
   { path: "ProjectConfiguration", element: <ProjectConfiguration />, permission: "access_project_configuration" },

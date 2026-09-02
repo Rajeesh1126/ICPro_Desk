@@ -1,7 +1,9 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Sum
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -25,6 +27,8 @@ from .serializers import (
     TimesheetUnlockRequestSerializer,
 )
 
+User = get_user_model()
+
 
 def _display_name(user):
     if not user:
@@ -32,6 +36,20 @@ def _display_name(user):
 
     full_name = user.get_full_name()
     return full_name or user.username
+
+
+def _seconds_to_time_value(seconds):
+    total_seconds = int(seconds or 0)
+    if total_seconds <= 0:
+        return ''
+
+    hours = total_seconds // 3600
+    minutes = round((total_seconds % 3600) / 60)
+    return f'{hours}.{minutes:02d}'
+
+
+def _seconds_to_decimal_hours(seconds):
+    return round((int(seconds or 0) / 3600), 2)
 
 
 def _week_bounds_from_request(request):
@@ -53,6 +71,62 @@ def _week_status(week_start):
         return f'Due by {due_date.strftime("%d-%m-%Y")}'
 
     return 'Delayed'
+
+
+def _parse_int_list(value):
+    if not value:
+        return []
+
+    result = []
+    for item in str(value).split(','):
+        item = item.strip()
+        if not item:
+            continue
+
+        try:
+            result.append(int(item))
+        except ValueError:
+            continue
+
+    return result
+
+
+def _iso_weeks_in_year(year):
+    return date(year, 12, 28).isocalendar()[1]
+
+
+def _week_start_from_iso(year, week_number):
+    return date.fromisocalendar(year, week_number, 1)
+
+
+def _last_four_iso_weeks():
+    today = timezone.localdate()
+    week_start = today - timedelta(days=today.weekday())
+    weeks = []
+
+    for index in range(4):
+        current_week_start = week_start - timedelta(weeks=index)
+        iso_year, iso_week, _ = current_week_start.isocalendar()
+        weeks.append((iso_year, iso_week))
+
+    return weeks
+
+
+def _submission_timing(timesheet_status, week_start):
+    due_date = week_start + timedelta(days=7)
+
+    if not timesheet_status:
+        return 'Delayed' if timezone.localdate() > due_date else 'Not Submitted'
+
+    submitted_statuses = {'Submitted', 'Accepted', 'Rejected'}
+    if (
+        not timesheet_status.submission_status and
+        timesheet_status.timesheet_status not in submitted_statuses
+    ):
+        return 'Delayed' if timezone.localdate() > due_date else 'Not Submitted'
+
+    submitted_date = timesheet_status.created_date.date()
+    return 'OnTime' if submitted_date <= due_date else 'Delayed'
 
 
 def _sync_timesheet_status(user, week_start):
@@ -103,7 +177,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
     permission_classes = [RoleBasedPermission]
 
     def get_permissions(self):
-        if self.action in {'list', 'retrieve', 'partial_update', 'current', 'request_unlock'}:
+        if self.action in {'list', 'retrieve', 'partial_update', 'current', 'request_unlock', 'logs'}:
             return [IsAuthenticated()]
 
         return super().get_permissions()
@@ -187,6 +261,386 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
 
         return Response(
             TimesheetStatusSerializer(timesheet_status).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['get'], url_path='logs')
+    def logs(self, request):
+        requested_year = request.query_params.get('year') or request.query_params.get('weekyear')
+        week_filter = (
+            request.query_params.get('weeks')
+            or request.query_params.get('week')
+            or request.query_params.get('weeknumber')
+        )
+
+        try:
+            year = int(requested_year) if requested_year else timezone.localdate().isocalendar()[0]
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'year must be a valid number.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if week_filter:
+            max_week = _iso_weeks_in_year(year)
+            year_week_pairs = [
+                (year, week)
+                for week in sorted(
+                    {week for week in _parse_int_list(week_filter) if 1 <= week <= max_week},
+                    reverse=True,
+                )
+            ]
+        elif requested_year:
+            max_week = _iso_weeks_in_year(year)
+            year_week_pairs = [(year, week) for week in range(1, max_week + 1)]
+        else:
+            year_week_pairs = _last_four_iso_weeks()
+
+        if not year_week_pairs:
+            return Response(
+                {'detail': 'No valid weeks found for the selected filters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        years = sorted({week_year for week_year, _week in year_week_pairs})
+        weeks_by_year = {
+            week_year: sorted(week for item_year, week in year_week_pairs if item_year == week_year)
+            for week_year in years
+        }
+        week_query = Q()
+        for week_year, week_numbers in weeks_by_year.items():
+            week_query |= Q(weekyear=week_year, weeknumber__in=week_numbers)
+
+        submission_week_query = Q()
+        for week_year, week_numbers in weeks_by_year.items():
+            submission_week_query |= Q(date__iso_year=week_year, date__week__in=week_numbers)
+
+        employee_ids = _parse_int_list(
+            request.query_params.get('employees')
+            or request.query_params.get('employee_ids')
+            or request.query_params.get('employee_id')
+        )
+
+        users = User.objects.filter(is_active=True).select_related('profile', 'profile__reporting_to')
+        if not (request.user.is_staff or request.user.is_superuser):
+            users = users.filter(
+                Q(profile__reporting_to=request.user)
+                | Q(tasks__assign_by=request.user)
+                | Q(id=request.user.id)
+            ).distinct()
+
+        if employee_ids:
+            users = users.filter(id__in=employee_ids)
+
+        users = users.order_by('first_name', 'username')
+
+        statuses = {
+            (item.uid_id, item.weekyear, item.weeknumber): item
+            for item in TimesheetStatus.objects.filter(
+                uid__in=users,
+                weekyear__in=years,
+            )
+            .filter(week_query)
+        }
+
+        submission_hours = {
+            (item['assignId__assign_to_id'], item['date__iso_year'], item['date__week']): item['total_hours'] or 0
+            for item in Submission.objects.filter(
+                assignId__assign_to__in=users,
+                hours__gt=0,
+            )
+            .filter(submission_week_query)
+            .values('assignId__assign_to_id', 'date__iso_year', 'date__week')
+            .annotate(total_hours=Sum('hours'))
+        }
+
+        week_columns = []
+        for week_year, week_number in year_week_pairs:
+            week_start = _week_start_from_iso(week_year, week_number)
+            week_end = week_start + timedelta(days=6)
+            week_columns.append({
+                'key': f'{week_year}-W{week_number:02d}',
+                'weeknumber': week_number,
+                'weekyear': week_year,
+                'label': f'W{week_number}',
+                'week_start': week_start.strftime('%Y-%m-%d'),
+                'week_end': week_end.strftime('%Y-%m-%d'),
+            })
+
+        employee_rows = []
+        for user in users:
+            reporting_to = getattr(getattr(user, 'profile', None), 'reporting_to', None)
+            week_data = {}
+
+            for week_year, week_number in year_week_pairs:
+                week_start = _week_start_from_iso(week_year, week_number)
+                week_end = week_start + timedelta(days=6)
+                timesheet_status = statuses.get((user.id, week_year, week_number))
+                timing = _submission_timing(timesheet_status, week_start)
+                total_seconds = submission_hours.get((user.id, week_year, week_number), 0)
+                week_key = f'{week_year}-W{week_number:02d}'
+
+                week_data[week_key] = {
+                    'weeknumber': week_number,
+                    'weekyear': week_year,
+                    'week_start': week_start.strftime('%Y-%m-%d'),
+                    'week_end': week_end.strftime('%Y-%m-%d'),
+                    'timesheet_status': (
+                        timesheet_status.timesheet_status
+                        if timesheet_status
+                        else 'Not Submitted'
+                    ),
+                    'submission_status': bool(timesheet_status.submission_status) if timesheet_status else False,
+                    'submission_timing': timing,
+                    'submitted_at': (
+                        timesheet_status.created_date.isoformat()
+                        if timesheet_status and timesheet_status.submission_status
+                        else None
+                    ),
+                    'total_hours': _seconds_to_decimal_hours(total_seconds),
+                    'comments': timesheet_status.comments if timesheet_status else None,
+                }
+
+            employee_rows.append({
+                'employee_id': user.id,
+                'employee_name': _display_name(user),
+                'reporting_to': _display_name(reporting_to),
+                'weeks': week_data,
+            })
+
+        return Response(
+            {
+                'week_columns': week_columns,
+                'results': employee_rows,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['get'], url_path='reviewer-logs')
+    def reviewer_logs(self, request):
+        requested_year = request.query_params.get('year') or request.query_params.get('weekyear')
+        week_filter = (
+            request.query_params.get('weeks')
+            or request.query_params.get('week')
+            or request.query_params.get('weeknumber')
+        )
+
+        try:
+            year = int(requested_year) if requested_year else timezone.localdate().isocalendar()[0]
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'year must be a valid number.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if week_filter:
+            max_week = _iso_weeks_in_year(year)
+            year_week_pairs = [
+                (year, week)
+                for week in sorted(
+                    {week for week in _parse_int_list(week_filter) if 1 <= week <= max_week},
+                    reverse=True,
+                )
+            ]
+        elif requested_year:
+            max_week = _iso_weeks_in_year(year)
+            year_week_pairs = [(year, week) for week in range(1, max_week + 1)]
+        else:
+            year_week_pairs = _last_four_iso_weeks()
+
+        if not year_week_pairs:
+            return Response(
+                {'detail': 'No valid weeks found for the selected filters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        years = sorted({week_year for week_year, _week in year_week_pairs})
+        weeks_by_year = {
+            week_year: sorted(week for item_year, week in year_week_pairs if item_year == week_year)
+            for week_year in years
+        }
+        week_query = Q()
+        submission_week_query = Q()
+        for week_year, week_numbers in weeks_by_year.items():
+            week_query |= Q(weekyear=week_year, weeknumber__in=week_numbers)
+            submission_week_query |= Q(date__iso_year=week_year, date__week__in=week_numbers)
+
+        employee_ids = _parse_int_list(
+            request.query_params.get('employees')
+            or request.query_params.get('employee_ids')
+            or request.query_params.get('employee_id')
+        )
+
+        users = User.objects.filter(is_active=True).select_related('profile', 'profile__reporting_to')
+        if not (request.user.is_staff or request.user.is_superuser):
+            users = users.filter(
+                Q(profile__reporting_to=request.user)
+                | Q(tasks__assign_by=request.user)
+                | Q(id=request.user.id)
+            ).distinct()
+
+        if employee_ids:
+            users = users.filter(id__in=employee_ids)
+
+        users = users.order_by('first_name', 'username')
+
+        statuses = {
+            (item.uid_id, item.weekyear, item.weeknumber): item
+            for item in TimesheetStatus.objects.filter(
+                uid__in=users,
+                weekyear__in=years,
+            ).filter(week_query)
+        }
+
+        submissions = (
+            Submission.objects
+            .filter(
+                assignId__assign_to__in=users,
+                hours__gt=0,
+            )
+            .filter(submission_week_query)
+            .select_related(
+                'assignId',
+                'assignId__assign_to',
+                'assignId__assign_by',
+            )
+            .order_by('assignId__assign_to_id', 'date', 'assignId__assign_by_id')
+        )
+
+        submissions_by_employee_week = {}
+        for submission in submissions:
+            iso_year, iso_week, _ = submission.date.isocalendar()
+            key = (submission.assignId.assign_to_id, iso_year, iso_week)
+            submissions_by_employee_week.setdefault(key, []).append(submission)
+
+        week_columns = []
+        for week_year, week_number in year_week_pairs:
+            week_start = _week_start_from_iso(week_year, week_number)
+            week_end = week_start + timedelta(days=6)
+            week_columns.append({
+                'key': f'{week_year}-W{week_number:02d}',
+                'weeknumber': week_number,
+                'weekyear': week_year,
+                'label': f'W{week_number}',
+                'week_start': week_start.strftime('%Y-%m-%d'),
+                'week_end': week_end.strftime('%Y-%m-%d'),
+            })
+
+        employee_rows = []
+        submitted_statuses = {'Submitted', 'Accepted', 'Rejected'}
+        reviewed_statuses = {'Accepted', 'Rejected'}
+
+        for user in users:
+            reporting_to = getattr(getattr(user, 'profile', None), 'reporting_to', None)
+            week_data = {}
+
+            for week_year, week_number in year_week_pairs:
+                week_start = _week_start_from_iso(week_year, week_number)
+                week_end = week_start + timedelta(days=6)
+                week_key = f'{week_year}-W{week_number:02d}'
+                timesheet_status = statuses.get((user.id, week_year, week_number))
+                is_submitted = bool(
+                    timesheet_status and (
+                        timesheet_status.submission_status or
+                        timesheet_status.timesheet_status in submitted_statuses
+                    )
+                )
+                week_submissions = submissions_by_employee_week.get((user.id, week_year, week_number), [])
+
+                if not is_submitted:
+                    week_data[week_key] = {
+                        'weeknumber': week_number,
+                        'weekyear': week_year,
+                        'week_start': week_start.strftime('%Y-%m-%d'),
+                        'week_end': week_end.strftime('%Y-%m-%d'),
+                        'review_status': 'N/A',
+                        'review_summary': 'Not applicable',
+                        'submitted': False,
+                        'total_approvers': 0,
+                        'completed_approvers': 0,
+                        'pending_approvers': 0,
+                        'approvers': [],
+                    }
+                    continue
+
+                approver_map = {}
+                for submission in week_submissions:
+                    approver = submission.assignId.assign_by
+                    approver_id = approver.id if approver else None
+                    approver_data = approver_map.setdefault(
+                        approver_id,
+                        {
+                            'approver_id': approver_id,
+                            'approver_name': _display_name(approver) if approver else 'Unassigned',
+                            'accepted_count': 0,
+                            'rejected_count': 0,
+                            'pending_count': 0,
+                            'status': 'Pending',
+                        },
+                    )
+
+                    if submission.status == 'Accepted':
+                        approver_data['accepted_count'] += 1
+                    elif submission.status == 'Rejected':
+                        approver_data['rejected_count'] += 1
+                    else:
+                        approver_data['pending_count'] += 1
+
+                approvers = []
+                for approver_data in approver_map.values():
+                    if approver_data['pending_count'] > 0:
+                        approver_data['status'] = 'Pending'
+                    elif approver_data['rejected_count'] > 0 and approver_data['accepted_count'] > 0:
+                        approver_data['status'] = 'Mixed'
+                    elif approver_data['rejected_count'] > 0:
+                        approver_data['status'] = 'Rejected'
+                    elif approver_data['accepted_count'] > 0:
+                        approver_data['status'] = 'Accepted'
+
+                    approvers.append(approver_data)
+
+                total_approvers = len(approvers)
+                completed_approvers = sum(
+                    1 for approver in approvers if approver['status'] in {'Accepted', 'Rejected', 'Mixed'}
+                )
+                pending_approvers = total_approvers - completed_approvers
+                reviewed_any = any(submission.status in reviewed_statuses for submission in week_submissions)
+
+                if not reviewed_any:
+                    review_status = 'No Action'
+                elif pending_approvers > 0:
+                    review_status = 'Partially Approved'
+                elif any(approver['status'] in {'Rejected', 'Mixed'} for approver in approvers):
+                    review_status = 'Rejected'
+                else:
+                    review_status = 'OnTime'
+
+                week_data[week_key] = {
+                    'weeknumber': week_number,
+                    'weekyear': week_year,
+                    'week_start': week_start.strftime('%Y-%m-%d'),
+                    'week_end': week_end.strftime('%Y-%m-%d'),
+                    'review_status': review_status,
+                    'review_summary': review_status,
+                    'submitted': True,
+                    'total_approvers': total_approvers,
+                    'completed_approvers': completed_approvers,
+                    'pending_approvers': pending_approvers,
+                    'approvers': approvers,
+                }
+
+            employee_rows.append({
+                'employee_id': user.id,
+                'employee_name': _display_name(user),
+                'reporting_to': _display_name(reporting_to),
+                'weeks': week_data,
+            })
+
+        return Response(
+            {
+                'week_columns': week_columns,
+                'results': employee_rows,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -279,7 +733,7 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
                     'statuses': [],
                 },
             )
-            employee_data['hours'] += submission.hours
+            employee_data['hours'] += _seconds_to_decimal_hours(submission.hours)
             employee_data['statuses'].append(submission.status or 'Submitted')
 
         timesheet_statuses = {
@@ -377,7 +831,7 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
                 'task': task.name if task else (project.description if project else ''),
                 'budgetOwner': _display_name(assigned_task.assign_by),
                 'hours': [
-                    str(submissions_by_date[day].hours) if day in submissions_by_date else ''
+                    _seconds_to_time_value(submissions_by_date[day].hours) if day in submissions_by_date else ''
                     for day in days
                 ],
                 'rating': first_submission.rate if first_submission else '',
@@ -485,7 +939,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             submissions = submissions.filter(date__range=(week_start, week_end))
 
         for submission in submissions.order_by('date'):
-            entries[submission.date.strftime('%Y-%m-%d')] = submission.hours
+            entries[submission.date.strftime('%Y-%m-%d')] = _seconds_to_time_value(submission.hours)
 
         return {
             'assign_id': assigned_task.id,
@@ -534,7 +988,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                 'id': submission.id,
                 'assignId': submission.assignId_id,
                 'date': submission.date.strftime('%Y-%m-%d'),
-                'hours': submission.hours,
+                'hours': _seconds_to_time_value(submission.hours),
                 'rate': submission.rate,
                 'status': submission.status,
             })
@@ -833,9 +1287,3 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         )
 
 
-
-
-
-
-# class TimesheetApproveViewSet(viewsets.ViewSet):
-#     permission_classes = [RoleBasedPermission]

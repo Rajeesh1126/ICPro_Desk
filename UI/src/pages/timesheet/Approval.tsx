@@ -288,7 +288,9 @@ const Approval: React.FC<ApprovalProps> = ({
                 <VirtualizedTable<ApprovalRow>
                     columns={columns}
                     rows={approvalData}
-                    height="400px"
+                    height="70dvh"
+                    tableHead="Submited User List"
+
                 />
             </Box>
 
