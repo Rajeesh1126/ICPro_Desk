@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import Login from "./pages/Login.tsx";
+import ForgotPassword from "./pages/ForgotPassword.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import HomePage from "./pages/HomePage.tsx";
 import Landing from "./pages/Landing.tsx";
 import Dashboard from "./pages/tickets/Dashboard.tsx";
@@ -9,6 +11,9 @@ import TicketDashboard from "./pages/tickets/Tickets.tsx";
 import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
+import Documents from "./pages/Documents.tsx";
+import Suggestions from "./pages/Suggestions.tsx";
+import LessonLearnt from "./pages/LessonLearnt.tsx";
 import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
 import PhaseConfiguration from "./pages/PhaseConfiguration.tsx";
 
@@ -53,6 +58,9 @@ const homeRoutes = [
   { path: "Reports", element: <Reports />, permission: "access_executive_overview" },
   { path: "TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
   { path: "TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
+  { path: "Documents", element: <Documents /> },
+  { path: "Suggestions", element: <Suggestions /> },
+  { path: "LessonLearnt", element: <LessonLearnt /> },
   { path: "Users", element: <Users />, permission: "access_user_management" },
   { path: "Roles", element: <Roles />, permission: "access_role_management" },
   { path: "ProjectConfiguration", element: <ProjectConfiguration />, permission: "access_project_configuration" },
@@ -74,6 +82,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/Home" element={<ProtectedRoute><HomePage /></ProtectedRoute>}>
         {homeRoutes.map((route) =>
           route.index ? (

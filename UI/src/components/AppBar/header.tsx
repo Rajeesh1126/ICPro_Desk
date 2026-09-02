@@ -7,11 +7,17 @@ import {
   Box,
   Chip,
   Container,
+  Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Menu,
   MenuItem,
   Stack,
+  TextField,
   Toolbar,
   Tooltip,
   Typography,
@@ -24,9 +30,12 @@ import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import FormatListBulletedRoundedIcon from "@mui/icons-material/FormatListBulletedRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import LockResetRoundedIcon from "@mui/icons-material/LockResetRounded";
 import { alpha, type Theme } from "@mui/material/styles";
 import logo from "../../assets/icpro_logo.svg";
 import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
+import api from "../../api/axios";
+import { showNotification } from "../../api/NotificationService";
 import { useThemeMode } from "../../styles/theme/themeModeContext";
 import {
   appBarHeaderAvatarSx1,
@@ -50,6 +59,8 @@ import {
   appBarHeaderTypographySx4,
   marginTopMediumSx,
   marginTopSmallSx,
+  modalActionButtonSx,
+  modalPrimaryActionButtonSx,
   pushRightSx,
 } from "../../styles/common";
 import type { NotificationsType } from "../../types/dataTypes";
@@ -147,6 +158,18 @@ type ResponsiveAppBarProps = {
   onMenuClick?: () => void;
 };
 
+type ChangePasswordForm = {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
+};
+
+const emptyPasswordForm: ChangePasswordForm = {
+  old_password: "",
+  new_password: "",
+  confirm_password: "",
+};
+
 export default function ResponsiveAppBar({
   onMenuClick,
 }: ResponsiveAppBarProps) {
@@ -155,8 +178,11 @@ export default function ResponsiveAppBar({
   const [notificationAnchor, setNotificationAnchor] =
     useState<HTMLElement | null>(null);
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
-  const [notifications, setNotifications] =
-    useState<NotificationsType>(EMPTY_NOTIFICATIONS);
+  const [notifications] = useState<NotificationsType>(EMPTY_NOTIFICATIONS);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [passwordForm, setPasswordForm] =
+    useState<ChangePasswordForm>(emptyPasswordForm);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // useEffect(() => {
   //   let active = true;
@@ -189,6 +215,59 @@ export default function ResponsiveAppBar({
     localStorage.clear();
     setProfileAnchor(null);
     navigate("/", { replace: true });
+  };
+
+  const openChangePasswordDialog = () => {
+    setProfileAnchor(null);
+    setPasswordForm(emptyPasswordForm);
+    setChangePasswordOpen(true);
+  };
+
+  const closeChangePasswordDialog = () => {
+    if (changingPassword) return;
+    setChangePasswordOpen(false);
+    setPasswordForm(emptyPasswordForm);
+  };
+
+  const updatePasswordForm = <K extends keyof ChangePasswordForm>(
+    key: K,
+    value: ChangePasswordForm[K],
+  ) => {
+    setPasswordForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const submitChangePassword = async () => {
+    if (
+      !passwordForm.old_password ||
+      !passwordForm.new_password ||
+      !passwordForm.confirm_password
+    ) {
+      showNotification({
+        type: "warning",
+        message: "Current password, new password and confirmation are required.",
+      });
+      return;
+    }
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showNotification({
+        type: "warning",
+        message: "New password and confirm password do not match.",
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.post("/users/change_password/", passwordForm);
+      showNotification({
+        type: "success",
+        message: "Password changed successfully. Please login again.",
+      });
+      logout();
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -474,14 +553,14 @@ export default function ResponsiveAppBar({
         <Box sx={{ maxHeight: "min(58dvh, 520px)", overflowY: "auto", p: 2 }}>
           <Stack spacing={1.5}>
 
-           
+
             <Box display="flex" alignItems="center" gap={1}>
               <Typography variant="caption" color="text.secondary" fontWeight={900}>
                 Roles:
               </Typography>
               <Chip label={role || "No roles assigned"} size="small" color="secondary" />
             </Box>
-             <Box>
+            <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={900}>
                 Groups
               </Typography>
@@ -498,7 +577,20 @@ export default function ResponsiveAppBar({
               </Stack>
             </Box>
 
-
+            <MenuItem
+              onClick={openChangePasswordDialog}
+              sx={{
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                gap: 1,
+              }}
+            >
+              <LockResetRoundedIcon fontSize="small" color="primary" />
+              <Typography variant="body2" color="primary.main" fontWeight={700}>
+                Change password
+              </Typography>
+            </MenuItem>
           </Stack>
         </Box>
         <Divider />
@@ -519,6 +611,77 @@ export default function ResponsiveAppBar({
           </Box>
         </MenuItem>
       </Menu>
+
+      <Dialog
+        open={changePasswordOpen}
+        onClose={closeChangePasswordDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <LockResetRoundedIcon color="primary" />
+            <Typography variant="h6">Change Password</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="Current Password"
+              type="password"
+              value={passwordForm.old_password}
+              onChange={(event) =>
+                updatePasswordForm("old_password", event.target.value)
+              }
+              fullWidth
+              required
+              size="small"
+              autoComplete="current-password"
+            />
+            <TextField
+              label="New Password"
+              type="password"
+              value={passwordForm.new_password}
+              onChange={(event) =>
+                updatePasswordForm("new_password", event.target.value)
+              }
+              fullWidth
+              required
+              size="small"
+              autoComplete="new-password"
+            />
+            <TextField
+              label="Confirm Password"
+              type="password"
+              value={passwordForm.confirm_password}
+              onChange={(event) =>
+                updatePasswordForm("confirm_password", event.target.value)
+              }
+              fullWidth
+              required
+              size="small"
+              autoComplete="new-password"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={closeChangePasswordDialog}
+            disabled={changingPassword}
+            sx={modalActionButtonSx}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={submitChangePassword}
+            disabled={changingPassword}
+            variant="contained"
+            sx={modalPrimaryActionButtonSx}
+          >
+            {changingPassword ? "Changing..." : "Change"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AppBar>
   );
 }

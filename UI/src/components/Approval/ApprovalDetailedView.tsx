@@ -217,7 +217,7 @@ const ApprovalDetailedView: React.FC<
             setComments("");
             void api
                 .get<ApprovalDetailResponse>(
-                    "/ApprovalDetailData/",
+                    "/approval-detail-data/",
                     {
                         params: {
                             weekStart,
@@ -627,7 +627,7 @@ const ApprovalDetailedView: React.FC<
 
                         const response =
                             await api.patch(
-                                "/ApprovalDetailData/",
+                                "/approval-detail-data/",
                                 {
                                     weekStart,
 

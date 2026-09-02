@@ -39,7 +39,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def forgot_password(self, request):
-        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer = ForgotPasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(

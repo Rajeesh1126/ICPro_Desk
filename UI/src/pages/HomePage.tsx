@@ -21,6 +21,9 @@ import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import RuleFolderRoundedIcon from "@mui/icons-material/RuleFolderRounded";
 import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import FeedbackRoundedIcon from "@mui/icons-material/FeedbackRounded";
+import PsychologyAltRoundedIcon from "@mui/icons-material/PsychologyAltRounded";
 import Header from "../components/AppBar/header";
 
 const SIDEBAR_WIDTH = 265;
@@ -60,6 +63,24 @@ const pages = [
         icon: <RuleFolderRoundedIcon />,
         iconColor: "#7b1fa2",
         codeName: "access_timesheet",
+    },
+    {
+        label: "Documents",
+        path: "/Home/Documents",
+        icon: <DescriptionRoundedIcon />,
+        iconColor: "#455a64",
+    },
+    {
+        label: "Feedback",
+        path: "/Home/Suggestions",
+        icon: <FeedbackRoundedIcon />,
+        iconColor: "#00897b",
+    },
+    {
+        label: "Lesson Learnt",
+        path: "/Home/LessonLearnt",
+        icon: <PsychologyAltRoundedIcon />,
+        iconColor: "#6d4c41",
     },
     
     {

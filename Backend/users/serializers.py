@@ -2,11 +2,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
-from django.core import mail
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from urllib.parse import urlencode
 
+from core.microsoftGraphAPI import send_mail
 from .models import Role, UserProfile,DepartmentManager
 
 User = get_user_model()
@@ -76,18 +78,36 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
 
     def save(self):
-        user = User.objects.filter(email__iexact=self.validated_data['email']).first()
+        user = User.objects.filter(
+            username__iexact=self.validated_data['username'],
+            email__iexact=self.validated_data['email'],
+        ).first()
         if user:
             token = default_token_generator.make_token(user)
-            mail.send_mail(
+            request = self.context.get('request')
+            reset_url = getattr(settings, 'FRONTEND_RESET_PASSWORD_URL', None)
+            if not reset_url:
+                frontend_base_url = getattr(settings, 'FRONTEND_BASE_URL', '').rstrip('/')
+                reset_url = f'{frontend_base_url}/reset-password' if frontend_base_url else ''
+
+            query = urlencode({'email': user.email, 'token': token})
+            reset_link = f'{reset_url}?{query}' if reset_url else request.build_absolute_uri(f'/reset-password?{query}')
+            html_content = f"""
+                <p>Dear {user.first_name or user.username},</p>
+                <p>We received a request to reset your ICProDesk password.</p>
+                <p>
+                    <a href="{reset_link}">Reset your password</a>
+                </p>
+                <p>If you did not request this, please ignore this email.</p>
+            """
+            send_mail(
                 'Password reset request',
-                f'Use the following token to reset your password: {token}',
-                'noreply@example.com',
+                html_content,
                 [user.email],
-                fail_silently=False,
             )
         return user
 

@@ -2,9 +2,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.tokens import default_token_generator
-from django.core import mail
 from rest_framework import status
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from .models import DepartmentManager, Role, UserProfile
 
@@ -22,7 +22,7 @@ class PasswordAPITests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_change_password(self):
-        response = self.client.post('/api/users/change-password/', {
+        response = self.client.post('/api/users/change_password/', {
             'old_password': 'OldPass123!',
             'new_password': 'NewPass123!',
             'confirm_password': 'NewPass123!',
@@ -32,17 +32,23 @@ class PasswordAPITests(APITestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('NewPass123!'))
 
-    def test_forgot_password_sends_email(self):
-        response = self.client.post('/api/users/forgot-password/', {
+    @patch('users.serializers.send_mail')
+    def test_forgot_password_sends_email(self, mock_send_mail):
+        response = self.client.post('/api/users/forgot_password/', {
+            'username': self.user.username,
             'email': self.user.email,
         })
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(mail.outbox), 1)
+        mock_send_mail.assert_called_once()
+        subject, html_content, recipients = mock_send_mail.call_args.args
+        self.assertEqual(subject, 'Password reset request')
+        self.assertIn('/reset-password?', html_content)
+        self.assertEqual(recipients, [self.user.email])
 
     def test_reset_password_with_token(self):
         token = default_token_generator.make_token(self.user)
-        response = self.client.post('/api/users/reset-password/', {
+        response = self.client.post('/api/users/reset_password/', {
             'email': self.user.email,
             'token': token,
             'new_password': 'ResetPass123!',

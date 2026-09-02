@@ -178,6 +178,15 @@ SIMPLE_JWT = {
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@example.com'
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+FRONTEND_RESET_PASSWORD_URL = os.getenv(
+    'FRONTEND_RESET_PASSWORD_URL',
+    f'{FRONTEND_BASE_URL.rstrip("/")}/reset-password',
+)
+MS_GRAPH_TENANT_ID = os.getenv('MS_GRAPH_TENANT_ID', 'ff4b7160-90a1-402e-8572-ddd3d6fad573')
+MS_GRAPH_CLIENT_ID = os.getenv('MS_GRAPH_CLIENT_ID', '06df26e6-3024-4c87-a577-3707fa8f44be')
+MS_GRAPH_CLIENT_SECRET = os.getenv('MS_GRAPH_CLIENT_SECRET', 'LRk8Q~RSmqiSjQo5vIhp5LXdMGR~B0APH2XBldux')
+MS_GRAPH_SENDER_EMAIL = os.getenv('MS_GRAPH_SENDER_EMAIL', 'wwp@icpro.in')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Time Sheet Management API',

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -24,11 +24,18 @@ import { loginDynamicPageDynamicBoxSx1, loginPageBoxSx1, loginPageBoxSx2, loginP
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const successMessage =
+    typeof location.state === "object" &&
+      location.state !== null &&
+      "message" in location.state
+      ? String(location.state.message)
+      : "";
 
   const handleLogin = async () => {
     setLoading(true);
@@ -82,6 +89,7 @@ export default function Login() {
           </Typography>
 
           {error && <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>}
+          {successMessage && <Alert severity="success" sx={marginBottomSectionSx}>{successMessage}</Alert>}
 
           <Box component="form" onSubmit={(event) => { event.preventDefault(); void handleLogin(); }}>
             <TextField fullWidth
@@ -109,6 +117,17 @@ export default function Login() {
             <Button fullWidth type="submit" autoFocus variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginRoundedIcon />} sx={loginPageButtonSx1}>
               {loading ? <><CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} /> Signing in…</> : "Sign In"}
             </Button>
+            <Typography
+              component={RouterLink}
+              to="/forgot-password"
+              variant="body2"
+              align="center"
+              color="primary.main"
+              display="block"
+              sx={{ mt: 2, fontWeight: 700, textDecoration: "none" }}
+            >
+              Forgot password?
+            </Typography>
             <Typography variant="caption" align="center" color="text.secondary" display="block" sx={loginPageTypographySx2}>
               Contact your administrator if you cannot access your account.
             </Typography>
