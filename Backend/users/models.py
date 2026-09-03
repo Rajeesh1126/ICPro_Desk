@@ -12,10 +12,15 @@ class Role(models.Model):
 
     class Meta:
         permissions = [
-            # ('access_home', 'Can access Home page'),
+            
             ('access_self_tickets', 'Can access Do List page'),
             ('access_tickets', 'Can access Tickets page'),
             ('access_timesheet', 'Can access Timesheet page'),
+
+            ('access_document_template', 'Can access Document Template page'),
+            ('access_lesson_learnt', 'Can access Lesson Learnt page'),
+            ('access_system_suggetions', 'Can access System Suggetions page'),
+
             ('access_timesheet_log', 'Can access Timesheet Log page'),
             ('access_executive_overview', 'Can access Executive Overview page'),
             ('access_team_analysis', 'Can access Team Analysis page'),

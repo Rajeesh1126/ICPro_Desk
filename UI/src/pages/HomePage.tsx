@@ -55,32 +55,37 @@ const pages = [
         path: "/Home/TimeSheet",
         icon: <FactCheckRoundedIcon />,
         iconColor: "#d32f2f",
-        codeName: "access_timesheet_log",
+        codeName: "access_timesheet",
     },
     {
         label: "Timesheet Logs",
         path: "/Home/TimesheetLogs",
         icon: <RuleFolderRoundedIcon />,
         iconColor: "#7b1fa2",
-        codeName: "access_timesheet",
+        codeName: "access_timesheet_log",
     },
     {
         label: "Documents",
         path: "/Home/Documents",
         icon: <DescriptionRoundedIcon />,
         iconColor: "#455a64",
+        codeName: "access_document_template",
     },
     {
         label: "Feedback",
         path: "/Home/Suggestions",
         icon: <FeedbackRoundedIcon />,
         iconColor: "#00897b",
+        codeName: "access_system_suggetions",
+
     },
     {
         label: "Lesson Learnt",
         path: "/Home/LessonLearnt",
         icon: <PsychologyAltRoundedIcon />,
         iconColor: "#6d4c41",
+        codeName: "access_lesson_learnt",
+
     },
     
     {

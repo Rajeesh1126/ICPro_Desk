@@ -28,8 +28,15 @@ def _current_iso_week_dates():
     return start_date, end_date
 
 
-def _assignment_defaults(assign_by):
-    start_date, end_date = _current_iso_week_dates()
+def _assignment_week_dates(start_date=None, end_date=None):
+    if start_date and end_date:
+        return start_date, end_date
+
+    return _current_iso_week_dates()
+
+
+def _assignment_defaults(assign_by, start_date=None, end_date=None):
+    start_date, end_date = _assignment_week_dates(start_date, end_date)
     return {
         'assign_by': assign_by,
         'start_date': start_date,
@@ -37,21 +44,46 @@ def _assignment_defaults(assign_by):
     }
 
 
-def _assign_project_without_task(project, assign_to=None, assign_by=None):
+def _include_assignment_week(assigned_task, start_date=None, end_date=None):
+    start_date, end_date = _assignment_week_dates(start_date, end_date)
+    update_fields = []
+
+    if assigned_task.start_date is None or assigned_task.start_date > start_date:
+        assigned_task.start_date = start_date
+        update_fields.append('start_date')
+
+    if assigned_task.end_date is None or assigned_task.end_date < end_date:
+        assigned_task.end_date = end_date
+        update_fields.append('end_date')
+
+    if update_fields:
+        assigned_task.save(update_fields=update_fields)
+
+
+def _assign_project_without_task(project, assign_to=None, assign_by=None, start_date=None, end_date=None):
     if not assign_to:
         return
 
-    AssignedTask.objects.get_or_create(
+    assigned_task, created = AssignedTask.objects.get_or_create(
         project_obj=project,
         milestone_obj=None,
         task_obj=None,
         assign_to=assign_to,
-        defaults=_assignment_defaults(assign_by),
+        defaults=_assignment_defaults(assign_by, start_date, end_date),
     )
+    if not created:
+        _include_assignment_week(assigned_task, start_date, end_date)
 
 
 @transaction.atomic
-def create_project_milestones_tasks_and_assignments(project, quotation, assign_to = None, assign_by=None):
+def create_project_milestones_tasks_and_assignments(
+    project,
+    quotation,
+    assign_to=None,
+    assign_by=None,
+    start_date=None,
+    end_date=None,
+):
     """
     Create missing milestones, tasks, and assigned tasks from ERP quotation costs.
 
@@ -67,7 +99,13 @@ def create_project_milestones_tasks_and_assignments(project, quotation, assign_t
     )
 
     if not quotation_costs:
-        _assign_project_without_task(project, assign_to=assign_to, assign_by=assign_by)
+        _assign_project_without_task(
+            project,
+            assign_to=assign_to,
+            assign_by=assign_by,
+            start_date=start_date,
+            end_date=end_date,
+        )
         return
 
     for quotation_cost in quotation_costs:
@@ -111,17 +149,33 @@ def create_project_milestones_tasks_and_assignments(project, quotation, assign_t
         )
 
         if assign_to:
-            AssignedTask.objects.get_or_create(
+            assigned_task, created = AssignedTask.objects.get_or_create(
                 project_obj=project,
                 milestone_obj=milestone,
                 task_obj=task,
                 assign_to=assign_to,
-                defaults=_assignment_defaults(assign_by),
+                defaults=_assignment_defaults(assign_by, start_date, end_date),
             )
+            if not created:
+                _include_assignment_week(assigned_task, start_date, end_date)
 
 
-def create_project_milestones_and_tasks(project, quotation, assign_to=None, assign_by=None):
-    return create_project_milestones_tasks_and_assignments(project, quotation, assign_to, assign_by)
+def create_project_milestones_and_tasks(
+    project,
+    quotation,
+    assign_to=None,
+    assign_by=None,
+    start_date=None,
+    end_date=None,
+):
+    return create_project_milestones_tasks_and_assignments(
+        project,
+        quotation,
+        assign_to,
+        assign_by,
+        start_date,
+        end_date,
+    )
 
 
 @transaction.atomic
@@ -130,6 +184,8 @@ def create_milestones_tasks_and_assignments_from_cost_masters(
     cost_masters,
     assign_to=None,
     assign_by=None,
+    start_date=None,
+    end_date=None,
 ):
     """
     Add non-quotation tasks to an existing project from ERP CostMaster rows.
@@ -183,14 +239,16 @@ def create_milestones_tasks_and_assignments_from_cost_masters(
             task.save(update_fields=['name'])
 
         if assign_to:
-            _, assignment_created = AssignedTask.objects.get_or_create(
+            assigned_task, assignment_created = AssignedTask.objects.get_or_create(
                 project_obj=project,
                 milestone_obj=milestone,
                 task_obj=task,
                 assign_to=assign_to,
-                defaults=_assignment_defaults(assign_by),
+                defaults=_assignment_defaults(assign_by, start_date, end_date),
             )
             if assignment_created:
                 result['assignments_created'] += 1
+            else:
+                _include_assignment_week(assigned_task, start_date, end_date)
 
     return result

@@ -46,6 +46,7 @@ interface ApprovalDetailResponse {
     rows: ApiTaskRow[];
     comments?: string;
     action_status?: boolean;
+    is_action_completed?: boolean;
 }
 
 interface ApprovalDetailedViewProps {
@@ -1387,7 +1388,7 @@ const ApprovalDetailedView: React.FC<
                         {employee.overview ===
                             "Accepted"
                             ? "Timesheet is already Accepted"
-                            : employee.approval_status}
+                            : employee.action_status}
                     </Typography>
 
 

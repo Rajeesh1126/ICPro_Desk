@@ -215,7 +215,7 @@ const Approval: React.FC<ApprovalProps> = ({
                             color:
                                 row.submission_status === "Delayed"
                                     ? "#ff3b3b"
-                                    : row.approval_status === "OnTime"
+                                    : row.submission_status === "OnTime"
                                     ? "#00c853"
                                     : "#0dcaf0",
                         }}
@@ -227,8 +227,8 @@ const Approval: React.FC<ApprovalProps> = ({
 
             // Approval Status
             {
-                dataKey: "approval_status",
-                label: "Approval status",
+                dataKey: "action_status",
+                label: "Action status",
                 width: 180,
 
                 render: (row: ApprovalRow) => (
@@ -236,14 +236,14 @@ const Approval: React.FC<ApprovalProps> = ({
                         sx={{
                             fontSize: 12,
                             color:
-                                row.approval_status === "OnTime"
+                                row.action_status === "OnTime"
                                     ? "#00c853"
-                                    : row.approval_status === "Delayed"
+                                    : row.action_status === "Delayed"
                                     ? "#ff3b3b"
                                     : "#0dcaf0",
                         }}
                     >
-                        {row.approval_status}
+                        {row.action_status}
                     </Typography>
                 ),
             },

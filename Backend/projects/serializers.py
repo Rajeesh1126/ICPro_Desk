@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
+from datetime import timedelta
 
 from erp.models import CostMaster, Quotation
 from erp.models import CostCategory
@@ -37,9 +38,11 @@ def generate_undefined_project_code():
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    week_start = serializers.DateField(write_only=True, required=False)
+
     class Meta:
         model = Project
-        fields = ['id', 'code', 'quotation_id', 'description','customer']
+        fields = ['id', 'code', 'quotation_id', 'description','customer', 'week_start']
         extra_kwargs = {
             'code': {
                 'validators': [],
@@ -51,6 +54,8 @@ class ProjectSerializer(serializers.ModelSerializer):
         code = validated_data.get('code')
         quotation_id = validated_data.get('quotation_id')
         customer = validated_data.get('customer')
+        week_start = validated_data.pop('week_start', None)
+        week_end = week_start + timedelta(days=6) if week_start else None
         request = self.context.get('request')
         requested_user = request.user if request and request.user and request.user.is_authenticated else None
         reporting_manager = None
@@ -85,6 +90,8 @@ class ProjectSerializer(serializers.ModelSerializer):
                     quotation=quotation,
                     assign_to=requested_user,
                     assign_by=reporting_manager,
+                    start_date=week_start,
+                    end_date=week_end,
                 )
 
             return project
@@ -97,6 +104,8 @@ class ProjectSerializer(serializers.ModelSerializer):
                     quotation=quotation,
                     assign_to=requested_user,
                     assign_by=reporting_manager,
+                    start_date=week_start,
+                    end_date=week_end,
                 )
 
             return existing_project
@@ -116,6 +125,8 @@ class ProjectSerializer(serializers.ModelSerializer):
                     quotation=quotation,
                     assign_to=requested_user,
                     assign_by=reporting_manager,
+                    start_date=week_start,
+                    end_date=week_end,
                 )
 
             return existing_project
@@ -126,6 +137,8 @@ class ProjectSerializer(serializers.ModelSerializer):
                 quotation=quotation,
                 assign_to=requested_user,
                 assign_by=reporting_manager,
+                start_date=week_start,
+                end_date=week_end,
             )
 
         return existing_project
@@ -214,6 +227,7 @@ class AddCostMasterTasksSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         allow_empty=False,
     )
+    week_start = serializers.DateField(required=False)
 
     def validate_cost_master_ids(self, value):
         unique_ids = list(dict.fromkeys(value))
@@ -245,4 +259,10 @@ class AddCostMasterTasksSerializer(serializers.Serializer):
             cost_masters=self.cost_masters,
             assign_to=requested_user,
             assign_by=reporting_manager,
+            start_date=self.validated_data.get('week_start'),
+            end_date=(
+                self.validated_data.get('week_start') + timedelta(days=6)
+                if self.validated_data.get('week_start')
+                else None
+            ),
         )

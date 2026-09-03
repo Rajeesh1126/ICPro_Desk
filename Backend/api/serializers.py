@@ -113,6 +113,7 @@ class TimesheetAssignTicketsSerializer(serializers.Serializer):
         child=serializers.PrimaryKeyRelatedField(queryset=Ticket.objects.all()),
         allow_empty=False,
     )
+    week_start = serializers.DateField(required=False)
 
     def validate_ticket_ids(self, tickets):
         for ticket in tickets:
@@ -126,6 +127,7 @@ class TimesheetAssignTicketsSerializer(serializers.Serializer):
 
 class TimesheetAssignProjectSerializer(serializers.Serializer):
     project_id = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
+    week_start = serializers.DateField(required=False)
 
 
 class TimesheetExtendTasksSerializer(serializers.Serializer):

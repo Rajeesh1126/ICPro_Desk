@@ -73,6 +73,19 @@ def _week_status(week_start):
     return 'Delayed'
 
 
+def _is_submission_on_time(week_start):
+    current_week_start = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
+    return week_start >= current_week_start
+
+
+def _is_approval_on_time(timesheet_status):
+    if not timesheet_status:
+        return False
+
+    approval_due_date = timesheet_status.created_date.date() + timedelta(days=7)
+    return timezone.localdate() <= approval_due_date
+
+
 def _parse_int_list(value):
     if not value:
         return []
@@ -129,6 +142,24 @@ def _submission_timing(timesheet_status, week_start):
     return 'OnTime' if submitted_date <= due_date else 'Delayed'
 
 
+def _submission_status_label(timesheet_status):
+    return 'OnTime' if timesheet_status and timesheet_status.submission_status else 'Delayed'
+
+
+def _action_status_label(timesheet_status, overview, week_start):
+    if timesheet_status and timesheet_status.action_status:
+        return 'OnTime'
+
+    week_status = _week_status(week_start)
+    if week_status != 'Delayed':
+        return week_status
+
+    if overview == 'Submitted' or not timesheet_status:
+        return 'Pending'
+
+    return 'Delayed'
+
+
 def _sync_timesheet_status(user, week_start):
     week_end = week_start + timedelta(days=6)
     iso_year, iso_week, _ = week_start.isocalendar()
@@ -153,7 +184,8 @@ def _sync_timesheet_status(user, week_start):
     has_rejected = submissions.filter(status='Rejected').exists()
     all_accepted = has_submissions and not has_pending and not has_rejected
 
-    timesheet_status.action_status = has_submissions and not has_pending
+    action_completed = has_submissions and not has_pending
+    timesheet_status.action_status = action_completed and _is_approval_on_time(timesheet_status)
     if all_accepted:
         timesheet_status.timesheet_status = 'Accepted'
     elif has_submissions and not has_pending and has_rejected:
@@ -759,11 +791,15 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
             else:
                 overview = 'Submitted'
 
+            submission_status = _submission_status_label(timesheet_status)
+            action_status = _action_status_label(timesheet_status, overview, week_start)
+
             payload.append({
                 **employee_data,
                 'overview': overview,
-                'submission_status': 'OnTime',
-                'approval_status': _week_status(week_start),
+                'submission_status': submission_status,
+                'action_status': action_status,
+                'approval_status': action_status,
             })
 
         return Response(payload, status=status.HTTP_200_OK)
@@ -852,6 +888,7 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
                 'rows': rows,
                 'comments': timesheet_status.comments if timesheet_status else '',
                 'action_status': timesheet_status.action_status if timesheet_status else False,
+                'is_action_completed': timesheet_status.action_status if timesheet_status else False,
             },
             status=status.HTTP_200_OK,
         )
@@ -903,6 +940,7 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
                 'action': action_value,
                 'rating': rating,
                 'action_status': action_status,
+                'is_action_completed': action_status,
             },
             status=status.HTTP_200_OK,
         )
@@ -953,6 +991,29 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             ),
             'entries': entries,
         }
+
+    def _assignment_dates(self, serializer):
+        week_start = serializer.validated_data.get('week_start')
+        if not week_start:
+            return None, None
+
+        return week_start, week_start + timedelta(days=6)
+
+    def _ensure_assignment_covers_week(self, assigned_task, week_start, week_end):
+        if not week_start or not week_end:
+            return
+
+        update_fields = []
+        if assigned_task.start_date is None or assigned_task.start_date > week_start:
+            assigned_task.start_date = week_start
+            update_fields.append('start_date')
+
+        if assigned_task.end_date is None or assigned_task.end_date < week_end:
+            assigned_task.end_date = week_end
+            update_fields.append('end_date')
+
+        if update_fields:
+            assigned_task.save(update_fields=update_fields)
 
     def _save_entries(self, entries, entry_status):
         saved_entries = []
@@ -1110,6 +1171,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
 
         created_assignments = []
         default_budget_owner = self._default_budget_owner(request.user)
+        week_start, week_end = self._assignment_dates(serializer)
         with transaction.atomic():
             for ticket in serializer.validated_data['ticket_ids']:
                 project, _ = Project.objects.get_or_create(
@@ -1130,8 +1192,11 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                     milestone_obj=None,
                     defaults={
                         'assign_by': default_budget_owner,
+                        'start_date': week_start,
+                        'end_date': week_end,
                     },
                 )
+                self._ensure_assignment_covers_week(assigned_task, week_start, week_end)
                 created_assignments.append(assigned_task.id)
 
         return Response(
@@ -1148,6 +1213,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
 
         default_budget_owner = self._default_budget_owner(request.user)
+        week_start, week_end = self._assignment_dates(serializer)
         assigned_task, _ = AssignedTask.objects.get_or_create(
             project_obj=serializer.validated_data['project_id'],
             assign_to=request.user,
@@ -1155,8 +1221,11 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             milestone_obj=None,
             defaults={
                 'assign_by': default_budget_owner,
+                'start_date': week_start,
+                'end_date': week_end,
             },
         )
+        self._ensure_assignment_covers_week(assigned_task, week_start, week_end)
 
         return Response(
             {
@@ -1194,6 +1263,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         week_number = week_start.isocalendar()[1]
         week_year = week_start.isocalendar()[0]
         comments = serializer.validated_data.get('comments') or None
+        submission_status = _is_submission_on_time(week_start)
 
         with transaction.atomic():
             saved_entries, deleted_entries = self._save_entries(
@@ -1207,7 +1277,8 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                 weekyear=week_year,
                 defaults={
                     'timesheet_status': 'Submitted',
-                    'submission_status': True,
+                    'submission_status': submission_status,
+                    'action_status': False,
                     'comments': comments,
                 },
             )
@@ -1285,5 +1356,3 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_200_OK,
         )
-
-

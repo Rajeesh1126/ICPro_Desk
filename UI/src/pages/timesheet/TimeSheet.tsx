@@ -207,6 +207,7 @@ function TimeSheet() {
             quotation_id: quotation.id,
             code: quotation.quotation_no,
             description: getQuotationDescription(quotation),
+            week_start: weekStartKey,
           }),
         ),
       );
@@ -239,10 +240,12 @@ function TimeSheet() {
       const response = await api.post("/projects/", {
         description,
         customer: trimmedCustomerName || null,
+        week_start: weekStartKey,
       });
       if (response.data?.id) {
         await api.post("/timesheet-entries/assign-project/", {
           project_id: response.data.id,
+          week_start: weekStartKey,
         });
       }
 
@@ -263,6 +266,7 @@ function TimeSheet() {
     try {
       await api.post("/timesheet-entries/assign-tickets/", {
         ticket_ids: ticketIds,
+        week_start: weekStartKey,
       });
 
       showNotification({
@@ -284,6 +288,7 @@ function TimeSheet() {
         Object.entries(selection).map(([projectId, costMasterIds]) =>
           api.post(`/projects/${projectId}/cost-master-tasks/`, {
             cost_master_ids: costMasterIds,
+            week_start: weekStartKey,
           }),
         ),
       );
