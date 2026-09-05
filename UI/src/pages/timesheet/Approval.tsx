@@ -24,6 +24,7 @@ import {
 } from "../../components/common/TableView";
 
 import api from "../../api/axios";
+import { showNotification } from "../../api/notificationService";
 
 import type {
     ApprovalRow,
@@ -135,6 +136,16 @@ const Approval: React.FC<ApprovalProps> = ({
 
             // Refresh unlock requests from backend
             await fetchUnlockRequests();
+
+            showNotification({
+                type: "success",
+                message:
+                    status === "Unlocked"
+                        ? "Unlock request accepted successfully."
+                        : status === "Unlock Rejected"
+                            ? "Unlock request rejected successfully."
+                            : "Unlock request updated successfully.",
+            });
 
             return true;
         } catch (error) {
@@ -274,10 +285,10 @@ const Approval: React.FC<ApprovalProps> = ({
 
             // Approval Status
             {
-                dataKey: "approval_status",
-                label: "Approval status",
+                dataKey: "action_status",
+                label: "Action status",
                 width: 180,
-                render: (row: ApprovalRow) => renderStatusText(row.approval_status),
+                render: (row: ApprovalRow) => renderStatusText(row.action_status),
             },
 
             

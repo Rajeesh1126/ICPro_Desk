@@ -42,6 +42,15 @@ import ConfirmDialog from "../components/common/ConfirmDialog";
 import { showNotification } from "../api/notificationService";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
+const formatPermissionLabel = (permission: permissionData) => {
+  const label = permission.name || permission.codename;
+
+  return label
+    .replace(/^can\s+access\s+/i, "")
+    .replace(/\s+page$/i, "")
+    .trim();
+};
+
 export default function Roles() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -301,7 +310,7 @@ export default function Roles() {
 
     const permissionColumns = permissions.map(
       (permission): ColumnData<rolesData> => ({
-        label: permission.name || permission.codename,
+        label: formatPermissionLabel(permission),
         width: 125,
 
         render: (row) => (
@@ -334,7 +343,7 @@ export default function Roles() {
             <Typography variant="body2" sx={pageSubtitle}>
               {tabValue === 0
                 ? "Manage roles, permissions, and access"
-                : "Manage permissions and access"}
+                : "Manage permissions and access page"}
             </Typography>
           </Box>
           <Stack

@@ -206,6 +206,12 @@ export default function Documents() {
   const columns = useMemo<ColumnData<DocumentTemplate>[]>(
     () => [
       {
+        label: "#",
+        width: { xs: 40, sm: 40 },
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
+      {
         label: "Document Name",
         dataKey: "document_name",
         width: 240,

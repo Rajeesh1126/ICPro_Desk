@@ -105,17 +105,9 @@ const pages: readonly SidebarPage[] = [
     iconColor: "#d32f2f",
     codeName: "access_timesheet",
   },
+ 
   {
-    label: "Timesheet Logs",
-    section: "Timesheet",
-    path: "/Home/TimesheetLogs",
-    icon: <RuleFolderOutlinedIcon />,
-    activeIcon: <RuleFolderIcon />,
-    iconColor: "#7b1fa2",
-    codeName: "access_timesheet_log",
-  },
-  {
-    label: "Documents",
+    label: "Document Templates",
     section: "General",
     path: "/Home/Documents",
     icon: <DescriptionOutlinedIcon />,
@@ -124,7 +116,7 @@ const pages: readonly SidebarPage[] = [
     codeName: "access_document_template",
   },
   {
-    label: "Feedback",
+    label: "Suggestion / Feedback",
     section: "General",
     path: "/Home/Suggestions",
     icon: <FeedbackOutlinedIcon />,
@@ -159,6 +151,15 @@ const pages: readonly SidebarPage[] = [
     activeIcon: <AnalyticsIcon />,
     iconColor: "#9c27b0",
     codeName: "access_team_analysis",
+  },
+   {
+    label: "Timesheet Logs",
+    section: "Analysis",
+    path: "/Home/TimesheetLogs",
+    icon: <RuleFolderOutlinedIcon />,
+    activeIcon: <RuleFolderIcon />,
+    iconColor: "#7b1fa2",
+    codeName: "access_timesheet_log",
   },
   {
     label: "Users Managment",

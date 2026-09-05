@@ -89,6 +89,11 @@ interface TabPanelProps {
   value: number;
 }
 
+type WeeklyTimesheetStatus = {
+  timesheet_status: string;
+  submission_status?: boolean;
+};
+
 function CustomTabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -161,9 +166,19 @@ function TimeSheet() {
   const [loadingAssignTaskOptions, setLoadingAssignTaskOptions] = useState(false);
   const [assignTaskOptionsError, setAssignTaskOptionsError] = useState("");
   const [assigningCostMasterTasks, setAssigningCostMasterTasks] = useState(false);
+  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetStatus>({
+    timesheet_status: "Not Submitted",
+    submission_status: false,
+  });
 
   const openQuotationModal = async () => {
     handleClose();
+
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      return;
+    }
+
     setQuotationModalOpen(true);
 
     if (quotations.length > 0) {
@@ -181,11 +196,23 @@ function TimeSheet() {
 
   const openUndefinedModal = () => {
     handleClose();
+
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      return;
+    }
+
     setUndefinedModalOpen(true);
   };
 
   const openTicketsModal = async () => {
     handleClose();
+
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      return;
+    }
+
     setTicketsModalOpen(true);
     setLoadingTicketOptions(true);
 
@@ -199,6 +226,12 @@ function TimeSheet() {
 
   const openAssignTasksModal = async () => {
     handleClose();
+
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      return;
+    }
+
     setAssignTasksModalOpen(true);
     setLoadingAssignTaskOptions(true);
     setAssignTaskOptionsError("");
@@ -238,6 +271,12 @@ function TimeSheet() {
   };
 
   const handleQuotationSelect = async (selectedQuotations: ERPQuotation[]) => {
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      setQuotationModalOpen(false);
+      return;
+    }
+
     setAssigningQuotations(true);
 
     try {
@@ -247,6 +286,7 @@ function TimeSheet() {
             quotation_id: quotation.id,
             code: quotation.quotation_no,
             description: getQuotationDescription(quotation),
+            week_start: weekStartKey,
           }),
         ),
       );
@@ -267,6 +307,12 @@ function TimeSheet() {
     customerName: string;
     jobNumber: string;
   }) => {
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      setUndefinedModalOpen(false);
+      return;
+    }
+
     const trimmedDescription = data.description.trim();
     const trimmedCustomerName = data.customerName.trim();
     const trimmedJobNumber = data.jobNumber.trim();
@@ -279,6 +325,7 @@ function TimeSheet() {
       const response = await api.post("/projects/", {
         description,
         customer: trimmedCustomerName || null,
+        week_start: weekStartKey,
       });
       if (response.data?.id) {
         await api.post("/timesheet-entries/assign-project/", {
@@ -298,6 +345,12 @@ function TimeSheet() {
   };
 
   const assignSelectedTickets = async (ticketIds: number[]) => {
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      setTicketsModalOpen(false);
+      return;
+    }
+
     setAssigningTickets(true);
 
     try {
@@ -317,6 +370,12 @@ function TimeSheet() {
   };
 
   const assignCostMasterTasks = async (selection: Record<number, number[]>) => {
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      setAssignTasksModalOpen(false);
+      return;
+    }
+
     setAssigningCostMasterTasks(true);
 
     try {
@@ -324,6 +383,7 @@ function TimeSheet() {
         Object.entries(selection).map(([projectId, costMasterIds]) =>
           api.post(`/projects/${projectId}/cost-master-tasks/`, {
             cost_master_ids: costMasterIds,
+            week_start: weekStartKey,
           }),
         ),
       );
@@ -356,6 +416,53 @@ function TimeSheet() {
 
   const weekNumber = weekStart.isoWeek();
 
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .get<WeeklyTimesheetStatus>("/timesheet-statuses/current/", {
+        params: { week_start: weekStartKey },
+      })
+      .then((response) => {
+        if (!active) return;
+
+        setWeeklyStatus({
+          timesheet_status: response.data?.timesheet_status || "Not Submitted",
+          submission_status: Boolean(response.data?.submission_status),
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+
+        setWeeklyStatus({
+          timesheet_status: "Not Submitted",
+          submission_status: false,
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [weekStartKey, refreshKey]);
+
+  const normalizedTimesheetStatus = weeklyStatus.timesheet_status.toLowerCase();
+  const isSubmittedStatus =
+    normalizedTimesheetStatus === "submitted" ||
+    Boolean(weeklyStatus.submission_status);
+  const isAcceptedStatus = normalizedTimesheetStatus === "accepted";
+  const isUnlockedStatus = normalizedTimesheetStatus === "unlocked";
+  const timesheetActionsDisabled =
+    isSubmittedStatus || isAcceptedStatus || isUnlockedStatus;
+  const previewSubmitDisabled = timesheetActionsDisabled;
+  const unlockRequestDisabled = timesheetActionsDisabled;
+
+  const showLockedActionMessage = () => {
+    showNotification({
+      type: "warning",
+      message: "This action is not available for the current time sheet status.",
+    });
+  };
+
   const previousWeek = () => {
     setSelectedWeek((prev) => prev.subtract(1, "week"));
   };
@@ -376,6 +483,14 @@ function TimeSheet() {
 
   const openTimeSheetPreview = () => {
     handleClose();
+
+    if (previewSubmitDisabled) {
+      showNotification({
+        type: "warning",
+        message: "This time sheet cannot be previewed or submitted again.",
+      });
+      return;
+    }
 
     if (!weeklyHoursValidation.isSatisfied) {
       showNotification({
@@ -409,6 +524,15 @@ function TimeSheet() {
   }, []);
 
   const submitTimeSheet = async (comments: string) => {
+    if (previewSubmitDisabled) {
+      showNotification({
+        type: "warning",
+        message: "This time sheet cannot be submitted again.",
+      });
+      setTimeSheetPreviewOpen(false);
+      return;
+    }
+
     if (dailyHoursValidation.exceededDays.length > 0) {
       const visibleDays = dailyHoursValidation.exceededDays.slice(0, 3).join(", ");
       const remainingCount = dailyHoursValidation.exceededDays.length - 3;
@@ -478,11 +602,26 @@ function TimeSheet() {
 
   const openRemoveDialog = () => {
     handleClose();
+
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      return;
+    }
+
     setRemoveDialogOpen(true);
   };
 
   const openUnlockDialog = () => {
     handleClose();
+
+    if (unlockRequestDisabled) {
+      showNotification({
+        type: "warning",
+        message: "Unlock request is not available for this time sheet status.",
+      });
+      return;
+    }
+
     setUnlockDialogOpen(true);
   };
 
@@ -508,6 +647,12 @@ function TimeSheet() {
   };
 
   const removeSelectedTasks = async () => {
+    if (timesheetActionsDisabled) {
+      showLockedActionMessage();
+      setRemoveDialogOpen(false);
+      return;
+    }
+
     setRemovingTasks(true);
 
     try {
@@ -541,6 +686,15 @@ function TimeSheet() {
   };
 
   const requestUnlock = async () => {
+    if (unlockRequestDisabled) {
+      showNotification({
+        type: "warning",
+        message: "Unlock request is not available for this time sheet status.",
+      });
+      setUnlockDialogOpen(false);
+      return;
+    }
+
     setRequestingUnlock(true);
 
     try {
@@ -567,10 +721,6 @@ function TimeSheet() {
       setAnchorEl(null);
     }
   };
-
-  // const permissionList = JSON.parse(
-  //   localStorage.getItem("permissionList") ?? "[]",
-  // ) as string[];
 
   const permissionList = [
    
@@ -724,7 +874,11 @@ function TimeSheet() {
                 }}
               >
                 <Box sx={actionMenuSection}>Add work</Box>
-                <MenuItem onClick={openQuotationModal} sx={actionMenuItem("primary")}>
+                <MenuItem
+                  onClick={openQuotationModal}
+                  disabled={timesheetActionsDisabled}
+                  sx={actionMenuItem("primary")}
+                >
                   <ListItemIcon>
                     <WorkOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -734,7 +888,11 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openUndefinedModal} sx={actionMenuItem("info")}>
+                <MenuItem
+                  onClick={openUndefinedModal}
+                  disabled={timesheetActionsDisabled}
+                  sx={actionMenuItem("info")}
+                >
                   <ListItemIcon>
                     <HelpOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -744,7 +902,11 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openAssignTasksModal} sx={actionMenuItem("success")}>
+                <MenuItem
+                  onClick={openAssignTasksModal}
+                  disabled={timesheetActionsDisabled}
+                  sx={actionMenuItem("success")}
+                >
                   <ListItemIcon>
                     <AssignmentOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -754,7 +916,11 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openTicketsModal} sx={actionMenuItem("secondary")}>
+                <MenuItem
+                  onClick={openTicketsModal}
+                  disabled={timesheetActionsDisabled}
+                  sx={actionMenuItem("secondary")}
+                >
                   <ListItemIcon>
                     <ConfirmationNumberOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -767,7 +933,11 @@ function TimeSheet() {
                 <Divider sx={compactDivider} />
                 <Box sx={actionMenuSection}>Week controls</Box>
 
-                <MenuItem onClick={openUnlockDialog} sx={actionMenuItem("warning")}>
+                <MenuItem
+                  onClick={openUnlockDialog}
+                  disabled={unlockRequestDisabled}
+                  sx={actionMenuItem("warning")}
+                >
                   <ListItemIcon>
                     <LockOpenOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -791,7 +961,11 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openRemoveDialog} sx={actionMenuItem("error")}>
+                <MenuItem
+                  onClick={openRemoveDialog}
+                  disabled={timesheetActionsDisabled}
+                  sx={actionMenuItem("error")}
+                >
                   <ListItemIcon>
                     <DeleteOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -807,7 +981,11 @@ function TimeSheet() {
 
                 <Divider sx={compactDivider} />
                 <Box sx={actionMenuSection}>Finalize</Box>
-                <MenuItem onClick={openTimeSheetPreview} sx={actionMenuItem("success")}>
+                <MenuItem
+                  onClick={openTimeSheetPreview}
+                  disabled={previewSubmitDisabled}
+                  sx={actionMenuItem("success")}
+                >
                   <ListItemIcon>
                     <SendOutlinedIcon fontSize="small" />
                   </ListItemIcon>

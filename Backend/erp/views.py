@@ -55,7 +55,7 @@ class QuotationViewSet(viewsets.ReadOnlyModelViewSet):
                 # custom_project_name__isnull=False,
                 create_date__gte=datetime(2026, 1, 1, 0, 0),
             )
-            .exclude(status__in=["Closed", "Lost"])
+            .exclude(status__in=["Closed", "Lost","Rejected","Cancelled"])
             .values("quotation_no")
             .annotate(latest_id=Max("id"))
             .values_list("latest_id", flat=True)
@@ -71,7 +71,8 @@ class QuotationViewSet(viewsets.ReadOnlyModelViewSet):
     def budget_summary(self, request):
         latest_ids = (
             Quotation.objects
-            .filter(quotation_no__isnull=False)
+            .filter(quotation_no__isnull=False,status__in=["Confirmed", "Closed","Submitted"])
+            # .exclude(status__in=["Rejected", "Lost","Draft"])
             .values("quotation_no")
             .annotate(latest_id=Max("id"))
             .values_list("latest_id", flat=True)

@@ -75,6 +75,7 @@ type TaskConfig = {
 
 type DialogMode = "create" | "edit";
 type DialogType = "project" | "milestone" | "task";
+type FormErrors = Record<string, string>;
 
 type ConfigTableRow = Record<string, unknown> & {
   id: number;
@@ -121,6 +122,7 @@ export default function ProjectConfiguration() {
   const [projectForm, setProjectForm] = useState(emptyProjectForm);
   const [milestoneForm, setMilestoneForm] = useState(emptyMilestoneForm);
   const [taskForm, setTaskForm] = useState(emptyTaskForm);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [deleteTarget, setDeleteTarget] = useState<{
     type: DialogType;
     id: number;
@@ -196,6 +198,7 @@ export default function ProjectConfiguration() {
       code: project?.code ?? "",
       description: project?.description ?? "",
     });
+    setFormErrors({});
   };
 
   const openMilestoneDialog = (
@@ -210,6 +213,7 @@ export default function ProjectConfiguration() {
       category: milestone?.category == null ? "" : String(milestone.category),
       name: milestone?.name ?? "",
     });
+    setFormErrors({});
   };
 
   const openTaskDialog = (mode: DialogMode, task?: TaskConfig) => {
@@ -231,11 +235,82 @@ export default function ProjectConfiguration() {
       name: task?.name ?? "",
       description: task?.description ?? "",
     });
+    setFormErrors({});
   };
 
   const closeDialog = () => {
     setDialogType(null);
     setEditingId(null);
+    setFormErrors({});
+  };
+
+  const clearFieldError = (field: string) => {
+    setFormErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateProjectForm = () => {
+    const errors: FormErrors = {};
+
+    if (!projectForm.code.trim()) {
+      errors.code = "Project code is required.";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateMilestoneForm = () => {
+    const errors: FormErrors = {};
+
+    if (!milestoneForm.project) {
+      errors.project = "Project is required.";
+    }
+
+    if (!milestoneForm.name.trim()) {
+      errors.name = "Milestone name is required.";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateTaskForm = () => {
+    const errors: FormErrors = {};
+
+    if (!taskForm.project) {
+      errors.project = "Project is required.";
+    }
+
+    if (!taskForm.name.trim()) {
+      errors.name = "Task name is required.";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const isDialogFormValid = () => {
+    if (dialogType === "project") {
+      return Boolean(projectForm.code.trim());
+    }
+
+    if (dialogType === "milestone") {
+      return Boolean(milestoneForm.project && milestoneForm.name.trim());
+    }
+
+    if (dialogType === "task") {
+      return Boolean(taskForm.project && taskForm.name.trim());
+    }
+
+    return false;
   };
 
   const saveProject = async () => {
@@ -244,13 +319,15 @@ export default function ProjectConfiguration() {
       description: projectForm.description.trim() || null,
     };
 
-    if (!payload.code) return;
+    if (!validateProjectForm()) return false;
 
     if (dialogMode === "edit" && editingId) {
       await api.patch(`/projects/${editingId}/`, payload);
     } else {
       await api.post("/projects/", payload);
     }
+
+    return true;
   };
 
   const saveMilestone = async () => {
@@ -262,13 +339,15 @@ export default function ProjectConfiguration() {
       name: milestoneForm.name.trim(),
     };
 
-    if (!payload.project || !payload.name) return;
+    if (!validateMilestoneForm()) return false;
 
     if (dialogMode === "edit" && editingId) {
       await api.patch(`/milestones/${editingId}/`, payload);
     } else {
       await api.post("/milestones/", payload);
     }
+
+    return true;
   };
 
   const saveTask = async () => {
@@ -281,13 +360,15 @@ export default function ProjectConfiguration() {
       description: taskForm.description.trim() || null,
     };
 
-    if (!payload.project || !payload.name) return;
+    if (!validateTaskForm()) return false;
 
     if (dialogMode === "edit" && editingId) {
       await api.patch(`/tasks/${editingId}/`, payload);
     } else {
       await api.post("/tasks/", payload);
     }
+
+    return true;
   };
 
   const saveDialog = async () => {
@@ -295,9 +376,15 @@ export default function ProjectConfiguration() {
 
     setSaving(true);
     try {
-      if (dialogType === "project") await saveProject();
-      if (dialogType === "milestone") await saveMilestone();
-      if (dialogType === "task") await saveTask();
+      let saved = false;
+
+      if (dialogType === "project") saved = await saveProject();
+      if (dialogType === "milestone") saved = await saveMilestone();
+      if (dialogType === "task") saved = await saveTask();
+
+      if (!saved) {
+        return;
+      }
 
       showNotification({
         type: "success",
@@ -583,14 +670,18 @@ export default function ProjectConfiguration() {
             {dialogType === "project" && (
               <Stack spacing={2}>
                 <TextField
+                  required
                   label="Project Code"
                   value={projectForm.code}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    clearFieldError("code");
                     setProjectForm((current) => ({
                       ...current,
                       code: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
+                  error={Boolean(formErrors.code)}
+                  helperText={formErrors.code}
                   size="small"
                   fullWidth
                 />
@@ -613,17 +704,23 @@ export default function ProjectConfiguration() {
 
             {dialogType === "milestone" && (
               <Stack spacing={2}>
-                <FormControl size="small" fullWidth>
+                <FormControl
+                  required
+                  size="small"
+                  fullWidth
+                  error={Boolean(formErrors.project)}
+                >
                   <InputLabel>Project</InputLabel>
                   <Select
                     label="Project"
                     value={milestoneForm.project}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      clearFieldError("project");
                       setMilestoneForm((current) => ({
                         ...current,
                         project: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   >
                     {projects.map((project) => (
                       <MenuItem key={project.id} value={String(project.id)}>
@@ -631,16 +728,25 @@ export default function ProjectConfiguration() {
                       </MenuItem>
                     ))}
                   </Select>
+                  {formErrors.project && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                      {formErrors.project}
+                    </Typography>
+                  )}
                 </FormControl>
                 <TextField
+                  required
                   label="Milestone Name"
                   value={milestoneForm.name}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    clearFieldError("name");
                     setMilestoneForm((current) => ({
                       ...current,
                       name: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
+                  error={Boolean(formErrors.name)}
+                  helperText={formErrors.name}
                   size="small"
                   fullWidth
                 />
@@ -662,18 +768,24 @@ export default function ProjectConfiguration() {
 
             {dialogType === "task" && (
               <Stack spacing={2}>
-                <FormControl size="small" fullWidth>
+                <FormControl
+                  required
+                  size="small"
+                  fullWidth
+                  error={Boolean(formErrors.project)}
+                >
                   <InputLabel>Project</InputLabel>
                   <Select
                     label="Project"
                     value={taskForm.project}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      clearFieldError("project");
                       setTaskForm((current) => ({
                         ...current,
                         project: event.target.value,
                         milestone: "",
-                      }))
-                    }
+                      }));
+                    }}
                   >
                     {projects.map((project) => (
                       <MenuItem key={project.id} value={String(project.id)}>
@@ -681,6 +793,11 @@ export default function ProjectConfiguration() {
                       </MenuItem>
                     ))}
                   </Select>
+                  {formErrors.project && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                      {formErrors.project}
+                    </Typography>
+                  )}
                 </FormControl>
                 <FormControl size="small" fullWidth>
                   <InputLabel>Milestone</InputLabel>
@@ -703,14 +820,18 @@ export default function ProjectConfiguration() {
                   </Select>
                 </FormControl>
                 <TextField
+                  required
                   label="Task Name"
                   value={taskForm.name}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    clearFieldError("name");
                     setTaskForm((current) => ({
                       ...current,
                       name: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
+                  error={Boolean(formErrors.name)}
+                  helperText={formErrors.name}
                   size="small"
                   fullWidth
                 />
@@ -756,7 +877,7 @@ export default function ProjectConfiguration() {
               variant="contained"
               startIcon={<SaveOutlinedIcon />}
               onClick={() => void saveDialog()}
-              disabled={saving}
+              disabled={saving || !isDialogFormValid()}
             >
               {saving ? "Saving..." : "Save"}
             </Button>

@@ -222,6 +222,12 @@ export default function LessonLearnt() {
   const columns = useMemo<ColumnData<LessonLearntRow>[]>(
     () => [
       {
+        label: "#",
+        width: { xs: 40, sm: 40 },
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
+      {
         label: "Project",
         dataKey: "project",
         width: 180,

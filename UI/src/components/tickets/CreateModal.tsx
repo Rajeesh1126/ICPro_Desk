@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   Box,
   Button,
@@ -80,6 +80,12 @@ const emptyForm: TicketFormData = {
   deletedFileIds: [],
 };
 
+const getAttachmentName = (pathOrName?: string) =>
+  (pathOrName?.split("/").pop() ?? "").trim();
+
+const getAttachmentKey = (pathOrName?: string) =>
+  getAttachmentName(pathOrName).toLowerCase();
+
 function loggedUser(): number | null {
   const value = localStorage.getItem("user");
   const id = value ? Number(value) : NaN;
@@ -105,18 +111,18 @@ export default function CreateTicketModal({
     setFormData(
       Data
         ? {
-            task: Data.task || "",
-            description: Data.description || "",
-            department: Data.department || "",
-            current_status: Data.current_status || "open",
-            est_hours: Data.est_hours,
-            assigned_to: Data.assigned_to ?? "",
-            priority: (Data.priority?.toLowerCase() as Priority) || "",
-            target_date: Data.target_date || "",
-            files: Data.files || [],
-            newAttachments: [],
-            deletedFileIds: [],
-          }
+          task: Data.task || "",
+          description: Data.description || "",
+          department: Data.department || "",
+          current_status: Data.current_status || "open",
+          est_hours: Data.est_hours,
+          assigned_to: Data.assigned_to ?? "",
+          priority: (Data.priority?.toLowerCase() as Priority) || "",
+          target_date: Data.target_date || "",
+          files: Data.files || [],
+          newAttachments: [],
+          deletedFileIds: [],
+        }
         : emptyForm,
     );
     setFormErrorData({});
@@ -160,6 +166,60 @@ export default function CreateTicketModal({
     field: K,
     value: TicketFormData[K],
   ) => setFormData((current) => ({ ...current, [field]: value }));
+
+  const handleAttachmentChange = (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFiles = Array.from(event.currentTarget.files ?? []);
+
+    if (!selectedFiles.length) {
+      event.currentTarget.value = "";
+      return;
+    }
+
+    setFormData((current) => {
+      const existingAttachmentKeys = new Set([
+        ...current.files.map((file) => getAttachmentKey(file.file)),
+        ...current.newAttachments.map((file) => getAttachmentKey(file.name)),
+      ]);
+
+      const uniqueFiles: File[] = [];
+      let duplicateCount = 0;
+
+      selectedFiles.forEach((file) => {
+        const key = getAttachmentKey(file.name);
+
+        if (!key || existingAttachmentKeys.has(key)) {
+          duplicateCount += 1;
+          return;
+        }
+
+        existingAttachmentKeys.add(key);
+        uniqueFiles.push(file);
+      });
+
+      if (duplicateCount > 0) {
+        showNotification({
+          type: "warning",
+          message:
+            duplicateCount === 1
+              ? "Duplicate attachment skipped."
+              : `${duplicateCount} duplicate attachments skipped.`,
+        });
+      }
+
+      if (!uniqueFiles.length) {
+        return current;
+      }
+
+      return {
+        ...current,
+        newAttachments: [...current.newAttachments, ...uniqueFiles],
+      };
+    });
+
+    event.currentTarget.value = "";
+  };
 
   const handleGroupChange = (event: SelectChangeEvent<number | string>) => {
     const selectedDepartment = departments.find(
@@ -263,6 +323,7 @@ export default function CreateTicketModal({
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   const invalid =
     !formData.task.trim() ||
+    !formData.description.trim() ||
     !formData.department ||
     !formData.assigned_to ||
     !formData.priority ||
@@ -313,6 +374,7 @@ export default function CreateTicketModal({
           </Grid>
           <Grid size={{ xs: 12 }}>
             <TextField
+              required
               label="Description"
               multiline
               minRows={5}
@@ -406,16 +468,7 @@ export default function CreateTicketModal({
                   type="file"
                   multiple
                   hidden
-                  onChange={(event) => {
-                    const files = Array.from(event.currentTarget.files ?? []);
-
-                    update("newAttachments", [
-                      ...formData.newAttachments,
-                      ...files,
-                    ]);
-
-                    event.currentTarget.value = "";
-                  }}
+                  onChange={handleAttachmentChange}
                 />
 
                 {formData.newAttachments.length > 0

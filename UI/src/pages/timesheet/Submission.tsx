@@ -165,6 +165,17 @@ const getProjectAssignedTaskIds = (project: SubmissionProject) => {
   );
 };
 
+const isOthersProject = (project: SubmissionProject) =>
+  project.code?.toLowerCase() === "others";
+
+const getSelectableProjectAssignedTaskIds = (project: SubmissionProject) => {
+  if (isOthersProject(project)) {
+    return [];
+  }
+
+  return getProjectAssignedTaskIds(project);
+};
+
 const getWeekDayTotals = (projects: SubmissionProject[], weekDays: WeekDay[]) => {
   return weekDays.map((day) => ({
     date: day.date,
@@ -351,14 +362,16 @@ export default function Submission({
   const missingBudgetOwnerTaskNames = useMemo(
     () =>
       projects.flatMap((project) =>
-        project.milestones.flatMap((milestone) =>
-          milestone.assigned_tasks
-            .filter((task) =>
-              !task.assign_by &&
-              weekDays.some((day) => timeValueToSeconds(task.entries[day.date] ?? 0) > 0),
-            )
-            .map((task) => task.name || `Assigned task ${task.assign_id}`),
-        ),
+        isOthersProject(project)
+          ? []
+          : project.milestones.flatMap((milestone) =>
+              milestone.assigned_tasks
+                .filter((task) =>
+                  !task.assign_by &&
+                  weekDays.some((day) => timeValueToSeconds(task.entries[day.date] ?? 0) > 0),
+                )
+                .map((task) => task.name || `Assigned task ${task.assign_id}`),
+            ),
       ),
     [projects, weekDays],
   );
@@ -595,6 +608,14 @@ export default function Submission({
     taskId: number,
     owner: string,
   ) => {
+    if (isSubmitted || isAccepted) {
+      showNotification({
+        type: "warning",
+        message: "Budget owner cannot be changed after submission.",
+      });
+      return;
+    }
+
     let previousOwner: string | null = null;
 
     setProjects((current) =>
@@ -774,7 +795,8 @@ export default function Submission({
   ]);
   const isUnlocked = ["Unlocked"].includes(weeklyStatus.timesheet_status);
   const isSubmitted = weeklyStatus.timesheet_status === "Submitted" || Boolean(weeklyStatus.submission_status);
-  const isOthersProject = (project: SubmissionProject) => project.code?.toLowerCase() === "others";
+  const isAccepted = weeklyStatus.timesheet_status === "Accepted";
+  const budgetOwnerDisabled = isSubmitted || isAccepted;
   const canEditDate = (date: string, project: SubmissionProject) =>
     isUnlocked || (!isSubmitted && (isOthersProject(project) || editableDates.has(date)));
 
@@ -920,7 +942,8 @@ export default function Submission({
 
               const projectTotal =
                 getProjectTotal(project, weekDays);
-              const projectAssignedTaskIds = getProjectAssignedTaskIds(project);
+              const projectAssignedTaskIds = getSelectableProjectAssignedTaskIds(project);
+              const projectActionsDisabled = isOthersProject(project);
               const selectedProjectTaskCount = projectAssignedTaskIds.filter((taskId) =>
                 selectedAssignedTaskIds.includes(taskId),
               ).length;
@@ -1047,7 +1070,7 @@ export default function Submission({
                         size="small"
                         checked={allProjectTasksSelected}
                         indeterminate={someProjectTasksSelected}
-                        disabled={projectAssignedTaskIds.length === 0}
+                        disabled={projectActionsDisabled || projectAssignedTaskIds.length === 0}
                         onChange={(event) => {
                           projectAssignedTaskIds.forEach((taskId) => {
                             onAssignedTaskSelectionChange(
@@ -1302,6 +1325,7 @@ export default function Submission({
                                                   >
                                                     <Select
                                                       value={task.assign_by ?? ""}
+                                                      disabled={isOthersProject(project) || budgetOwnerDisabled}
                                                       onChange={(
                                                         event,
                                                       ) =>
@@ -1479,19 +1503,21 @@ export default function Submission({
                                                       columnWidths.select,
                                                   }}
                                                 >
-                                                  <Checkbox
-                                                    size="small"
-                                                    checked={selectedAssignedTaskIds.includes(task.assign_id)}
-                                                    onChange={(event) =>
-                                                      onAssignedTaskSelectionChange(
-                                                        task.assign_id,
-                                                        event.target.checked,
-                                                      )
-                                                    }
-                                                    inputProps={{
-                                                      "aria-label": `Select ${task.name}`,
-                                                    }}
-                                                  />
+                                                  {!isOthersProject(project) && (
+                                                    <Checkbox
+                                                      size="small"
+                                                      checked={selectedAssignedTaskIds.includes(task.assign_id)}
+                                                      onChange={(event) =>
+                                                        onAssignedTaskSelectionChange(
+                                                          task.assign_id,
+                                                          event.target.checked,
+                                                        )
+                                                      }
+                                                      inputProps={{
+                                                        "aria-label": `Select ${task.name}`,
+                                                      }}
+                                                    />
+                                                  )}
                                                 </TableCell>
 
                                               </TableRow>

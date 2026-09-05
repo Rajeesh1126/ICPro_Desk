@@ -339,6 +339,12 @@ export default function TimesheetLogs() {
   const columns = useMemo<ColumnData<TimesheetLogRow>[]>(
     () => [
       {
+        label: "#",
+        width: { xs: 40, sm: 40 },
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
+      {
         label: "Employee",
         dataKey: "employee_name",
         width: { xs: 160, sm: 200 },
@@ -361,6 +367,12 @@ export default function TimesheetLogs() {
 
   const reviewerColumns = useMemo<ColumnData<ReviewerLogRow>[]>(
     () => [
+      {
+        label: "#",
+        width: { xs: 40, sm: 40 },
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
       {
         label: "Employee",
         dataKey: "employee_name",

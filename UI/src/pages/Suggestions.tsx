@@ -167,6 +167,12 @@ export default function Suggestions() {
   const columns = useMemo<ColumnData<SystemSuggestion>[]>(
     () => [
       {
+        label: "#",
+        width: { xs: 40, sm: 40 },
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
+      {
         label: "Suggestion",
         dataKey: "suggestion",
         width: 360,

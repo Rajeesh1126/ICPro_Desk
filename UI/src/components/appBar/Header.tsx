@@ -194,11 +194,36 @@ type ChangePasswordForm = {
   confirm_password: string;
 };
 
+type ChangePasswordErrors = Partial<
+  Record<keyof ChangePasswordForm | "non_field_errors" | "detail", string | string[]>
+>;
+
+type ChangePasswordErrorResponse = {
+  response?: {
+    status?: number;
+    data?: ChangePasswordErrors;
+  };
+};
+
 const emptyPasswordForm: ChangePasswordForm = {
   old_password: "",
   new_password: "",
   confirm_password: "",
 };
+
+function isChangePasswordErrorResponse(
+  error: unknown,
+): error is ChangePasswordErrorResponse {
+  return typeof error === "object" && error !== null && "response" in error;
+}
+
+function formatPasswordError(error?: string | string[]) {
+  if (Array.isArray(error)) {
+    return error.join(" ");
+  }
+
+  return error;
+}
 
 export default function ResponsiveAppBar({
   onMenuClick,
@@ -212,6 +237,9 @@ export default function ResponsiveAppBar({
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [passwordForm, setPasswordForm] =
     useState<ChangePasswordForm>(emptyPasswordForm);
+  const [passwordErrors, setPasswordErrors] = useState<ChangePasswordErrors>(
+    {},
+  );
   const [changingPassword, setChangingPassword] = useState(false);
 
   // useEffect(() => {
@@ -265,6 +293,7 @@ export default function ResponsiveAppBar({
   const openChangePasswordDialog = () => {
     setProfileAnchor(null);
     setPasswordForm(emptyPasswordForm);
+    setPasswordErrors({});
     setChangePasswordOpen(true);
   };
 
@@ -272,13 +301,17 @@ export default function ResponsiveAppBar({
     if (changingPassword) return;
     setChangePasswordOpen(false);
     setPasswordForm(emptyPasswordForm);
+    setPasswordErrors({});
   };
 
   const updatePasswordForm = <K extends keyof ChangePasswordForm>(
     key: K,
     value: ChangePasswordForm[K],
   ) => {
-    setPasswordForm((current) => ({ ...current, [key]: value }));
+    const sanitizedValue = value.replace(/\s/g, "");
+
+    setPasswordForm((current) => ({ ...current, [key]: sanitizedValue }));
+    setPasswordErrors((current) => ({ ...current, [key]: undefined }));
   };
 
   const submitChangePassword = async () => {
@@ -304,6 +337,7 @@ export default function ResponsiveAppBar({
     }
 
     setChangingPassword(true);
+    setPasswordErrors({});
     try {
       await api.post("/users/change_password/", passwordForm);
       showNotification({
@@ -311,6 +345,25 @@ export default function ResponsiveAppBar({
         message: "Password changed successfully. Please login again.",
       });
       logout();
+    } catch (error: unknown) {
+      if (isChangePasswordErrorResponse(error) && error.response?.status === 400) {
+        const errors = error.response.data ?? {};
+
+        setPasswordErrors(errors);
+
+        const generalError =
+          formatPasswordError(errors.non_field_errors) ||
+          formatPasswordError(errors.detail);
+
+        if (generalError) {
+          showNotification({
+            type: "error",
+            message: generalError,
+          });
+        }
+      } else {
+        throw error;
+      }
     } finally {
       setChangingPassword(false);
     }
@@ -683,6 +736,8 @@ export default function ResponsiveAppBar({
               required
               size="small"
               autoComplete="current-password"
+              error={Boolean(passwordErrors.old_password)}
+              helperText={formatPasswordError(passwordErrors.old_password)}
             />
             <TextField
               label="New Password"
@@ -695,6 +750,8 @@ export default function ResponsiveAppBar({
               required
               size="small"
               autoComplete="new-password"
+              error={Boolean(passwordErrors.new_password)}
+              helperText={formatPasswordError(passwordErrors.new_password)}
             />
             <TextField
               label="Confirm Password"
@@ -707,6 +764,8 @@ export default function ResponsiveAppBar({
               required
               size="small"
               autoComplete="new-password"
+              error={Boolean(passwordErrors.confirm_password)}
+              helperText={formatPasswordError(passwordErrors.confirm_password)}
             />
           </Stack>
         </DialogContent>

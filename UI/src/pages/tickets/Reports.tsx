@@ -100,7 +100,18 @@ function FilterFields({
   reportType,
 }: FilterFieldsProps) {
   const update = (field: keyof Filters, value: string) =>
-    setFilters((current) => ({ ...current, [field]: value }));
+    setFilters((current) => {
+      if (field === "startDate" && current.endDate && value > current.endDate) {
+        return { ...current, startDate: value, endDate: value };
+      }
+
+      if (field === "endDate" && current.startDate && value < current.startDate) {
+        return { ...current, startDate: value, endDate: value };
+      }
+
+      return { ...current, [field]: value };
+    });
+
   return (
     <Grid container spacing={1.5}>
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
@@ -111,7 +122,10 @@ function FilterFields({
           size="small"
           value={filters.startDate}
           onChange={(event) => update("startDate", event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { max: filters.endDate || undefined },
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
@@ -122,7 +136,10 @@ function FilterFields({
           size="small"
           value={filters.endDate}
           onChange={(event) => update("endDate", event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: filters.startDate || undefined },
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
