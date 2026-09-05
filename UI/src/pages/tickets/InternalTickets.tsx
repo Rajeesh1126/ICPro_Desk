@@ -18,7 +18,7 @@ import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
 import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
 import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
-import CreateTicketModal from "../../components/Tickets/CreateModal";
+import CreateTicketModal from "../../components/Internal Tickets/CreateModal";
 import TicketDetailModal from "../../components/Tickets/DetailModal";
 import TicketCardView from "../../components/common/CardView";
 import type {
@@ -53,8 +53,7 @@ function loggedUser(): number | null {
 	return Number.isInteger(id) ? id : null;
 }
 
-
-export default function Tickets() {
+export default function internaltickets() {
   const userId = useMemo(() => loggedUser(), []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -67,9 +66,9 @@ export default function Tickets() {
   useEffect(() => {
     let active = true;
     void api
-      .get("/tickets/?is_external=true/")
+      .get("/tickets/?is_external=false")
       .then((response) => {
-        console.log("tickets....",response)
+        console.log("internaltickets....",response)
         if (!active) return;
         const source = (
           Array.isArray(response.data) ? response.data : []
@@ -221,9 +220,9 @@ export default function Tickets() {
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
           <Box>
-            <Typography variant="h5">Tickets</Typography>
+            <Typography variant="h5">Internal Tickets</Typography>
             <Typography variant="body2" color="text.secondary">
-              Track, assign, and complete team tickets from one workspace.
+              Track, assign, and complete team internal tickets from one workspace.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>

@@ -4,6 +4,7 @@ import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import AnalysisPieChart from "../../components/Dashboard/AnalysisPieChart";
+import TeamWorkloadDetailsModal from "../../components/Dashboard/TeamWorkloadDetailsModal";
 import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
 import type { TicketData } from "../../types/dataTypes";
 import api from "../../api/axios";
@@ -29,7 +30,14 @@ import { appPageSx,
   emptyStateSx, 
   minWidthZeroSx } from "../../styles/common";
 
-type DepartmentLoad = { name: string; count: number; color?: string };
+// type DepartmentLoad = { name: string; count: number; color?: string };
+type DepartmentLoad = {
+  name: string;
+  completed: number;
+  delayed: number;
+  inprogress: number;
+  color?: string;
+};
 type TicketSummary = {
   total: number;
   statuses: Record<string, number>;
@@ -48,6 +56,8 @@ const EMPTY_SUMMARY: TicketSummary = {
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<TicketSummary>(EMPTY_SUMMARY);
+  const [selectedDepartment, setSelectedDepartment] = useState<any | null>(null);
+  const [openWorkloadModal, setOpenWorkloadModal] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -74,6 +84,16 @@ export default function Dashboard() {
     { label: "Actual Completion", dataKey: "actual_end_date" },
   ], []);
 
+  const handleDepartmentClick = (department: any) => {
+    setSelectedDepartment(department);
+    setOpenWorkloadModal(true);
+  };
+
+  const handleCloseWorkloadModal = () => {
+    setOpenWorkloadModal(false);
+    setSelectedDepartment(null);
+  };
+
   return (
     <Box sx={appPageSx}>
       <Box component="main" sx={dashboardPageBoxSx1}>
@@ -88,12 +108,12 @@ export default function Dashboard() {
 
         <Grid container spacing={1.5}>
 
-          <Grid size={{ xs: 12, md: 7, lg: 7 }}>
+          {/* <Grid size={{ xs: 12, md: 7, lg: 7 }}>
             <Paper
               elevation={0}
               sx={dashboardDynamicPageDynamicPaperSx1({ borderedSurfaceSx })}
             >
-              <Stack direction="row" spacing={1.25} alignItems="center" sx={dashboardPageStackSx1}>
+              <Stack direction="row" spacing={1.25} alignItems="center" sx={dashboardPageStackSx1}> 
                 <Box
                   sx={dashboardPageBoxSx3}
                 >
@@ -169,11 +189,205 @@ export default function Dashboard() {
                       </Stack>
                     </Box>
                   )
-                }) : (
+                 }) : (
+                   <Box sx={emptyStateSx}>
+                     <Box>
+                       <EventAvailableRoundedIcon sx={dashboardPageEventAvailableRoundedIconSx1} />
+                       <Typography fontWeight={700}>No team workload yet</Typography>
+                     </Box>
+                   </Box>
+                 )}
+               </Stack>
+             </Paper>
+          </Grid> */}
+
+          {/* SINGLE WORKLOAD BAR */}
+          <Grid size={{ xs: 12, md: 7, lg: 7 }}>
+            <Paper
+              elevation={0}
+              sx={dashboardDynamicPageDynamicPaperSx1({ borderedSurfaceSx })}
+            >
+              {/* HEADER */}
+              <Stack
+                direction="row"
+                spacing={1.25}
+                alignItems="center"
+                sx={dashboardPageStackSx1}
+              >
+                <Box sx={dashboardPageBoxSx3}>
+                  <BusinessRoundedIcon fontSize="small" />
+                </Box>
+
+                <Box>
+                  <Typography fontWeight={800}>
+                    Teams workload
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    Tickets by team
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {/* DEPARTMENTS */}
+              <Stack spacing={0} sx={dashboardPageStackSx2}>
+                {summary.deptData.length ? (
+                  summary.deptData.map((department, index) => {
+                    const color = department.color || "primary.main";
+
+                    const totalTickets =
+                      department.completed +
+                      department.inprogress +
+                      department.delayed;
+
+                    const total = Math.max(totalTickets, 1);
+
+                    return (
+                      <Box
+                        key={department.name}
+                        onClick={() => handleDepartmentClick(department)}
+                        sx={{
+                          ...dashboardDynamicPageDynamicBoxSx1({
+                            index,
+                            summary,
+                          }),
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            backgroundColor: "rgba(8, 141, 165, 0.04)",
+                            transform: "translateY(-1px)",
+                          },
+                        }}
+                      >
+                        {/* TEAM NAME + TOTAL */}
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ mb: 1 }}
+                        >
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                          >
+                            <Box
+                              sx={dashboardDynamicPageDynamicBoxSx2({
+                                color,
+                              })}
+                            />
+
+                            <Typography
+                              variant="body2"
+                              fontWeight={800}
+                              noWrap
+                              sx={minWidthZeroSx}
+                            >
+                              {department.name}
+                            </Typography>
+                          </Stack>
+
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={700}
+                          >
+                            {totalTickets} tickets
+                          </Typography>
+                        </Stack>
+
+                        {/* VALUES */}
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
+                          sx={{
+                            mb: 0.75,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ color: "#22c55e" }}
+                          >
+                            ✓ {department.completed} Completed
+                          </Typography>
+
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ color: "#3b82f6" }}
+                          >
+                            ● {department.inprogress} In Progress
+                          </Typography>
+
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ color: "#ef4444" }}
+                          >
+                            ! {department.delayed} Delayed
+                          </Typography>
+                        </Stack>
+
+                        {/* SINGLE STACKED PROGRESS BAR */}
+                        <Box
+                          sx={{
+                            height: 8,
+                            width: "100%",
+                            borderRadius: 10,
+                            overflow: "hidden",
+                            display: "flex",
+                            backgroundColor: "#eef2f7",
+                          }}
+                        >
+                          {/* COMPLETED */}
+                          {department.completed > 0 && (
+                            <Box
+                              sx={{
+                                width: `${(department.completed / total) * 100}%`,
+                                backgroundColor: "#22c55e",
+                              }}
+                            />
+                          )}
+
+                          {/* IN PROGRESS */}
+                          {department.inprogress > 0 && (
+                            <Box
+                              sx={{
+                                width: `${(department.inprogress / total) * 100}%`,
+                                backgroundColor: "#3b82f6",
+                              }}
+                            />
+                          )}
+
+                          {/* DELAYED */}
+                          {department.delayed > 0 && (
+                            <Box
+                              sx={{
+                                width: `${(department.delayed / total) * 100}%`,
+                                backgroundColor: "#ef4444",
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    );
+                  })
+                ) : (
                   <Box sx={emptyStateSx}>
                     <Box>
-                      <EventAvailableRoundedIcon sx={dashboardPageEventAvailableRoundedIconSx1} />
-                      <Typography fontWeight={700}>No team workload yet</Typography>
+                      <EventAvailableRoundedIcon
+                        sx={dashboardPageEventAvailableRoundedIconSx1}
+                      />
+
+                      <Typography fontWeight={700}>
+                        No team workload yet
+                      </Typography>
                     </Box>
                   </Box>
                 )}
@@ -202,8 +416,13 @@ export default function Dashboard() {
           </Grid>
 
         </Grid>
-
+                
       </Box>
+      <TeamWorkloadDetailsModal
+        open={openWorkloadModal}
+        department={selectedDepartment}
+        onClose={handleCloseWorkloadModal}
+      />
     </Box>
   );
 }

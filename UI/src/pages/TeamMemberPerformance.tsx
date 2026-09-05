@@ -16,11 +16,6 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { TableVirtuoso } from "react-virtuoso";
-import {
-    VirtualizedTable,
-    type ColumnData,
-} from "../components/common/TableView";
-
 
 // =====================================================
 // TYPES
@@ -276,7 +271,7 @@ const TeamMemberPerformance: React.FC = () => {
             {
                 key: "employee",
                 label: "Employee",
-                width: 180,
+                width: 220,
             },
             {
                 key: "completed",
@@ -296,7 +291,7 @@ const TeamMemberPerformance: React.FC = () => {
             {
                 key: "todo",
                 label: "To Do List",
-                width: 120,
+                width: 220,
             },
             {
                 key: "hours",
@@ -356,12 +351,10 @@ const TeamMemberPerformance: React.FC = () => {
                     borderRadius: "8px",
                     overflow: "hidden",
                     height: "calc(100% - 75px)",
+                    width:"100%"
                 }}
             >
-                <TableVirtuoso
-                    style={{
-                        height: "100%",
-                    }}
+                <TableVirtuoso style={{ height: "100%" }}
                     data={teamMembers}
                     fixedHeaderContent={() => (
                         <tr>
@@ -369,7 +362,7 @@ const TeamMemberPerformance: React.FC = () => {
                                 <th
                                     key={column.key}
                                     style={{
-                                        width: column.width,
+                                        width: `${column.width}%`,
                                         padding: "14px 16px",
                                         textAlign:
                                             column.key === "employee"
@@ -672,10 +665,10 @@ const TeamMemberPerformance: React.FC = () => {
                             <Box
                                 sx={{
                                     height: 400,
-                                    border:
-                                        "1px solid #e2e8f0",
+                                    border: "1px solid #e2e8f0",
                                     borderRadius: "6px",
                                     overflow: "hidden",
+                                    width: "100%",
                                 }}
                             >
                                 <TableVirtuoso
@@ -754,9 +747,13 @@ const TeamMemberPerformance: React.FC = () => {
                                     itemContent={(_, ticket) => (
                                         <>
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "30%"
+                                                }}
+                                                // style={
+                                                //     cellStyle
+                                                // }
                                             >
                                                 <Typography
                                                     sx={{
@@ -772,9 +769,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "20%"
+                                                }}
                                             >
                                                 {
                                                     ticket.title
@@ -782,9 +780,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "10%"
+                                                }}
                                             >
                                                 {
                                                     ticket.project
@@ -792,9 +791,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "10%"
+                                                }}
                                             >
                                                 <PriorityChip
                                                     priority={
@@ -804,9 +804,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "10%"
+                                                }}
                                             >
                                                 <StatusChip
                                                     status={
@@ -816,9 +817,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "10%"
+                                                }}
                                             >
                                                 {
                                                     ticket.assignedDate
@@ -826,9 +828,10 @@ const TeamMemberPerformance: React.FC = () => {
                                             </td>
 
                                             <td
-                                                style={
-                                                    cellStyle
-                                                }
+                                                style={{
+                                                    ...cellStyle,
+                                                    width: "10%"
+                                                }}
                                             >
                                                 {
                                                     ticket.targetDate
@@ -840,6 +843,7 @@ const TeamMemberPerformance: React.FC = () => {
                                                     ...cellStyle,
                                                     textAlign:
                                                         "center",
+                                                        width: "10%"
                                                 }}
                                             >
                                                 {ticket.hours}

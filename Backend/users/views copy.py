@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group,Permission
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.generics import ListAPIView
+from rest_framework.decorators import action,api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from core.permissions import RoleBasedPermission
@@ -18,6 +19,7 @@ from .serializers import (
     DepartmentSerializer,
     PermissionSerializer
 )
+from django.http import JsonResponse
 # logger = logging.getLogger(__name__)
 
 User = get_user_model()
@@ -39,7 +41,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def forgot_password(self, request):
-        serializer = ForgotPasswordSerializer(data=request.data, context={'request': request})
+        serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
@@ -57,6 +59,11 @@ class UserViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
+    permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
+class PermissionListView(viewsets.ReadOnlyModelViewSet):
+    queryset = Permission.objects.all().order_by('name')
+    serializer_class = PermissionSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
 
 class GroupViewSet(viewsets.ModelViewSet):
@@ -77,7 +84,6 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
             .order_by("first_name", "last_name")
         )
 
-
 class DepartmentViewSet(viewsets.ModelViewSet):
 
     queryset = Group.objects.all().order_by('name')
@@ -92,58 +98,26 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         'patch',
     ]
 
- 
-    
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
 def currentUserGroups(request):
-    user_groups = Group.objects.filter(
-        user=request.user
+    groups = list(
+        request.user.groups.values('name','id')
     )
+    executive_depts = list(
+        request.user.profile.department.values('name','id')
+    )
+    departments = groups + executive_depts
 
-    managed_departments = Group.objects.filter(
-        manager_mapping__manager=request.user
-    )
+    unique_departments = list({
+        dept['id']: dept
+        for dept in departments
+    }.values())
+    department_ids = [dept['id'] for dept in unique_departments]
 
-    departments = (
-        (user_groups | managed_departments)
-        .distinct()
-        .order_by('name')
-    )
-    department_ids = list(departments.values_list('id', flat=True))
-
-    userslist = (
-        User.objects
-        .filter(groups__id__in=department_ids)
-        .values('id', 'username', 'first_name', 'last_name', 'email')
-        .distinct()
-        .order_by('first_name', 'last_name', 'username')
-    )
+    userslist = User.objects.filter(groups__id__in = department_ids).values('first_name',"id").distinct()
     data = {
-        "department_ids": department_ids,
-        "departments": DepartmentSerializer(departments, many=True).data,
-        "groups": GroupSerializer(user_groups.order_by('name'), many=True).data,
-        "managed_departments": DepartmentSerializer(
-            managed_departments.order_by('name'),
-            many=True,
-        ).data,
-        "userslist": list(userslist),
+        "department_ids":department_ids,
+        "departments": unique_departments,
+        "userslist":list(userslist)
     }
-    return Response(data)
-
-class PermissionListViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = PermissionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return (
-            Permission.objects
-            .select_related('content_type')
-            .filter(
-                content_type__app_label='users',
-                content_type__model='role',
-                codename__startswith='access_',
-            )
-            .order_by('name', 'id')
-            .distinct()
-        )
+    return JsonResponse(data)

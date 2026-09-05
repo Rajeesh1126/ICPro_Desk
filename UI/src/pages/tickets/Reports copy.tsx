@@ -20,7 +20,7 @@ import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FilterAltRoundedIcon from "@mui/icons-material/FilterAltRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
-import type { TicketData, UserSummary, SelfTicketData, ReportingEmployees } from "../../types/dataTypes";
+import type { TicketData, UserSummary, SelfTicketData } from "../../types/dataTypes";
 import * as XLSX from "xlsx";
 import api from "../../api/axios";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
@@ -29,14 +29,14 @@ import SelfTicketDetailModel from "../../components/SelfTickets/DetailModel";
 import { appPageBox, DRAWER_WIDTH, flexColumnFillSx, inlineCenterGapSx, marginBottomSectionSx, marginTopSectionSx, pageHeaderSx, reportsPageBoxSx2, reportsPageBoxSx4, reportsPageBoxSx5, reportsPageFilterDrawerPaperSx, responsiveRightActionsSx, TOGGLE_BUTTON } from "../../styles/common";
 
 type Department = { id: number; name: string };
-type Filters = { startDate: string; endDate: string; status: string; priority: string; department: string; creator: string; assigned_to: string};
+type Filters = { startDate: string; endDate: string; status: string; priority: string; department: string; creator: string };
 
 function initialFilters(): Filters {
   const today = new Date();
   const previousDate = new Date(today);
-    previousDate.setDate(today.getDate() - 30);
+  previousDate.setDate(today.getDate() - 30);
   const format = (date: Date) => date.toISOString().split("T")[0];
-  return { startDate: format(previousDate), endDate: format(today), status: "", priority: "", department: "", creator: "",assigned_to: "" };
+  return { startDate: format(previousDate), endDate: format(today), status: "", priority: "", department: "", creator: "" };
 }
 
 type FilterFieldsProps = {
@@ -44,11 +44,10 @@ type FilterFieldsProps = {
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
   departments: Department[];
   users: UserSummary[];
-  teamMembers: ReportingEmployees[];
-  reportType: "tickets" | "dolist" | "internal tickets";
+  reportType: "tickets" | "dolist";
 };
 
-function FilterFields({ filters, setFilters, departments, users, reportType, teamMembers }: FilterFieldsProps) {
+function FilterFields({ filters, setFilters, departments, users, reportType }: FilterFieldsProps) {
   const update = (field: keyof Filters, value: string) => setFilters((current) => ({ ...current, [field]: value }));
   return (
     <Grid container spacing={1.5} sx={{ width: DRAWER_WIDTH }}>
@@ -81,7 +80,7 @@ function FilterFields({ filters, setFilters, departments, users, reportType, tea
           </Select>
         </FormControl>
       </Grid>
-      { reportType === "tickets" && <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
+      {reportType === "tickets" ? <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
         <FormControl fullWidth size="small">
           <InputLabel shrink>Assigned By</InputLabel>
           <Select value={filters.creator} label="Assigned By" displayEmpty onChange={(event) => update("creator", event.target.value)}>
@@ -93,21 +92,8 @@ function FilterFields({ filters, setFilters, departments, users, reportType, tea
             ))}
           </Select>
         </FormControl>
-      </Grid>}
-      {reportType === "internal tickets" && <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-        <FormControl fullWidth size="small">
-          <InputLabel shrink>Assigned To</InputLabel>
-          <Select value={filters.assigned_to} label="Assigned To" displayEmpty onChange={(event) => update("assigned_to", event.target.value)}>
-            <MenuItem value=""><em>All users</em></MenuItem>
-            {teamMembers.map((user) => (
-              <MenuItem key={user.id ?? user.first_name} value={user.id ?? user.id}>
-                {user.first_name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>}
-      {reportType === "dolist" && <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
+      </Grid> : ""}
+      {reportType === "dolist" ? <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
         <FormControl fullWidth size="small">
           <InputLabel shrink>Created By</InputLabel>
           <Select value={filters.creator} label="Created By" displayEmpty onChange={(event) => update("creator", event.target.value)}>
@@ -119,8 +105,8 @@ function FilterFields({ filters, setFilters, departments, users, reportType, tea
             ))}
           </Select>
         </FormControl>
-      </Grid>}
-      {reportType === "tickets" && <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
+      </Grid> : ""}
+      {reportType === "tickets" ? <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
         <FormControl fullWidth size="small">
           <InputLabel shrink>Teams</InputLabel>
           <Select value={filters.department} label="Teams" displayEmpty onChange={(event) => update("department", event.target.value)}>
@@ -132,7 +118,7 @@ function FilterFields({ filters, setFilters, departments, users, reportType, tea
             ))}
           </Select>
         </FormControl>
-      </Grid>}
+      </Grid> : ""}
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
         <FormControl fullWidth size="small">
           <InputLabel shrink>Priority</InputLabel>
@@ -162,8 +148,7 @@ export default function Reports() {
   const [dialogTicketOpen, setDialogTicketOpen] = useState(false);
   const [dialogSelfOpen, setDialogSelfOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [reportType, setReportType] = useState<"tickets" | "dolist" | "internal tickets">("tickets");
-  const [teamMembers, setTeamMembers] = useState<ReportingEmployees[]>([]);
+  const [reportType, setReportType] = useState<"tickets" | "dolist">("tickets");
 
   useEffect(() => {
     let active = true;
@@ -181,36 +166,15 @@ export default function Reports() {
 
   useEffect(() => {
     let active = true;
-    void api
-      .get("/teams/")
-      .then((response) => {
-        if (!active) return;
-        const data = (
-          Array.isArray(response.data)
-            ? response.data
-            : []
-        ) as ReportingEmployees[];
-        console.log(data)
-        setTeamMembers(data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    const endpoint = reportType === "internal tickets"
-        ? "/tickets/?include_executive=true&is_external=false"
-        : reportType === "tickets"
-            ? "/tickets/?include_executive=true&is_external=true"
-            : "/self-tickets/?include_executive=true";
+    const endpoint =
+      reportType === "tickets"
+        ? "/tickets/?include_executive=true"
+        : "/self-tickets/?include_executive=true";
     void api
       .get(endpoint)
       .then((response) => {
         if (!active) return;
-        if (reportType === "tickets" || reportType === "internal tickets") {
+        if (reportType === "tickets") {
           const source = (Array.isArray(response.data) ? response.data : []) as TicketData[];
           const mapped = source.map((ticket) => ({
             ...ticket,
@@ -332,19 +296,15 @@ export default function Reports() {
 
     return tickets.filter((ticket) => {
       const created = ticket.created_at ? new Date(ticket.created_at) : null;
-      const creatorOrAssigneeMatch =
-        reportType === "internal tickets"
-          ? !filters.assigned_to ||
-            ticket.assigned_to === Number(filters.assigned_to)
-          : !filters.creator ||
-            ticket.creator === Number(filters.creator);
+
       return (
         (!filters.status ||
           statusGroups[filters.status]?.includes(ticket.current_status)) &&
         (!filters.priority || ticket.priority === filters.priority) &&
         (!filters.department ||
           ticket.department === Number(filters.department)) &&
-        creatorOrAssigneeMatch &&
+        (!filters.creator ||
+          ticket.creator === Number(filters.creator)) &&
         (!filters.startDate ||
           !created ||
           created >= new Date(filters.startDate)) &&
@@ -415,17 +375,17 @@ export default function Reports() {
               exclusive
               value={reportType}
               size="small"
-              onChange={(_, next: "internal tickets" | "tickets" | "dolist" | null) =>
+              onChange={(_, next: "tickets" | "dolist" | null) =>
                 next && setReportType(next)
               }
               aria-label="Task view"
               sx={TOGGLE_BUTTON}
             >
-              {/* <Tooltip title="Internal Tickets" arrow>
+              <Tooltip title="Internal Tickets" arrow>
                 <ToggleButton value="internal tickets" aria-label="Internal Tickets">
                   Internal Tickets
                 </ToggleButton>
-              </Tooltip> */}
+              </Tooltip>
               <Tooltip title="Tickets" arrow>
                 <ToggleButton value="tickets" aria-label="Tickets">
                   Tickets
@@ -444,7 +404,7 @@ export default function Reports() {
         </Box>
 
         <Box sx={reportsPageBoxSx4}>
-          {reportType === "tickets" || reportType === "internal tickets" ? (
+          {reportType === "tickets" ? (
             <VirtualizedTable columns={ticketColumns} rows={filteredTickets} height="100%" tableHead={`Tickets`} />
           ) : (
             <VirtualizedTable columns={dolistColumns} rows={filteredSelfTickets} height="100%" tableHead={`Do-List`} />
@@ -460,7 +420,7 @@ export default function Reports() {
               <CloseRoundedIcon />
             </IconButton>
           </Stack>
-          <FilterFields filters={filters} setFilters={setFilters} teamMembers={teamMembers} departments={departments} users={users} reportType={reportType} />
+          <FilterFields filters={filters} setFilters={setFilters} departments={departments} users={users} reportType={reportType} />
           <Button fullWidth variant="contained" onClick={() => setFilterDrawerOpen(false)} sx={marginTopSectionSx}>
             {reportType === "tickets" ? `Show ${filteredTickets.length} Tickets` : `Show ${filteredSelfTickets.length} Tasks`}
           </Button>

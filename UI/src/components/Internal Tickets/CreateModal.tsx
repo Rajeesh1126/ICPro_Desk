@@ -30,7 +30,8 @@ import type {
   ReportingEmployees,
   TicketData,
   TicketFormData,
-  groupData
+  groupData,
+  LoggedUser
 } from "../../types/dataTypes";
 import {
   modalActionButtonSx,
@@ -83,14 +84,23 @@ const EMPTY_FORM: TicketFormData = {
   files: [],
   newAttachments: [],
   deletedFileIds: [],
-  is_external: true
+  is_external: false
 };
 
-function loggedUser(): number | null {
-	const value = localStorage.getItem("user");
-	const id = value ? Number(value) : NaN;
+function getLoggedUser(): LoggedUser | null {
+    const userId = localStorage.getItem("user");
+    const department = localStorage.getItem("userDepartment");
 
-	return Number.isInteger(id) ? id : null;
+    if (!userId) return null;
+
+    const id = Number(userId);
+
+    if (!Number.isInteger(id)) return null;
+
+    return {
+        id,
+        department: department ? Number(department) : null,
+    };
 }
 
 export default function CreateTicketModal({
@@ -103,7 +113,9 @@ export default function CreateTicketModal({
   const [departments, setDepartments] = useState<groupData[]>([]);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<ReportingEmployees[]>([]);
-  const userId = useMemo(() => loggedUser(), []);
+  const loggedUser = useMemo(() => getLoggedUser(), []);
+  const userId = loggedUser?.id ?? null;
+  const userDepartment = loggedUser?.department ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -122,7 +134,7 @@ export default function CreateTicketModal({
           files: Data.files || [],
           newAttachments: [],
           deletedFileIds: [],
-          is_external: Data.is_external ?? true
+          is_external: Data.is_external ?? false
         }
         : EMPTY_FORM,
     );
@@ -317,7 +329,7 @@ export default function CreateTicketModal({
         >
           <Box>
             <Typography variant="h6">
-              {Data ? "Edit Ticket" : "Create Ticket"}
+              {Data ? "Edit Internal Ticket" : "Create Internal Ticket"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Add clear ownership, priority, and timing.
@@ -358,12 +370,39 @@ export default function CreateTicketModal({
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl required fullWidth>
+                  <InputLabel>Assigned to</InputLabel>
+
+                  <Select
+                      value={formData.assigned_to}
+                      label="Assigned to"
+                      onChange={(event) => {
+                          setFormData((prev) => ({
+                              ...prev,
+                              assigned_to: event.target.value,
+                          }));
+                      }}
+                  >
+                      {users.map((item) => (
+                          <MenuItem
+                              key={item.id}
+                              value={item.id}
+                          >
+                            {item.first_name}
+                          </MenuItem>
+                      ))}
+                  </Select>
+              </FormControl>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl required fullWidth>
-              <InputLabel>Teams</InputLabel>
+              <InputLabel>userDepartment</InputLabel>
               <Select
-                value={formData.department}
+                value={formData.department || Number(userDepartment)}
                 label="Teams"
                 onChange={handleGroupChange}
+                disabled
               >
                 {departments.map((item) => (
                   <MenuItem
@@ -376,18 +415,7 @@ export default function CreateTicketModal({
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <FormControl required fullWidth>
-              <InputLabel>Assigned to</InputLabel>
-              <Select value={formData.assigned_to} label="Assigned to" disabled>
-                {formData.assigned_to && (
-                  <MenuItem value={formData.assigned_to}>
-                    {assignedToName}
-                  </MenuItem>
-                )}
-              </Select>
-            </FormControl>
-          </Grid>
+
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               label="Estimated hours"
@@ -403,6 +431,7 @@ export default function CreateTicketModal({
               slotProps={{ htmlInput: { min: 0, step: 0.5 } }}
             />
           </Grid>
+          
           <Grid size={{ xs: 12, sm: 4 }}>
             <FormControl required fullWidth>
               <InputLabel>Priority</InputLabel>

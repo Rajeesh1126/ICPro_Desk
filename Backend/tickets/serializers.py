@@ -53,7 +53,7 @@ class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = [
-            'id', 'number', 'task', 'description', 'creator', 'creator_name', 'department','department_name',
+            'id', 'number', 'task', 'description', 'creator', 'creator_name', 'department','department_name','is_external',
             'assigned_to', 'assigned_to_name', 'est_hours', 'target_date', 'rating',
             'priority', 'current_status', 'created_at', 'updated_at', 'logs', 'files','attachments',
             'remarks', 'act_hours', 'actual_start_date', 'actual_end_date', 'work_efficiency', 'schedule_efficiency','latest_logremarks'
@@ -72,7 +72,8 @@ class TicketSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if self.instance is None:
-            if not attrs.get('department'):
+            is_external = attrs.get("is_external", False)
+            if is_external and not attrs.get('department'):
                 raise serializers.ValidationError({'department': 'Department is required.'})
             if not attrs.get('assigned_to'):
                 raise serializers.ValidationError({'assigned_to': 'Assigned user is required.'})
@@ -83,6 +84,9 @@ class TicketSerializer(serializers.ModelSerializer):
         Overriding create to ensure a log is generated when a ticket is first made.
         """
         attachments = validated_data.pop("attachments", [])
+        # if not validated_data["is_external"]:
+        #     validated_data["department"] = self.context['request'].user.groups.first()
+
         ticket = Ticket.objects.create(**validated_data)
         
         # Create initial log

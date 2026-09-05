@@ -121,6 +121,7 @@ export interface TicketData {
   schedule_efficiency?: number | string;
   files?: TicketFile[] | null;
   department_name?: string;
+  is_external: boolean;
 }
 
 export interface TicketFormData {
@@ -136,6 +137,7 @@ export interface TicketFormData {
   files: TicketFile[];   // existing files from API
   newAttachments: File[];      // files selected in browser
   deletedFileIds: number[]; // IDs of files to be deleted
+  is_external: boolean;
 }
 
 export type TicketCollections = {
@@ -340,4 +342,10 @@ export interface ApprovalDetailResponse {
     rows: ApiTaskRow[];
     comments?: string;
     action_status?: boolean;
+}
+
+// internal ticket
+export interface LoggedUser {
+    id: number;
+    department: number | null;
 }

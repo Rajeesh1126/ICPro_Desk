@@ -16,6 +16,8 @@ import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
 import AssignmentTurnedInRoundedIcon from "@mui/icons-material/AssignmentTurnedInRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import Header from "../components/AppBar/header";
@@ -36,13 +38,22 @@ const pages = [
         path: "/Home/SelfTickets",
         icon: <FormatListBulletedRoundedIcon />,
         iconColor: "#0288d1",
-        codeName: "view_submission",
+        codeName: "view_self_tickets",
     },
     {
         label: "Tickets",
         path: "/Home/Tickets",
         icon: <ConfirmationNumberRoundedIcon />,
         iconColor: "#2e7d32",
+        // codeName: "view_tickets",
+        codeName: "view_submission",
+    },
+    {
+        label: "Internal Tickets",
+        path: "/Home/InternalTickets",
+        icon: <AssignmentRoundedIcon />,
+        iconColor: "#2e7d32",
+        // codeName: "view_tickets",
         codeName: "view_submission",
     },
     {
@@ -90,8 +101,8 @@ const pages = [
     {
         label: "TeamMemberPerformance",
         path: "/Home/TeamMemberPerformance",
-        icon: <InsightsRoundedIcon />,
-        iconColor: "#57dd7f",
+        icon: <GroupsRoundedIcon />,
+        iconColor: "#e08e4a",
         codeName: "view_submission",
     },
 ] as const satisfies readonly {
@@ -102,8 +113,7 @@ const pages = [
     codeName?: string;
 }[];
 
-const sidebarItemSx =
-    (selected: boolean, iconColor: `#${string}`) => (theme: Theme) => {
+const sidebarItemSx = (selected: boolean, iconColor: `#${string}`) => (theme: Theme) => {
         return {
             borderRadius: 1,
             mb: 0.5,

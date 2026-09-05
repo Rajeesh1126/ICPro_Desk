@@ -45,6 +45,7 @@ class Ticket(models.Model):
     rating = models.IntegerField(null=True, blank=True , default=0) # Optional field for user feedback
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_external = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.number:

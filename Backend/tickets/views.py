@@ -27,6 +27,11 @@ from drf_spectacular.utils import extend_schema
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+completed_status = ["Completed"]
+delayed_status = ["Delayed"]
+progress_status = ["In Progress"]
+
 # Get Depart ment
 class DepartmentMixin:
 
@@ -56,6 +61,21 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         try:
             department_ids = self.get_department_ids()
+
+            # Get is_external from query params
+            is_external = self.request.query_params.get("is_external")
+
+            # Base filter
+            filters = Q(creator=self.request.user) | Q(
+                department__in=department_ids
+            )
+
+            # Add is_external filter only when it is provided
+            if is_external is not None:
+                filters &= Q(
+                    is_external=is_external.lower() == "true"
+                )
+
             submission_qs = Submission.objects.filter(
                 assignId__project_obj__name=OuterRef("number")
             )
@@ -66,10 +86,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
 
             return (
                 Ticket.objects
-                .filter(
-                    Q(creator=self.request.user) |
-                    Q(department__in=department_ids)
-                )
+                .filter(filters)
                 .select_related(
                     "creator",
                     "assigned_to",
@@ -95,17 +112,21 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                         Value(0.0),
                     ),
                     actual_start_date=Subquery(
-                        submission_qs.order_by("date").values("date")[:1],
+                        submission_qs
+                        .order_by("date")
+                        .values("date")[:1],
                         output_field=DateField(),
                     ),
                     actual_end_date=Subquery(
-                        log_qs.filter(status="completed")
+                        log_qs
+                        .filter(status="completed")
                         .order_by("-created_at")
                         .values("created_at__date")[:1],
                         output_field=DateField(),
                     ),
                     latest_logremarks=Subquery(
-                        log_qs.order_by("-created_at")
+                        log_qs
+                        .order_by("-created_at")
                         .values("remarks")[:1],
                         output_field=CharField(),
                     ),
@@ -113,7 +134,10 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                 .annotate(
                     work_efficiency=Round(
                         ExpressionWrapper(
-                            (F("est_hours") / NullIf(F("act_hours"), Value(0.0))) * 100,
+                            (
+                                F("est_hours")
+                                / NullIf(F("act_hours"), Value(0.0))
+                            ) * 100,
                             output_field=FloatField(),
                         ),
                         2,
@@ -129,6 +153,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                 )
                 .order_by("-created_at")
             )
+
         except Exception:
             logger.exception(
                 "Failed to fetch tickets for user '%s'.",
@@ -262,16 +287,15 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
             .annotate(total=Count("id"))
             .order_by("department__name")
         )
-
        
         # ----------------------------------
         # Subqueries
         # ----------------------------------
         submission_hours = (
             Submission.objects.filter(
-                assignId__project_obj__quotation=OuterRef("number")
+                assignId__project_obj__quotation_id=OuterRef("number")
             )
-            .values("assignId__project_obj__quotation")
+            .values("assignId__project_obj__quotation_id")
             .annotate(
                 total_hours=ExpressionWrapper(
                     Sum("hours") / 3600.0,
@@ -330,12 +354,47 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         # ----------------------------------
         # Department Chart
         # ----------------------------------
+        # dept_chart = list(
+        #     queryset.filter(
+        #         current_status__in=active_status + progress_status
+        #     )
+        #     .values("department__name")
+        #     .annotate(count=Count("id"))
+        #     .order_by("department__name")
+        # )
+
+        # total = len(dept_chart)
+
+        # deptData = [
+        #     {
+        #         "name": row["department__name"],
+        #         "count": row["count"],
+        #         "color": f"hsl({int(i * 360 / total)},65%,55%)",
+        #     }
+        #     for i, row in enumerate(dept_chart)
+        # ]
+
         dept_chart = list(
-            queryset.filter(
-                current_status__in=active_status + progress_status
-            )
+            queryset
             .values("department__name")
-            .annotate(count=Count("id"))
+            .annotate(
+                completed=Count(
+                    "id",
+                    filter=Q(current_status__in=["completed","closed"])
+                ),
+
+                delayed=Count(
+                    "id",
+                    filter=(
+                        Q(target_date__lt=today)
+                    )
+                ),
+
+                inprogress=Count(
+                    "id",
+                    filter=Q(current_status__in=progress_status)
+                ),
+            )
             .order_by("department__name")
         )
 
@@ -344,11 +403,13 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         deptData = [
             {
                 "name": row["department__name"],
-                "count": row["count"],
-                "color": f"hsl({int(i * 360 / total)},65%,55%)",
+                "completed": row["completed"],
+                "delayed": row["delayed"],
+                "inprogress": row["inprogress"],
+                "color": f"hsl({int(i * 360 / max(total, 1))},65%,55%)",
             }
             for i, row in enumerate(dept_chart)
-        ]
+        ]        
 
         return Response(
             {

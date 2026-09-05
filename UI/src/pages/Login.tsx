@@ -38,6 +38,7 @@ export default function Login() {
       console.log(response)
       localStorage.setItem("accessToken", response.data.access);
       localStorage.setItem("user", response.data.id);
+      localStorage.setItem("userDepartment", response.data.department);
       localStorage.setItem("first_name", response.data.first_name);
       
       localStorage.setItem("role", response.data.role);

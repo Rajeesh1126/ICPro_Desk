@@ -2,13 +2,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.conf import settings
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from urllib.parse import urlencode
 
-from core.microsoftGraphAPI import send_mail
 from .models import Role, UserProfile,DepartmentManager
 
 User = get_user_model()
@@ -32,8 +30,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "id": self.user.id,
             "first_name":self.user.first_name,
             "role": role.name if role else None,
+            "department": self.user.groups.first().id if self.user.groups.exists() else None,
             "permissions": permissions,
         }
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ['id', 'name', 'codename']
 
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.PrimaryKeyRelatedField(
@@ -45,7 +49,6 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ['id', 'name', 'description', 'permissions']
-
 
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,36 +81,18 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
 
     def save(self):
-        user = User.objects.filter(
-            username__iexact=self.validated_data['username'],
-            email__iexact=self.validated_data['email'],
-        ).first()
+        user = User.objects.filter(email__iexact=self.validated_data['email']).first()
         if user:
             token = default_token_generator.make_token(user)
-            request = self.context.get('request')
-            reset_url = getattr(settings, 'FRONTEND_RESET_PASSWORD_URL', None)
-            if not reset_url:
-                frontend_base_url = getattr(settings, 'FRONTEND_BASE_URL', '').rstrip('/')
-                reset_url = f'{frontend_base_url}/reset-password' if frontend_base_url else ''
-
-            query = urlencode({'email': user.email, 'token': token})
-            reset_link = f'{reset_url}?{query}' if reset_url else request.build_absolute_uri(f'/reset-password?{query}')
-            html_content = f"""
-                <p>Dear {user.first_name or user.username},</p>
-                <p>We received a request to reset your ICProDesk password.</p>
-                <p>
-                    <a href="{reset_link}">Reset your password</a>
-                </p>
-                <p>If you did not request this, please ignore this email.</p>
-            """
-            send_mail(
+            mail.send_mail(
                 'Password reset request',
-                html_content,
+                f'Use the following token to reset your password: {token}',
+                'noreply@example.com',
                 [user.email],
+                fail_silently=False,
             )
         return user
 
@@ -137,7 +122,6 @@ class ResetPasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save(update_fields=['password'])
         return user
-
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.SlugRelatedField(
@@ -250,7 +234,6 @@ class UserSerializer(serializers.ModelSerializer):
             user.groups.set(groups_data)
         return user
 
-
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -261,7 +244,6 @@ class TeamSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
         ]
-
 
 class DepartmentManagerUserSerializer(serializers.ModelSerializer):
 
@@ -332,11 +314,3 @@ class DepartmentSerializer(serializers.ModelSerializer):
             ).delete()
 
         return instance
-
-class PermissionSerializer(serializers.ModelSerializer):
-    app_label = serializers.CharField(source='content_type.app_label', read_only=True)
-    model = serializers.CharField(source='content_type.model', read_only=True)
-
-    class Meta:
-        model = Permission
-        fields = ['id', 'name', 'codename', 'app_label', 'model']

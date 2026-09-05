@@ -6,6 +6,7 @@ import Landing from "./pages/Landing.tsx";
 import Dashboard from "./pages/tickets/Dashboard.tsx";
 import Reports from "./pages/tickets/Reports.tsx";
 import TicketDashboard from "./pages/tickets/Tickets.tsx";
+import InternalTicketDashboard from "./pages/tickets/InternalTickets.tsx";
 import SelfTickets from "./pages/tickets/SelfTickets.tsx";
 import Users from "./pages/Users.tsx"
 import Roles from "./pages/Roles.tsx"
@@ -20,6 +21,7 @@ const homeRoutes = [
   { index: true, element: <Landing /> },
   { path: "Dashboard", element: <Dashboard /> },
   { path: "Tickets", element: <TicketDashboard /> },
+  { path: "InternalTickets", element: <InternalTicketDashboard /> },
   { path: "SelfTickets", element: <SelfTickets /> },
   { path: "Reports", element: <Reports /> },
   { path: "TimeSheet", element: <TimeSheet /> },
