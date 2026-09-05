@@ -10,41 +10,61 @@ import Temp from "./Temp";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
-import { useCallback, useEffect, useState } from "react";
 import {
-  AssignmentOutlined,
-  WorkOutline,
-  HelpOutline,
-  ConfirmationNumberOutlined,
-  LockOpenOutlined,
-  UpdateOutlined,
-  SendOutlined,
-  DeleteOutline,
+  useCallback,
+  useEffect,
+  useState } from "react";
+import {
+  AssignmentOutlined as AssignmentOutlinedIcon,
+  CalendarMonthOutlined as CalendarMonthOutlinedIcon,
+  WorkOutlineOutlined as WorkOutlineOutlinedIcon,
+  HelpOutlineOutlined as HelpOutlineOutlinedIcon,
+  ConfirmationNumberOutlined as ConfirmationNumberOutlinedIcon,
+  LockOpenOutlined as LockOpenOutlinedIcon,
+  UpdateOutlined as UpdateOutlinedIcon,
+  SendOutlined as SendOutlinedIcon,
+  DeleteOutlineOutlined as DeleteOutlineOutlinedIcon,
+  KeyboardArrowDownOutlined as KeyboardArrowDownOutlinedIcon
 } from "@mui/icons-material";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
-import { marginBottomSectionSx, modalActionButtonSx, modalPrimaryActionButtonSx, pageHeaderSx, reportsPageBoxSx5, reportsPageFilterDrawerPaperSx, responsiveRightActionsSx } from "../../styles/common";
-import { Button, Divider, Drawer, IconButton, ListItemIcon, Menu, MenuItem, Stack, Typography } from "@mui/material";
 import {
-  ChevronLeft,
-  ChevronRight,
+  appTabsContainerSx,
+  appTabsSx,
+  pageHeaderSx } from "../../styles/common";
+import { Badge,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Paper,
+  Stack,
+  Typography } from "@mui/material";
+import { alpha,
+  type Theme } from "@mui/material/styles";
+import {
+  ChevronLeftOutlined as ChevronLeftOutlinedIcon,
+  ChevronRightOutlined as ChevronRightOutlinedIcon
 } from "@mui/icons-material";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
-import { showNotification } from "../../api/NotificationService";
+import { showNotification } from "../../api/notificationService";
 import type {
   ERPQuotation,
   SubmissionProject,
 } from "../../types/dataTypes";
-import ERPQuotationModal from "../../components/Timesheet/ERPQuotaion";
-import CreateUndefinedModal from "../../components/Timesheet/CreateUndefinedModal"
-import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/Timesheet/TimeSheetPreviewModal"
-import TimeSheetUnlockRequestModal from "../../components/Timesheet/TimeSheetUnlockRequestModal";
-import TimeSheetTicketsModal, { type TimeSheetTicketOption } from "../../components/Timesheet/TimeSheetTicketsModal";
+import ERPQuotationModal from "../../components/timesheet/ERPQuotationModal";
+import CreateUndefinedModal from "../../components/timesheet/CreateUndefinedModal"
+import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/timesheet/TimeSheetPreviewModal"
+import TimeSheetUnlockRequestModal from "../../components/timesheet/TimeSheetUnlockRequestModal";
+import TimeSheetTicketsModal, { type TimeSheetTicketOption } from "../../components/timesheet/TimeSheetTicketsModal";
 import AssignCostMasterTasksModal, {
   type TimeSheetCostCategory,
   type TimeSheetCostMaster,
   type TimeSheetPhaseMapping,
-} from "../../components/Timesheet/AssignCostMasterTasksModal";
+} from "../../components/timesheet/AssignCostMasterTasksModal";
 
 
 interface TabPanelProps {
@@ -64,9 +84,20 @@ function CustomTabPanel(props: TabPanelProps) {
       hidden={value !== index}
       id={`simple-tabpanel-${index}`}
       aria-labelledby={`simple-tab-${index}`}
+      style={{ height: value === index ? "100%" : undefined, minHeight: 0 }}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && (
+        <Box
+          sx={{
+            height: "100%",
+            minHeight: 0,
+            p: { xs: 1, sm: 1.5, md: 2 },
+          }}
+        >
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
@@ -77,6 +108,83 @@ function a11yProps(index: number) {
     "aria-controls": `simple-tabpanel-${index}`,
   };
 }
+
+const actionMenuItemSx =
+  (color: "primary" | "info" | "warning" | "error" | "default" = "default") =>
+  (theme: Theme) => {
+    const itemColor =
+      color === "default" ? theme.palette.text.primary : theme.palette[color].main;
+    const itemBg =
+      color === "default"
+        ? "transparent"
+        : alpha(itemColor, theme.palette.mode === "dark" ? 0.1 : 0.055);
+
+    return {
+      color: itemColor,
+      alignItems: "flex-start",
+      gap: 1.25,
+      mx: 0.75,
+      my: 0.35,
+      borderRadius: 1.25,
+      border: "1px solid",
+      borderColor:
+        color === "default"
+          ? "transparent"
+          : alpha(itemColor, theme.palette.mode === "dark" ? 0.24 : 0.18),
+      bgcolor: itemBg,
+      "& .MuiListItemIcon-root": {
+        minWidth: 0,
+        width: 34,
+        height: 34,
+        display: "grid",
+        placeItems: "center",
+        borderRadius: 1,
+        color: itemColor,
+        bgcolor:
+          color === "default"
+            ? theme.palette.action.hover
+            : alpha(itemColor, theme.palette.mode === "dark" ? 0.18 : 0.12),
+        flexShrink: 0,
+      },
+      "& .MuiListItemText-root": {
+        my: 0,
+        minWidth: 0,
+      },
+      "& .MuiListItemText-primary": {
+        color: theme.palette.text.primary,
+        fontSize: "0.875rem",
+        fontWeight: 800,
+        lineHeight: 1.25,
+      },
+      "& .MuiListItemText-secondary": {
+        color: theme.palette.text.secondary,
+        fontSize: "0.735rem",
+        lineHeight: 1.25,
+        mt: 0.25,
+      },
+      "&:hover": {
+        bgcolor:
+          color === "default"
+            ? theme.palette.action.hover
+            : alpha(itemColor, theme.palette.mode === "dark" ? 0.18 : 0.1),
+        borderColor:
+          color === "default"
+            ? theme.palette.divider
+            : alpha(itemColor, theme.palette.mode === "dark" ? 0.38 : 0.3),
+      },
+    };
+  };
+
+const actionMenuSectionSx = {
+  px: 1.5,
+  pt: 1.1,
+  pb: 0.35,
+  color: "text.secondary",
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: "uppercase",
+};
 
 function TimeSheet() {
   const [value, setValue] = useState(0);
@@ -158,7 +266,6 @@ function TimeSheet() {
 
   const openAssignTasksModal = async () => {
     handleClose();
-    setFilterDrawerOpen(false);
     setAssignTasksModalOpen(true);
     setLoadingAssignTaskOptions(true);
     setAssignTaskOptionsError("");
@@ -448,7 +555,6 @@ function TimeSheet() {
 
   const openUnlockDialog = () => {
     handleClose();
-    setFilterDrawerOpen(false);
     setUnlockDialogOpen(true);
   };
 
@@ -526,7 +632,6 @@ function TimeSheet() {
       setRequestingUnlock(false);
     }
   };
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
 
@@ -597,78 +702,163 @@ function TimeSheet() {
   }, [weekStartKey]);
 
   return (
-    <Box sx={{ width: "100%" }}>
-      <Box sx={pageHeaderSx}>
-        <Box>
-          <Typography variant="h5">Time Sheet</Typography>
+    <Box
+      sx={{
+        width: "100%",
+        height: {
+          xs: "calc(100dvh - 58px)",
+          sm: "calc(100dvh - 64px)",
+        },
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        bgcolor: "background.default",
+      }}
+    >
+      <Box
+        sx={{
+          ...pageHeaderSx,
+          display: "grid",
+          gridTemplateColumns: {
+            xs: isApprovalTab ? "1fr" : "minmax(0, 1fr) auto",
+            md: "minmax(0, 1fr) auto",
+          },
+          alignItems: { xs: "start", md: "center" },
+          gap: { xs: 1, md: 2 },
+          pb: { xs: 1.25, md: 1.5 },
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" fontWeight={700}>
+            Time Sheet
+          </Typography>
           <Typography variant="body2" color="text.secondary">
-            submit and approve time sheets for your team.
+            Submit and approve time sheets for your team.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
-          {/* Previous Week */}
-          <IconButton
-            onClick={previousWeek}
-            size="small"
+
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1}
+          sx={{
+            display: { xs: "contents", md: "flex" },
+            width: { xs: "100%", lg: "auto" },
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gridColumn: { md: 2 },
+            gridRow: { md: 1 },
+          }}
+        >
+          <Paper
+            elevation={0}
             sx={{
-              width: 36,
-              height: 36,
+              display: "grid",
+              gridTemplateColumns: "40px minmax(0, 1fr) 40px",
+              alignItems: "center",
+              gap: 1,
+              width: { xs: "100%", md: "auto" },
+              minWidth: { md: 360 },
+              gridColumn: { xs: isApprovalTab ? "1" : "1 / -1", md: "auto" },
+              gridRow: { xs: 2, md: "auto" },
+              p: 0.5,
               border: "1px solid",
               borderColor: "divider",
+              borderRadius: 1.5,
+              bgcolor: "background.paper",
             }}
           >
-            <ChevronLeft />
-          </IconButton>
+            <IconButton
+              aria-label="Previous week"
+              onClick={previousWeek}
+              size="small"
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 1,
+                color: "primary.main",
+              }}
+            >
+              <ChevronLeftOutlinedIcon />
+            </IconButton>
 
-          {/* Week Number */}
-          <Typography
-            variant="body1"
-            fontWeight={600}
-            sx={{ minWidth: 70, textAlign: "center" }}
-          >
-            Week : {weekNumber}
-          </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={{ xs: 0.25, sm: 1 }}
+              alignItems="center"
+              justifyContent="center"
+              sx={{ minWidth: 0, textAlign: "center" }}
+            >
+              <Chip
+                icon={<CalendarMonthOutlinedIcon />}
+                label={`Week ${weekNumber}`}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ minWidth: 96, fontWeight: 700, px: 1 }}
+              />
+              <Typography
+                variant="body2"
+                fontWeight={700}
+                sx={{
+                  whiteSpace: { xs: "normal", sm: "nowrap" },
+                  lineHeight: 1.25,
+                }}
+              >
+                {weekStart.format("DD-MMM-YYYY")} - {weekEnd.format("DD-MMM-YYYY")}
+              </Typography>
+            </Stack>
 
-          <Divider orientation="vertical" flexItem />
-
-          {/* Date Range */}
-          <Typography
-            variant="body1"
-            fontWeight={600}
-            sx={{
-              whiteSpace: "nowrap",
-              minWidth: 190,
-              textAlign: "center",
-            }}
-          >
-            {weekStart.format("DD-MMM-YYYY")}
-            {"  |  "}
-            {weekEnd.format("DD-MMM-YYYY")}
-          </Typography>
-
-          {/* Next Week */}
-          <IconButton
-            onClick={nextWeek}
-            size="small"
-            sx={{
-              width: 36,
-              height: 36,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <ChevronRight />
-          </IconButton>
+            <IconButton
+              aria-label="Next week"
+              onClick={nextWeek}
+              size="small"
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 1,
+                color: "primary.main",
+              }}
+            >
+              <ChevronRightOutlinedIcon />
+            </IconButton>
+          </Paper>
 
           {!isApprovalTab && (
             <>
-              <Button
-                sx={modalPrimaryActionButtonSx}
-                variant="contained"
-                onClick={handleClick}
+              <Badge
+                badgeContent={selectedAssignedTaskIds.length}
+                color="secondary"
+                invisible={selectedAssignedTaskIds.length === 0}
+                sx={{
+                  width: "auto",
+                  gridColumn: { xs: 2, md: "auto" },
+                  gridRow: { xs: 1, md: "auto" },
+                  alignSelf: { xs: "start", md: "center" },
+                  justifySelf: "end",
+                  "& .MuiBadge-badge": {
+                    fontWeight: 800,
+                    right: 6,
+                    top: 5,
+                  },
+                }}
               >
-                Actions
-              </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleClick}
+                  endIcon={<KeyboardArrowDownOutlinedIcon />}
+                  sx={{
+                    minWidth: 0,
+                    height: { xs: 34, sm: 36 },
+                    px: { xs: 1.25, sm: 2 },
+                    fontWeight: 800,
+                    fontSize: { xs: 12, sm: 13 },
+                    textTransform: "none",
+                  }}
+                >
+                  Actions
+                </Button>
+              </Badge>
 
               <Menu
                 id="simple-menu"
@@ -680,86 +870,115 @@ function TimeSheet() {
                   paper: {
                     sx: {
                       mt: 0.8,
-                      minWidth: 250,
+                      width: "min(380px, calc(100vw - 24px))",
                       borderRadius: 1.5,
                       border: "1px solid",
                       borderColor: "divider",
-                      boxShadow: 4,
+                      boxShadow: "0 18px 48px rgba(15, 23, 42, 0.14)",
                       overflow: "hidden",
+                      p: 0.75,
                       "& .MuiMenuItem-root": {
-                        minHeight: 40,
-                        px: 1.5,
-                        py: 0.75,
-                        fontSize: "0.875rem",
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
+                        minHeight: 54,
+                        px: 1,
+                        py: 0.85,
                         transition: "background-color 0.15s ease",
-
-                        "&:last-child": {
-                          borderBottom: "none",
-                        },
-
-                        "&:hover": {
-                          backgroundColor: "action.hover",
-                        },
                       },
                     },
                   },
                 }}
               >
-                <MenuItem onClick={openQuotationModal}>
+                <Box sx={actionMenuSectionSx}>Add work</Box>
+                <MenuItem onClick={openQuotationModal} sx={actionMenuItemSx("info")}>
                   <ListItemIcon>
-                    <WorkOutline fontSize="small" />
+                    <WorkOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Assign Jobs From ERP
+                  <ListItemText
+                    primary="Assign Jobs From ERP"
+                    secondary="Import approved job records into this week."
+                  />
                 </MenuItem>
 
                 <MenuItem onClick={openUndefinedModal}>
                   <ListItemIcon>
-                    <HelpOutline fontSize="small" />
+                    <HelpOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Create Undefined Jobs
+                  <ListItemText
+                    primary="Create Undefined Jobs"
+                    secondary="Add a temporary job when ERP details are unavailable."
+                  />
                 </MenuItem>
 
-                <MenuItem onClick={openAssignTasksModal}>
+                <MenuItem onClick={openAssignTasksModal} sx={actionMenuItemSx("warning")}>
                   <ListItemIcon>
-                    <AssignmentOutlined fontSize="small" />
+                    <AssignmentOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Undefined Tasks Import To Job
+                  <ListItemText
+                    primary="Import Undefined Tasks To Job"
+                    secondary="Move temporary tasks under mapped job cost masters."
+                  />
                 </MenuItem>
 
-                <MenuItem onClick={openTicketsModal}>
+                <MenuItem onClick={openTicketsModal} sx={actionMenuItemSx("info")}>
                   <ListItemIcon>
-                    <ConfirmationNumberOutlined fontSize="small" />
+                    <ConfirmationNumberOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Assigned Tickets
+                  <ListItemText
+                    primary="Assigned Tickets"
+                    secondary="Bring ticket work into the current timesheet."
+                  />
                 </MenuItem>
 
-                <MenuItem onClick={openUnlockDialog}>
+                <Divider sx={{ my: 0.75 }} />
+                <Box sx={actionMenuSectionSx}>Week controls</Box>
+
+                <MenuItem onClick={openUnlockDialog} sx={actionMenuItemSx("warning")}>
                   <ListItemIcon>
-                    <LockOpenOutlined fontSize="small" />
+                    <LockOpenOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Unlock Time Sheet Request
+                  <ListItemText
+                    primary="Unlock Time Sheet Request"
+                    secondary="Ask for edit access after submission is locked."
+                  />
                 </MenuItem>
 
-                <MenuItem onClick={openExtendDialog}>
+                <MenuItem onClick={openExtendDialog} sx={actionMenuItemSx("warning")}>
                   <ListItemIcon>
-                    <UpdateOutlined fontSize="small" />
+                    <UpdateOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Extend Task To Next Week
+                  <ListItemText
+                    primary="Extend Task To Next Week"
+                    secondary={
+                      selectedAssignedTaskIds.length
+                        ? `${selectedAssignedTaskIds.length} selected task(s) will move forward.`
+                        : "Select tasks in the table before extending."
+                    }
+                  />
                 </MenuItem>
 
-                <MenuItem onClick={openRemoveDialog}>
+                <MenuItem onClick={openRemoveDialog} sx={actionMenuItemSx("error")}>
                   <ListItemIcon>
-                    <DeleteOutline fontSize="small" />
+                    <DeleteOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Remove Task/project
+                  <ListItemText
+                    primary="Remove Task / Project"
+                    secondary={
+                      selectedAssignedTaskIds.length
+                        ? `${selectedAssignedTaskIds.length} selected task(s) may be removed.`
+                        : "Select removable tasks first."
+                    }
+                  />
                 </MenuItem>
-                <MenuItem onClick={openTimeSheetPreview}>
+
+                <Divider sx={{ my: 0.75 }} />
+                <Box sx={actionMenuSectionSx}>Finalize</Box>
+                <MenuItem onClick={openTimeSheetPreview} sx={actionMenuItemSx("primary")}>
                   <ListItemIcon>
-                    <SendOutlined fontSize="small" />
+                    <SendOutlinedIcon fontSize="small" />
                   </ListItemIcon>
-                  Preview / Submit
+                  <ListItemText
+                    primary="Preview / Submit"
+                    secondary="Check totals and send this week for approval."
+                  />
                 </MenuItem>
               </Menu>
             </>
@@ -768,9 +987,16 @@ function TimeSheet() {
         </Stack>
       </Box>
 
-      <Box sx={{ mx: 2 }}>
+      <Box sx={appTabsContainerSx}>
         {availableTabs.length > 0 && (
-          <Tabs value={value} onChange={handleChange}>
+          <Tabs
+            value={value}
+            onChange={handleChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={appTabsSx}
+          >
             {availableTabs.map((tab, index) => (
               <Tab
                 key={tab.permission}
@@ -782,64 +1008,13 @@ function TimeSheet() {
         )}
       </Box>
 
-      {availableTabs.map((tab, index) => (
-        <CustomTabPanel key={tab.permission} value={value} index={index}>
-          {tab.component}
-        </CustomTabPanel>
-      ))}
-
-      {/* <Drawer anchor="right" open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} PaperProps={{ sx: reportsPageFilterDrawerPaperSx }}>
-        <Box sx={reportsPageBoxSx5}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={marginBottomSectionSx} spacing={1.5}>
-            <Typography variant="h6">Assign / Submit</Typography>
-            <IconButton aria-label="Close filters" onClick={() => setFilterDrawerOpen(false)}>
-              <CloseRoundedIcon />
-            </IconButton>
-          </Stack>
-          <Stack
-            direction={{ xs: "column" }}
-            justifyContent="space-between"
-            spacing={1.5}
-            alignItems={{ xs: "flex-start", md: "center" }}
-          >
-            <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
-              sx={modalActionButtonSx}>
-              Jobs
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
-              sx={modalActionButtonSx}>
-              Job Undefined
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={openAssignTasksModal}
-              sx={modalActionButtonSx}>
-              Task Undefined
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={openTicketsModal}
-              sx={modalActionButtonSx}>
-              Tickets
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={openUnlockDialog}
-              sx={modalActionButtonSx}>
-              Unlock Time Sheet Request
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
-              sx={modalActionButtonSx}>
-              Extend Task To Next Week
-            </Button>
-            <Button fullWidth variant="contained"
-              onClick={() => setFilterDrawerOpen(false)}
-              sx={modalActionButtonSx}>
-              Preview /Submit
-            </Button>
-          </Stack>
-        </Box>
-      </Drawer> */}
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+        {availableTabs.map((tab, index) => (
+          <CustomTabPanel key={tab.permission} value={value} index={index}>
+            {tab.component}
+          </CustomTabPanel>
+        ))}
+      </Box>
 
 
       <ConfirmDialog
@@ -848,7 +1023,8 @@ function TimeSheet() {
         description={`Update ${selectedAssignedTaskIds.length} selected assigned task(s) end date to ${nextWeekEnd.format("DD-MMM-YYYY")}?`}
         confirmLabel={extendingTasks ? "Extending..." : "Extend"}
         confirmDisabled={extendingTasks || selectedAssignedTaskIds.length === 0}
-        titleIcon={<UpdateOutlined fontSize="small" />}
+        titleIcon={<UpdateOutlinedIcon fontSize="small" />}
+        confirmIcon={<UpdateOutlinedIcon fontSize="small" />}
         onClose={() => setExtendDialogOpen(false)}
         onConfirm={extendSelectedTasks}
       />
@@ -859,7 +1035,8 @@ function TimeSheet() {
         confirmLabel={removingTasks ? "Removing..." : "Remove"}
         confirmColor="error"
         confirmDisabled={removingTasks || selectedAssignedTaskIds.length === 0}
-        titleIcon={<SendOutlined fontSize="small" />}
+        titleIcon={<DeleteOutlineOutlinedIcon fontSize="small" />}
+        confirmIcon={<DeleteOutlineOutlinedIcon fontSize="small" />}
         onClose={() => setRemoveDialogOpen(false)}
         onConfirm={removeSelectedTasks}
       />

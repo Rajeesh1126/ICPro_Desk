@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Box, Chip, Paper, Typography } from "@mui/material";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -105,12 +105,12 @@ export default function Landing() {
       {
         label: "Quotation No",
         dataKey: "quotation_no",
-        width: 130,
+        width: 180,
       },
       {
         label: "Subject",
         dataKey: "covering_letter_subject",
-        width: 280,
+        width: 250,
       },
       {
         label: "Customer",
@@ -125,28 +125,28 @@ export default function Landing() {
       {
         label: "Budget Hrs",
         dataKey: "budget_hours",
-        width: 110,
+        width: 100,
         numeric: true,
         render: (row) => formatHours(row.budget_hours),
       },
       {
         label: "Actual Hrs",
         dataKey: "actual_hours",
-        width: 110,
+        width: 100,
         numeric: true,
         render: (row) => formatHours(row.actual_hours),
       },
       {
         label: "Variance",
         dataKey: "variance_hours",
-        width: 110,
+        width: 100,
         numeric: true,
         render: (row) => formatHours(row.variance_hours),
       },
       {
         label: "Utilization",
         dataKey: "utilization_percent",
-        width: 120,
+        width: 115,
         numeric: true,
         render: (row) => `${row.utilization_percent.toFixed(2)}%`,
       },
@@ -179,17 +179,23 @@ export default function Landing() {
           </Typography>
         </Box>
 
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={1.5}
-          sx={{ px: { xs: 1, sm: 2, md: 3 }, pb: 1.5 }}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(4, minmax(0, 1fr))",
+            },
+            gap: 1.5,
+            px: { xs: 1, sm: 2, md: 3 },
+            pb: 1.5,
+          }}
         >
           {summary.map((metric) => (
             <Paper
               key={metric.label}
               elevation={0}
               sx={{
-                flex: 1,
                 p: 1.5,
                 border: "1px solid",
                 borderColor: "divider",
@@ -207,7 +213,7 @@ export default function Landing() {
               </Typography>
             </Paper>
           ))}
-        </Stack>
+        </Box>
 
         <Box
           sx={{

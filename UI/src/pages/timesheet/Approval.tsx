@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box,
+    Chip,
     IconButton,
-    Typography,
 } from "@mui/material";
 
 import {
@@ -10,10 +10,11 @@ import {
     approvalTableContainerSx,
 } from "../../styles/common";
 
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 import {
     VirtualizedTable,
+    type ColumnData,
 } from "../../components/common/TableView";
 
 import api from "../../api/axios";
@@ -23,8 +24,8 @@ import type {
     timesheetStatusData,
 } from "../../types/dataTypes";
 
-import ApprovalDetailedView from "../../components/Approval/ApprovalDetailedView";
-import UnlockComponent from "../../components/Approval/UnlockComponent";
+import ApprovalDetailedView from "../../components/approval/ApprovalDetailedView";
+import UnlockComponent from "../../components/approval/UnlockComponent";
 
 interface ApprovalProps {
     weekStart: string;
@@ -145,114 +146,38 @@ const Approval: React.FC<ApprovalProps> = ({
         setDetailOpen(true);
     }, []);
 
-    const columns = useMemo(
+    const getStatusChipColor = useCallback((status: string | undefined) => {
+        if (status === "Rejected" || status === "Not Submitted" || status === "Delayed") {
+            return "error";
+        }
+
+        if (status === "Accepted" || status === "OnTime") {
+            return "success";
+        }
+
+        if (status === "Submitted") {
+            return "primary";
+        }
+
+        return "info";
+    }, []);
+
+    const columns = useMemo<ColumnData<ApprovalRow>[]>(
         () => [
             {
                 label: "#",
-                width: 10,
+                width: 40,
                 render: (
                     _row: ApprovalRow,
                     index: number
                 ) => index + 1,
-                number: true,
+                numeric: true,
             },
-
-            {
-                dataKey: "name",
-                label: "Name",
-                width: 200,
-            },
-
-            {
-                dataKey: "reporting_to",
-                label: "Reporting To",
-                width: 210,
-            },
-
-            {
-                dataKey: "hours",
-                label: "Hours",
-                width: 90,
-            },
-
-            // Overview
-            {
-                dataKey: "overview",
-                label: "Overview",
-                width: 130,
-
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color:
-                                row.overview === "Rejected"
-                                    ? "#dc3545"
-                                    : row.overview === "Accepted"
-                                    ? "#198754"
-                                    : row.overview === "Submitted"
-                                    ? "#0d6efd"
-                                    : row.overview === "Not Submitted"
-                                    ? "#dc3545"
-                                    : "#0dcaf0",
-                        }}
-                    >
-                        {row.overview}
-                    </Typography>
-                ),
-            },
-
-            // Submission Status
-            {
-                dataKey: "submission_status",
-                label: "Submission status",
-                width: 150,
-
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color:
-                                row.submission_status === "Delayed"
-                                    ? "#ff3b3b"
-                                    : row.submission_status === "OnTime"
-                                    ? "#00c853"
-                                    : "#0dcaf0",
-                        }}
-                    >
-                        {row.submission_status}
-                    </Typography>
-                ),
-            },
-
-            // Approval Status
-            {
-                dataKey: "action_status",
-                label: "Action status",
-                width: 180,
-
-                render: (row: ApprovalRow) => (
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color:
-                                row.action_status === "OnTime"
-                                    ? "#00c853"
-                                    : row.action_status === "Delayed"
-                                    ? "#ff3b3b"
-                                    : "#0dcaf0",
-                        }}
-                    >
-                        {row.action_status}
-                    </Typography>
-                ),
-            },
-
             // View
             {
                 dataKey: "view",
-                label: "View",
-                width: 60,
+                label: "",
+                width: 54,
 
                 render: (row: ApprovalRow) => (
                     <IconButton
@@ -265,14 +190,100 @@ const Approval: React.FC<ApprovalProps> = ({
                             color: "#38b5d0",
                         }}
                     >
-                        <VisibilityIcon
-                            sx={{ fontSize: 17 }}
+                        <VisibilityOutlinedIcon
+                            sx={{ fontSize: 20 }}
                         />
                     </IconButton>
                 ),
             },
+
+            {
+                dataKey: "name",
+                label: "Name",
+                width: { xs: "auto", sm: 140 },
+            },
+
+            {
+                dataKey: "reporting_to",
+                label: "Reporting To",
+                width: { xs: "auto", sm: 150 },
+            },
+
+            {
+                dataKey: "hours",
+                label: "Hours",
+                width: 80,
+            },
+
+            // Overview
+            {
+                dataKey: "overview",
+                label: "Overview",
+                width: 130,
+
+                render: (row: ApprovalRow) => (
+                    <Chip
+                        size="small"
+                        label={row.overview}
+                        color={getStatusChipColor(row.overview)}
+                        variant={row.overview === "Submitted" ? "filled" : "outlined"}
+                        sx={{
+                            height: 24,
+                            // borderRadius: 1,
+                            fontSize: 11,
+                            fontWeight:700,
+                        }}
+                    />
+                ),
+            },
+
+            // Submission Status
+            {
+                dataKey: "submission_status",
+                label: "Submission status",
+                width: 180,
+
+                render: (row: ApprovalRow) => (
+                    <Chip
+                        size="small"
+                        label={row.submission_status}
+                        color={getStatusChipColor(row.submission_status)}
+                        variant="outlined"
+                        sx={{
+                            height: 24,
+                            borderRadius: 1,
+                            fontSize: 11,
+                            fontWeight: 700,
+                        }}
+                    />
+                ),
+            },
+
+            // Approval Status
+            {
+                dataKey: "approval_status",
+                label: "Approval status",
+                width: 180,
+
+                render: (row: ApprovalRow) => (
+                    <Chip
+                        size="small"
+                        label={row.approval_status}
+                        color={getStatusChipColor(row.approval_status)}
+                        variant="outlined"
+                        sx={{
+                            height: 24,
+                            borderRadius: 1,
+                            fontSize: 11,
+                            fontWeight: 700,
+                        }}
+                    />
+                ),
+            },
+
+            
         ],
-        [handleViewEmployee]
+        [getStatusChipColor, handleViewEmployee]
     );
 
     const handleCloseDetail = () => {
@@ -288,8 +299,9 @@ const Approval: React.FC<ApprovalProps> = ({
                 <VirtualizedTable<ApprovalRow>
                     columns={columns}
                     rows={approvalData}
-                    height="70dvh"
-                    tableHead="Submited User List"
+                    height="100%"
+                    tableMinWidth={980}
+                    tableHead="Submitted User List"
 
                 />
             </Box>

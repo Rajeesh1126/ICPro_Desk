@@ -1,6 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { showGlobalError } from "./ErrorDialogService";
+import { showGlobalError } from "./errorDialogService";
 import { formatValidationErrors } from "../utils/errorUtils";
 
 type JwtPayload = {
@@ -15,10 +15,15 @@ const api = axios.create({
     },
 });
 
+const authEndpointPattern = /\/users\/(login|forgot_password|reset_password)\/?$/;
+
+const isAuthEndpoint = (url?: string) =>
+    typeof url === "string" && authEndpointPattern.test(url);
+
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("accessToken");
-        if (token) {
+        if (token && !isAuthEndpoint(config.url)) {
             if (isTokenExpired(token)) {
 
                 localStorage.clear();
@@ -37,6 +42,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (isAuthEndpoint(error.config?.url)) {
+            return Promise.reject(error);
+        }
+
         // console.log(error.response.data);
         const status = error.response ? error.response.status : null;
         if (status === 404) {
@@ -80,5 +89,3 @@ export const isTokenExpired = (token: string): boolean => {
 }
 
 export default api;
-
-

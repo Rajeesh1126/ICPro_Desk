@@ -9,9 +9,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { ButtonProps } from "@mui/material/Button";
-import CloseIcon from "@mui/icons-material/Close";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import {
-  confirmDialogActionsSx,
   confirmDialogContentSx,
   confirmDialogHeaderSx,
   confirmDialogPaperSx,
@@ -21,8 +20,6 @@ import {
   confirmDialogTitleRowSx,
   confirmationDialogTitleSx,
   confirmationMessageSx,
-  modalActionButtonSx,
-  modalPrimaryActionButtonSx,
 } from "../../styles/common";
 import type { ConfirmDialogTone } from "../../styles/common";
 
@@ -87,12 +84,11 @@ export default function ConfirmDialog({
         )}
         {children}
       </DialogContent>
-      <DialogActions sx={confirmDialogActionsSx}>
+      <DialogActions>
         <Button
           onClick={onClose}
-          color="inherit"
-          startIcon={<CloseIcon />}
-          sx={modalActionButtonSx}
+          variant="outlined"
+          startIcon={<CancelOutlinedIcon />}
         >
           Cancel
         </Button>
@@ -102,7 +98,6 @@ export default function ConfirmDialog({
           color={confirmColor}
           startIcon={confirmIcon}
           disabled={confirmDisabled}
-          sx={modalPrimaryActionButtonSx}
         >
           {confirmLabel}
         </Button>

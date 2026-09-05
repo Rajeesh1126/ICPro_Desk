@@ -11,14 +11,17 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
-import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
-import { VirtualizedTable, type ColumnData } from "../../components/common/TableView";
-import CreateTicketModal from "../../components/Tickets/CreateModal";
-import TicketDetailModal from "../../components/Tickets/DetailModal";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
+import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
+import {
+  VirtualizedTable,
+  type ColumnData,
+} from "../../components/common/TableView";
+import CreateTicketModal from "../../components/tickets/CreateModal";
+import TicketDetailModal from "../../components/tickets/DetailModal";
 import TicketCardView from "../../components/common/CardView";
 import type {
   TicketCollections,
@@ -28,16 +31,16 @@ import type {
 import api from "../../api/axios";
 import {
   appPageBox,
+  appTabsContainerSx,
+  appTabsSx,
   flexColumnFillSx,
   inlineCenterGapSx,
-  modalActionButtonSx,
   pageHeaderSx,
-  responsiveRightActionsSx,
-  ticketsPageBoxSx3,
-  TOGGLE_BUTTON,
+  tablePageContentSx,
+  toggleButton,
 } from "../../styles/common";
 
-const EMPTY_TICKETS: TicketCollections = {
+const emptyTickets: TicketCollections = {
   all: [],
   assigned: [],
   created: [],
@@ -47,12 +50,11 @@ const EMPTY_TICKETS: TicketCollections = {
 };
 
 function loggedUser(): number | null {
-	const value = localStorage.getItem("user");
-	const id = value ? Number(value) : NaN;
+  const value = localStorage.getItem("user");
+  const id = value ? Number(value) : NaN;
 
-	return Number.isInteger(id) ? id : null;
+  return Number.isInteger(id) ? id : null;
 }
-
 
 export default function Tickets() {
   const userId = useMemo(() => loggedUser(), []);
@@ -61,7 +63,7 @@ export default function Tickets() {
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [view, setView] = useState<"table" | "card">("table");
   const [tabValue, setTabValue] = useState(0);
-  const [tickets, setTickets] = useState<TicketCollections>(EMPTY_TICKETS);
+  const [tickets, setTickets] = useState<TicketCollections>(emptyTickets);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function Tickets() {
     void api
       .get("/tickets/")
       .then((response) => {
-        console.log("tickets....",response)
+        console.log("tickets....", response);
         if (!active) return;
         const source = (
           Array.isArray(response.data) ? response.data : []
@@ -92,8 +94,7 @@ export default function Tickets() {
         setTickets({
           all: all.filter(
             (ticket) =>
-              ticket.assigned_to === userId ||
-              ticket.creator === userId,
+              ticket.assigned_to === userId || ticket.creator === userId,
           ),
           assigned: all.filter(
             (ticket) =>
@@ -106,19 +107,20 @@ export default function Tickets() {
               ticket.creator === userId &&
               !inactiveStatuses.includes(ticket.current_status),
           ),
-          closed: all.filter((ticket) => (ticket.assigned_to === userId ||
-              ticket.creator === userId) && ticket.display_status === "closed"),
+          closed: all.filter(
+            (ticket) =>
+              (ticket.assigned_to === userId || ticket.creator === userId) &&
+              ticket.display_status === "closed",
+          ),
           rejected: all.filter(
             (ticket) =>
               ticket.current_status === "rejected" &&
-              (ticket.assigned_to === userId ||
-                ticket.creator === userId),
+              (ticket.assigned_to === userId || ticket.creator === userId),
           ),
           recalled: all.filter(
             (ticket) =>
               ticket.current_status === "recall successful" &&
-              (ticket.assigned_to === userId ||
-                ticket.creator === userId),
+              (ticket.assigned_to === userId || ticket.creator === userId),
           ),
         });
       })
@@ -153,53 +155,59 @@ export default function Tickets() {
     setRefreshKey((key) => key + 1);
   }, []);
 
-  const columns = useMemo<ColumnData<TicketData>[]>(() => [
-      { label: "#",width: 10,render: (_row, index) => index + 1, number:true},
+  const columns = useMemo<ColumnData<TicketData>[]>(
+    () => [
+      {
+        label: "#",
+        width: 20,
+        render: (_row, index) => index + 1,
+        number: true,
+      },
       {
         label: "Ticket Number",
-        width: 180,
+        width: 200,
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
+                color="primary"
                 onClick={() => openDetails(row)}
               >
-                <VisibilityRoundedIcon fontSize="small" color="primary" />
+                <VisibilityOutlinedIcon fontSize="small" color="primary" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit ticket">
-                <IconButton
-                  aria-label={`Edit ${row.number}`}
-                  size="small"
-                  onClick={() => openEdit(row)}
-                  disabled={
-                    row.creator !== userId ||
-                    [
-                      "closed",
-                      "recall successful",
-                      "recall requested",
-                      "completed",
-                    ].includes(row.current_status)
-                  }
-                >
-                  <EditRoundedIcon fontSize="small" />
-                </IconButton>
+              <IconButton
+                aria-label={`Edit ${row.number}`}
+                onClick={() => openEdit(row)}
+                color="primary"
+                disabled={
+                  row.creator !== userId ||
+                  [
+                    "closed",
+                    "recall successful",
+                    "recall requested",
+                    "completed",
+                  ].includes(row.current_status)
+                }
+              >
+                <EditOutlinedIcon color="info" />
+              </IconButton>
             </Tooltip>
             <Typography variant="body2">{row.number}</Typography>
           </Box>
         ),
       },
-      { label: "Subject", dataKey: "task", width: 500 },
+      { label: "Subject", dataKey: "task" },
       { label: "Status", dataKey: "current_status" },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Assigned To", dataKey: "assigned_to_name" },
       { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours" },
-      { label: "Act Hrs", dataKey: "act_hours" },
-      { label: "Target Completion", dataKey: "target_date" },
-      { label: "Actual Completion", dataKey: "actual_end_date" },
+      { label: "Est Hrs", dataKey: "est_hours", width: 70 },
+      { label: "Act Hrs", dataKey: "act_hours", width: 70 },
+      { label: "Target Completion", dataKey: "target_date", width: 110 },
+      { label: "Actual Completion", dataKey: "actual_end_date", width: 110 },
     ],
     [userId, openDetails, openEdit],
   );
@@ -224,13 +232,21 @@ export default function Tickets() {
               Track, assign, and complete team tickets from one workspace.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
+          <Stack
+            direction={{ xs: "column-reverse", sm: "row" }}
+            spacing={1}
+            // sx={responsiveRightActionsSx}
+            sx={{
+              justifyContent: "center",
+              alignItems: "flex-end",
+              width: { xs: "160px", sm: "auto" },
+            }}
+          >
             {tabValue === 0 && (
               <Button
-                startIcon={<AddRoundedIcon />}
+                startIcon={<AddOutlinedIcon />}
                 variant="contained"
                 onClick={openCreate}
-                sx={modalActionButtonSx}
               >
                 New Ticket
               </Button>
@@ -243,16 +259,16 @@ export default function Tickets() {
                 next && setView(next)
               }
               aria-label="Task view"
-               sx={TOGGLE_BUTTON}
+              sx={toggleButton}
             >
               <Tooltip title="Table view" arrow>
                 <ToggleButton value="table" aria-label="Table view">
-                  <TableRowsRoundedIcon fontSize="small" />
+                  <TableRowsOutlinedIcon fontSize="small" />
                 </ToggleButton>
               </Tooltip>
               <Tooltip title="Board view" arrow>
                 <ToggleButton value="card" aria-label="Board view">
-                  <ViewKanbanRoundedIcon fontSize="small" />
+                  <ViewKanbanOutlinedIcon fontSize="small" />
                 </ToggleButton>
               </Tooltip>
             </ToggleButtonGroup>
@@ -260,13 +276,14 @@ export default function Tickets() {
         </Box>
 
         {/* <Paper square elevation={0} sx={ticketsPagePaperSx1}> */}
-        <Box sx={{ mx: 2 }}>
+        <Box sx={appTabsContainerSx}>
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => setTabValue(value)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
+            sx={appTabsSx}
           >
             <Tab label={`Overview (${tickets.all.length})`} />
             <Tab label={`Assigned To Me (${tickets.assigned.length})`} />
@@ -275,10 +292,10 @@ export default function Tickets() {
             <Tab label={`Recalled (${tickets.recalled.length})`} />
             <Tab label={`Closed (${tickets.closed.length})`} />
           </Tabs>
-          </Box>
+        </Box>
         {/* </Paper> */}
 
-        <Box sx={ticketsPageBoxSx3}>
+        <Box sx={tablePageContentSx}>
           {view === "card" ? (
             <TicketCardView
               data={activeRows}

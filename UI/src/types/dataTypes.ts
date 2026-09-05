@@ -285,9 +285,8 @@ export interface ApprovalRow {
   reporting_to: string;
   hours: number;
   overview: "Submitted" | "Accepted" | "Rejected" | "Requested" | "Unlocked" | "Not Submitted" | "Unlock Rejected";
-  submission_status: "OnTime" | "Delayed";
-  action_status: "OnTime" | "Delayed" | "Pending" | `Due by ${string}`;
-  approval_status?: "OnTime" | "Delayed" | "Pending" | `Due by ${string}`;
+  submission_status: "OnTime" | "Delayed" | `Due by ${string}`;
+  approval_status: "OnTime" | "Delayed" | `Due by ${string}`;
 }
 
 export interface ApiTaskRow {

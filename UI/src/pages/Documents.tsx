@@ -13,18 +13,19 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
-import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
+import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../api/axios";
-import { showNotification } from "../api/NotificationService";
+import { showNotification } from "../api/notificationService";
 import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
 import {
   appPageBox,
   flexColumnFillSx,
-  modalActionButtonSx,
-  modalPrimaryActionButtonSx,
   pageHeaderSx,
   responsiveRightActionsSx,
 } from "../styles/common";
@@ -213,8 +214,8 @@ export default function Documents() {
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Upload new version">
-              <IconButton size="small" onClick={() => openReplaceDialog(row)}>
-                <UploadFileRoundedIcon fontSize="small" />
+              <IconButton size="small" color="info" onClick={() => openReplaceDialog(row)}>
+                <UploadFileOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Download document">
@@ -224,7 +225,7 @@ export default function Documents() {
                 disabled={!row.file}
                 onClick={() => downloadDocument(row)}
               >
-                <DownloadRoundedIcon fontSize="small" />
+                <DownloadOutlinedIcon  />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -238,7 +239,7 @@ export default function Documents() {
     <Box sx={appPageBox}>
       <Box component="main" sx={flexColumnFillSx}>
         <Box sx={pageHeaderSx}>
-          <Box>
+          <Box sx={{ flex: "1 1 auto", minWidth: 0 }}>
             <Typography variant="h5">Documents</Typography>
             <Typography variant="body2" color="text.secondary">
               Manage FDS, SDS and reusable document templates.
@@ -247,8 +248,7 @@ export default function Documents() {
           <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
             <Button
               variant="contained"
-              startIcon={<UploadFileRoundedIcon />}
-              sx={modalPrimaryActionButtonSx}
+              startIcon={<UploadOutlinedIcon />}
               onClick={openCreateDialog}
             >
               Upload
@@ -269,7 +269,7 @@ export default function Documents() {
       <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="sm">
         <DialogTitle>
           <Stack direction="row" spacing={1} alignItems="center">
-            <DescriptionRoundedIcon color="primary" />
+            <DescriptionOutlinedIcon color="primary" />
             <Typography variant="h6">
               {editingDocument ? "Update Document" : "Upload Document"}
             </Typography>
@@ -323,9 +323,8 @@ export default function Documents() {
               />
               <Button
                 variant="outlined"
-                startIcon={<UploadFileRoundedIcon />}
+                startIcon={<UploadOutlinedIcon />}
                 onClick={() => fileInputRef.current?.click()}
-                sx={modalActionButtonSx}
               >
                 Choose File
               </Button>
@@ -336,14 +335,20 @@ export default function Documents() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} disabled={saving} sx={modalActionButtonSx}>
+          <Button variant="outlined" onClick={closeDialog} disabled={saving} startIcon={<CancelOutlinedIcon />}>
             Cancel
           </Button>
           <Button
             onClick={submitDocument}
             disabled={saving}
             variant="contained"
-            sx={modalPrimaryActionButtonSx}
+            startIcon={
+              saving
+                ? undefined
+                : editingDocument
+                  ? <UpdateOutlinedIcon />
+                  : <UploadOutlinedIcon />
+            }
           >
             {saving ? "Saving..." : editingDocument ? "Update" : "Upload"}
           </Button>

@@ -12,9 +12,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 import api from "../api/axios";
 import bgImage from "../assets/taskmanagementloginimage.jpg";
@@ -116,7 +116,7 @@ export default function ResetPassword() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <LockRoundedIcon color="action" fontSize="small" />
+                      <LockOutlinedIcon color="action" fontSize="small" />
                     </InputAdornment>
                   ),
                   endAdornment: (
@@ -127,7 +127,7 @@ export default function ResetPassword() {
                         onMouseDown={(event) => event.preventDefault()}
                         edge="end"
                       >
-                        {showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}
+                        {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
                       </IconButton>
                     </InputAdornment>
                   ),

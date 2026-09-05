@@ -13,23 +13,23 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import PsychologyAltRoundedIcon from "@mui/icons-material/PsychologyAltRounded";
-import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
 import api from "../api/axios";
-import { showNotification } from "../api/NotificationService";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
+import { showNotification } from "../api/notificationService";
 import {
-  appPageBox,
-  flexColumnFillSx,
-  modalActionButtonSx,
-  modalPrimaryActionButtonSx,
-  pageHeaderSx,
-  responsiveRightActionsSx,
-} from "../styles/common";
+  VirtualizedTable,
+  type ColumnData,
+} from "../components/common/TableView";
+import { appPageBox, flexColumnFillSx, pageHeaderSx } from "../styles/common";
+import { formatDateTime } from "../components/common/formatDate";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
@@ -70,7 +70,12 @@ const emptyForm: LessonFormState = {
   file: null,
 };
 
-const lessonStatuses: LessonStatus[] = ["Draft", "Shared", "Reviewed", "Archived"];
+const lessonStatuses: LessonStatus[] = [
+  "Draft",
+  "Shared",
+  "Reviewed",
+  "Archived",
+];
 
 const getFileName = (filePath: string | null) => {
   if (!filePath) return "No file";
@@ -88,13 +93,17 @@ const resolveFileUrl = (filePath: string) => {
 export default function LessonLearnt() {
   const [lessons, setLessons] = useState<LessonLearntRow[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(null);
+  const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(
+    null,
+  );
   const [form, setForm] = useState<LessonFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadLessons = useCallback(async () => {
-    const response = await api.get<LessonLearntRow[]>("/documents/lesson-learnt/");
+    const response = await api.get<LessonLearntRow[]>(
+      "/documents/lesson-learnt/",
+    );
     setLessons(Array.isArray(response.data) ? response.data : []);
   }, []);
 
@@ -161,9 +170,13 @@ export default function LessonLearnt() {
     setSaving(true);
     try {
       if (editingLesson) {
-        await api.patch(`/documents/lesson-learnt/${editingLesson.id}/`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.patch(
+          `/documents/lesson-learnt/${editingLesson.id}/`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
       } else {
         await api.post("/documents/lesson-learnt/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -230,6 +243,7 @@ export default function LessonLearnt() {
         label: "Created Date",
         dataKey: "created_at",
         width: 160,
+        render: (row) => formatDateTime(row.created_at),
       },
       {
         label: "Attachment",
@@ -242,8 +256,12 @@ export default function LessonLearnt() {
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Edit lesson">
-              <IconButton size="small" color="primary" onClick={() => openEditDialog(row)}>
-                <EditRoundedIcon fontSize="small" />
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => openEditDialog(row)}
+              >
+                <EditOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Download attachment">
@@ -252,7 +270,7 @@ export default function LessonLearnt() {
                 disabled={!row.file}
                 onClick={() => downloadFile(row)}
               >
-                <DownloadRoundedIcon fontSize="small" />
+                <DownloadOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -272,16 +290,15 @@ export default function LessonLearnt() {
               Capture project execution learning and shared experience.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
+          <Box sx={{ width: { xs: 160, sm: 120 } }}>
             <Button
               variant="contained"
-              startIcon={<AddRoundedIcon />}
-              sx={modalPrimaryActionButtonSx}
+              startIcon={<AddOutlinedIcon />}
               onClick={openCreateDialog}
             >
               Add Lesson
             </Button>
-          </Stack>
+          </Box>
         </Box>
 
         <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, sm: 2, md: 3 }, pb: 3 }}>
@@ -297,7 +314,7 @@ export default function LessonLearnt() {
       <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="md">
         <DialogTitle>
           <Stack direction="row" spacing={1} alignItems="center">
-            <PsychologyAltRoundedIcon color="primary" />
+            <PsychologyAltOutlinedIcon color="primary" />
             <Typography variant="h6">
               {editingLesson ? "Update Lesson Learnt" : "Add Lesson Learnt"}
             </Typography>
@@ -325,7 +342,9 @@ export default function LessonLearnt() {
               <TextField
                 label="Status"
                 value={form.status}
-                onChange={(event) => updateForm("status", event.target.value as LessonStatus)}
+                onChange={(event) =>
+                  updateForm("status", event.target.value as LessonStatus)
+                }
                 fullWidth
                 select
                 size="small"
@@ -349,7 +368,9 @@ export default function LessonLearnt() {
             <TextField
               label="Limitations"
               value={form.limitations}
-              onChange={(event) => updateForm("limitations", event.target.value)}
+              onChange={(event) =>
+                updateForm("limitations", event.target.value)
+              }
               fullWidth
               multiline
               minRows={2}
@@ -370,36 +391,55 @@ export default function LessonLearnt() {
               multiline
               minRows={2}
             />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ sm: "center" }}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
                 hidden
-                onChange={(event) => updateForm("file", event.target.files?.[0] ?? null)}
+                onChange={(event) =>
+                  updateForm("file", event.target.files?.[0] ?? null)
+                }
               />
               <Button
                 variant="outlined"
-                startIcon={<UploadFileRoundedIcon />}
+                startIcon={<UploadFileOutlinedIcon />}
                 onClick={() => fileInputRef.current?.click()}
-                sx={modalActionButtonSx}
               >
                 Choose File
               </Button>
               <Typography variant="body2" color="text.secondary">
-                {form.file?.name || (editingLesson ? getFileName(editingLesson.file) : "No file selected")}
+                {form.file?.name ||
+                  (editingLesson
+                    ? getFileName(editingLesson.file)
+                    : "No file selected")}
               </Typography>
             </Stack>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} disabled={saving} sx={modalActionButtonSx}>
+          <Button
+            variant="outlined"
+            onClick={closeDialog}
+            disabled={saving}
+            startIcon={<CancelOutlinedIcon />}
+          >
             Cancel
           </Button>
           <Button
             onClick={submitLesson}
             disabled={saving}
             variant="contained"
-            sx={modalPrimaryActionButtonSx}
+            startIcon={
+              saving ? undefined : editingLesson ? (
+                <UpdateOutlinedIcon />
+              ) : (
+                <SaveOutlinedIcon />
+              )
+            }
           >
             {saving ? "Saving..." : editingLesson ? "Update" : "Save"}
           </Button>

@@ -4,11 +4,11 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import ErrorBoundary from "./components/common/ErrorBoundary";
-import { ErrorDialogProvider } from "./context/ErrorDialogContext";
+import { ErrorDialogProvider } from "./context/errorDialogContext";
 import { AppThemeProvider } from "./styles/theme/ThemeModeProvider";
 
 import "./index.css";
-import { NotificationProvider } from "./context/NotificationContext";
+import { NotificationProvider } from "./context/notificationContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

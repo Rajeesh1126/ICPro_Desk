@@ -11,33 +11,33 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import type {
     UsersData,
     groupData
 } from "../types/dataTypes";
 
-import UserCreateModal from "../components/Users/userCreateModal"
-import GroupCreateModal from "../components/Users/groupCreateModal"
+import UserCreateModal from "../components/users/UserCreateModal"
+import GroupCreateModal from "../components/users/GroupCreateModal"
 
 import {
     appPageBox,
     editIconSx,
     flexColumnFillSx,
     inlineCenterGapSx,
-    modalPrimaryActionButtonSx,
     pageHeaderSx,
-    selfTicketsPageBoxSx4,
-    selfTicketsPageStackSx1,
+    appTabsContainerSx,
+    appTabsSx,
+    tablePageContentSx,
 } from "../styles/common";
 import api from "../api/axios";
 import {
     VirtualizedTable,
     type ColumnData,
 } from "../components/common/TableView";
-import { showNotification } from "../api/NotificationService";
+import { showNotification } from "../api/notificationService";
 
 
 function storedUserId(): number | null {
@@ -210,7 +210,7 @@ export default function Users() {
         () => [
             {
                 label: "#",
-                width: 10,
+                width: {xs: 10, sm: 40 },
                 render: (_row, index) => index + 1,
                 number: true,
             },
@@ -225,7 +225,7 @@ export default function Users() {
                                 size="small"
                                 onClick={() => openEdit(row)}
                             >
-                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
+                                <EditOutlinedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
                         <Typography variant="body2">{row.username}</Typography>
@@ -248,13 +248,13 @@ export default function Users() {
         () => [
             {
                 label: "#",
-                width: 10,
+                width: {xs: 40, sm: 40 },
                 render: (_row, index) => index + 1,
                 number: true,
             },
             {
                 label: "Name",
-                width: 200,
+                width: 'auto',
                 render: (row) => (
                     <Box sx={inlineCenterGapSx}>
                         <Tooltip title="Edit team">
@@ -263,7 +263,7 @@ export default function Users() {
                                 size="small"
                                 onClick={() => openEditGroup(row)}
                             >
-                                <EditRoundedIcon fontSize="small" sx={editIconSx}/>
+                                <EditOutlinedIcon fontSize="small" sx={editIconSx}/>
                             </IconButton>
                         </Tooltip>
                         <Typography variant="body2">
@@ -274,6 +274,7 @@ export default function Users() {
             },
             {
                 label: "Manager",
+                width: 'auto',
                 render: (row) => (
                     <Select
                         size="small"
@@ -311,35 +312,47 @@ export default function Users() {
     return (
         <Box sx={appPageBox}>
             <Box component="main" sx={flexColumnFillSx}>
-                <Box sx={pageHeaderSx}>
-                    <Box>
+                <Box
+                    sx={{
+                        ...pageHeaderSx,
+                        flexWrap: "nowrap",
+                        alignItems: "flex-start",
+                        gap: 1.5,
+                    }}
+                >
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography variant="h5">{tabValue === 0 ? "Users List" : "Teams List"}</Typography>
                         <Typography variant="body2" color="text.secondary">
                             {tabValue === 0 ? "Manage user accounts, profiles, access, and assignments" : "Manage Teams and Its Mangers"}
                         </Typography>
                     </Box>
                     <Stack
-                        direction={{ xs: "column", sm: "row" }}
+                        direction="row"
                         spacing={1}
-                        sx={selfTicketsPageStackSx1}
+                        justifyContent="flex-end"
+                        sx={{ flexShrink: 0 }}
                     >
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                             {tabValue === 0 ? (
                                 <Button
-                                    startIcon={<AddRoundedIcon />}
+                                    startIcon={<AddOutlinedIcon />}
                                     variant="contained"
                                     onClick={openCreate}
-                                    sx={modalPrimaryActionButtonSx}
+                                    sx={{
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
                                     New User
                                 </Button>
                             ) : null}
                             {tabValue === 1 ? (
                                 <Button
-                                    startIcon={<AddRoundedIcon />}
+                                    startIcon={<AddOutlinedIcon />}
                                     variant="contained"
                                     onClick={openCreateGroup}
-                                    sx={modalPrimaryActionButtonSx}
+                                    sx={{
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
                                     New Team
                                 </Button>
@@ -349,7 +362,7 @@ export default function Users() {
                     </Stack>
                 </Box>
 
-                <Box sx={{ mx: 2 }}>
+                <Box sx={appTabsContainerSx}>
                     <Tabs
                         value={tabValue}
                         onChange={(_, value: number) => {
@@ -358,13 +371,14 @@ export default function Users() {
                         variant="scrollable"
                         scrollButtons="auto"
                         allowScrollButtonsMobile
+                        sx={appTabsSx}
                     >
                         <Tab label={`Users `} />
                         <Tab label={`Teams `} />
                     </Tabs>
                 </Box>
                 {tabValue === 0 && (
-                    <Box sx={selfTicketsPageBoxSx4}>
+                    <Box sx={tablePageContentSx}>
                         <VirtualizedTable
                             columns={columns}
                             rows={users}
@@ -374,7 +388,7 @@ export default function Users() {
                     </Box>
                 )}
                 {tabValue === 1 && (
-                    <Box sx={selfTicketsPageBoxSx4}>
+                    <Box sx={tablePageContentSx}>
                         <VirtualizedTable
                             columns={columnsGroup}
                             rows={groups}

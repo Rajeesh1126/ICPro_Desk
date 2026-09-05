@@ -35,7 +35,7 @@ class Ticket(models.Model):
     number = models.CharField(max_length=30, unique=True, editable=False)
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_tickets')
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_ticket')
-    task = models.CharField(max_length=200)
+    task = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
     department = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='groups')
     est_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
@@ -108,7 +108,7 @@ class Self_Ticket(models.Model):
     number = models.CharField(max_length=30, unique=True, editable=False)
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_self_tickets')
     
-    task = models.CharField(max_length=200)
+    task = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
     est_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     target_date = models.DateField(default=timezone.now)

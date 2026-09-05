@@ -1,13 +1,13 @@
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
-import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
-import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
-import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
-import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
-import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
-import SearchOffRoundedIcon from "@mui/icons-material/SearchOffRounded";
-import TimerOffRoundedIcon from "@mui/icons-material/TimerOffRounded";
-import WifiOffRoundedIcon from "@mui/icons-material/WifiOffRounded";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
+import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
+import SearchOffOutlinedIcon from "@mui/icons-material/SearchOffOutlined";
+import TimerOffOutlinedIcon from "@mui/icons-material/TimerOffOutlined";
+import WifiOffOutlinedIcon from "@mui/icons-material/WifiOffOutlined";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   errorActionsSx,
@@ -35,7 +35,7 @@ const configs: Record<string, ErrorConfig> = {
     code: 400,
     title: "We could not process that request",
     message: "Check the information and try again.",
-    icon: <ErrorOutlineRoundedIcon />,
+    icon: <ErrorOutlineOutlinedIcon />,
     primary: "dashboard",
     secondary: "back",
   },
@@ -43,7 +43,7 @@ const configs: Record<string, ErrorConfig> = {
     code: 401,
     title: "Your session has expired",
     message: "Please sign in again to continue securely.",
-    icon: <LoginRoundedIcon />,
+    icon: <LoginOutlinedIcon />,
     primary: "signin",
     secondary: "home",
   },
@@ -52,7 +52,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "You do not have access to this page",
     message:
       "Your account does not have the required permission. Contact an administrator if you believe this is incorrect.",
-    icon: <BlockRoundedIcon />,
+    icon: <BlockOutlinedIcon />,
     primary: "retry",
     secondary: "home",
   },
@@ -61,7 +61,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "We could not find that page",
     message:
       "The page may have been moved, renamed, or is no longer available.",
-    icon: <SearchOffRoundedIcon />,
+    icon: <SearchOffOutlinedIcon />,
     primary: "retry",
     secondary: "back",
   },
@@ -69,7 +69,7 @@ const configs: Record<string, ErrorConfig> = {
     code: 408,
     title: "The request took too long",
     message: "Please check your connection and try again.",
-    icon: <TimerOffRoundedIcon />,
+    icon: <TimerOffOutlinedIcon />,
     primary: "retry",
     secondary: "back",
   },
@@ -77,7 +77,7 @@ const configs: Record<string, ErrorConfig> = {
     code: 429,
     title: "Too many requests",
     message: "Please wait a moment before trying again.",
-    icon: <TimerOffRoundedIcon />,
+    icon: <TimerOffOutlinedIcon />,
     primary: "retry",
     // secondary: "dashboard",
   },
@@ -86,7 +86,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "Something went wrong",
     message:
       "We could not complete your request. Please try again. If the problem continues, contact support.",
-    icon: <ErrorOutlineRoundedIcon />,
+    icon: <ErrorOutlineOutlinedIcon />,
     primary: "retry",
     // secondary: "dashboard",
   },
@@ -95,7 +95,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "Service unavailable",
     message:
       "The service is temporarily unavailable. Please try again shortly.",
-    icon: <ErrorOutlineRoundedIcon />,
+    icon: <ErrorOutlineOutlinedIcon />,
     primary: "refresh",
     // secondary: "dashboard",
   },
@@ -104,7 +104,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "Service temporarily unavailable",
     message:
       "We are having trouble reaching the service right now. Please try again soon.",
-    icon: <ErrorOutlineRoundedIcon />,
+    icon: <ErrorOutlineOutlinedIcon />,
     primary: "refresh",
     // secondary: "dashboard",
   },
@@ -113,7 +113,7 @@ const configs: Record<string, ErrorConfig> = {
     title: "Unable to connect to the service",
     message:
       "The server could not be reached. Check your network connection or confirm that the service is running, then try again.",
-    icon: <WifiOffRoundedIcon />,
+    icon: <WifiOffOutlinedIcon />,
     primary: "retry",
     // secondary: "dashboard",
   },
@@ -121,7 +121,7 @@ const configs: Record<string, ErrorConfig> = {
     code: "generic",
     title: "Something went wrong",
     message: "Please try again. If the problem continues, contact support.",
-    icon: <ErrorOutlineRoundedIcon />,
+    icon: <ErrorOutlineOutlinedIcon />,
     primary: "refresh",
     // secondary: "home",
   },
@@ -136,7 +136,7 @@ function getErrorConfig(code: ErrorCode): ErrorConfig {
       title: "We could not complete your request",
       message:
         "An unexpected response was received. Please try again, or contact support if the problem continues.",
-      icon: <ErrorOutlineRoundedIcon />,
+      icon: <ErrorOutlineOutlinedIcon />,
       primary: "refresh",
       secondary: "dashboard",
     }
@@ -202,9 +202,9 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
             variant="contained"
             startIcon={
               config.primary === "signin" ? (
-                <LoginRoundedIcon />
+                <LoginOutlinedIcon />
               ) : (
-                <RefreshRoundedIcon />
+                <RefreshOutlinedIcon />
               )
             }
             onClick={() => runAction(config.primary)}
@@ -216,9 +216,9 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
               variant="outlined"
               startIcon={
                 config.secondary === "back" ? (
-                  <ReplyRoundedIcon />
+                  <ReplyOutlinedIcon />
                 ) : (
-                  <HomeRoundedIcon />
+                  <HomeOutlinedIcon />
                 )
               }
               onClick={() => runAction(config.secondary!)}

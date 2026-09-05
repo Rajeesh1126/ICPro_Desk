@@ -116,21 +116,29 @@ export function createAppTheme(mode: PaletteMode) {
         },
         styleOverrides: {
           root: {
-            // minHeight: 40,
+            borderRadius: 12,
+            height: 36,
             textTransform: "none",
+            padding: "4px 12px",
           },
         },
       },
       MuiToggleButton: {
+        defaultProps: {
+          size: "small",
+        },
         styleOverrides: {
           root: {
-            minHeight: 40,
+            height: 36,
             textTransform: "none",
             fontWeight: 700,
           },
         },
       },
       MuiToggleButtonGroup: {
+        defaultProps: {
+          size: "small",
+        },
         styleOverrides: {
           root: {
             border: "1px solid palette.primary.main",
@@ -164,6 +172,16 @@ export function createAppTheme(mode: PaletteMode) {
           },
         },
       },
+      MuiIconButton: {
+        defaultProps: {
+          size: "small",
+        },
+      },
+      MuiSvgIcon: {
+        defaultProps: {
+          fontSize: "small",
+        },
+      },
       MuiPaper: {
         styleOverrides: {
           root: { backgroundImage: "none" },
@@ -190,7 +208,28 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiDialog: {
         styleOverrides: {
-          paper: { borderRadius: 1 },
+          root: { borderRadius: 2 },
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            padding: "12px 12px",
+            borderBottom: `1px solid ${palette.divider}`,
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: { padding: "12px 12px !important" },
+        },
+      },
+      MuiDialogActions: {
+        styleOverrides: {
+          root: {
+            padding: "12px 12px",
+            borderTop: `1px solid ${palette.divider}`,
+          },
         },
       },
       MuiTabs: {
@@ -200,7 +239,7 @@ export function createAppTheme(mode: PaletteMode) {
             backgroundColor: alpha(palette.primary.main, isDark ? 0.16 : 0.08),
             borderRadius: 10,
             padding: 5,
-            width: "fit-content",
+            // width: "fit-content",
           },
         },
       },
@@ -210,7 +249,7 @@ export function createAppTheme(mode: PaletteMode) {
             minHeight: 36,
             minWidth: 100,
             padding: "6px 16px",
-            margin: "0px 5px",
+            margin: "0px 4px",
 
             textTransform: "none",
             fontSize: "0.875rem",
@@ -226,9 +265,12 @@ export function createAppTheme(mode: PaletteMode) {
 
             "&.Mui-selected": {
               color: isDark ? palette.primary.light : palette.primary.dark,
-              borderBottom: `3px solid ${
-                isDark ? palette.primary.light : palette.primary.dark
-              }`,
+              borderColor: isDark
+                ? palette.primary.light
+                : palette.primary.dark,
+              // borderBottom: `3px solid ${
+              //   isDark ? palette.primary.light : palette.primary.dark
+              // }`,
               fontWeight: 700,
             },
 
@@ -239,6 +281,7 @@ export function createAppTheme(mode: PaletteMode) {
         },
       },
       MuiTableCell: {
+        defaultProps: { size: "small" },
         styleOverrides: {
           root: { borderBottomColor: palette.divider },
           head: { fontWeight: 800 },

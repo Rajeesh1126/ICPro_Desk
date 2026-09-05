@@ -22,9 +22,10 @@ import {
   useTheme,
 } from "@mui/material";
 import api from "../../api/axios";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import { modalActionButtonSx, stickyTableCellSx, tableHeaderCellSx, tableHeadSx } from "../../styles/common";
+import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import { stickyTableCellSx, tableHeaderCellSx, tableHeadSx } from "../../styles/common";
 
 import type {
   TaskEntry,
@@ -33,7 +34,7 @@ import type {
   SubmissionProject,
   UsersData
 } from "../../types/dataTypes";
-import { showNotification } from "../../api/NotificationService";
+import { showNotification } from "../../api/notificationService";
 
 // =========================================================
 // Week
@@ -120,12 +121,33 @@ const createWeekDays = (weekStart: string): WeekDay[] => {
 // =========================================================
 
 const columnWidths = {
-  job: 430,
-  budgetOwner: 190,
+  job: {xs: 200, sm: 300 },
+  budgetOwner: 160,
   day: 100,
   total: 90,
   select: 70,
 };
+
+const stickyJobCellSx = (theme: import("@mui/material/styles").Theme) => ({
+  ...stickyTableCellSx(theme),
+  position: "sticky",
+  left: 0,
+  zIndex: 3,
+  bgcolor: theme.palette.background.paper,
+  boxShadow: `1px 0 0 ${theme.palette.divider}`,
+  "& > *": {
+    position: "relative",
+    zIndex: 1,
+  },
+});
+
+const stickyJobHeaderCellSx = (theme: import("@mui/material/styles").Theme) => ({
+  ...tableHeaderCellSx(theme),
+  position: "sticky",
+  left: 0,
+  zIndex: 6,
+  boxShadow: `1px 0 0 ${theme.palette.divider}`,
+});
 
 // =========================================================
 // Helpers
@@ -269,6 +291,7 @@ export default function Submission({
     useState<number[]>([1]);
 
   const [savingDraft, setSavingDraft] = useState(false);
+  const [hasUnsavedHourChanges, setHasUnsavedHourChanges] = useState(false);
   const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetStatus>({
     timesheet_status: "Not Submitted",
     submission_status: false,
@@ -325,13 +348,15 @@ export default function Submission({
           milestone.assigned_tasks.flatMap((task) =>
             weekDays
               .map((day) => ({
-                assignId: task.assign_id,
-                date: day.date,
-                hours: timeValueToSeconds(task.entries[day.date] ?? 0),
+                entry: {
+                  assignId: task.assign_id,
+                  date: day.date,
+                  hours: timeValueToSeconds(task.entries[day.date] ?? 0),
+                },
                 hasEntry: Object.prototype.hasOwnProperty.call(task.entries, day.date),
               }))
-              .filter((entry) => entry.hasEntry || entry.hours > 0)
-              .map(({ hasEntry: _hasEntry, ...entry }) => entry),
+              .filter((item) => item.hasEntry || item.entry.hours > 0)
+              .map((item) => item.entry),
           ),
         ),
       ),
@@ -508,6 +533,8 @@ export default function Submission({
     date: string,
     value: string,
   ) => {
+    const normalizedValue = value === "" ? 0 : value;
+
     if (value !== "" && !/^\d*(\.\d{0,2})?$/.test(value)) {
       return;
     }
@@ -523,11 +550,6 @@ export default function Submission({
     if (timeValueToSeconds(value) > 14 * 3600) {
       return;
     }
-
-    const hours =
-      value === ""
-        ? 0
-        : value;
 
     setProjects((current) =>
       current.map((project) => {
@@ -556,12 +578,16 @@ export default function Submission({
                         return task;
                       }
 
+                      if (String(task.entries[date] ?? 0) !== String(normalizedValue)) {
+                        setHasUnsavedHourChanges(true);
+                      }
+
                       return {
                         ...task,
 
                         entries: {
                           ...task.entries,
-                          [date]: hours,
+                          [date]: normalizedValue,
                         },
                       };
                     },
@@ -747,6 +773,7 @@ export default function Submission({
         type: "success",
         message: "Time sheet saved as draft successfully .",
       });
+      setHasUnsavedHourChanges(false);
     } catch {
       // Global axios error handling shows API failures.
     } finally {
@@ -775,6 +802,7 @@ export default function Submission({
       sx={{
         width: "100%",
         height: "100%",
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -789,7 +817,13 @@ export default function Submission({
         elevation={0}
         sx={{
           flex: 1,
+          minHeight: 0,
           overflow: "auto",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 1.5,
+          boxShadow: "none",
+          bgcolor: "background.paper",
         }}
       >
         <Table
@@ -797,13 +831,17 @@ export default function Submission({
           size="small"
           sx={{
             width: "100%",
-            minWidth: 1450,
+            minWidth: { xs: 1180, md: 1320, lg: 1450 },
             tableLayout: "fixed",
 
             "& .MuiTableCell-root": {
               boxSizing: "border-box",
               color: theme.palette.text.primary,
               borderBottom: `1px solid ${theme.palette.divider}`,
+              fontSize: "0.8125rem",
+            },
+            "& .MuiTableRow-root:hover .MuiTableCell-root:not(.timesheet-jobs-cell)": {
+              bgcolor: theme.palette.action.hover,
             },
           }}
         >
@@ -817,10 +855,11 @@ export default function Submission({
 
               <TableCell
                 sx={{
-                  ...tableHeaderCellSx(theme),
+                  ...stickyJobHeaderCellSx(theme),
                   width: columnWidths.job,
                   minWidth: columnWidths.job,
                 }}
+                className="timesheet-jobs-cell"
               >
                 Jobs
               </TableCell>
@@ -919,11 +958,12 @@ export default function Submission({
 
                     <TableCell
                       sx={{
-                        ...stickyTableCellSx(theme),
+                        ...stickyJobCellSx(theme),
                         width: columnWidths.job,
                         minWidth: columnWidths.job,
                         fontWeight: 600,
                       }}
+                      className="timesheet-jobs-cell"
                     >
                       <Box
                         sx={{
@@ -940,9 +980,9 @@ export default function Submission({
                           }
                         >
                           {projectExpanded ? (
-                            <ExpandMoreRoundedIcon />
+                            <ExpandMoreOutlinedIcon />
                           ) : (
-                            <ChevronRightRoundedIcon />
+                            <ChevronRightOutlinedIcon />
                           )}
                         </IconButton>
 
@@ -1064,7 +1104,7 @@ export default function Submission({
                             size="small"
                             sx={{
                               width: "100%",
-                              minWidth: 1450,
+                              minWidth: { xs: 1180, md: 1320, lg: 1450 },
                               tableLayout: "fixed",
 
                               "& .MuiTableCell-root": {
@@ -1103,7 +1143,7 @@ export default function Submission({
 
                                         <TableCell
                                           sx={{
-                                            ...stickyTableCellSx(theme),
+                                            ...stickyJobCellSx(theme),
                                             width:
                                               columnWidths.job,
                                             minWidth:
@@ -1111,6 +1151,7 @@ export default function Submission({
                                             pl: 5,
 
                                           }}
+                                          className="timesheet-jobs-cell"
                                         >
                                           <Box
                                             sx={{
@@ -1129,9 +1170,9 @@ export default function Submission({
                                               }
                                             >
                                               {milestoneExpanded ? (
-                                                <ExpandMoreRoundedIcon />
+                                                <ExpandMoreOutlinedIcon />
                                               ) : (
-                                                <ChevronRightRoundedIcon />
+                                                <ChevronRightOutlinedIcon />
                                               )}
                                             </IconButton>
 
@@ -1236,12 +1277,14 @@ export default function Submission({
 
                                                 <TableCell
                                                   sx={{
+                                                    ...stickyJobCellSx(theme),
                                                     pl: 10,
                                                     width:
                                                       columnWidths.job,
                                                     minWidth:
                                                       columnWidths.job,
                                                   }}
+                                                  className="timesheet-jobs-cell"
                                                 >
                                                   <Box
                                                     sx={{
@@ -1382,13 +1425,19 @@ export default function Submission({
                                                             "& .MuiOutlinedInput-root.Mui-disabled":
                                                             {
                                                               bgcolor:
-                                                                "#f5f5f5",
+                                                                theme.palette
+                                                                  .action
+                                                                  .disabledBackground,
+                                                              cursor:
+                                                                "not-allowed",
+                                                            },
 
-                                                              "& fieldset":
-                                                              {
-                                                                borderColor:
-                                                                  "#d6d6d6",
-                                                              },
+                                                            "& .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline":
+                                                            {
+                                                              borderColor:
+                                                                theme.palette
+                                                                  .action
+                                                                  .disabled,
                                                             },
 
                                                             "& input":
@@ -1401,7 +1450,9 @@ export default function Submission({
                                                             "& .MuiInputBase-input.Mui-disabled":
                                                             {
                                                               WebkitTextFillColor:
-                                                                "#6f6f6f",
+                                                                theme.palette
+                                                                  .text
+                                                                  .disabled,
                                                               cursor:
                                                                 "not-allowed",
                                                             },
@@ -1479,13 +1530,14 @@ export default function Submission({
             <TableRow>
               <TableCell
                 sx={{
-                  ...stickyTableCellSx(theme),
+                  ...stickyJobCellSx(theme),
                   width: columnWidths.job,
                   minWidth: columnWidths.job,
                   fontWeight: 700,
                   bgcolor: "background.default",
                   borderTop: `1px solid ${theme.palette.divider}`,
                 }}
+                className="timesheet-jobs-cell"
               >
                 Total
               </TableCell>
@@ -1554,44 +1606,103 @@ export default function Submission({
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          gap: 1,
+          alignItems: { xs: "stretch", md: "center" },
+          gap: 1.25,
+          borderRadius: 1,
           flexWrap: "wrap",
-          py: 1.5,
-          px: 1,
-          borderTop: `1px solid ${theme.palette.divider}`,
-          backgroundColor: theme.palette.background.paper,
+          mt: 1.5, 
+          py: { xs: 1, sm: 1.25 },
+          px: { xs: 1, sm: 1.5 },
+          borderTop: "1px solid",
+          borderColor: hasUnsavedHourChanges
+            ? theme.palette.warning.main
+            : theme.palette.divider,
+          backgroundColor: hasUnsavedHourChanges
+            ? theme.palette.mode === "dark"
+              ? "rgba(251, 140, 0, 0.14)"
+              : "rgba(251, 140, 0, 0.08)"
+            : theme.palette.background.paper,
+          boxShadow: hasUnsavedHourChanges
+            ? `0 -6px 18px ${theme.palette.mode === "dark" ? "rgba(251, 140, 0, 0.12)" : "rgba(251, 140, 0, 0.14)"}`
+            : "none",
+          transition: theme.transitions.create(["background-color", "border-color", "box-shadow"], {
+            duration: theme.transitions.duration.shorter,
+          }),
         }}
       >
-        <Typography
-          sx={(theme) => ({
-            fontSize: 13,
-            fontWeight: 600,
-            color: weeklyHoursValidation.isSatisfied
-              ? theme.palette.success.main
-              : theme.palette.text.secondary,
-          })}
+        <Box
+          sx={{
+            minWidth: { xs: "100%", md: 360 },
+            flex: 1,
+          }}
         >
-          Estimated Hours: {estimatedWeekHours}
-          {" | "}
-          Entered: {weeklyHoursValidation.actualHours.toFixed(2)}
-          {" | "}
-          Note: After entering your hours, you must Save as Draft or Submit the Timesheet before closing. Auto-save is not available.
-        </Typography>
+          <Typography
+            sx={(theme) => ({
+              fontSize: 13,
+              fontWeight: 800,
+              color: weeklyHoursValidation.isSatisfied
+                ? theme.palette.success.main
+                : theme.palette.warning.main,
+            })}
+          >
+            Estimated: {estimatedWeekHours} hrs / Entered: {weeklyHoursValidation.actualHours.toFixed(2)} hrs
+          </Typography>
+          <Typography
+            variant="caption"
+            color={hasUnsavedHourChanges ? "warning.main" : "text.secondary"}
+            sx={{
+              display: "block",
+              mt: 0.25,
+              lineHeight: 1.35,
+              fontWeight: hasUnsavedHourChanges ? 800 : 400,
+            }}
+          >
+            {hasUnsavedHourChanges
+              ? "Daily hours changed. Click Save Draft before closing or switching work."
+              : "Save as draft or submit before closing. Auto-save is not available."}
+          </Typography>
+        </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-           <Chip
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: { xs: "space-between", sm: "flex-end" },
+            gap: 1,
+            width: { xs: "100%", md: "auto" },
+            flexWrap: "wrap",
+          }}
+        >
+          <Chip
             size="small"
-            label={`Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`}
-            color={isSubmitted ? "success" : "default"}
-            variant={isSubmitted ? "filled" : "outlined"}
+            label={
+              hasUnsavedHourChanges
+                ? "Unsaved hours"
+                : `Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`
+            }
+            color={hasUnsavedHourChanges ? "warning" : isSubmitted ? "success" : "default"}
+            variant={hasUnsavedHourChanges || isSubmitted ? "filled" : "outlined"}
+            sx={{
+              borderRadius: 5,
+              fontWeight: 700,
+              "& .MuiChip-label": {
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              },
+            }}
           />
           <Button
             variant="contained"
-            size="small"
+            startIcon={<SaveOutlinedIcon />}
             onClick={saveDraft}
             disabled={savingDraft || (isSubmitted && !isUnlocked)}
-            sx={modalActionButtonSx}
+            sx={{
+              bgcolor: hasUnsavedHourChanges ? "warning.main" : undefined,
+              color: hasUnsavedHourChanges ? "warning.contrastText" : undefined,
+              "&:hover": {
+                bgcolor: hasUnsavedHourChanges ? "warning.dark" : undefined,
+              },
+            }}
           >
             {savingDraft ? "Saving..." : "Save Draft"}
           </Button>

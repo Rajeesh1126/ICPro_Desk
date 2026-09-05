@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Badge,
   Box,
+  Button,
   Chip,
   Dialog,
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -15,11 +18,14 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
-import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
-import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
-import PendingActionsRoundedIcon from "@mui/icons-material/PendingActionsRounded";
+import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import HourglassTopOutlinedIcon from "@mui/icons-material/HourglassTopOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -27,9 +33,12 @@ import {
 import api from "../../api/axios";
 import type { ReportingEmployees } from "../../types/dataTypes";
 import {
+  appPageBox,
+  appTabsContainerSx,
+  appTabsSx,
   flexColumnFillSx,
   pageHeaderSx,
-  selfTicketsPageStackSx1,
+  tablePageContentSx,
 } from "../../styles/common";
 
 type TimesheetLogWeekColumn = {
@@ -145,10 +154,10 @@ function TimingIcon({ week }: { week?: TimesheetLogWeek }) {
   const timing = week?.submission_timing ?? "Not Submitted";
   const Icon =
     timing === "OnTime"
-      ? CheckCircleRoundedIcon
+      ? CheckCircleOutlinedIcon
       : timing === "Delayed"
-      ? HourglassTopRoundedIcon
-      : CancelRoundedIcon;
+      ? HourglassTopOutlinedIcon
+      : CancelOutlinedIcon;
 
   return (
     <Tooltip
@@ -180,14 +189,14 @@ function ReviewerIcon({
   const status = week?.review_status ?? "N/A";
   const Icon =
     status === "OnTime"
-      ? CheckCircleRoundedIcon
+      ? CheckCircleOutlinedIcon
       : status === "Rejected"
-      ? CancelRoundedIcon
+      ? CancelOutlinedIcon
       : status === "Partially Approved"
-      ? HourglassTopRoundedIcon
+      ? HourglassTopOutlinedIcon
       : status === "No Action"
-      ? PendingActionsRoundedIcon
-      : HelpOutlineRoundedIcon;
+      ? PendingActionsOutlinedIcon
+      : HelpOutlineOutlinedIcon;
   const canOpen = Boolean(week?.submitted && week.approvers.length > 0);
 
   return (
@@ -233,6 +242,14 @@ export default function TimesheetLogs() {
     employeeName: string;
     week: ReviewerLogWeek;
   } | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const activeFilterCount = [
+    selectedEmployee,
+    selectedYear,
+    fromWeek,
+    toWeek,
+  ].filter(Boolean).length;
 
   useEffect(() => {
     let active = true;
@@ -320,12 +337,12 @@ export default function TimesheetLogs() {
       {
         label: "Employee",
         dataKey: "employee_name",
-        width: 220,
+        width: { xs: 160, sm: 200 },
       },
       {
         label: "Reporting To",
         dataKey: "reporting_to",
-        width: 180,
+        width: { xs: 160, sm: 200 },
       },
       ...logs.week_columns.map((week) => ({
         label: week.label,
@@ -343,12 +360,12 @@ export default function TimesheetLogs() {
       {
         label: "Employee",
         dataKey: "employee_name",
-        width: 220,
+        width: { xs: 160, sm: 200 },
       },
       {
         label: "Reporting To",
         dataKey: "reporting_to",
-        width: 180,
+        width: { xs: 160, sm: 200 },
       },
       ...reviewerLogs.week_columns.map((week) => ({
         label: week.label,
@@ -375,119 +392,202 @@ export default function TimesheetLogs() {
   );
 
   return (
-    <Box sx={flexColumnFillSx}>
-      <Box sx={pageHeaderSx}>
-        <Typography variant="h5" fontWeight={700}>
-          Timesheet Logs
-        </Typography>
+    <Box sx={appPageBox}>
+      <Box component="main" sx={flexColumnFillSx}>
+        <Box sx={pageHeaderSx}>
+          <Box sx={{ display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between', flex: 1 }}>
+            <Typography variant="h5" fontWeight={700}>
+              Timesheet Logs
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Track weekly submission and reviewer approval status across your team.
+            </Typography>
+          </Box>
+
+        
+          <Button
+            variant="outlined"
+            startIcon={
+              <Badge badgeContent={activeFilterCount} color="primary">
+                <FilterListOutlinedIcon fontSize="small" />
+              </Badge>
+            }
+            onClick={() => setFiltersOpen(true)}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <Box sx={appTabsContainerSx}>
+          <Tabs
+            value={tabValue}
+            onChange={(_, value) => setTabValue(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={appTabsSx}
+          >
+            <Tab label="Submitted Log" />
+            <Tab label="Reviewer Logs" />
+          </Tabs>
+        </Box>
+
+        <Box sx={tablePageContentSx}>
+          {tabValue === 0 ? (
+            <VirtualizedTable<TimesheetLogRow>
+              columns={columns}
+              rows={logs.results}
+              height="100%"
+              tableHead="Submitted Logs"
+            />
+          ) : (
+            <VirtualizedTable<ReviewerLogRow>
+              columns={reviewerColumns}
+              rows={reviewerLogs.results}
+              height="100%"
+              tableHead="Reviewer Logs"
+            />
+          )}
+        </Box>
       </Box>
 
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={1.5}
-        alignItems={{ xs: "stretch", md: "center" }}
-        sx={selfTicketsPageStackSx1}
+      <Dialog
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            position: "fixed",
+            top: { xs: 150, sm: 150 },
+            right: { xs: "auto", sm: 15 },
+            m: 0,
+          },
+        }}
       >
-        <Tabs value={tabValue} onChange={(_, value) => setTabValue(value)}>
-          <Tab label="Submitted Log" />
-          <Tab label="Reviewer Logs" />
-        </Tabs>
-
-        <Box sx={{ flexGrow: 1 }} />
-
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Employee</InputLabel>
-            <Select
-              label="Employee"
-              value={selectedEmployee}
-              onChange={(event) => setSelectedEmployee(event.target.value)}
+        <DialogTitle>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography variant="h6">Timesheet filters</Typography>
+            <IconButton
+              aria-label="Close filters"
+              onClick={() => setFiltersOpen(false)}
             >
-              <MenuItem value="">All</MenuItem>
-              {employees.map((employee) => (
-                <MenuItem key={employee.id} value={String(employee.id)}>
-                  {employee.first_name || `User ${employee.id}`}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <CloseOutlinedIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Employee</InputLabel>
+              <Select
+                label="Employee"
+                value={selectedEmployee}
+                onChange={(event) => setSelectedEmployee(event.target.value)}
+              >
+                <MenuItem value="">All</MenuItem>
+                {employees.map((employee) => (
+                  <MenuItem key={employee.id} value={String(employee.id)}>
+                    {employee.first_name || `User ${employee.id}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <InputLabel>Year</InputLabel>
-            <Select
-              label="Year"
-              value={selectedYear}
-              onChange={(event) => setSelectedYear(event.target.value)}
-            >
-              <MenuItem value="">Last 4 weeks</MenuItem>
-              {years.map((year) => (
-                <MenuItem key={year} value={String(year)}>
-                  {year}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Year</InputLabel>
+              <Select
+                label="Year"
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+              >
+                <MenuItem value="">Last 4 weeks</MenuItem>
+                {years.map((year) => (
+                  <MenuItem key={year} value={String(year)}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>From Week</InputLabel>
-            <Select
-              label="From Week"
-              value={fromWeek}
-              onChange={(event) => setFromWeek(event.target.value)}
-            >
-              <MenuItem value="">Any</MenuItem>
-              {weekOptions.map((week) => (
-                <MenuItem key={week} value={String(week)}>
-                  W{week}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>From Week</InputLabel>
+              <Select
+                label="From Week"
+                value={fromWeek}
+                onChange={(event) => setFromWeek(event.target.value)}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}
+              >
+                <MenuItem value="">Any</MenuItem>
+                {weekOptions.map((week) => (
+                  <MenuItem key={week} value={String(week)}>
+                    W-{week}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>To Week</InputLabel>
-            <Select
-              label="To Week"
-              value={toWeek}
-              onChange={(event) => setToWeek(event.target.value)}
-            >
-              <MenuItem value="">Any</MenuItem>
-              {weekOptions.map((week) => (
-                <MenuItem key={week} value={String(week)}>
-                  W{week}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Stack>
-
-      {tabValue === 0 ? (
-        <VirtualizedTable<TimesheetLogRow>
-          columns={columns}
-          rows={logs.results}
-          height="calc(100dvh - 250px)"
-          tableHead="Submitted Logs"
-        />
-      ) : (
-        <VirtualizedTable<ReviewerLogRow>
-          columns={reviewerColumns}
-          rows={reviewerLogs.results}
-          height="calc(100dvh - 250px)"
-          tableHead="Reviewer Logs"
-        />
-      )}
+            <FormControl size="small" fullWidth>
+              <InputLabel>To Week</InputLabel>
+              <Select
+                label="To Week"
+                value={toWeek}
+                onChange={(event) => setToWeek(event.target.value)}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}
+              >
+                <MenuItem value="">Any</MenuItem>
+                {weekOptions.map((week) => (
+                  <MenuItem key={week} value={String(week)}>
+                    W-{week}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(selectedReviewerCell)}
         onClose={() => setSelectedReviewerCell(null)}
         fullWidth
         maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 2, overflow: "hidden" } }}
       >
-        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>
-          {selectedReviewerCell?.employeeName} | W{selectedReviewerCell?.week.weeknumber}
+        <DialogTitle sx={{ px: 3, py: 2 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <RateReviewOutlinedIcon color="primary" />
+              <Box>
+                <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
+                  {selectedReviewerCell?.employeeName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Week {selectedReviewerCell?.week.weeknumber} ·{" "}
+                  {selectedReviewerCell?.week.completed_approvers}/
+                  {selectedReviewerCell?.week.total_approvers} approvers actioned
+                </Typography>
+              </Box>
+            </Stack>
+            <Tooltip title="Close">
+              <IconButton size="small" onClick={() => setSelectedReviewerCell(null)}>
+                <CloseOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers sx={{ px: 3, py: 2 }}>
           <Stack spacing={1}>
             {selectedReviewerCell?.week.approvers.map((approver) => (
               <Box
@@ -497,9 +597,10 @@ export default function TimesheetLogs() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: 1.5,
-                  py: 1,
-                  borderBottom: "1px solid",
+                  p: 1.25,
+                  border: "1px solid",
                   borderColor: "divider",
+                  borderRadius: 1.5,
                 }}
               >
                 <Box>

@@ -11,8 +11,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import ForwardToInboxOutlinedIcon from "@mui/icons-material/ForwardToInboxOutlined";
+import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
 import api from "../api/axios";
 import bgImage from "../assets/taskmanagementloginimage.jpg";
@@ -83,7 +85,7 @@ export default function ForgotPassword() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <PersonOutlineRoundedIcon color="action" fontSize="small" />
+                      <PersonOutlineOutlinedIcon color="action" fontSize="small" />
                     </InputAdornment>
                   ),
                 },
@@ -102,7 +104,7 @@ export default function ForgotPassword() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <EmailRoundedIcon color="action" fontSize="small" />
+                      <EmailOutlinedIcon color="action" fontSize="small" />
                     </InputAdornment>
                   ),
                 },
@@ -114,6 +116,7 @@ export default function ForgotPassword() {
               variant="contained"
               size="large"
               disabled={loading}
+              startIcon={loading ? undefined : <ForwardToInboxOutlinedIcon />}
               sx={loginPageButtonSx1}
             >
               {loading ? (
@@ -129,11 +132,18 @@ export default function ForgotPassword() {
               component={RouterLink}
               to="/"
               variant="body2"
-              align="center"
               color="primary.main"
-              display="block"
-              sx={{ mt: 2, fontWeight: 700, textDecoration: "none" }}
+              sx={{
+                mt: 2,
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.75,
+              }}
             >
+              <LoginOutlinedIcon fontSize="small" />
               Back to login
             </Typography>
           </Box>

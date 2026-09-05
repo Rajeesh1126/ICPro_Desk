@@ -1,4 +1,4 @@
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import {
   Box,
   Button,
@@ -28,11 +28,6 @@ export default function CommonErrorDialog({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: "6px",
-        },
-      }}
     >
       <DialogTitle
         sx={{
@@ -44,7 +39,7 @@ export default function CommonErrorDialog({
           py: 2,
         }}
       >
-        <ErrorOutlineIcon />
+        <ErrorOutlineOutlinedIcon />
         {title}
       </DialogTitle>
 
@@ -64,7 +59,7 @@ export default function CommonErrorDialog({
             textAlign: "center",
           }}
         >
-          <ErrorOutlineIcon
+          <ErrorOutlineOutlinedIcon
             color="error"
             sx={{ fontSize: 40, flexShrink: 0 }}
           />
@@ -83,8 +78,6 @@ export default function CommonErrorDialog({
       <DialogActions
         sx={{
           justifyContent: "center",
-          pb: 2,
-          px: 3,
         }}
       >
         <Button

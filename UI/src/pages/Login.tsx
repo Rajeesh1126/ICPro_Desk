@@ -12,11 +12,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
-import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
-import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import bgImage from "../assets/taskmanagementloginimage.jpg";
 import logo from "../assets/icpro_logo.svg";
 import api from "../api/axios";
@@ -79,7 +79,7 @@ export default function Login() {
           <Box
             sx={loginPageBoxSx2}
           >
-            <LockRoundedIcon />
+            <LockOutlinedIcon />
           </Box>
           <Typography variant="h5" align="center">
             Welcome back
@@ -98,7 +98,7 @@ export default function Login() {
               value={username} onChange={(event) => setUsername(event.target.value)}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position="start"><PersonOutlineRoundedIcon
+                  startAdornment: <InputAdornment position="start"><PersonOutlineOutlinedIcon
                     color="action" fontSize="small" /></InputAdornment>
                 }
               }} sx={marginBottomSectionSx}
@@ -111,10 +111,10 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockRoundedIcon color="action" fontSize="small" /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((visible) => !visible)} onMouseDown={(event) => event.preventDefault()} edge="end">{showPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}</IconButton></InputAdornment> } }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockOutlinedIcon color="action" fontSize="small" /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((visible) => !visible)} onMouseDown={(event) => event.preventDefault()} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
               required
             />
-            <Button fullWidth type="submit" autoFocus variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginRoundedIcon />} sx={loginPageButtonSx1}>
+            <Button fullWidth type="submit" autoFocus variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginOutlinedIcon />} sx={loginPageButtonSx1}>
               {loading ? <><CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} /> Signing in…</> : "Sign In"}
             </Button>
             <Typography

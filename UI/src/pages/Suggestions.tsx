@@ -13,23 +13,28 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import AddCommentRoundedIcon from "@mui/icons-material/AddCommentRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import FeedbackRoundedIcon from "@mui/icons-material/FeedbackRounded";
+import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../api/axios";
-import { showNotification } from "../api/NotificationService";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
+import { showNotification } from "../api/notificationService";
+import { formatDateTime } from "../components/common/formatDate";
 import {
-  appPageBox,
-  flexColumnFillSx,
-  modalActionButtonSx,
-  modalPrimaryActionButtonSx,
-  pageHeaderSx,
-  responsiveRightActionsSx,
-} from "../styles/common";
+  VirtualizedTable,
+  type ColumnData,
+} from "../components/common/TableView";
+import { appPageBox, flexColumnFillSx, pageHeaderSx } from "../styles/common";
 
-type SuggestionStatus = "Open" | "In Review" | "Accepted" | "Rejected" | "Closed";
+type SuggestionStatus =
+  | "Open"
+  | "In Review"
+  | "Accepted"
+  | "Rejected"
+  | "Closed";
 
 type SystemSuggestion = Record<string, unknown> & {
   id: number;
@@ -65,12 +70,15 @@ const suggestionStatuses: SuggestionStatus[] = [
 export default function Suggestions() {
   const [suggestions, setSuggestions] = useState<SystemSuggestion[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSuggestion, setEditingSuggestion] = useState<SystemSuggestion | null>(null);
+  const [editingSuggestion, setEditingSuggestion] =
+    useState<SystemSuggestion | null>(null);
   const [form, setForm] = useState<SuggestionFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const loadSuggestions = useCallback(async () => {
-    const response = await api.get<SystemSuggestion[]>("/documents/system-suggestions/");
+    const response = await api.get<SystemSuggestion[]>(
+      "/documents/system-suggestions/",
+    );
     setSuggestions(Array.isArray(response.data) ? response.data : []);
   }, []);
 
@@ -123,7 +131,10 @@ export default function Suggestions() {
       };
 
       if (editingSuggestion) {
-        await api.patch(`/documents/system-suggestions/${editingSuggestion.id}/`, payload);
+        await api.patch(
+          `/documents/system-suggestions/${editingSuggestion.id}/`,
+          payload,
+        );
       } else {
         await api.post("/documents/system-suggestions/", payload);
       }
@@ -161,25 +172,31 @@ export default function Suggestions() {
       {
         label: "Remarks",
         dataKey: "remarks",
-        width: 280,
+        width: "auto",
       },
       {
         label: "Created Date",
         dataKey: "created_at",
         width: 160,
+        render: (row) => formatDateTime(row.created_at),
       },
       {
         label: "Updated Date",
         dataKey: "updated_at",
         width: 160,
+        render: (row) => formatDateTime(row.updated_at),
       },
       {
         label: "Actions",
         width: 90,
         render: (row) => (
           <Tooltip title="Edit suggestion">
-            <IconButton size="small" color="primary" onClick={() => openEditDialog(row)}>
-              <EditRoundedIcon fontSize="small" />
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => openEditDialog(row)}
+            >
+              <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         ),
@@ -198,16 +215,16 @@ export default function Suggestions() {
               Capture ICProDesk feedback and improvement suggestions.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
+          <Box sx={{ width: { xs: "230px", sm: "auto" } }}>
             <Button
               variant="contained"
-              startIcon={<AddCommentRoundedIcon />}
-              sx={modalPrimaryActionButtonSx}
+              startIcon={<AddCommentOutlinedIcon />}
               onClick={openCreateDialog}
+              // sx={{ width: { xs: "160px", sm: "auto" } }}
             >
               Add Suggestion
             </Button>
-          </Stack>
+          </Box>
         </Box>
 
         <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, sm: 2, md: 3 }, pb: 3 }}>
@@ -215,6 +232,7 @@ export default function Suggestions() {
             columns={columns}
             rows={suggestions}
             height="100%"
+            tableMinWidth={1220}
             tableHead="Suggestion List"
           />
         </Box>
@@ -223,7 +241,7 @@ export default function Suggestions() {
       <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="sm">
         <DialogTitle>
           <Stack direction="row" spacing={1} alignItems="center">
-            <FeedbackRoundedIcon color="primary" />
+            <FeedbackOutlinedIcon color="primary" />
             <Typography variant="h6">
               {editingSuggestion ? "Update Suggestion" : "Add Suggestion"}
             </Typography>
@@ -243,7 +261,9 @@ export default function Suggestions() {
             <TextField
               label="Status"
               value={form.status}
-              onChange={(event) => updateForm("status", event.target.value as SuggestionStatus)}
+              onChange={(event) =>
+                updateForm("status", event.target.value as SuggestionStatus)
+              }
               fullWidth
               select
               size="small"
@@ -265,14 +285,25 @@ export default function Suggestions() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} disabled={saving} sx={modalActionButtonSx}>
+          <Button
+            variant="outlined"
+            onClick={closeDialog}
+            disabled={saving}
+            startIcon={<CancelOutlinedIcon />}
+          >
             Cancel
           </Button>
           <Button
             onClick={submitSuggestion}
             disabled={saving}
             variant="contained"
-            sx={modalPrimaryActionButtonSx}
+            startIcon={
+              saving
+                ? undefined
+                : editingSuggestion
+                  ? <UpdateOutlinedIcon />
+                  : <SendOutlinedIcon />
+            }
           >
             {saving ? "Saving..." : editingSuggestion ? "Update" : "Submit"}
           </Button>
