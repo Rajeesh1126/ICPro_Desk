@@ -34,15 +34,21 @@ import type {
 import api from "../../api/axios";
 import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
 import {
-  appPageBox,
-  appTabsContainerSx,
-  appTabsSx,
-  flexColumnFillSx,
+  buttonLabelCompact,
+  buttonLabelFull,
+  filterField,
   inlineCenterGapSx,
-  pageHeaderSx,
-  tablePageContentSx,
-  selfTicketsPageFormControlSx1,
-  // selfTicketsPageStackSx1,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  priorityDueRowHighlight,
+  tabs,
+  tabsContainer,
+  tablePageContent,
   toggleButton,
 } from "../../styles/common";
 
@@ -57,6 +63,31 @@ function loggedUser(): number | null {
   const id = value ? Number(value) : NaN;
 
   return Number.isInteger(id) ? id : null;
+}
+
+function parseTaskDueDay(value: string | null | undefined) {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
+  }
+
+  const normalizedValue = value.replace(" ", "T");
+  const dueDate = new Date(normalizedValue);
+  const timestamp = dueDate.getTime();
+  dueDate.setHours(0, 0, 0, 0);
+
+  return Number.isNaN(timestamp) ? null : dueDate.getTime();
+}
+
+function isOpenDueTask(ticket: SelfTicketData) {
+  const dueDay = parseTaskDueDay(ticket.target_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isOpen = ticket.current_status?.toLowerCase() === "open";
+
+  return isOpen && dueDay !== null && dueDay <= today.getTime();
 }
 
 export default function SelfTickets() {
@@ -142,7 +173,7 @@ export default function SelfTickets() {
         label: "#",
         width: 10,
         render: (_row, index) => index + 1,
-        number: true,
+        numeric: true,
       },
       {
         label: "Task Number",
@@ -162,6 +193,7 @@ export default function SelfTickets() {
               <IconButton
                 aria-label={`Edit ${row.number}`}
                 size="small"
+                color="secondary"
                 onClick={() => openEdit(row)}
                 disabled={
                   row.creator !== userId || row.current_status !== "open"
@@ -174,14 +206,15 @@ export default function SelfTickets() {
           </Box>
         ),
       },
-      { label: "Subject", dataKey: "task" },
+      { label: "Subject", dataKey: "task", width: 350  },
       { label: "Owner", dataKey: "creator_name" },
       { label: "Status", dataKey: "current_status" },
+      { label: "Due Date", dataKey: "target_date" },
       { label: "Type", dataKey: "type" },
       { label: "Priority", dataKey: "priority" },
       { label: "Est Hrs", dataKey: "est_hours" },
     ],
-    [userId, openEdit],
+    [userId, openDetails, openEdit],
   );
 
   const activeRows = tabValue === 0 ? tickets.self : tickets.others;
@@ -195,22 +228,22 @@ export default function SelfTickets() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Do List</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Do List</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Organize personal actions, reminders, and follow-ups.
             </Typography>
           </Box>
           <Stack
-            direction={{ xs: "column-reverse", sm: "row" }}
+            direction={{ xs: "row", sm: "row" }}
             spacing={1}
-            alignItems="flex-end"
+            sx={pageHeaderActions}
           >
             {tabValue !== 0 && (
-              <FormControl sx={selfTicketsPageFormControlSx1}>
+              <FormControl sx={filterField}>
                 <InputLabel>Employee</InputLabel>
                 <Select
                   value={selectedUser}
@@ -234,9 +267,9 @@ export default function SelfTickets() {
                 startIcon={<AddOutlinedIcon />}
                 variant="contained"
                 onClick={openCreate}
-                sx={{ minWidth: { xs: 110, sm: 'auto' }  }}
               >
-                New Task
+                <Box component="span" sx={buttonLabelFull}>New Task</Box>
+                <Box component="span" sx={buttonLabelCompact}>New</Box>
               </Button>
             )}
 
@@ -265,7 +298,7 @@ export default function SelfTickets() {
           </Stack>
         </Box>
 
-        <Box sx={appTabsContainerSx}>
+        <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => {
@@ -275,26 +308,34 @@ export default function SelfTickets() {
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={appTabsSx}
+            sx={tabs}
           >
             <Tab label={`My Do List (${tickets.self.length})`} />
             <Tab label={`My Teams Do List (${tickets.others.length})`} />
           </Tabs>
         </Box>
 
-        <Box sx={tablePageContentSx}>
+        <Box sx={tablePageContent}>
           {view === "card" ? (
             <TicketCardView
               data={filteredRows}
               onCardClick={openDetails}
               cardType="Self"
+              getCardStatus={(ticket) =>
+                isOpenDueTask(ticket) ? "warning" : undefined
+              }
             />
           ) : (
             <VirtualizedTable
               columns={columns}
               rows={filteredRows}
               height="100%"
-                tableMinWidth="100%"
+              tableMinWidth="100%"
+              getRowSx={(row) =>
+                isOpenDueTask(row)
+                  ? priorityDueRowHighlight(row.priority)
+                  : undefined
+              }
               tableHead="Tasks"
             />
           )}

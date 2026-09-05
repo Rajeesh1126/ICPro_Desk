@@ -6,9 +6,17 @@ import {
 } from "../components/common/TableView";
 import api from "../api/axios";
 import {
-  appPageBox,
-  flexColumnFillSx,
-  pageHeaderSx,
+  contentPanel,
+  page,
+  pageContent,
+  pageHeaderContent,
+  pageHeader,
+  pageTitle,
+  summaryMetricCard,
+  summaryMetricGrid,
+  summaryMetricHelper,
+  summaryMetricLabel,
+  summaryMetricValue,
 } from "../styles/common";
 
 type QuotationBudgetSummary = {
@@ -171,58 +179,35 @@ export default function Landing() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Typography variant="h5" fontWeight={700}>
-            Budget Summary
-          </Typography>
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Budget Summary</Typography>
+          </Box>
         </Box>
 
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(2, minmax(0, 1fr))",
-              md: "repeat(4, minmax(0, 1fr))",
-            },
-            gap: 1.5,
-            px: { xs: 1, sm: 2, md: 3 },
-            pb: 1.5,
-          }}
-        >
+        <Box sx={summaryMetricGrid}>
           {summary.map((metric) => (
             <Paper
               key={metric.label}
               elevation={0}
-              sx={{
-                p: 1.5,
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-              }}
+              sx={summaryMetricCard}
             >
-              <Typography color="text.secondary" fontSize={12}>
+              <Typography sx={summaryMetricLabel}>
                 {metric.label}
               </Typography>
-              <Typography fontWeight={800} fontSize={24}>
+              <Typography sx={summaryMetricValue}>
                 {metric.value}
               </Typography>
-              <Typography color="text.secondary" fontSize={12}>
+              <Typography sx={summaryMetricHelper}>
                 {metric.helper}
               </Typography>
             </Paper>
           ))}
         </Box>
 
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            px: { xs: 1, sm: 2, md: 3 },
-            pb: { xs: 1, sm: 2, md: 3 },
-          }}
-        >
+        <Box sx={contentPanel}>
           <VirtualizedTable<QuotationBudgetSummary>
             columns={columns}
             rows={quotations}

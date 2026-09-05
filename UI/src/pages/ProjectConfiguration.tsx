@@ -31,19 +31,23 @@ import {
   type ColumnData,
 } from "../components/common/TableView";
 import {
-  appPageSx,
-  borderedSurfaceSx,
+  buttonLabelCompact,
+  buttonLabelFull,
+  contentGrid,
+  contentGridItem,
   deleteIconSx,
   editIconSx,
+  filterSurface,
   inlineCenterGapSx,
-  pageHeaderSx,
-  projectConfigurationActionsSx,
-  projectConfigurationContentSx,
-  projectConfigurationFilterPaperSx,
-  projectConfigurationPageSx,
-  projectConfigurationProjectSelectSx,
-  projectConfigurationTableGridSx,
-  projectConfigurationTableItemSx,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  scrollableContent,
+  wideFilterField,
 } from "../styles/common";
 
 type ProjectConfig = {
@@ -446,26 +450,27 @@ export default function ProjectConfiguration() {
   });
 
   return (
-    <Box sx={appPageSx}>
-      <Box sx={projectConfigurationPageSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Project Configuration</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Project Configuration</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Configure projects, milestones, and tasks without assigning users.
             </Typography>
           </Box>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction={{ xs: "row-reverse", sm: "row" }}
             spacing={1}
-            sx={projectConfigurationActionsSx}
+            sx={pageHeaderActions}
           >
             <Button
               variant="contained"
               startIcon={<AddOutlinedIcon />}
               onClick={() => openProjectDialog("create")}
             >
-              Project
+              <Box component="span" sx={buttonLabelFull}>New Project</Box>
+              <Box component="span" sx={buttonLabelCompact}>Project</Box>
             </Button>
             <Button
               variant="contained"
@@ -473,7 +478,8 @@ export default function ProjectConfiguration() {
               disabled={!selectedProject}
               onClick={() => openMilestoneDialog("create")}
             >
-              Milestone
+              <Box component="span" sx={buttonLabelFull}>New Milestone</Box>
+              <Box component="span" sx={buttonLabelCompact}>Milestone</Box>
             </Button>
             <Button
               variant="contained"
@@ -481,15 +487,16 @@ export default function ProjectConfiguration() {
               disabled={!selectedProject}
               onClick={() => openTaskDialog("create")}
             >
-              Task
+              <Box component="span" sx={buttonLabelFull}>New Task</Box>
+              <Box component="span" sx={buttonLabelCompact}>Task</Box>
             </Button>
           </Stack>
         </Box>
 
-        <Box sx={projectConfigurationContentSx}>
+        <Box sx={scrollableContent}>
           <Paper
             elevation={0}
-            sx={projectConfigurationFilterPaperSx({ borderedSurfaceSx })}
+            sx={filterSurface}
           >
             <Stack
               direction={{ xs: "column", md: "row" }}
@@ -498,7 +505,7 @@ export default function ProjectConfiguration() {
             >
               <FormControl
                 size="small"
-                sx={projectConfigurationProjectSelectSx}
+                sx={wideFilterField}
               >
                 <InputLabel>Project</InputLabel>
                 <Select
@@ -523,8 +530,8 @@ export default function ProjectConfiguration() {
             </Stack>
           </Paper>
 
-          <Box sx={projectConfigurationTableGridSx}>
-            <Box sx={projectConfigurationTableItemSx}>
+          <Box sx={contentGrid}>
+            <Box sx={contentGridItem}>
               <VirtualizedTable
                 tableHead="Projects"
                 height={tableHeight(projectRows.length)}
@@ -535,7 +542,7 @@ export default function ProjectConfiguration() {
               />
             </Box>
 
-            <Box sx={projectConfigurationTableItemSx}>
+            <Box sx={contentGridItem}>
               <VirtualizedTable
                 tableHead={
                   selectedProject
@@ -549,7 +556,7 @@ export default function ProjectConfiguration() {
               />
             </Box>
 
-            <Box sx={projectConfigurationTableItemSx}>
+            <Box sx={contentGridItem}>
               <VirtualizedTable
                 tableHead={
                   selectedProject ? `Tasks - ${selectedProject.code}` : "Tasks"

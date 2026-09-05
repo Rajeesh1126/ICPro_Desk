@@ -17,17 +17,29 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
+import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../api/axios";
 import { showNotification } from "../api/notificationService";
-import { VirtualizedTable, type ColumnData } from "../components/common/TableView";
+import { formatDateTime } from "../components/common/formatDate";
 import {
-  appPageBox,
-  flexColumnFillSx,
-  pageHeaderSx,
-  responsiveRightActionsSx,
+  VirtualizedTable,
+  type ColumnData,
+} from "../components/common/TableView";
+import {
+  buttonLabelCompact,
+  buttonLabelFull,
+  contentPanel,
+  dialogContentTop,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  responsiveRightActions,
 } from "../styles/common";
 
 type DocumentType = "FDS" | "SDS" | "Template" | "Other";
@@ -79,12 +91,15 @@ export default function Documents() {
   const [documents, setDocuments] = useState<DocumentTemplate[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<DocumentFormState>(emptyForm);
-  const [editingDocument, setEditingDocument] = useState<DocumentTemplate | null>(null);
+  const [editingDocument, setEditingDocument] =
+    useState<DocumentTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadDocuments = useCallback(async () => {
-    const response = await api.get<DocumentTemplate[]>("/documents/document-templates/");
+    const response = await api.get<DocumentTemplate[]>(
+      "/documents/document-templates/",
+    );
     setDocuments(Array.isArray(response.data) ? response.data : []);
   }, []);
 
@@ -126,12 +141,18 @@ export default function Documents() {
 
   const submitDocument = async () => {
     if (!form.document_name.trim()) {
-      showNotification({ type: "warning", message: "Document name is required." });
+      showNotification({
+        type: "warning",
+        message: "Document name is required.",
+      });
       return;
     }
 
     if (!editingDocument && !form.file) {
-      showNotification({ type: "warning", message: "Please choose a document file." });
+      showNotification({
+        type: "warning",
+        message: "Please choose a document file.",
+      });
       return;
     }
 
@@ -147,9 +168,13 @@ export default function Documents() {
     setSaving(true);
     try {
       if (editingDocument) {
-        await api.patch(`/documents/document-templates/${editingDocument.id}/`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.patch(
+          `/documents/document-templates/${editingDocument.id}/`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
       } else {
         await api.post("/documents/document-templates/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -158,7 +183,9 @@ export default function Documents() {
 
       showNotification({
         type: "success",
-        message: editingDocument ? "Document updated successfully." : "Document uploaded successfully.",
+        message: editingDocument
+          ? "Document updated successfully."
+          : "Document uploaded successfully.",
       });
       closeDialog();
       await loadDocuments();
@@ -207,6 +234,7 @@ export default function Documents() {
         label: "Updated Date",
         dataKey: "updated_at",
         width: 160,
+        render: (row) => formatDateTime(row.updated_at),
       },
       {
         label: "Actions",
@@ -214,7 +242,11 @@ export default function Documents() {
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Upload new version">
-              <IconButton size="small" color="info" onClick={() => openReplaceDialog(row)}>
+              <IconButton
+                size="small"
+                color="info"
+                onClick={() => openReplaceDialog(row)}
+              >
                 <UploadFileOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -225,7 +257,7 @@ export default function Documents() {
                 disabled={!row.file}
                 onClick={() => downloadDocument(row)}
               >
-                <DownloadOutlinedIcon  />
+                <DownloadOutlinedIcon />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -236,27 +268,38 @@ export default function Documents() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box sx={{ flex: "1 1 auto", minWidth: 0 }}>
-            <Typography variant="h5">Documents</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>
+              Documents
+            </Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Manage FDS, SDS and reusable document templates.
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={responsiveRightActionsSx}>
+          <Stack
+            direction={{ xs: "row-reverse", sm: "row" }}
+            spacing={1}
+            sx={[pageHeaderActions, responsiveRightActions]}
+          >
             <Button
               variant="contained"
               startIcon={<UploadOutlinedIcon />}
               onClick={openCreateDialog}
             >
-              Upload
+              <Box component="span" sx={buttonLabelFull}>
+                Upload Document
+              </Box>
+              <Box component="span" sx={buttonLabelCompact}>
+                Upload
+              </Box>
             </Button>
           </Stack>
         </Box>
 
-        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, sm: 2, md: 3 }, pb: 3 }}>
+        <Box sx={contentPanel}>
           <VirtualizedTable<DocumentTemplate>
             columns={columns}
             rows={documents}
@@ -276,11 +319,13 @@ export default function Documents() {
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={dialogContentTop}>
             <TextField
               label="Document Name"
               value={form.document_name}
-              onChange={(event) => updateForm("document_name", event.target.value)}
+              onChange={(event) =>
+                updateForm("document_name", event.target.value)
+              }
               fullWidth
               required
               size="small"
@@ -288,7 +333,9 @@ export default function Documents() {
             <TextField
               label="Document Type"
               value={form.document_type}
-              onChange={(event) => updateForm("document_type", event.target.value as DocumentType)}
+              onChange={(event) =>
+                updateForm("document_type", event.target.value as DocumentType)
+              }
               fullWidth
               select
               size="small"
@@ -309,17 +356,25 @@ export default function Documents() {
             <TextField
               label="Description"
               value={form.description}
-              onChange={(event) => updateForm("description", event.target.value)}
+              onChange={(event) =>
+                updateForm("description", event.target.value)
+              }
               fullWidth
               multiline
               minRows={3}
             />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ sm: "center" }}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
                 hidden
-                onChange={(event) => updateForm("file", event.target.files?.[0] ?? null)}
+                onChange={(event) =>
+                  updateForm("file", event.target.files?.[0] ?? null)
+                }
               />
               <Button
                 variant="outlined"
@@ -329,13 +384,21 @@ export default function Documents() {
                 Choose File
               </Button>
               <Typography variant="body2" color="text.secondary">
-                {form.file?.name || (editingDocument ? getFileName(editingDocument.file) : "No file selected")}
+                {form.file?.name ||
+                  (editingDocument
+                    ? getFileName(editingDocument.file)
+                    : "No file selected")}
               </Typography>
             </Stack>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={closeDialog} disabled={saving} startIcon={<CancelOutlinedIcon />}>
+          <Button
+            variant="outlined"
+            onClick={closeDialog}
+            disabled={saving}
+            startIcon={<CancelOutlinedIcon />}
+          >
             Cancel
           </Button>
           <Button
@@ -343,11 +406,11 @@ export default function Documents() {
             disabled={saving}
             variant="contained"
             startIcon={
-              saving
-                ? undefined
-                : editingDocument
-                  ? <UpdateOutlinedIcon />
-                  : <UploadOutlinedIcon />
+              saving ? undefined : editingDocument ? (
+                <UpdateOutlinedIcon />
+              ) : (
+                <UploadOutlinedIcon />
+              )
             }
           >
             {saving ? "Saving..." : editingDocument ? "Update" : "Upload"}

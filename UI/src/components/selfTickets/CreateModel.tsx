@@ -157,9 +157,18 @@ export default function CreateSelfTicketModel({
         type: "success",
         message: Data ? "Do List task updated successfully." : "Do List task created successfully.",
       });
-    } catch (error: any) {
-      if (error.response?.status === 400) {
-        setFormErrorData(error.response.data);
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "status" in error.response &&
+        error.response.status === 400 &&
+        "data" in error.response
+      ) {
+        setFormErrorData(error.response.data as Partial<SelfTicketFormData>);
       } else {
         console.error(error);
       }

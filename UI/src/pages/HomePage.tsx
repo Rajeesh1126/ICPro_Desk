@@ -11,7 +11,6 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { alpha, type Theme } from "@mui/material/styles";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import BadgeIcon from "@mui/icons-material/Badge";
@@ -41,6 +40,21 @@ import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
 import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
 import Header from "../components/appBar/Header";
+import {
+  appMain,
+  appShell,
+  appShellBody,
+  listItemReset,
+  mobileDrawer,
+  sidebarContent,
+  sidebarIcon,
+  sidebarItem,
+  sidebarItemText,
+  sidebarNav,
+  sidebarPanel,
+  sidebarSection,
+  sidebarSectionDivider,
+} from "../styles/common";
 
 const sidebarWidth = 265;
 const sidebarCollapsedWidth = 64;
@@ -125,7 +139,7 @@ const pages: readonly SidebarPage[] = [
     icon: <PsychologyAltOutlinedIcon />,
     activeIcon: <PsychologyAltIcon />,
     iconColor: "#6d4c41",
-     codeName: "access_lesson_learnt",
+    codeName: "access_lesson_learnt",
   },
 
   {
@@ -184,69 +198,6 @@ const pages: readonly SidebarPage[] = [
   },
 ] as const;
 
-const sidebarItemSx =
-  (selected: boolean, iconColor: `#${string}`) => (theme: Theme) => {
-    return {
-      borderRadius: 0.75,
-      mb: 0.5,
-      // minHeight: 38,
-      overflow: "hidden",
-      px: 0,
-      py: 0.25,
-      transition: theme.transitions.create(
-        ["background-color", "color", "box-shadow"],
-        {
-          duration: theme.transitions.duration.shorter,
-        },
-      ),
-      ...(selected && {
-        backgroundColor: alpha(
-          iconColor,
-          theme.palette.mode === "dark" ? 0.18 : 0.1,
-        ),
-        boxShadow: `inset 4px 0 0 ${iconColor}`,
-      }),
-      "&:hover": {
-        backgroundColor: alpha(
-          iconColor,
-          theme.palette.mode === "dark" ? 0.14 : 0.08,
-        ),
-      },
-    };
-  };
-
-const sidebarIconSx = (selected: boolean, iconColor: `#${string}`) => () => ({
-  minWidth: 48,
-  justifyContent: "center",
-  color: selected ? iconColor : alpha(iconColor, 0.78),
-});
-
-const sidebarSectionSx = (theme: Theme) => ({
-  alignItems: "center",
-  display: "flex",
-  height: sidebarSectionHeight,
-  px: 0.5,
-  py: 0,
-  color: "text.secondary",
-  fontSize: "0.6875rem",
-  fontWeight: 600,
-  letterSpacing: 0,
-  lineHeight: 1,
-  textTransform: "uppercase",
-  transition: theme.transitions.create(["opacity", "transform"], {
-    duration: theme.transitions.duration.shorter,
-  }),
-});
-
-const sidebarSectionDividerSx = {
-  display: "none",
-  height: sidebarSectionHeight,
-  mx: "auto",
-  my: 0,
-  width: 28,
-  borderColor: "divider",
-};
-
 function getStoredPermissions(): string[] {
   try {
     const value: unknown = JSON.parse(
@@ -275,8 +226,8 @@ export default function HomePage() {
     [permissions],
   );
 
-  const sidebarContent = (
-    <Box sx={{ p: 1 }}>
+  const sidebar = (
+    <Box sx={sidebarContent}>
       <List disablePadding>
         {visiblePages.map((page, index) => {
           const selected =
@@ -287,19 +238,19 @@ export default function HomePage() {
           const showSectionHeader =
             page.section && page.section !== visiblePages[index - 1]?.section;
           return (
-            <Box key={page.path} component="li" sx={{ listStyle: "none" }}>
+            <Box key={page.path} component="li" sx={listItemReset}>
               {showSectionHeader && (
-                <Box>
+                <Box sx={{ position: "relative" }}>
                   <Typography
                     component="div"
                     className="sidebar-section-label"
-                    sx={sidebarSectionSx}
+                    sx={sidebarSection(sidebarSectionHeight)}
                   >
                     {page.section}
                   </Typography>
                   <Divider
                     className="sidebar-section-divider"
-                    sx={sidebarSectionDividerSx}
+                    sx={sidebarSectionDivider()}
                   />
                 </Box>
               )}
@@ -310,19 +261,14 @@ export default function HomePage() {
                 onClick={() => {
                   if (!isSidebarLayout) setMobileSidebarOpen(false);
                 }}
-                sx={sidebarItemSx(selected, page.iconColor)}
+                sx={sidebarItem(selected, page.iconColor)}
               >
-                <ListItemIcon sx={sidebarIconSx(selected, page.iconColor)}>
+                <ListItemIcon sx={sidebarIcon(selected, page.iconColor)}>
                   {selected ? page.activeIcon : page.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={page.label}
-                  sx={{
-                    "& .MuiTypography-root": {
-                      fontSize: "0.875rem",
-                      fontWeight: selected ? 600 : 400,
-                    },
-                  }}
+                  sx={sidebarItemText(selected)}
                 />
               </ListItemButton>
             </Box>
@@ -333,13 +279,7 @@ export default function HomePage() {
   );
 
   return (
-    <Box
-      sx={{
-        height: "100dvh",
-        bgcolor: "background.default",
-        overflow: "hidden",
-      }}
-    >
+    <Box sx={appShell}>
       <Header
         onMenuClick={() => {
           if (isSidebarLayout) {
@@ -349,110 +289,21 @@ export default function HomePage() {
           }
         }}
       />
-      <Box
-        sx={{
-          display: "flex",
-          height: { xs: "calc(100dvh - 58px)", sm: "calc(100dvh - 64px)" },
-          minHeight: 0,
-          overflow: "hidden",
-        }}
-      >
+      <Box sx={appShellBody}>
         <Box
           component="nav"
-          sx={(theme) => ({
-            display: { xs: "none", sm: "block" },
-            width: desktopSidebarOpen ? sidebarWidth : sidebarCollapsedWidth,
-            flexShrink: 0,
-            overflow: "visible",
-            position: "relative",
-            transition: theme.transitions.create(["width"], {
-              duration: theme.transitions.duration.shorter,
-            }),
-          })}
+          sx={sidebarNav(desktopSidebarOpen, sidebarWidth, sidebarCollapsedWidth)}
           aria-label="Primary navigation"
         >
           <Box
-            sx={(theme) => ({
-              width: desktopSidebarOpen ? sidebarWidth : sidebarCollapsedWidth,
-              height: "100%",
-              overflow: "hidden",
-              borderRight: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              transition: theme.transitions.create(["width", "box-shadow"], {
-                duration: theme.transitions.duration.shorter,
-              }),
-              ...(!desktopSidebarOpen && {
-                position: "absolute",
-                inset: 0,
-                right: "auto",
-                zIndex: theme.zIndex.drawer,
-                "& .MuiListItemButton-root": {
-                  justifyContent: "center",
-                  mx: 0,
-                  px: 0,
-                  width: "100%",
-                },
-                "& .MuiListItemIcon-root": {
-                  minWidth: 48,
-                  p: 0,
-                },
-                "& .MuiListItemText-root": {
-                  opacity: 0,
-                  transform: "translateX(-10px)",
-                  p: 0,
-                  whiteSpace: "nowrap",
-                  transition: theme.transitions.create(
-                    ["opacity", "transform"],
-                    {
-                      duration: theme.transitions.duration.shorter,
-                    },
-                  ),
-                  transitionDelay: "0ms",
-                },
-                "& .sidebar-section-label": {
-                  height: 0,
-                  opacity: 0,
-                  overflow: "hidden",
-                  p: 0,
-                  transform: "translateX(-10px)",
-                },
-                "& .sidebar-section-divider": {
-                  display: "block",
-                },
-                "&:hover": {
-                  width: sidebarWidth,
-                  boxShadow:
-                    theme.palette.mode === "dark"
-                      ? "14px 0 34px rgba(0, 0, 0, 0.34)"
-                      : "14px 0 34px rgba(15, 23, 42, 0.16)",
-                },
-                "&:hover .MuiListItemButton-root": {
-                  justifyContent: "flex-start",
-                },
-                "&:hover .MuiListItemText-root": {
-                  opacity: 1,
-                  transform: "translateX(0)",
-                  transitionDelay: "90ms",
-                },
-                "&:hover .sidebar-section-label": {
-                  alignItems: "center",
-                  display: "flex",
-                  height: sidebarSectionHeight,
-                  opacity: 1,
-                  overflow: "visible",
-                  px: 0.5,
-                  py: 0,
-                  transform: "translateX(0)",
-                  transitionDelay: "90ms",
-                },
-                "&:hover .sidebar-section-divider": {
-                  display: "none",
-                },
-              }),
-            })}
+            sx={sidebarPanel(
+              desktopSidebarOpen,
+              sidebarWidth,
+              sidebarCollapsedWidth,
+              sidebarSectionHeight,
+            )}
           >
-            {sidebarContent}
+            {sidebar}
           </Box>
         </Box>
         <Drawer
@@ -460,26 +311,11 @@ export default function HomePage() {
           open={mobileSidebarOpen}
           onClose={() => setMobileSidebarOpen(false)}
           ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: "block", sm: "none" },
-            "& .MuiDrawer-paper": {
-              boxSizing: "border-box",
-              width: "min(86vw, 320px)",
-            },
-          }}
+          sx={mobileDrawer}
         >
-          {sidebarContent}
+          {sidebar}
         </Drawer>
-        <Box
-          component="main"
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-            height: "100%",
-            overflow: "auto",
-          }}
-        >
+        <Box component="main" sx={appMain}>
           <Outlet />
         </Box>
       </Box>

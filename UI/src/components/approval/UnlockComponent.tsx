@@ -75,7 +75,10 @@ const UnlockComponent: React.FC<UnlockComponentProps> = ({
                                 <Button
                                     variant="contained"
                                     // onClick={() =>handleUnlockStatus(request.id, "Unlock Rejected")}
-                                    onClick={() =>{setRejectModelOpen(true),setRejectRequestId(request.id)}}
+                                    onClick={() => {
+                                        setRejectModelOpen(true);
+                                        setRejectRequestId(request.id);
+                                    }}
                                     sx={ unlockRequestStyles.rejectButton }
                                 >
                                     REJECT

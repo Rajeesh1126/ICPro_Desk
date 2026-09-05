@@ -27,7 +27,19 @@ import {
   VirtualizedTable,
   type ColumnData,
 } from "../components/common/TableView";
-import { appPageBox, flexColumnFillSx, pageHeaderSx } from "../styles/common";
+import {
+  buttonLabelCompact,
+  buttonLabelFull,
+  contentPanel,
+  dialogContentTop,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+} from "../styles/common";
 
 type SuggestionStatus =
   | "Open"
@@ -206,28 +218,29 @@ export default function Suggestions() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Feedback / Suggestions</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Feedback / Suggestions</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Capture ICProDesk feedback and improvement suggestions.
             </Typography>
           </Box>
-          <Box sx={{ width: { xs: "230px", sm: "auto" } }}>
+          <Box sx={pageHeaderActions}>
             <Button
               variant="contained"
               startIcon={<AddCommentOutlinedIcon />}
               onClick={openCreateDialog}
               // sx={{ width: { xs: "160px", sm: "auto" } }}
             >
-              Add Suggestion
+              <Box component="span" sx={buttonLabelFull}>Add Suggestion</Box>
+              <Box component="span" sx={buttonLabelCompact}>Add</Box>
             </Button>
           </Box>
         </Box>
 
-        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, sm: 2, md: 3 }, pb: 3 }}>
+        <Box sx={contentPanel}>
           <VirtualizedTable<SystemSuggestion>
             columns={columns}
             rows={suggestions}
@@ -248,7 +261,7 @@ export default function Suggestions() {
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={dialogContentTop}>
             <TextField
               label="Suggestion"
               value={form.suggestion}

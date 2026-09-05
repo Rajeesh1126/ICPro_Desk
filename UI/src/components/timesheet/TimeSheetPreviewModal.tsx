@@ -14,9 +14,14 @@ import {
   Button,
   Box,
   Typography,
+  useTheme,
 } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import {
+  tableHeaderCellSx,
+  tableHeadSx,
+} from "../../styles/common";
 
 export interface TimeSheetDay {
   day: string;
@@ -42,9 +47,10 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
   days,
   submitting = false,
 }) => {
+  const theme = useTheme();
   const [comments, setComments] = useState("");
 
-  const timeSheetDays = days ?? [];
+  const timeSheetDays = useMemo(() => days ?? [], [days]);
 
   const totalHours = useMemo(() => {
     return timeSheetDays.reduce(
@@ -107,29 +113,13 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
         {/* Hours Table */}
         <TableContainer>
           <Table size="small">
-            <TableHead>
-              <TableRow
-                sx={{
-                  borderBottom: "2px solid #222",
-                }}
-              >
-                <TableCell
-                  sx={{
-                    fontWeight: 500,
-                    color: "#555",
-                    py: 1,
-                  }}
-                >
+            <TableHead sx={tableHeadSx(theme)}>
+              <TableRow>
+                <TableCell sx={tableHeaderCellSx(theme)}>
                   Day
                 </TableCell>
 
-                <TableCell
-                  sx={{
-                    fontWeight: 500,
-                    color: "#555",
-                    py: 1,
-                  }}
-                >
+                <TableCell sx={tableHeaderCellSx(theme)}>
                   Hours
                 </TableCell>
               </TableRow>

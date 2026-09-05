@@ -8,6 +8,14 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import {
+  centeredDialogActions,
+  errorDialogContent,
+  errorDialogIcon,
+  errorDialogMessage,
+  errorDialogTitle,
+  preLineText,
+} from "../../styles/common";
 
 interface Props {
   open: boolean;
@@ -30,45 +38,26 @@ export default function CommonErrorDialog({
       fullWidth
     >
       <DialogTitle
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          bgcolor: "error.main",
-          color: "white",
-          py: 2,
-        }}
+        sx={errorDialogTitle}
       >
         <ErrorOutlineOutlinedIcon />
         {title}
       </DialogTitle>
 
       <DialogContent
-        sx={{
-          minHeight: 120,
-          display: "flex",
-          alignItems: "center",     // Vertical center
-          justifyContent: "center", // Horizontal center
-        }}
+        sx={errorDialogContent}
       >
         <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-            textAlign: "center",
-          }}
+          sx={errorDialogMessage}
         >
           <ErrorOutlineOutlinedIcon
             color="error"
-            sx={{ fontSize: 40, flexShrink: 0 }}
+            sx={errorDialogIcon}
           />
 
           <Typography
             variant="body1"
-            sx={{
-              whiteSpace: "pre-line",
-            }}
+            sx={preLineText}
           >
             {message}
           </Typography>
@@ -76,9 +65,7 @@ export default function CommonErrorDialog({
       </DialogContent>
 
       <DialogActions
-        sx={{
-          justifyContent: "center",
-        }}
+        sx={centeredDialogActions}
       >
         <Button
           variant="contained"

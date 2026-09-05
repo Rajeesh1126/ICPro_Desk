@@ -28,9 +28,27 @@ import {
 } from "@mui/icons-material";
 
 import {
-  appTabsContainerSx,
-  appTabsSx,
-  pageHeaderSx } from "../../styles/common";
+  actionMenuItem,
+  actionMenuPaper,
+  actionMenuSection,
+  pageHeaderContent,
+  centeredTextGroup,
+  compactDivider,
+  compactHeaderButton,
+  compactWeekChip,
+  headerActionBadge,
+  nowrapResponsiveText,
+  pageFill,
+  pageSubtitle,
+  pageTitle,
+  squareIconButton,
+  tabPanelContent,
+  tabs,
+  tabsContainer,
+  timesheetHeaderActions,
+  timesheetPageHeader,
+  weekSelectorPanel,
+} from "../../styles/common";
 import { Badge,
   Button,
   Chip,
@@ -43,8 +61,6 @@ import { Badge,
   Paper,
   Stack,
   Typography } from "@mui/material";
-import { alpha,
-  type Theme } from "@mui/material/styles";
 import {
   ChevronLeftOutlined as ChevronLeftOutlinedIcon,
   ChevronRightOutlined as ChevronRightOutlinedIcon
@@ -88,13 +104,7 @@ function CustomTabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box
-          sx={{
-            height: "100%",
-            minHeight: 0,
-            p: { xs: 1, sm: 1.5, md: 2 },
-          }}
-        >
+        <Box sx={tabPanelContent}>
           {children}
         </Box>
       )}
@@ -108,83 +118,6 @@ function a11yProps(index: number) {
     "aria-controls": `simple-tabpanel-${index}`,
   };
 }
-
-const actionMenuItemSx =
-  (color: "primary" | "info" | "warning" | "error" | "default" = "default") =>
-  (theme: Theme) => {
-    const itemColor =
-      color === "default" ? theme.palette.text.primary : theme.palette[color].main;
-    const itemBg =
-      color === "default"
-        ? "transparent"
-        : alpha(itemColor, theme.palette.mode === "dark" ? 0.1 : 0.055);
-
-    return {
-      color: itemColor,
-      alignItems: "flex-start",
-      gap: 1.25,
-      mx: 0.75,
-      my: 0.35,
-      borderRadius: 1.25,
-      border: "1px solid",
-      borderColor:
-        color === "default"
-          ? "transparent"
-          : alpha(itemColor, theme.palette.mode === "dark" ? 0.24 : 0.18),
-      bgcolor: itemBg,
-      "& .MuiListItemIcon-root": {
-        minWidth: 0,
-        width: 34,
-        height: 34,
-        display: "grid",
-        placeItems: "center",
-        borderRadius: 1,
-        color: itemColor,
-        bgcolor:
-          color === "default"
-            ? theme.palette.action.hover
-            : alpha(itemColor, theme.palette.mode === "dark" ? 0.18 : 0.12),
-        flexShrink: 0,
-      },
-      "& .MuiListItemText-root": {
-        my: 0,
-        minWidth: 0,
-      },
-      "& .MuiListItemText-primary": {
-        color: theme.palette.text.primary,
-        fontSize: "0.875rem",
-        fontWeight: 800,
-        lineHeight: 1.25,
-      },
-      "& .MuiListItemText-secondary": {
-        color: theme.palette.text.secondary,
-        fontSize: "0.735rem",
-        lineHeight: 1.25,
-        mt: 0.25,
-      },
-      "&:hover": {
-        bgcolor:
-          color === "default"
-            ? theme.palette.action.hover
-            : alpha(itemColor, theme.palette.mode === "dark" ? 0.18 : 0.1),
-        borderColor:
-          color === "default"
-            ? theme.palette.divider
-            : alpha(itemColor, theme.palette.mode === "dark" ? 0.38 : 0.3),
-      },
-    };
-  };
-
-const actionMenuSectionSx = {
-  px: 1.5,
-  pt: 1.1,
-  pb: 0.35,
-  color: "text.secondary",
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: 0,
-  textTransform: "uppercase",
-};
 
 function TimeSheet() {
   const [value, setValue] = useState(0);
@@ -314,7 +247,6 @@ function TimeSheet() {
             quotation_id: quotation.id,
             code: quotation.quotation_no,
             description: getQuotationDescription(quotation),
-            week_start: weekStartKey,
           }),
         ),
       );
@@ -347,12 +279,10 @@ function TimeSheet() {
       const response = await api.post("/projects/", {
         description,
         customer: trimmedCustomerName || null,
-        week_start: weekStartKey,
       });
       if (response.data?.id) {
         await api.post("/timesheet-entries/assign-project/", {
           project_id: response.data.id,
-          week_start: weekStartKey,
         });
       }
 
@@ -373,7 +303,6 @@ function TimeSheet() {
     try {
       await api.post("/timesheet-entries/assign-tickets/", {
         ticket_ids: ticketIds,
-        week_start: weekStartKey,
       });
 
       showNotification({
@@ -395,7 +324,6 @@ function TimeSheet() {
         Object.entries(selection).map(([projectId, costMasterIds]) =>
           api.post(`/projects/${projectId}/cost-master-tasks/`, {
             cost_master_ids: costMasterIds,
-            week_start: weekStartKey,
           }),
         ),
       );
@@ -702,38 +630,13 @@ function TimeSheet() {
   }, [weekStartKey]);
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        height: {
-          xs: "calc(100dvh - 58px)",
-          sm: "calc(100dvh - 64px)",
-        },
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        bgcolor: "background.default",
-      }}
-    >
+    <Box sx={pageFill}>
       <Box
-        sx={{
-          ...pageHeaderSx,
-          display: "grid",
-          gridTemplateColumns: {
-            xs: isApprovalTab ? "1fr" : "minmax(0, 1fr) auto",
-            md: "minmax(0, 1fr) auto",
-          },
-          alignItems: { xs: "start", md: "center" },
-          gap: { xs: 1, md: 2 },
-          pb: { xs: 1.25, md: 1.5 },
-        }}
+        sx={timesheetPageHeader(isApprovalTab)}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h5" fontWeight={700}>
-            Time Sheet
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={pageHeaderContent}>
+          <Typography variant="h5" sx={pageTitle}>Time Sheet</Typography>
+          <Typography variant="body2" sx={pageSubtitle}>
             Submit and approve time sheets for your team.
           </Typography>
         </Box>
@@ -741,43 +644,17 @@ function TimeSheet() {
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={1}
-          sx={{
-            display: { xs: "contents", md: "flex" },
-            width: { xs: "100%", lg: "auto" },
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gridColumn: { md: 2 },
-            gridRow: { md: 1 },
-          }}
+          sx={timesheetHeaderActions}
         >
           <Paper
             elevation={0}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "40px minmax(0, 1fr) 40px",
-              alignItems: "center",
-              gap: 1,
-              width: { xs: "100%", md: "auto" },
-              minWidth: { md: 360 },
-              gridColumn: { xs: isApprovalTab ? "1" : "1 / -1", md: "auto" },
-              gridRow: { xs: 2, md: "auto" },
-              p: 0.5,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 1.5,
-              bgcolor: "background.paper",
-            }}
+            sx={weekSelectorPanel(isApprovalTab)}
           >
             <IconButton
               aria-label="Previous week"
               onClick={previousWeek}
               size="small"
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 1,
-                color: "primary.main",
-              }}
+              sx={squareIconButton}
             >
               <ChevronLeftOutlinedIcon />
             </IconButton>
@@ -787,7 +664,7 @@ function TimeSheet() {
               spacing={{ xs: 0.25, sm: 1 }}
               alignItems="center"
               justifyContent="center"
-              sx={{ minWidth: 0, textAlign: "center" }}
+              sx={centeredTextGroup}
             >
               <Chip
                 icon={<CalendarMonthOutlinedIcon />}
@@ -795,15 +672,12 @@ function TimeSheet() {
                 size="small"
                 color="primary"
                 variant="outlined"
-                sx={{ minWidth: 96, fontWeight: 700, px: 1 }}
+                sx={compactWeekChip}
               />
               <Typography
                 variant="body2"
                 fontWeight={700}
-                sx={{
-                  whiteSpace: { xs: "normal", sm: "nowrap" },
-                  lineHeight: 1.25,
-                }}
+                sx={nowrapResponsiveText}
               >
                 {weekStart.format("DD-MMM-YYYY")} - {weekEnd.format("DD-MMM-YYYY")}
               </Typography>
@@ -813,12 +687,7 @@ function TimeSheet() {
               aria-label="Next week"
               onClick={nextWeek}
               size="small"
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 1,
-                color: "primary.main",
-              }}
+              sx={squareIconButton}
             >
               <ChevronRightOutlinedIcon />
             </IconButton>
@@ -830,31 +699,13 @@ function TimeSheet() {
                 badgeContent={selectedAssignedTaskIds.length}
                 color="secondary"
                 invisible={selectedAssignedTaskIds.length === 0}
-                sx={{
-                  width: "auto",
-                  gridColumn: { xs: 2, md: "auto" },
-                  gridRow: { xs: 1, md: "auto" },
-                  alignSelf: { xs: "start", md: "center" },
-                  justifySelf: "end",
-                  "& .MuiBadge-badge": {
-                    fontWeight: 800,
-                    right: 6,
-                    top: 5,
-                  },
-                }}
+                sx={headerActionBadge}
               >
                 <Button
                   variant="contained"
                   onClick={handleClick}
                   endIcon={<KeyboardArrowDownOutlinedIcon />}
-                  sx={{
-                    minWidth: 0,
-                    height: { xs: 34, sm: 36 },
-                    px: { xs: 1.25, sm: 2 },
-                    fontWeight: 800,
-                    fontSize: { xs: 12, sm: 13 },
-                    textTransform: "none",
-                  }}
+                  sx={compactHeaderButton}
                 >
                   Actions
                 </Button>
@@ -868,27 +719,12 @@ function TimeSheet() {
                 onClose={handleClose}
                 slotProps={{
                   paper: {
-                    sx: {
-                      mt: 0.8,
-                      width: "min(380px, calc(100vw - 24px))",
-                      borderRadius: 1.5,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      boxShadow: "0 18px 48px rgba(15, 23, 42, 0.14)",
-                      overflow: "hidden",
-                      p: 0.75,
-                      "& .MuiMenuItem-root": {
-                        minHeight: 54,
-                        px: 1,
-                        py: 0.85,
-                        transition: "background-color 0.15s ease",
-                      },
-                    },
+                    sx: actionMenuPaper,
                   },
                 }}
               >
-                <Box sx={actionMenuSectionSx}>Add work</Box>
-                <MenuItem onClick={openQuotationModal} sx={actionMenuItemSx("info")}>
+                <Box sx={actionMenuSection}>Add work</Box>
+                <MenuItem onClick={openQuotationModal} sx={actionMenuItem("primary")}>
                   <ListItemIcon>
                     <WorkOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -898,7 +734,7 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openUndefinedModal}>
+                <MenuItem onClick={openUndefinedModal} sx={actionMenuItem("info")}>
                   <ListItemIcon>
                     <HelpOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -908,7 +744,7 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openAssignTasksModal} sx={actionMenuItemSx("warning")}>
+                <MenuItem onClick={openAssignTasksModal} sx={actionMenuItem("success")}>
                   <ListItemIcon>
                     <AssignmentOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -918,7 +754,7 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openTicketsModal} sx={actionMenuItemSx("info")}>
+                <MenuItem onClick={openTicketsModal} sx={actionMenuItem("secondary")}>
                   <ListItemIcon>
                     <ConfirmationNumberOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -928,10 +764,10 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <Divider sx={{ my: 0.75 }} />
-                <Box sx={actionMenuSectionSx}>Week controls</Box>
+                <Divider sx={compactDivider} />
+                <Box sx={actionMenuSection}>Week controls</Box>
 
-                <MenuItem onClick={openUnlockDialog} sx={actionMenuItemSx("warning")}>
+                <MenuItem onClick={openUnlockDialog} sx={actionMenuItem("warning")}>
                   <ListItemIcon>
                     <LockOpenOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -941,7 +777,7 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openExtendDialog} sx={actionMenuItemSx("warning")}>
+                <MenuItem onClick={openExtendDialog} sx={actionMenuItem("info")}>
                   <ListItemIcon>
                     <UpdateOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -955,7 +791,7 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openRemoveDialog} sx={actionMenuItemSx("error")}>
+                <MenuItem onClick={openRemoveDialog} sx={actionMenuItem("error")}>
                   <ListItemIcon>
                     <DeleteOutlineOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -969,9 +805,9 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <Divider sx={{ my: 0.75 }} />
-                <Box sx={actionMenuSectionSx}>Finalize</Box>
-                <MenuItem onClick={openTimeSheetPreview} sx={actionMenuItemSx("primary")}>
+                <Divider sx={compactDivider} />
+                <Box sx={actionMenuSection}>Finalize</Box>
+                <MenuItem onClick={openTimeSheetPreview} sx={actionMenuItem("success")}>
                   <ListItemIcon>
                     <SendOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -987,7 +823,7 @@ function TimeSheet() {
         </Stack>
       </Box>
 
-      <Box sx={appTabsContainerSx}>
+      <Box sx={tabsContainer}>
         {availableTabs.length > 0 && (
           <Tabs
             value={value}
@@ -995,7 +831,7 @@ function TimeSheet() {
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={appTabsSx}
+            sx={tabs}
           >
             {availableTabs.map((tab, index) => (
               <Tab

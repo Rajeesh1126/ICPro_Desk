@@ -8,8 +8,6 @@ import {
   Stack,
 } from "@mui/material";
 
-// import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
-
 import { alpha } from "@mui/material/styles";
 import type { SelfTicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
@@ -17,6 +15,8 @@ import {
   compactTextSx,
   detailLabelSx,
   detailValueSx,
+  dueTaskChip,
+  secondaryTextSx,
   // secondaryTextSx,
   selfTicketsBasicCardBoxSx1,
   selfTicketsBasicCardCardContentSx1,
@@ -24,7 +24,6 @@ import {
   selfTicketsBasicCardDynamicDynamicCardSx1,
   selfTicketsBasicCardDynamicDynamicChipSx1,
   selfTicketsBasicCardDynamicDynamicTypographySx1,
-  // selfTicketsBasicCardTypographySx1,
   selfTicketsBasicCardTypographySx3,
   selfTicketsBasicCardTypographySx4,
 } from "../../styles/common";
@@ -32,12 +31,14 @@ import {
 interface BasicCardProps {
   ticket: SelfTicketData;
   onOpen: (data: SelfTicketData) => void;
+  highlighted?: boolean;
 }
 const currentUserParsed = Number(localStorage.getItem("user") || "null");
 
 const userId = currentUserParsed ?? null;
 
 export default function BasicCardSelfTicket({
+  highlighted = false,
   ticket,
   onOpen,
 }: BasicCardProps) {
@@ -62,15 +63,15 @@ export default function BasicCardSelfTicket({
     <Card
       elevation={0}
       onClick={() => onOpen(ticket)}
-      sx={selfTicketsBasicCardDynamicDynamicCardSx1({ styles })}
+      sx={selfTicketsBasicCardDynamicDynamicCardSx1({ highlighted, styles })}
     >
       <CardContent sx={selfTicketsBasicCardCardContentSx1}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
+        <Stack
+          direction={{ xs: "row", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          gap={0.5}
+          mb={1}
         >
           <Typography
             sx={selfTicketsBasicCardDynamicDynamicTypographySx1({ styles })}
@@ -78,30 +79,26 @@ export default function BasicCardSelfTicket({
             Task No #{ticket.number}
           </Typography>
           <Stack
-            direction="column"
-            sx={{
-              justifyContent: "flex-end",
-              alignItems: "center",
-            }}
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            sx={secondaryTextSx}
           >
+            {highlighted && (
+              <Chip label="Due" size="small" sx={dueTaskChip(styles.color)} />
+            )}
             {ticket.creator !== userId ? (
-              <Stack direction="row">
-                {/* <Typography sx={selfTicketsBasicCardTypographySx1}>
-                Owner: 
-              </Typography> */}
-                <Typography sx={compactTextSx}>
-                  {ticket.creator_name ? ticket.creator_name : ""}
-                </Typography>
-              </Stack>
+              <Typography sx={compactTextSx}>
+                {ticket.creator_name ? ticket.creator_name : ""}
+              </Typography>
             ) : (
               ""
             )}
-
             <Typography sx={selfTicketsBasicCardTypographySx3}>
               {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
             </Typography>
           </Stack>
-        </Box>
+        </Stack>
 
         <Typography variant="h6" sx={selfTicketsBasicCardTypographySx4}>
           {ticket.task}

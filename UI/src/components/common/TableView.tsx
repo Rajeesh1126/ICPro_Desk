@@ -14,7 +14,9 @@ import {
   Typography,
   InputAdornment,
   Stack,
+  type SxProps,
 } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 
 // Corrected Imports for verbatimModuleSyntax
 import { TableVirtuoso } from "react-virtuoso";
@@ -29,6 +31,7 @@ import {
   stickyTableCellSx,
   tableHeadSx,
   tableHeaderCellSx,
+  type TableRowStatus,
   tableViewBoxSx1,
   tableViewBoxSx2,
   tableViewBoxSx3,
@@ -42,7 +45,7 @@ import {
   tableViewTableChartIconSx1,
   tableViewTableChartIconSx2,
   tableViewTableContainerSx1,
-  tableViewTableSx1,
+  tableViewTableWithMinWidth,
   tableViewTableVirtuosoStyle1,
   tableViewTextFieldSx1,
   tableViewTitleGroupSx,
@@ -71,6 +74,8 @@ interface VirtualizedTableProps<T> {
   height?: string;
   tableMinWidth?: number | string;
   onRowClick?: (row: T) => void;
+  getRowStatus?: (row: T) => TableRowStatus | undefined;
+  getRowSx?: (row: T) => SxProps<Theme> | undefined;
   tableHead?: string;
   tableHeadSub?: string;
   fixedFooterContent?: (rows: T[]) => React.ReactNode;
@@ -115,6 +120,8 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
   height,
   tableMinWidth,
   onRowClick,
+  getRowStatus,
+  getRowSx,
   tableHead,
   tableHeadSub,
   fixedFooterContent,
@@ -170,10 +177,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
       Table: (props) => (
         <Table
           {...props}
-          sx={{
-            ...tableViewTableSx1,
-            minWidth: tableMinWidth,
-          }}
+          sx={tableViewTableWithMinWidth(tableMinWidth)}
         />
       ),
       TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
@@ -187,14 +191,28 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
           {...props}
           hover={!!onRowClick}
           onClick={() => onRowClick?.(item)}
-          sx={tableViewCallbackCallbackSx1({ alternatingRowSx, onRowClick })}
+          data-status={getRowStatus?.(item)}
+          sx={(theme) => {
+            const baseRowSx = tableViewCallbackCallbackSx1({
+              alternatingRowSx,
+              onRowClick,
+            }) as (theme: Theme) => Record<string, unknown>;
+            const customRowSx = getRowSx?.(item);
+
+            return {
+              ...baseRowSx(theme),
+              ...(typeof customRowSx === "function"
+                ? customRowSx(theme)
+                : customRowSx),
+            };
+          }}
         />
       ),
       TableBody: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
         <TableBody {...props} ref={ref} />
       )),
     }),
-    [onRowClick, tableMinWidth],
+    [getRowStatus, getRowSx, onRowClick, tableMinWidth],
   );
 
   const handleSort = (field?: keyof T) => {

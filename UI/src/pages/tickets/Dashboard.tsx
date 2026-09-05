@@ -16,28 +16,30 @@ import {
 import type { TicketData } from "../../types/dataTypes";
 import api from "../../api/axios";
 import {
-  appPageSx,
-  borderedSurfaceSx,
-  dashboardDynamicPageDynamicBoxSx1,
-  dashboardDynamicPageDynamicBoxSx2,
-  dashboardDynamicPageDynamicLinearProgressSx1,
-  dashboardDynamicPageDynamicPaperSx1,
-  dashboardPageBoxSx1,
-  dashboardPageBoxSx2,
-  dashboardPageBoxSx3,
-  dashboardPageBoxSx4,
-  dashboardPageBoxSx5,
-  dashboardPageBoxSx6,
-  dashboardPageChartItemSx,
-  dashboardPageEventAvailableRoundedIconSx1,
-  dashboardPageGridSx,
-  dashboardPageStackSx1,
-  dashboardPageStackSx2,
-  dashboardPageStackSx3,
-  dashboardPageTableItemSx,
-  dashboardPageWorkloadItemSx,
+  compactStackGap,
+  contentFill,
+  dividerListRow,
   emptyStateSx,
+  fillContainer,
+  inlineProgress,
+  largeMutedIcon,
   minWidthZeroSx,
+  page,
+  pageContent,
+  overviewFullGridItem,
+  overviewGrid,
+  overviewPrimaryGridItem,
+  overviewSecondaryGridItem,
+  pageHeader,
+  pageHeaderContent,
+  pageSubtitle,
+  pageTitle,
+  panelIconBadge,
+  panelTitleRow,
+  rightMetric,
+  scrollColumn,
+  statusDot,
+  surfacePanel,
 } from "../../styles/common";
 
 type DepartmentLoad = { name: string; count: number; color?: string };
@@ -79,7 +81,7 @@ export default function Dashboard() {
         label: "#",
         width: 10,
         render: (_row, index) => index + 1,
-        number: true,
+        numeric: true,
       },
       { label: "Ticket Number", dataKey: "number", width: 200 },
       { label: "Subject", dataKey: "task", width: "auto" },
@@ -96,30 +98,32 @@ export default function Dashboard() {
   );
 
   return (
-    <Box sx={appPageSx}>
-      <Box component="main" sx={dashboardPageBoxSx1}>
-        <Box sx={dashboardPageBoxSx2}>
-          <Typography variant="h5" fontWeight={900}>
-            Team Analysis
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            A live view of due work, teams load, and overall ticket status.
-          </Typography>
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>
+              Team Analysis
+            </Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
+              A live view of due work, teams load, and overall ticket status.
+            </Typography>
+          </Box>
         </Box>
 
-        <Box sx={dashboardPageGridSx}>
-          <Box sx={dashboardPageWorkloadItemSx}>
+        <Box sx={overviewGrid}>
+          <Box sx={overviewPrimaryGridItem}>
               <Paper
                 elevation={0}
-                sx={dashboardDynamicPageDynamicPaperSx1({ borderedSurfaceSx })}
+                sx={surfacePanel}
               >
                 <Stack
                   direction="row"
                   spacing={1.25}
                   alignItems="center"
-                  sx={dashboardPageStackSx1}
+                  sx={panelTitleRow}
                 >
-                  <Box sx={dashboardPageBoxSx3}>
+                  <Box sx={panelIconBadge}>
                     <BusinessOutlinedIcon fontSize="small" />
                   </Box>
                   <Box>
@@ -129,17 +133,14 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                 </Stack>
-                <Stack spacing={0} sx={dashboardPageStackSx2}>
+                <Stack spacing={0} sx={scrollColumn}>
                   {summary.deptData.length ? (
                     summary.deptData.map((department, index) => {
                       const color = department.color || "primary.main";
                       return (
                         <Box
                           key={department.name}
-                          sx={dashboardDynamicPageDynamicBoxSx1({
-                            index,
-                            summary,
-                          })}
+                          sx={dividerListRow(index < summary.deptData.length - 1)}
                         >
                           <Stack
                             direction="row"
@@ -147,17 +148,15 @@ export default function Dashboard() {
                             alignItems="center"
                             spacing={2}
                           >
-                            <Box sx={dashboardPageBoxSx4}>
+                            <Box sx={contentFill}>
                               <Stack
                                 direction="row"
                                 alignItems="center"
                                 spacing={1}
-                                sx={dashboardPageStackSx3}
+                                sx={compactStackGap}
                               >
                                 <Box
-                                  sx={dashboardDynamicPageDynamicBoxSx2({
-                                    color,
-                                  })}
+                                  sx={statusDot(color)}
                                 />
 
                                 <Typography
@@ -178,15 +177,11 @@ export default function Dashboard() {
                                     Math.max(summary.total, 1)) *
                                     100,
                                 )}
-                                sx={dashboardDynamicPageDynamicLinearProgressSx1(
-                                  {
-                                    color,
-                                  },
-                                )}
+                                sx={inlineProgress(color)}
                               />
                             </Box>
 
-                            <Box sx={dashboardPageBoxSx5}>
+                            <Box sx={rightMetric}>
                               <Typography
                                 variant="subtitle2"
                                 fontWeight={900}
@@ -211,7 +206,7 @@ export default function Dashboard() {
                     <Box sx={emptyStateSx}>
                       <Box>
                         <EventAvailableOutlinedIcon
-                          sx={dashboardPageEventAvailableRoundedIconSx1}
+                          sx={largeMutedIcon}
                         />
                         <Typography fontWeight={700}>
                           No team workload yet
@@ -222,8 +217,8 @@ export default function Dashboard() {
                 </Stack>
               </Paper>
           </Box>
-          <Box sx={dashboardPageChartItemSx}>
-            <Box sx={dashboardPageBoxSx6}>
+          <Box sx={overviewSecondaryGridItem}>
+            <Box sx={fillContainer}>
               <AnalysisPieChart
                 title={`Total ${summary.total}`}
                 data={summary.statuses}
@@ -231,7 +226,7 @@ export default function Dashboard() {
               />
             </Box>
           </Box>
-          <Box sx={dashboardPageTableItemSx}>
+          <Box sx={overviewFullGridItem}>
               <VirtualizedTable
                 columns={columns}
                 rows={summary.weekly_target_tickets}

@@ -521,7 +521,7 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
     days.forEach((day, dayIndex) => {
       result.push({
         label: day.label,
-        width: 58,
+        width: 54,
         render: (row: TaskRow) => {
           if (row.rowType === "project") {
             return null;
@@ -612,7 +612,7 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
 
     result.push({
       label: "Accept",
-      width: 80,
+      width: 100,
       render: (row: TaskRow) => {
         if (row.rowType === "project") {
           return null;
@@ -648,7 +648,7 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
 
     result.push({
       label: "Reject",
-      width: 80,
+      width: 100,
       render: (row: TaskRow) => {
         if (row.rowType === "project") {
           return null;
@@ -722,7 +722,7 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
                 overflow: "hidden",
                 boxShadow:
                   index === 0
-                    ? `1px 0 0 ${theme.palette.divider}, 10px 0 12px -14px ${theme.palette.common.black}`
+                    ? `1px 0 0 ${theme.palette.divider}, 10px 0 12px -14px ${theme.palette.text.primary}`
                     : undefined,
               })}
             >

@@ -8,14 +8,14 @@ import {
   Avatar,
   Stack,
 } from "@mui/material";
-import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+
 import { alpha } from "@mui/material/styles";
 import type { TicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
-  compactTextSx,
   detailLabelSx,
   detailValueSx,
+  dueTaskChip,
   minWidthZeroSx,
   pushRightSx,
   secondaryTextSx,
@@ -35,9 +35,14 @@ import {
 interface BasicCardProps {
   ticket: TicketData;
   onOpen: (data: TicketData) => void;
+  highlighted?: boolean;
 }
 
-export default function BasicCardComponent({ ticket, onOpen }: BasicCardProps) {
+export default function BasicCardComponent({
+  highlighted = false,
+  ticket,
+  onOpen,
+}: BasicCardProps) {
   if (!ticket?.number) return null;
 
   const getPriorityStyles = (priority: string | null | undefined) => {
@@ -67,11 +72,11 @@ export default function BasicCardComponent({ ticket, onOpen }: BasicCardProps) {
     <Card
       elevation={0}
       onClick={() => onOpen(ticket)}
-      sx={ticketsBasicCardDynamicDynamicCardSx1({ styles })}
+      sx={ticketsBasicCardDynamicDynamicCardSx1({ highlighted, styles })}
     >
       <CardContent sx={ticketsBasicCardCardContentSx1}>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction={{ xs: "row", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
           gap={0.5}
@@ -88,7 +93,9 @@ export default function BasicCardComponent({ ticket, onOpen }: BasicCardProps) {
             alignItems="center"
             sx={secondaryTextSx}
           >
-            <AccessTimeOutlinedIcon sx={compactTextSx} />
+            {highlighted && (
+              <Chip label="Due" size="small" sx={dueTaskChip(styles.color)} />
+            )}
             <Typography sx={ticketsBasicCardTypographySx1}>
               {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
             </Typography>

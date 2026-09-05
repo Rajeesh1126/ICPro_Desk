@@ -30,13 +30,20 @@ import type {
 } from "../../types/dataTypes";
 import api from "../../api/axios";
 import {
-  appPageBox,
-  appTabsContainerSx,
-  appTabsSx,
-  flexColumnFillSx,
+  buttonLabelCompact,
+  buttonLabelFull,
   inlineCenterGapSx,
-  pageHeaderSx,
-  tablePageContentSx,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  priorityDueRowHighlight,
+  tabs,
+  tabsContainer,
+  tablePageContent,
   toggleButton,
 } from "../../styles/common";
 
@@ -54,6 +61,45 @@ function loggedUser(): number | null {
   const id = value ? Number(value) : NaN;
 
   return Number.isInteger(id) ? id : null;
+}
+
+function parseTicketDueDay(value: string | null | undefined) {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
+  }
+
+  const normalizedValue = value.replace(" ", "T");
+  const dueDate = new Date(normalizedValue);
+  const timestamp = dueDate.getTime();
+  dueDate.setHours(0, 0, 0, 0);
+
+  return Number.isNaN(timestamp) ? null : dueDate.getTime();
+}
+
+function isOpenOrInProgressDueTicket(ticket: TicketData) {
+  const dueDay = parseTicketDueDay(ticket.target_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const status = ticket.current_status?.toLowerCase() ?? "";
+  const activeStatuses = [
+    "open",
+    "modified",
+    "reopened",
+    "in progress",
+    "assigned",
+    "not-satisfied",
+    "accepted",
+    "recall requested",
+  ];
+
+  return (
+    dueDay !== null &&
+    dueDay <= today.getTime() &&
+    activeStatuses.includes(status)
+  );
 }
 
 export default function Tickets() {
@@ -161,11 +207,11 @@ export default function Tickets() {
         label: "#",
         width: 20,
         render: (_row, index) => index + 1,
-        number: true,
+        numeric: true,
       },
       {
         label: "Ticket Number",
-        width: 200,
+        width: 195,
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
@@ -181,7 +227,7 @@ export default function Tickets() {
               <IconButton
                 aria-label={`Edit ${row.number}`}
                 onClick={() => openEdit(row)}
-                color="primary"
+                color="secondary"
                 disabled={
                   row.creator !== userId ||
                   [
@@ -192,22 +238,22 @@ export default function Tickets() {
                   ].includes(row.current_status)
                 }
               >
-                <EditOutlinedIcon color="info" />
+                <EditOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Typography variant="body2">{row.number}</Typography>
           </Box>
         ),
       },
-      { label: "Subject", dataKey: "task" },
+      { label: "Subject", dataKey: "task", width: 350 },
       { label: "Status", dataKey: "current_status" },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Assigned To", dataKey: "assigned_to_name" },
       { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours", width: 70 },
-      { label: "Act Hrs", dataKey: "act_hours", width: 70 },
-      { label: "Target Completion", dataKey: "target_date", width: 110 },
-      { label: "Actual Completion", dataKey: "actual_end_date", width: 110 },
+      { label: "Est Hrs", dataKey: "est_hours"},
+      { label: "Act Hrs", dataKey: "act_hours"},
+      { label: "Target Completion", dataKey: "target_date" },
+      { label: "Actual Completion", dataKey: "actual_end_date"},
     ],
     [userId, openDetails, openEdit],
   );
@@ -223,24 +269,19 @@ export default function Tickets() {
     ][tabValue] ?? tickets.all;
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Tickets</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Tickets</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Track, assign, and complete team tickets from one workspace.
             </Typography>
           </Box>
           <Stack
-            direction={{ xs: "column-reverse", sm: "row" }}
+            direction={{ xs: "row", sm: "row" }}
             spacing={1}
-            // sx={responsiveRightActionsSx}
-            sx={{
-              justifyContent: "center",
-              alignItems: "flex-end",
-              width: { xs: "160px", sm: "auto" },
-            }}
+            sx={pageHeaderActions}
           >
             {tabValue === 0 && (
               <Button
@@ -248,7 +289,8 @@ export default function Tickets() {
                 variant="contained"
                 onClick={openCreate}
               >
-                New Ticket
+                <Box component="span" sx={buttonLabelFull}>New Ticket</Box>
+                <Box component="span" sx={buttonLabelCompact}>New</Box>
               </Button>
             )}
             <ToggleButtonGroup
@@ -276,14 +318,14 @@ export default function Tickets() {
         </Box>
 
         {/* <Paper square elevation={0} sx={ticketsPagePaperSx1}> */}
-        <Box sx={appTabsContainerSx}>
+        <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => setTabValue(value)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={appTabsSx}
+            sx={tabs}
           >
             <Tab label={`Overview (${tickets.all.length})`} />
             <Tab label={`Assigned To Me (${tickets.assigned.length})`} />
@@ -295,18 +337,26 @@ export default function Tickets() {
         </Box>
         {/* </Paper> */}
 
-        <Box sx={tablePageContentSx}>
+        <Box sx={tablePageContent}>
           {view === "card" ? (
             <TicketCardView
               data={activeRows}
               onCardClick={openDetails}
               cardType="Ticket"
+              getCardStatus={(ticket) =>
+                isOpenOrInProgressDueTicket(ticket) ? "warning" : undefined
+              }
             />
           ) : (
             <VirtualizedTable
               columns={columns}
               rows={activeRows}
               height="100%"
+              getRowSx={(row) =>
+                isOpenOrInProgressDueTicket(row)
+                  ? priorityDueRowHighlight(row.priority)
+                  : undefined
+              }
               tableHead="Tickets"
             />
           )}

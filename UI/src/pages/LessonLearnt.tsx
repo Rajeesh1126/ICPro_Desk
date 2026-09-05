@@ -28,7 +28,19 @@ import {
   VirtualizedTable,
   type ColumnData,
 } from "../components/common/TableView";
-import { appPageBox, flexColumnFillSx, pageHeaderSx } from "../styles/common";
+import {
+  buttonLabelCompact,
+  buttonLabelFull,
+  contentPanel,
+  dialogContentTop,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+} from "../styles/common";
 import { formatDateTime } from "../components/common/formatDate";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
@@ -281,27 +293,28 @@ export default function LessonLearnt() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Lesson Learnt</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Lesson Learnt</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Capture project execution learning and shared experience.
             </Typography>
           </Box>
-          <Box sx={{ width: { xs: 160, sm: 120 } }}>
+          <Box sx={pageHeaderActions}>
             <Button
               variant="contained"
               startIcon={<AddOutlinedIcon />}
               onClick={openCreateDialog}
             >
-              Add Lesson
+              <Box component="span" sx={buttonLabelFull}>Add Lesson</Box>
+              <Box component="span" sx={buttonLabelCompact}>Add</Box>
             </Button>
           </Box>
         </Box>
 
-        <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, sm: 2, md: 3 }, pb: 3 }}>
+        <Box sx={contentPanel}>
           <VirtualizedTable<LessonLearntRow>
             columns={columns}
             rows={lessons}
@@ -321,7 +334,7 @@ export default function LessonLearnt() {
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={dialogContentTop}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 label="Project"

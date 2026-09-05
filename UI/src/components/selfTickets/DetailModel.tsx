@@ -27,7 +27,7 @@ import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlin
 import api from "../../api/axios";
 import { useState } from "react";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { SelfTicketData } from "../../types/dataTypes";
+import type { SelfTicketData, SelfTicketLog } from "../../types/dataTypes";
 import Avatar from "@mui/material/Avatar";
 import ConfirmDialog from "../common/ConfirmDialog";
 import {
@@ -331,7 +331,7 @@ export default function TicketDetailModal({
                       theme,
                     })}
                   >
-                    {task.logs?.map((log: any) => (
+                    {task.logs?.map((log: SelfTicketLog) => (
                       <Box
                         key={log.id}
                         sx={selfTicketsDetailModelCommentWrapperSx({

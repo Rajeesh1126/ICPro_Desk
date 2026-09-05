@@ -14,16 +14,21 @@ import {
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import type { rolesData, permissionData } from "../types/dataTypes";
 import {
-  appPageBox,
-  appTabsContainerSx,
-  appTabsSx,
+  buttonLabelCompact,
+  buttonLabelFull,
   deleteIconSx,
   editIconSx,
-  flexColumnFillSx,
   inlineCenterGapSx,
-  pageHeaderSx,
-  tablePageContentSx,
-  selfTicketsPageStackSx1,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  tabs,
+  tabsContainer,
+  tablePageContent,
 } from "../styles/common";
 import api from "../api/axios";
 import {
@@ -229,7 +234,7 @@ export default function Roles() {
       },
       {
         label: "",
-        width: { xs: 80, sm: 65 },
+        width: { xs: 80, sm: 80 },
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             {/* edit btn */}
@@ -238,7 +243,7 @@ export default function Roles() {
                 aria-label={`Edit ${row.id}`}
                 onClick={() => openEdit(row)}
               >
-                <EditOutlinedIcon fontSize="small" sx={editIconSx} />
+                <EditOutlinedIcon sx={editIconSx} />
               </IconButton>
             </Tooltip>
             {/* delete btn */}
@@ -247,7 +252,7 @@ export default function Roles() {
                 aria-label={`Delete ${row.id}`}
                 onClick={() => openDelete(row)}
               >
-                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+                <DeleteOutlinedIcon sx={deleteIconSx} />
               </IconButton>
             </Tooltip>
             {/* <Typography variant="body2">{row.name}</Typography> */}
@@ -319,23 +324,23 @@ export default function Roles() {
   }, [permissions, handleSelectAllForRole, handlePermissionChange]);
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box flexGrow={1}>
-            <Typography variant="h5">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>
               {tabValue === 0 ? "Roles List" : "Permissions List"}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={pageSubtitle}>
               {tabValue === 0
                 ? "Manage roles, permissions, and access"
                 : "Manage permissions and access"}
             </Typography>
           </Box>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction={{ xs: "row-reverse", sm: "row" }}
             spacing={1}
-            sx={selfTicketsPageStackSx1}
+            sx={pageHeaderActions}
           >
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               {tabValue === 0 && (
@@ -344,7 +349,8 @@ export default function Roles() {
                   variant="contained"
                   onClick={openCreate}
                 >
-                  New Role
+                  <Box component="span" sx={buttonLabelFull}>New Role</Box>
+                  <Box component="span" sx={buttonLabelCompact}>New</Box>
                 </Button>
               )}
               {tabValue === 1 && (
@@ -353,15 +359,20 @@ export default function Roles() {
                   startIcon={<SaveOutlinedIcon />}
                   onClick={handleSave}
                   disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save Changes"}
+              >
+                  {saving ? "Saving..." : (
+                    <>
+                      <Box component="span" sx={buttonLabelFull}>Save Changes</Box>
+                      <Box component="span" sx={buttonLabelCompact}>Save</Box>
+                    </>
+                  )}
                 </Button>
               )}
             </Stack>
           </Stack>
         </Box>
 
-        <Box sx={appTabsContainerSx}>
+        <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => {
@@ -371,7 +382,7 @@ export default function Roles() {
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={appTabsSx}
+            sx={tabs}
           >
             <Tab label="Roles" />
             <Tab label="Permissions" />
@@ -379,7 +390,7 @@ export default function Roles() {
         </Box>
         {tabValue === 0 && (
           <>
-            <Box sx={tablePageContentSx}>
+            <Box sx={tablePageContent}>
               <VirtualizedTable
                 columns={columns}
                 rows={roles}
@@ -415,7 +426,7 @@ export default function Roles() {
         )}
         {tabValue === 1 && (
           <>
-            <Box sx={tablePageContentSx}>
+            <Box sx={tablePageContent}>
               <VirtualizedTable
                 columns={permissionColumns}
                 rows={roles}

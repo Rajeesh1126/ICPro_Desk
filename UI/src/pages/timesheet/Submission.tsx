@@ -25,7 +25,13 @@ import api from "../../api/axios";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { stickyTableCellSx, tableHeaderCellSx, tableHeadSx } from "../../styles/common";
+import {
+  stickyFirstColumnCell,
+  stickyFirstColumnHeaderCell,
+  stickyTableCellSx,
+  tableHeaderCellSx,
+  tableHeadSx,
+} from "../../styles/common";
 
 import type {
   TaskEntry,
@@ -127,27 +133,6 @@ const columnWidths = {
   total: 90,
   select: 70,
 };
-
-const stickyJobCellSx = (theme: import("@mui/material/styles").Theme) => ({
-  ...stickyTableCellSx(theme),
-  position: "sticky",
-  left: 0,
-  zIndex: 3,
-  bgcolor: theme.palette.background.paper,
-  boxShadow: `1px 0 0 ${theme.palette.divider}`,
-  "& > *": {
-    position: "relative",
-    zIndex: 1,
-  },
-});
-
-const stickyJobHeaderCellSx = (theme: import("@mui/material/styles").Theme) => ({
-  ...tableHeaderCellSx(theme),
-  position: "sticky",
-  left: 0,
-  zIndex: 6,
-  boxShadow: `1px 0 0 ${theme.palette.divider}`,
-});
 
 // =========================================================
 // Helpers
@@ -840,8 +825,9 @@ export default function Submission({
               borderBottom: `1px solid ${theme.palette.divider}`,
               fontSize: "0.8125rem",
             },
-            "& .MuiTableRow-root:hover .MuiTableCell-root:not(.timesheet-jobs-cell)": {
-              bgcolor: theme.palette.action.hover,
+            "& .MuiTableHead-root .MuiTableCell-root": {
+              position: "sticky",
+              top: 0,
             },
           }}
         >
@@ -855,7 +841,7 @@ export default function Submission({
 
               <TableCell
                 sx={{
-                  ...stickyJobHeaderCellSx(theme),
+                  ...stickyFirstColumnHeaderCell(theme),
                   width: columnWidths.job,
                   minWidth: columnWidths.job,
                 }}
@@ -958,7 +944,7 @@ export default function Submission({
 
                     <TableCell
                       sx={{
-                        ...stickyJobCellSx(theme),
+                        ...stickyFirstColumnCell(theme),
                         width: columnWidths.job,
                         minWidth: columnWidths.job,
                         fontWeight: 600,
@@ -1143,7 +1129,7 @@ export default function Submission({
 
                                         <TableCell
                                           sx={{
-                                            ...stickyJobCellSx(theme),
+                                            ...stickyFirstColumnCell(theme),
                                             width:
                                               columnWidths.job,
                                             minWidth:
@@ -1277,7 +1263,7 @@ export default function Submission({
 
                                                 <TableCell
                                                   sx={{
-                                                    ...stickyJobCellSx(theme),
+                                                    ...stickyFirstColumnCell(theme),
                                                     pl: 10,
                                                     width:
                                                       columnWidths.job,
@@ -1530,7 +1516,7 @@ export default function Submission({
             <TableRow>
               <TableCell
                 sx={{
-                  ...stickyJobCellSx(theme),
+                  ...stickyFirstColumnCell(theme),
                   width: columnWidths.job,
                   minWidth: columnWidths.job,
                   fontWeight: 700,

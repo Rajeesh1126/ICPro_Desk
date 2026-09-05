@@ -69,6 +69,7 @@ import {
   appBarHeaderToolbarSx1,
   appBarHeaderTypographySx3,
   appBarHeaderTypographySx4,
+  dialogContentTop,
   marginTopMediumSx,
   marginTopSmallSx,
   pushRightSx,
@@ -95,6 +96,56 @@ const coloredIconButtonSx =
       },
     };
   };
+
+const menuButtonSx = (theme: Theme) => ({
+  ...(appBarHeaderIconButtonSx1 as object),
+  ...coloredIconButtonSx("primary")(theme),
+  alignItems: "center",
+  alignSelf: "center",
+  height: 40,
+  justifyContent: "center",
+  p: 0,
+  width: 32,
+  "&:hover": {
+    bgcolor: "transparent",
+  },
+});
+
+const accountButtonSx = {
+  ...appBarHeaderIconButtonSx2,
+  "&&": { ml: 2 },
+};
+
+const notificationMenuPaperSx = (theme: Theme) => ({
+  width: "min(360px, calc(100vw - 24px))",
+  mt: 1.25,
+  overflow: "hidden",
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  bgcolor: "background.paper",
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? "0 18px 48px rgba(0, 0, 0, 0.42)"
+      : "0 18px 48px rgba(15, 23, 42, 0.14)",
+});
+
+const profileMenuPaperSx = (theme: Theme) => ({
+  width: "min(420px, calc(100vw - 24px))",
+  maxHeight: "calc(100dvh - 96px)",
+  mt: 2.5,
+  overflow: "hidden",
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  bgcolor: "background.paper",
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? "0 18px 48px rgba(0, 0, 0, 0.42)"
+      : "0 18px 48px rgba(15, 23, 42, 0.14)",
+});
+
+const menuListSx = { p: 0 };
 
 type StoredPermission = {
   id?: number;
@@ -286,19 +337,7 @@ export default function ResponsiveAppBar({
           <IconButton
             aria-label="Open navigation"
             onClick={onMenuClick}
-            sx={(theme) => ({
-              ...(appBarHeaderIconButtonSx1 as object),
-              ...coloredIconButtonSx("primary")(theme),
-              alignSelf: "center",
-              alignItems: "flex-end",
-              p: 0,
-              width: 32,
-              height: 40,
-              justifyContent: "center",
-              "&:hover": {
-                bgcolor: "transparent",
-              },
-            })}
+            sx={menuButtonSx}
           >
             <MenuOutlinedIcon />
           </IconButton>
@@ -362,7 +401,7 @@ export default function ResponsiveAppBar({
               <IconButton
                 aria-label="Account menu"
                 onClick={(event) => setProfileAnchor(event.currentTarget)}
-                sx={{ ...appBarHeaderIconButtonSx2, "&&": { ml: 2 } }}
+                sx={accountButtonSx}
               >
                 <Avatar sx={appBarHeaderAvatarSx1}>
                   {loggedUser?.charAt(0).toUpperCase()}
@@ -382,21 +421,9 @@ export default function ResponsiveAppBar({
         slotProps={{
           paper: {
             elevation: 0,
-            sx: (theme) => ({
-              width: "min(360px, calc(100vw - 24px))",
-              mt: 1.25,
-              overflow: "hidden",
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? "0 18px 48px rgba(0, 0, 0, 0.42)"
-                  : "0 18px 48px rgba(15, 23, 42, 0.14)",
-            }),
+            sx: notificationMenuPaperSx,
           },
-          list: { sx: { p: 0 } },
+          list: { sx: menuListSx },
         }}
       >
         <Box sx={appBarHeaderCallbackCallbackSx1({ alpha })}>
@@ -500,23 +527,10 @@ export default function ResponsiveAppBar({
         slotProps={{
           paper: {
             elevation: 0,
-            sx: (theme) => ({
-              width: "min(420px, calc(100vw - 24px))",
-              maxHeight: "calc(100dvh - 96px)",
-              mt: 2.5,
-              overflow: "hidden",
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? "0 18px 48px rgba(0, 0, 0, 0.42)"
-                  : "0 18px 48px rgba(15, 23, 42, 0.14)",
-            }),
+            sx: profileMenuPaperSx,
           },
           list: {
-            sx: { p: 0 },
+            sx: menuListSx,
           },
         }}
       >
@@ -657,7 +671,7 @@ export default function ResponsiveAppBar({
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={dialogContentTop}>
             <TextField
               label="Current Password"
               type="password"

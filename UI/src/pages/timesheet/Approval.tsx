@@ -1,13 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+    Badge,
     Box,
     Chip,
     IconButton,
+    Typography,
 } from "@mui/material";
 
 import {
-    approvalPageContainerSx,
-    approvalTableContainerSx,
+    flexFillPanel,
+    formatStatusLabel,
+    getStatusColor,
+    splitPanelContent,
+    tableViewBoxSx1,
+    tableViewTypographySx1,
 } from "../../styles/common";
 
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -162,6 +168,27 @@ const Approval: React.FC<ApprovalProps> = ({
         return "info";
     }, []);
 
+    const renderStatusText = useCallback((status: string | undefined) => (
+        <Box sx={tableViewBoxSx1}>
+            <Badge
+                aria-hidden="true"
+                variant="dot"
+                sx={{
+                    "& .MuiBadge-badge": {
+                        backgroundColor: getStatusColor(status),
+                    },
+                }}
+            />
+            <Typography
+                component="span"
+                variant="body2"
+                sx={tableViewTypographySx1}
+            >
+                {formatStatusLabel(status)}
+            </Typography>
+        </Box>
+    ), []);
+
     const columns = useMemo<ColumnData<ApprovalRow>[]>(
         () => [
             {
@@ -220,21 +247,7 @@ const Approval: React.FC<ApprovalProps> = ({
                 dataKey: "overview",
                 label: "Overview",
                 width: 130,
-
-                render: (row: ApprovalRow) => (
-                    <Chip
-                        size="small"
-                        label={row.overview}
-                        color={getStatusChipColor(row.overview)}
-                        variant={row.overview === "Submitted" ? "filled" : "outlined"}
-                        sx={{
-                            height: 24,
-                            // borderRadius: 1,
-                            fontSize: 11,
-                            fontWeight:700,
-                        }}
-                    />
-                ),
+                render: (row: ApprovalRow) => renderStatusText(row.overview),
             },
 
             // Submission Status
@@ -253,7 +266,7 @@ const Approval: React.FC<ApprovalProps> = ({
                             height: 24,
                             borderRadius: 1,
                             fontSize: 11,
-                            fontWeight: 700,
+                            fontWeight: 800,
                         }}
                     />
                 ),
@@ -264,26 +277,12 @@ const Approval: React.FC<ApprovalProps> = ({
                 dataKey: "approval_status",
                 label: "Approval status",
                 width: 180,
-
-                render: (row: ApprovalRow) => (
-                    <Chip
-                        size="small"
-                        label={row.approval_status}
-                        color={getStatusChipColor(row.approval_status)}
-                        variant="outlined"
-                        sx={{
-                            height: 24,
-                            borderRadius: 1,
-                            fontSize: 11,
-                            fontWeight: 700,
-                        }}
-                    />
-                ),
+                render: (row: ApprovalRow) => renderStatusText(row.approval_status),
             },
 
             
         ],
-        [getStatusChipColor, handleViewEmployee]
+        [getStatusChipColor, handleViewEmployee, renderStatusText]
     );
 
     const handleCloseDetail = () => {
@@ -292,10 +291,10 @@ const Approval: React.FC<ApprovalProps> = ({
     };
 
     return (
-        <Box sx={approvalPageContainerSx}>
+        <Box sx={splitPanelContent}>
 
             {/* Approval Table */}
-            <Box sx={approvalTableContainerSx}>
+            <Box sx={flexFillPanel}>
                 <VirtualizedTable<ApprovalRow>
                     columns={columns}
                     rows={approvalData}

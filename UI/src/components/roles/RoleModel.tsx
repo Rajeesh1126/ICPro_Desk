@@ -98,9 +98,20 @@ export default function RoleModel({
           ? "Roles updated successfully."
           : "Roles created successfully.",
       });
-    } catch (error: any) {
-      if (error.response?.status === 400) {
-        setFormErrorData(error.response.data);
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "status" in error.response &&
+        error.response.status === 400 &&
+        "data" in error.response
+      ) {
+        setFormErrorData(
+          error.response.data as Partial<Record<keyof RoleFormData, string>>,
+        );
       } else {
         console.error(error);
       }

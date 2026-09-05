@@ -1,30 +1,63 @@
 import { alpha, createTheme } from "@mui/material/styles";
 import type { PaletteMode } from "@mui/material";
+import { COLORS, ELEVATION, RADIUS, TYPOGRAPHY } from "../tokens";
 
-export const appFontFamily =
-  'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+export const appFontFamily = TYPOGRAPHY.fontFamily;
 
-const lightPalette = {
-  primary: { main: "#146C94", dark: "#0B4F6C", light: "#4D9FC2" },
-  secondary: { main: "#19A7CE" },
-  background: { default: "#F4F7FB", paper: "#FFFFFF" },
-  text: { primary: "#172033", secondary: "#64748B" },
-  divider: "#E2E8F0",
-  success: { main: "#16865B" },
-  warning: { main: "#D97706" },
-  error: { main: "#DC3B4B" },
+const buildPalette = (mode: PaletteMode) => {
+  const c = COLORS[mode];
+
+  return {
+    primary: { main: c.accent, dark: c.accentDark, light: c.accentLight },
+    secondary: {
+      main: c.secondary,
+      light: c.secondaryLight,
+      dark: c.secondaryDark,
+      contrastText: c.secondaryContrast,
+    },
+    background: { default: c.surface, paper: c.surfaceRaised },
+    text: {
+      primary: c.textPrimary,
+      secondary: c.textSecondary,
+      disabled: c.textDisabled,
+    },
+    divider: c.border,
+    success: {
+      main: c.success,
+      light: c.successLight,
+      dark: c.successDark,
+      contrastText: c.successContrast,
+    },
+    warning: {
+      main: c.warning,
+      light: c.warningLight,
+      dark: c.warningDark,
+      contrastText: c.warningContrast,
+    },
+    error: {
+      main: c.danger,
+      light: c.dangerLight,
+      dark: c.dangerDark,
+      contrastText: c.dangerContrast,
+    },
+    info: {
+      main: c.info,
+      light: c.infoLight,
+      dark: c.infoDark,
+      contrastText: c.infoContrast,
+    },
+    action: {
+      hover: c.actionHover,
+      selected: c.actionSelected,
+      disabled: c.actionDisabled,
+      disabledBackground: c.actionDisabledBackground,
+    },
+  };
 };
 
-const darkPalette = {
-  primary: { main: "#41A8B9", dark: "#2D8DB8", light: "#A5DFF4" },
-  secondary: { main: "#5ED4F0" },
-  background: { default: "#101722", paper: "#182231" },
-  text: { primary: "#EEF5FB", secondary: "#AAB8C8" },
-  divider: "rgba(174, 190, 208, 0.22)",
-  success: { main: "#4DBD8E" },
-  warning: { main: "#F2B84B" },
-  error: { main: "#F06A78" },
-};
+const lightPalette = buildPalette("light");
+
+const darkPalette = buildPalette("dark");
 
 export function createAppTheme(mode: PaletteMode) {
   const palette = mode === "dark" ? darkPalette : lightPalette;
@@ -35,13 +68,19 @@ export function createAppTheme(mode: PaletteMode) {
       mode,
       ...palette,
     },
+    // 12 is the MUI sx borderRadius multiplier base (theme.shape.borderRadius);
+    // it is a scaling unit, not a visual radius token. Visual radii use RADIUS.*.
     shape: { borderRadius: 12 },
     typography: {
       fontFamily: appFontFamily,
-      h4: { fontWeight: 800 },
-      h5: { fontWeight: 800 },
-      h6: { fontWeight: 750 },
-      button: { fontWeight: 700 },
+      h4: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.22 },
+      h5: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.25 },
+      h6: { fontWeight: 650, letterSpacing: 0, lineHeight: 1.3 },
+      subtitle1: { fontWeight: 650, letterSpacing: 0, lineHeight: 1.35 },
+      subtitle2: { fontWeight: 500, letterSpacing: 0, lineHeight: 1.45 },
+      body1: { letterSpacing: 0, lineHeight: 1.55 },
+      body2: { letterSpacing: 0, lineHeight: 1.5 },
+      button: { fontWeight: 650, letterSpacing: 0 },
     },
     components: {
       MuiCssBaseline: {
@@ -69,7 +108,7 @@ export function createAppTheme(mode: PaletteMode) {
           "::-webkit-scrollbar-thumb": {
             backgroundColor: alpha(palette.text.secondary, isDark ? 0.7 : 0.58),
             border: `2px solid ${alpha(palette.background.paper, isDark ? 0.72 : 0.7)}`,
-            borderRadius: 10,
+            borderRadius: RADIUS.sm,
           },
           "::-webkit-scrollbar-thumb:hover": {
             backgroundColor: palette.primary.main,
@@ -106,6 +145,18 @@ export function createAppTheme(mode: PaletteMode) {
       MuiFormControl: {
         defaultProps: { size: "small" },
       },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            "& input:-webkit-autofill": {
+              WebkitBoxShadow: `0 0 0 1000px ${palette.background.paper} inset !important`,
+              WebkitTextFillColor: `${palette.text.primary} !important`,
+              caretColor: palette.text.primary,
+              transition: "background-color 9999s ease-out 0s",
+            },
+          },
+        },
+      },
       MuiCheckbox: {
         defaultProps: { size: "small" },
       },
@@ -116,10 +167,11 @@ export function createAppTheme(mode: PaletteMode) {
         },
         styleOverrides: {
           root: {
-            borderRadius: 12,
+            borderRadius: RADIUS.sm,
             height: 36,
             textTransform: "none",
             padding: "4px 12px",
+            gap: 6,
           },
         },
       },
@@ -185,30 +237,30 @@ export function createAppTheme(mode: PaletteMode) {
       MuiPaper: {
         styleOverrides: {
           root: { backgroundImage: "none" },
-          rounded: { borderRadius: 14 },
+          rounded: { borderRadius: RADIUS.md },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
             border: `1px solid ${palette.divider}`,
-            boxShadow: isDark
-              ? "0 18px 48px rgba(0, 0, 0, 0.28)"
-              : "0 10px 30px rgba(15, 23, 42, 0.06)",
+            boxShadow: isDark ? ELEVATION.dark.card : ELEVATION.light.card,
           },
         },
       },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
-            backgroundColor: isDark ? alpha("#FFFFFF", 0.03) : "#FFFFFF",
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark
+              ? alpha(palette.text.primary, 0.03)
+              : palette.background.paper,
           },
         },
       },
       MuiDialog: {
         styleOverrides: {
-          root: { borderRadius: 2 },
+          root: { borderRadius: RADIUS.xs },
         },
       },
       MuiDialogTitle: {
@@ -237,7 +289,7 @@ export function createAppTheme(mode: PaletteMode) {
           root: {
             minHeight: 44,
             backgroundColor: alpha(palette.primary.main, isDark ? 0.16 : 0.08),
-            borderRadius: 10,
+            borderRadius: RADIUS.sm,
             padding: 5,
             // width: "fit-content",
           },
@@ -283,8 +335,19 @@ export function createAppTheme(mode: PaletteMode) {
       MuiTableCell: {
         defaultProps: { size: "small" },
         styleOverrides: {
-          root: { borderBottomColor: palette.divider },
-          head: { fontWeight: 800 },
+          root: {
+            borderBottomColor: palette.divider,
+            color: palette.text.primary,
+            fontSize: "0.8125rem",
+            lineHeight: 1.45,
+          },
+          head: {
+            color: palette.text.primary,
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            letterSpacing: 0,
+            textTransform: "uppercase",
+          },
         },
       },
       MuiTooltip: {
@@ -294,10 +357,10 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: { root: { fontWeight: 700 } },
       },
       MuiAlert: {
-        styleOverrides: { root: { borderRadius: 12 } },
+        styleOverrides: { root: { borderRadius: RADIUS.sm } },
       },
       MuiSkeleton: {
-        styleOverrides: { root: { borderRadius: 8 } },
+        styleOverrides: { root: { borderRadius: RADIUS.xs } },
       },
     },
   });

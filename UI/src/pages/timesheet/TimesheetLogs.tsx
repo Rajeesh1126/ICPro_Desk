@@ -33,12 +33,16 @@ import {
 import api from "../../api/axios";
 import type { ReportingEmployees } from "../../types/dataTypes";
 import {
-  appPageBox,
-  appTabsContainerSx,
-  appTabsSx,
-  flexColumnFillSx,
-  pageHeaderSx,
-  tablePageContentSx,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  tabs,
+  tabsContainer,
+  tablePageContent,
 } from "../../styles/common";
 
 type TimesheetLogWeekColumn = {
@@ -392,49 +396,46 @@ export default function TimesheetLogs() {
   );
 
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box sx={{ display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between', flex: 1 }}>
-            <Typography variant="h5" fontWeight={700}>
-              Timesheet Logs
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Timesheet Logs</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
               Track weekly submission and reviewer approval status across your team.
             </Typography>
           </Box>
 
-        
-          <Button
-            variant="outlined"
-            startIcon={
-              <Badge badgeContent={activeFilterCount} color="primary">
-                <FilterListOutlinedIcon fontSize="small" />
-              </Badge>
-            }
-            onClick={() => setFiltersOpen(true)}
-          >
-            Filters
-          </Button>
+          <Box sx={pageHeaderActions}>
+            <Button
+              variant="outlined"
+              startIcon={
+                <Badge badgeContent={activeFilterCount} color="primary">
+                  <FilterListOutlinedIcon fontSize="small" />
+                </Badge>
+              }
+              onClick={() => setFiltersOpen(true)}
+            >
+              Filters
+            </Button>
+          </Box>
         </Box>
 
-        <Box sx={appTabsContainerSx}>
+        <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
             onChange={(_, value) => setTabValue(value)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={appTabsSx}
+            sx={tabs}
           >
             <Tab label="Submitted Log" />
             <Tab label="Reviewer Logs" />
           </Tabs>
         </Box>
 
-        <Box sx={tablePageContentSx}>
+        <Box sx={tablePageContent}>
           {tabValue === 0 ? (
             <VirtualizedTable<TimesheetLogRow>
               columns={columns}

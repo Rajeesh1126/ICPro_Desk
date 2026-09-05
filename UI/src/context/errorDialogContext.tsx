@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 import CommonErrorDialog from "../components/common/CommonErrorDialog";
 import { registerErrorHandler } from "../api/errorDialogService";
 
+/* eslint-disable react-refresh/only-export-components */
+
 interface ErrorContextType {
     showError: (message: string, title?: string) => void;
 }

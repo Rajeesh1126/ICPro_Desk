@@ -92,7 +92,8 @@ export default function Login() {
           {successMessage && <Alert severity="success" sx={marginBottomSectionSx}>{successMessage}</Alert>}
 
           <Box component="form" onSubmit={(event) => { event.preventDefault(); void handleLogin(); }}>
-            <TextField fullWidth
+            <TextField
+            autoFocus fullWidth
               label="Username"
               autoComplete="username"
               value={username} onChange={(event) => setUsername(event.target.value)}
@@ -114,7 +115,7 @@ export default function Login() {
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockOutlinedIcon color="action" fontSize="small" /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((visible) => !visible)} onMouseDown={(event) => event.preventDefault()} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
               required
             />
-            <Button fullWidth type="submit" autoFocus variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginOutlinedIcon />} sx={loginPageButtonSx1}>
+            <Button fullWidth type="submit" variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginOutlinedIcon />} sx={loginPageButtonSx1}>
               {loading ? <><CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} /> Signing in…</> : "Sign In"}
             </Button>
             <Typography

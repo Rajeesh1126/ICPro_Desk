@@ -2,6 +2,7 @@ import { useEffect, useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,12 +38,24 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import TicketDetailModal from "../../components/tickets/DetailModal";
 import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
 import {
-  appPageBox,
-  flexColumnFillSx,
+  buttonLabelCompact,
+  buttonLabelFull,
+  dialogContentTop,
   inlineCenterGapSx,
   marginBottomSectionSx,
-  pageHeaderSx,
-  reportsPageBoxSx4,
+  pageHeaderControlsDesktop,
+  pageHeaderControlsMobile,
+  pageHeaderContent,
+  pageHeaderFilterPanel,
+  pageHeaderFilterToggle,
+  pageHeader,
+  pageHeaderTitleGroup,
+  pageHeaderTopRow,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  tablePageContent,
   toggleButton,
 } from "../../styles/common";
 
@@ -258,6 +271,7 @@ export default function Reports() {
   const [dialogSelfOpen, setDialogSelfOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [reportType, setReportType] = useState<"tickets" | "dolist">("tickets");
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -531,63 +545,87 @@ export default function Reports() {
     );
   };
 
+  const renderReportControls = () => (
+    <>
+      <ToggleButtonGroup
+        exclusive
+        value={reportType}
+        onChange={(_, next: "tickets" | "dolist" | null) =>
+          next && setReportType(next)
+        }
+        aria-label="Task view"
+        sx={toggleButton}
+      >
+        <ToggleButton value="tickets" aria-label="Tickets">
+          <Tooltip title="Tickets" arrow>
+            <Box component="span">Tickets</Box>
+          </Tooltip>
+        </ToggleButton>
+        <ToggleButton value="dolist" aria-label="Do List">
+          <Tooltip title="Do List" arrow>
+            <Box component="span">Do List</Box>
+          </Tooltip>
+        </ToggleButton>
+      </ToggleButtonGroup>
+      <Button
+        startIcon={<FilterAltOutlinedIcon />}
+        variant="outlined"
+        onClick={() => setFilterDialogOpen(true)}
+      >
+        Filters
+      </Button>
+      <Button
+        startIcon={<DownloadOutlinedIcon />}
+        variant="contained"
+        onClick={exportToExcel}
+      >
+        <Box component="span" sx={buttonLabelFull}>Export Excel</Box>
+        <Box component="span" sx={buttonLabelCompact}>Export</Box>
+      </Button>
+    </>
+  );
+
   return (
-    <Box sx={appPageBox}>
-      <Box component="main" sx={flexColumnFillSx}>
-        <Box sx={pageHeaderSx}>
-          <Box>
-            <Typography variant="h5">Executive Overview</Typography>
-            <Typography variant="body2" color="text.secondary">
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Box sx={pageHeaderTopRow}>
+              <Box sx={pageHeaderTitleGroup}>
+                <Typography variant="h5" sx={pageTitle}>Executive Overview</Typography>
+              </Box>
+              <Tooltip title={mobileControlsOpen ? "Hide controls" : "Show controls"}>
+                <IconButton
+                  aria-label={mobileControlsOpen ? "Hide report controls" : "Show report controls"}
+                  onClick={() => setMobileControlsOpen((open) => !open)}
+                  sx={pageHeaderFilterToggle}
+                >
+                  <FilterAltOutlinedIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" sx={pageSubtitle}>
               Filter performance data and export a focused Tickets / Do-list
               report.
             </Typography>
+            <Box sx={pageHeaderFilterPanel}>
+              <Collapse in={mobileControlsOpen} timeout="auto" unmountOnExit>
+                <Stack spacing={1} sx={pageHeaderControlsMobile}>
+                  {renderReportControls()}
+                </Stack>
+              </Collapse>
+            </Box>
           </Box>
           <Stack
-            direction={{ xs: "column-reverse", sm: "row" }}
             spacing={1}
-            sx={{ width: { xs: "220px", sm: "auto" } }}
+            direction={{ xs: "row-reverse", sm: "row" }}
+            sx={pageHeaderControlsDesktop}
           >
-            <ToggleButtonGroup
-              exclusive
-              value={reportType}
-              onChange={(_, next: "tickets" | "dolist" | null) =>
-                next && setReportType(next)
-              }
-              aria-label="Task view"
-              sx={toggleButton}
-            >
-              <ToggleButton value="tickets" aria-label="Tickets">
-                <Tooltip title="Tickets" arrow>
-                  <Box component="span">Tickets</Box>
-                </Tooltip>
-              </ToggleButton>
-              <ToggleButton value="dolist" aria-label="Do List">
-                <Tooltip title="Do List" arrow>
-                  <Box component="span">Do List</Box>
-                </Tooltip>
-              </ToggleButton>
-            </ToggleButtonGroup>
-            <Button
-              startIcon={<FilterAltOutlinedIcon />}
-              variant="outlined"
-              onClick={() => setFilterDialogOpen(true)}
-            >
-              {" "}
-              Filters{" "}
-            </Button>
-            {/*sx={reportsPageButtonSx1}*/}
-            <Button
-              startIcon={<DownloadOutlinedIcon />}
-              variant="contained"
-              onClick={exportToExcel}
-            >
-              {" "}
-              Export Excel{" "}
-            </Button>
+            {renderReportControls()}
           </Stack>
         </Box>
 
-        <Box sx={reportsPageBoxSx4}>
+        <Box sx={tablePageContent}>
           {reportType === "tickets" ? (
             <VirtualizedTable
               columns={ticketColumns}
@@ -638,7 +676,7 @@ export default function Reports() {
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 1 }}>
+          <Box sx={dialogContentTop}>
             <FilterFields
               filters={filters}
               setFilters={setFilters}
