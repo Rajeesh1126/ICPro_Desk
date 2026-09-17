@@ -30,7 +30,10 @@ import type {
   UsersData,
   groupData,
 } from "../../types/dataTypes";
-import { selfTicketsCreateModelFormControlLabelSx1 } from "../../styles/common";
+import {
+  dateFieldSx,
+  selfTicketsCreateModelFormControlLabelSx1,
+} from "../../styles/common";
 import { showNotification } from "../../api/notificationService";
 
 type UserCreateModalProps = {
@@ -175,7 +178,11 @@ export default function UserCreateModal({
     try {
       const payload = Object.entries(formData).reduce<Record<string, unknown>>(
         (data, [key, value]) => {
-          if (key !== "id" && value !== "" && value != null) {
+          if (
+            key !== "id" &&
+            value != null &&
+            (value !== "" || (Data && key === "email"))
+          ) {
             data[key] = value;
           }
           return data;
@@ -472,6 +479,7 @@ export default function UserCreateModal({
               disabled={formData.is_active}
               value={formData.resign_date || ""}
               onChange={(event) => update("resign_date", event.target.value)}
+              sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
                 htmlInput: { min: tomorrow },

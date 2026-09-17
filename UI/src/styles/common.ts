@@ -1,4 +1,4 @@
-import { alpha, type Theme } from "@mui/material/styles";
+import { alpha, keyframes, type Theme } from "@mui/material/styles";
 import { type CSSProperties, type SxProps } from "@mui/material";
 import {
   APPBAR_BG,
@@ -106,7 +106,7 @@ export const detailLabelSx = {
 
 export const detailValueSx = {
   color: "text.primary",
-  fontSize: 13,
+  fontSize: { xs: 11, sm: 13 },
   fontWeight: 700,
   lineHeight: 1.35,
   overflowWrap: "anywhere",
@@ -176,6 +176,20 @@ export const compactFieldSx = (theme: Theme) => ({
   // "& .MuiOutlinedInput-input": {
   //   fontWeight: 700,
   // },
+});
+
+export const dateFieldSx: SxProps<Theme> = (theme) => ({
+  "& input[type='date']::-webkit-calendar-picker-indicator": {
+    cursor: "pointer",
+    filter:
+      theme.palette.mode === "dark"
+        ? "invert(1) brightness(1.35)"
+        : "none",
+    opacity: theme.palette.mode === "dark" ? 0.86 : 0.72,
+  },
+  "& input[type='date']::-webkit-calendar-picker-indicator:hover": {
+    opacity: 1,
+  },
 });
 export const confirmationMessageSx = {
   mb: 2,
@@ -267,12 +281,10 @@ export const page = {
   bgcolor: "background.default",
   display: "flex",
   flexDirection: "column",
-  height: {
-    xs: "calc(100vh - 58px)",
-    sm: "calc(100vh - 64px)",
-  },
+  flex: "1 1 auto",
+  height: "100%",
   minHeight: 0,
-  overflow: "auto",
+  overflow: "visible",
   boxSizing: "border-box",
 } satisfies SxProps<Theme>;
 
@@ -280,7 +292,7 @@ export const pageContent: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  height: 0,
+  height: "auto",
   minHeight: 0,
 };
 
@@ -321,14 +333,14 @@ export const pageHeaderTitleGroup = {
 
 export const pageTitle = {
   color: "text.primary",
-  fontSize: { xs: "1.35rem", sm: "1.5rem", md: "1.65rem" },
+  fontSize: { xs: "1.25rem", sm: "1.5rem", md: "1.65rem" },
   fontWeight: 700,
   lineHeight: 1.24,
 } satisfies SxProps<Theme>;
 
 export const pageSubtitle = {
   color: "text.secondary",
-  fontSize: { xs: "0.8125rem", sm: "0.875rem" },
+  fontSize: { xs: "0.7125rem", sm: "0.875rem" },
   fontWeight: 400,
   lineHeight: 1.5,
   mt: 0.5,
@@ -346,6 +358,31 @@ export const pageHeaderActions = {
     whiteSpace: "nowrap",
   },
 } satisfies SxProps<Theme>;
+
+export const projectConfigurationPageHeaderSx: SxProps<Theme> = [
+  pageHeader,
+  {
+    flexDirection: { xs: "column", lg: "row" },
+    alignItems: { xs: "stretch", lg: "flex-start" },
+    gap: { xs: 1.25, lg: 1.5 },
+  },
+];
+
+export const projectConfigurationPageHeaderContentSx: SxProps<Theme> = {
+  ...pageHeaderContent,
+  maxWidth: { lg: 520 },
+};
+
+export const projectConfigurationPageHeaderActionsSx: SxProps<Theme> = {
+  ...pageHeaderActions,
+  width: { xs: "100%", lg: "auto" },
+  flexWrap: "nowrap",
+  justifyContent: { xs: "flex-start", sm: "flex-end", lg: "flex-start" },
+  "& .MuiButton-root": {
+    ...pageHeaderActions["& .MuiButton-root"],
+    flex: { xs: "1 1 150px", sm: "0 1 auto" },
+  },
+};
 
 export const pageHeaderControls = {
   alignItems: "center",
@@ -465,7 +502,7 @@ export const summaryMetricGrid = {
   },
   gap: 1,
   px: { xs: 1, sm: 1.5, md: 2 },
-  py: 1,
+  pb: 1,
 } satisfies SxProps<Theme>;
 
 export const summaryMetricCard = {
@@ -571,8 +608,8 @@ export const tablePageContent: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  height: { xs: 620, md: "100%" },
-  minHeight: 0,
+  height: "100%",
+  minHeight: { xs: 420, md: 0 },
   p: { xs: 1, sm: 2, md: 2.5 },
   overflow: "hidden",
 };
@@ -596,7 +633,7 @@ export const flexFillPanel: SxProps<Theme> = {
 export const filterSurface = {
   ...section,
   p: { xs: 1.25, sm: 2 },
-  mb: 2,
+  mb: 0,
 } satisfies SxProps<Theme>;
 
 export const filterField = {
@@ -630,7 +667,8 @@ export const overviewGrid: SxProps<Theme> = {
   minHeight: 0,
   display: "grid",
   gap: 1.5,
-  p: { xs: 1.25, sm: 1.5 },
+  px: { xs: 1.25, sm: 1.5 },
+  pb: { xs: 1.25, sm: 1.5 },
   gridTemplateColumns: {
     xs: "minmax(0, 1fr)",
     md: "repeat(12, minmax(0, 1fr))",
@@ -792,6 +830,7 @@ export const stepLabel = {
 } satisfies SxProps<Theme>;
 
 export const helperText = {
+  display: { xs: 'none', sm: 'block'},
   color: "text.secondary",
   fontSize: "0.75rem",
   lineHeight: 1.45,
@@ -862,6 +901,8 @@ export const segmentedControl = (theme: Theme) => ({
 
 export const tableSection = {
   flex: "1 1 auto",
+  width: "100%",
+  minWidth: 0,
   minHeight: 0,
   display: "flex",
   flexDirection: "column",
@@ -869,9 +910,12 @@ export const tableSection = {
 } satisfies SxProps<Theme>;
 
 export const tablePanelFill = {
-  flex: "1 1 auto",
-  minHeight: { xs: 320, sm: 360 },
-  height: { xs: 420, md: "clamp(380px, calc(100vh - 360px), 560px)" },
+  flex: "1 1 0",
+  width: "100%",
+  minWidth: 0,
+  // minHeight: { xs: 240, sm: 320 },
+  height: "100%",
+  overflow: "hidden",
 } satisfies SxProps<Theme>;
 
 export const footerSurface = {
@@ -980,29 +1024,92 @@ export const warningOutlineChip = {
 
 export type TableRowStatus = "error" | "warning" | "success";
 
+const tableAlarmBlink = (color: string, theme: Theme) => {
+  const baseCellBackground = alpha(
+    color,
+    theme.palette.mode === "dark" ? 0.18 : 0.09,
+  );
+  const dimCellBackground = alpha(
+    color,
+    theme.palette.mode === "dark" ? 0.08 : 0.035,
+  );
+
+  return keyframes`
+    0%, 100% {
+      background-color: ${baseCellBackground};
+      box-shadow: inset 0 0 0 1px ${alpha(color, 0.36)};
+    }
+    50% {
+      background-color: ${dimCellBackground};
+      box-shadow: inset 0 0 0 1px ${alpha(color, 0.08)};
+    }
+  `;
+};
+
+export const priorityAlarmRowHighlight =
+  (priority: unknown): SxProps<Theme> =>
+  (theme) => {
+    const palette = getPriorityPalette(theme, priority);
+    const color = palette.text;
+    const cellBlink = tableAlarmBlink(color, theme);
+    const cellBackground = alpha(
+      color,
+      theme.palette.mode === "dark" ? 0.18 : 0.09,
+    );
+    const hoverCellBackground = alpha(
+      color,
+      theme.palette.mode === "dark" ? 0.24 : 0.13,
+    );
+
+    return {
+      "&& .MuiTableCell-body, && td": {
+        animation: `${cellBlink} 1.4s ease-in-out infinite`,
+        backgroundColor: cellBackground,
+      },
+      "&& .MuiTableCell-body:first-of-type, && td:first-of-type": {
+        boxShadow: `inset 4px 0 0 ${alpha(color, 0.88)}`,
+      },
+      "&&:hover .MuiTableCell-body, &&:hover td": {
+        backgroundColor: hoverCellBackground,
+      },
+      "@media (prefers-reduced-motion: reduce)": {
+        "&& .MuiTableCell-body, && td": {
+          animation: "none",
+        },
+      },
+    };
+  };
+
 export const priorityDueRowHighlight =
   (priority: unknown): SxProps<Theme> =>
   (theme) => {
     const palette = getPriorityPalette(theme, priority);
     const color = palette.text;
+    const cellBlink = tableAlarmBlink(color, theme);
     const cellBackground = alpha(
       color,
-      theme.palette.mode === "dark" ? 0.16 : 0.08,
+      theme.palette.mode === "dark" ? 0.18 : 0.09,
     );
     const hoverCellBackground = alpha(
       color,
-      theme.palette.mode === "dark" ? 0.22 : 0.12,
+      theme.palette.mode === "dark" ? 0.24 : 0.13,
     );
 
     return {
       "&& .MuiTableCell-body, && td": {
+        animation: `${cellBlink} 1.4s ease-in-out infinite`,
         backgroundColor: cellBackground,
       },
       "&& .MuiTableCell-body:first-of-type, && td:first-of-type": {
-        boxShadow: `inset 4px 0 0 ${alpha(color, 0.78)}`,
+        boxShadow: `inset 4px 0 0 ${alpha(color, 0.88)}`,
       },
       "&&:hover .MuiTableCell-body, &&:hover td": {
         backgroundColor: hoverCellBackground,
+      },
+      "@media (prefers-reduced-motion: reduce)": {
+        "&& .MuiTableCell-body, && td": {
+          animation: "none",
+        },
       },
     };
   };
@@ -1140,7 +1247,7 @@ export const actionMenuItem =
 
     return {
       color: itemColor,
-      alignItems: "flex-start",
+      alignItems: "center",
       gap: 1.25,
       mx: 0.75,
       my: 0.35,
@@ -1196,8 +1303,8 @@ export const actionMenuItem =
 
 export const actionMenuSection = {
   px: 1.5,
-  pt: 1.1,
-  pb: 0.35,
+  // pt: 1.1,
+  // pb: 0.35,
   color: "text.secondary",
   fontSize: 11,
   fontWeight: 800,
@@ -1213,7 +1320,7 @@ export const actionMenuPaper = {
   borderColor: "divider",
   boxShadow: ELEVATION.light.menu,
   overflow: "hidden",
-  p: 0.75,
+  // p: 0.75,
   "& .MuiMenuItem-root": {
     minHeight: 54,
     px: 1,
@@ -1345,12 +1452,31 @@ export const sidebarItem =
 
 export const sidebarIcon =
   (selected: boolean, iconColor: string): SxProps<Theme> =>
-  () => ({
+  (theme) => ({
     alignItems: "center",
-    color: selected ? iconColor : alpha(iconColor, 0.76),
+    color: selected
+      ? iconColor
+      : alpha(
+          iconColor,
+          theme.palette.mode === "dark" ? 0.82 : 0.68,
+        ),
     justifyContent: "center",
     minWidth: 46,
-    transition: "color 120ms ease",
+    transition: theme.transitions.create(["color", "background-color", "box-shadow"], {
+      duration: theme.transitions.duration.shorter,
+    }),
+    "& .MuiSvgIcon-root": {
+      width: 22,
+      height: 22,
+      p: 0.55,
+      borderRadius: RADIUS_PX.sm,
+      bgcolor: selected
+        ? alpha(iconColor, theme.palette.mode === "dark" ? 0.22 : 0.12)
+        : alpha(iconColor, theme.palette.mode === "dark" ? 0.1 : 0.055),
+      boxShadow: selected
+        ? `0 0 0 1px ${alpha(iconColor, 0.24)}, 0 8px 18px ${alpha(iconColor, theme.palette.mode === "dark" ? 0.24 : 0.16)}`
+        : "none",
+    },
   });
 
 export const sidebarItemText =
@@ -1364,24 +1490,34 @@ export const sidebarItemText =
   });
 
 export const appShell = {
-  height: "100dvh",
   bgcolor: "background.default",
+  display: "flex",
+  flexDirection: "column",
+  height: "100svh",
+  minHeight: "100svh",
   overflow: "hidden",
+  "@supports (height: 100dvh)": {
+    height: "100dvh",
+    minHeight: "100dvh",
+  },
 } satisfies SxProps<Theme>;
 
 export const appShellBody = {
   display: "flex",
-  height: { xs: "calc(100dvh - 58px)", sm: "calc(100dvh - 64px)" },
+  flex: "1 1 auto",
   minHeight: 0,
   overflow: "hidden",
 } satisfies SxProps<Theme>;
 
 export const appMain = {
+  display: "flex",
+  flexDirection: "column",
   flex: 1,
   minWidth: 0,
   minHeight: 0,
-  height: "100%",
-  overflow: "auto",
+  overflowX: "hidden",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
 } satisfies SxProps<Theme>;
 
 export const sidebarNav =
@@ -1403,7 +1539,8 @@ export const sidebarPanel =
   (theme: Theme) => ({
     width: open ? width : collapsedWidth,
     height: "100%",
-    overflow: "hidden",
+    overflowX: "hidden",
+    overflowY: "auto",
     borderRight: "1px solid",
     borderColor: "divider",
     bgcolor: "background.paper",
@@ -1490,6 +1627,9 @@ export const mobileDrawer = {
   "& .MuiDrawer-paper": {
     boxSizing: "border-box",
     width: "min(86vw, 320px)",
+    overflowX: "hidden",
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
   },
 } satisfies SxProps<Theme>;
 export const statusColors: Record<string, string> = STATUS_COLORS;
@@ -1556,13 +1696,16 @@ export const tableHeaderCellSx = (theme: Theme) => ({
   boxShadow: `0 1px 0 ${alpha(theme.palette.primary.main, 0.18)}`,
   color: theme.palette.text.primary,
   fontWeight: 700,
+  px: { xs: 1, sm: 1.25 },
   py: 1.15,
   opacity: 1,
   position: "relative",
+  textAlign: "left",
   zIndex: 21,
   "& .MuiTableSortLabel-root": {
     color: theme.palette.text.primary,
     fontWeight: 700,
+    justifyContent: "flex-start",
   },
   "& .MuiTableSortLabel-root.Mui-active, & .MuiTableSortLabel-root.Mui-active .MuiTableSortLabel-icon":
     {
@@ -1840,6 +1983,7 @@ export const appBarHeaderCallbackCallbackSx6 =
   });
 export const appBarHeaderDynamicDynamicAppBarSx1: SxProps<Theme> = {
   top: 0,
+  flexShrink: 0,
   zIndex: (theme) => theme.zIndex.drawer + 1,
   bgcolor: (theme) =>
     theme.palette.mode === "dark"
@@ -1993,12 +2137,17 @@ export const appBarHeaderProfileFooterButtonSx: SxProps<Theme> = {
 };
 
 // components/CardView.dynamic.styles.ts
-export const cardViewDynamicDynamicBoxSx1 = ({
-  alpha,
-}: DynamicStyleValues): SxProps<Theme> => ({
+export const cardViewDynamicDynamicBoxSx1 = (
+  { alpha }: DynamicStyleValues,
+  expanded = false,
+): SxProps<Theme> => ({
   minWidth: 0,
-  height: { xs: "auto", md: "100%" },
-  minHeight: { xs: 0, md: 0 },
+  height: { xs: "auto", lg: "100%" },
+  minHeight: 0,
+  // Small screens (accordion): the expanded column fills the remaining board
+  // height so its inner list scrolls; collapsed columns shrink to their header.
+  // On lg each column is a grid cell, so flex is ignored there.
+  flex: { xs: expanded ? "1 1 auto" : "0 0 auto" },
   border: "1px solid",
   borderColor: "divider",
   borderRadius: RADIUS_PX.sm,
@@ -2021,7 +2170,7 @@ export const cardViewDynamicDynamicStackSx1 = ({
   bgcolor: "background.paper",
   borderTop: "4px solid",
   borderColor: accent,
-  cursor: { xs: "pointer", md: "default" },
+  cursor: { xs: "pointer", lg: "default" },
   // height: { xs: 'auto', sm: '100%' },
 });
 
@@ -2032,6 +2181,25 @@ export const cardViewDynamicDynamicChipSx1 = ({
   bgcolor: alpha(accent, 0.12),
   color: accent,
   minWidth: 34,
+});
+
+export const cardViewDynamicDynamicActionRequiredSx1 = ({
+  accent,
+  alpha,
+}: DynamicStyleValues): SxProps<Theme> => ({
+  height: 24,
+  bgcolor: alpha(accent, 0.12),
+  color: accent,
+  border: "1px solid",
+  borderColor: alpha(accent, 0.55),
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: "uppercase",
+  boxShadow: `0 0 0 1px ${alpha(accent, 0.2)}, 0 0 12px ${alpha(accent, 0.45)}`,
+  "& .MuiChip-label": {
+    px: 0.8,
+  },
 });
 
 export const cardViewOverdueChip: SxProps<Theme> = (theme) => ({
@@ -2056,11 +2224,51 @@ export const cardViewOverdueChip: SxProps<Theme> = (theme) => ({
 });
 
 // components/CardView.styles.ts
-export const cardViewBoxSx1 = {
-  p: 1.5,
-  overflowY: "auto",
-  flex: 1,
-} satisfies SxProps<Theme>;
+export const cardViewBoxSx1 =
+  (cardType: "Ticket" | "Self"): SxProps<Theme> =>
+  ({
+    px: 1.5,
+    pt: 1.5,
+    // The scroll box fills its (bounded) column and scrolls internally on every
+    // screen size. On small screens the column is bounded by flex (see
+    // cardViewDynamicDynamicBoxSx1 + cardViewCollapseSx); on lg by the grid row.
+    // No fixed heights, so there is never a gap or cut-off last card.
+    pb: {
+      xs:
+        cardType === "Ticket"
+          ? "calc(env(safe-area-inset-bottom, 0px) + 8px)"
+          : "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+      lg: 1.5,
+    },
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+    overscrollBehavior: "contain",
+    flex: "1 1 auto",
+    minHeight: 0,
+    height: "auto",
+    scrollPaddingBottom: { xs: "8px", lg: 1.5 },
+    scrollbarGutter: "stable",
+  });
+
+export const cardViewCollapseSx: SxProps<Theme> = {
+  // Fill the remaining height of the expanded column so the inner scroll box is
+  // bounded (flex overrides MUI's inline height:auto). In a collapsed column
+  // there is no free space, so this stays at the header height.
+  flex: "1 1 auto",
+  minHeight: 0,
+  "& .MuiCollapse-wrapper": {
+    display: "flex",
+    minHeight: 0,
+    height: "100%",
+  },
+  "& .MuiCollapse-wrapperInner": {
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
+    height: "100%",
+    width: "100%",
+  },
+};
 
 export const cardViewCollapseContent = {
   display: "flex",
@@ -2071,7 +2279,7 @@ export const cardViewCollapseContent = {
 export const cardViewExpandIcon =
   (expanded: boolean): SxProps<Theme> =>
   (theme) => ({
-    display: { xs: "inline-flex", md: "none" },
+    display: { xs: "inline-flex", lg: "none" },
     color: "text.secondary",
     transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
     transition: theme.transitions.create("transform", {
@@ -2082,29 +2290,33 @@ export const cardViewExpandIcon =
 export const cardViewTypographySx1: SxProps<Theme> = { mt: 6 };
 
 export const cardViewBoxSx2: SxProps<Theme> = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "minmax(0, 1fr)",
-    md: "repeat(3, minmax(0, 1fr))",
-  },
+  // Small screens: flex column accordion — the expanded column fills the height
+  // and scrolls internally. lg+: kanban grid with a full-height row so each
+  // column is bounded and scrolls internally. Neither the board itself scrolls.
+  display: { xs: "flex", lg: "grid" },
+  flexDirection: { xs: "column" },
+  gridTemplateColumns: { lg: "repeat(3, minmax(0, 1fr))" },
+  gridTemplateRows: { lg: "minmax(0, 1fr)" },
   gap: 2,
   height: "100%",
   minHeight: 0,
-  overflowY: { xs: "auto", md: "hidden" },
-  pr: { xs: 0.5, md: 0 },
+  alignContent: { lg: "stretch" },
+  overflow: "hidden",
 };
 
 export const cardViewBoxSx3: SxProps<Theme> = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "minmax(0, 1fr)",
-    md: "repeat(2, minmax(0, 1fr))",
-  },
+  // Small screens: flex column accordion — the expanded column fills the height
+  // and scrolls internally. lg+: kanban grid with a full-height row so each
+  // column is bounded and scrolls internally. Neither the board itself scrolls.
+  display: { xs: "flex", lg: "grid" },
+  flexDirection: { xs: "column" },
+  gridTemplateColumns: { lg: "repeat(2, minmax(0, 1fr))" },
+  gridTemplateRows: { lg: "minmax(0, 1fr)" },
   gap: 2,
   height: "100%",
   minHeight: 0,
-  overflowY: { xs: "auto", md: "hidden" },
-  pr: { xs: 0.5, md: 0 },
+  alignContent: { lg: "stretch" },
+  overflow: "hidden",
 };
 
 // components/dashboard/AnalysisPieChart.dynamic.styles.ts
@@ -2158,15 +2370,40 @@ export const dashboardAnalysisPieChartBoxSx3: SxProps<Theme> = {
 export const dashboardAnalysisPieChartDonutLargeRoundedIconSx1: SxProps<Theme> =
   { fontSize: 46, opacity: 0.35 };
 
+const alarmBellBlink = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+`;
+
+export const alarmBellSx: SxProps<Theme> = {
+  animation: `${alarmBellBlink} 1.4s ease-in-out infinite`,
+  "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+};
+
+const alarmBorderBlink = (color: string) => keyframes`
+  0%, 100% {
+    border-color: ${color};
+    box-shadow: 0 0 0 1px ${alpha(color, 0.5)}, 0 0 16px ${alpha(color, 0.5)};
+  }
+  50% {
+    border-color: ${alpha(color, 0.25)};
+    box-shadow: 0 0 0 1px ${alpha(color, 0.08)}, 0 0 3px ${alpha(color, 0.1)};
+  }
+`;
+
 // components/selfTickets/BasicCard.dynamic.styles.ts
 export const selfTicketsBasicCardDynamicDynamicCardSx1 = ({
   highlighted,
   styles,
 }: DynamicStyleValues): SxProps<Theme> => ({
+  animation: highlighted
+    ? `${alarmBorderBlink(styles.color)} 1.4s ease-in-out infinite`
+    : "none",
+  "@media (prefers-reduced-motion: reduce)": { animation: "none" },
   mb: 1.5,
   // borderRadius: RADIUS_PX.sm,
   border: "1px solid",
-  borderColor: highlighted ? alpha(styles.color, 0.55) : "divider",
+  borderColor: highlighted ? styles.color : "divider",
   borderLeft: highlighted
     ? "6px solid"
     : `6px solid ${styles.color}`,
@@ -2177,14 +2414,16 @@ export const selfTicketsBasicCardDynamicDynamicCardSx1 = ({
     : "background.paper",
   boxShadow: highlighted
     ? (theme) =>
-        `0 0 0 1px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.34 : 0.2)}`
+        `0 0 0 1px ${alpha(styles.color, 0.5)}, 0 0 12px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.55 : 0.35)}`
     : "none",
   transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   cursor: "pointer",
   position: "relative",
   "&:hover": {
     boxShadow: (theme) =>
-      theme.palette.mode === "dark"
+      highlighted
+        ? `0 0 0 1px ${alpha(styles.color, 0.65)}, 0 0 18px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.65 : 0.45)}`
+        : theme.palette.mode === "dark"
         ? ELEVATION.dark.cardHover
         : ELEVATION.light.cardHover,
     transform: "translateY(-3px)",
@@ -2431,16 +2670,25 @@ export const selfTicketsDetailModelNoteBoxSx = ({
   isDark,
   theme,
 }: DynamicStyleValues): SxProps<Theme> => ({
-  flex: 1,
   display: "flex",
-  alignItems: "center",
-  gap: 1,
+  alignItems: "flex-start",
+  gap: { xs: 0.75, sm: 1 },
   borderRadius: RADIUS_PX.xs,
-  px: 0.5,
+  px: { xs: 0.75, sm: 0.5 },
+  py: { xs: 0.55, sm: 0 },
   bgcolor: alpha(theme.palette.primary.main, isDark ? 0.12 : 0.05),
   border: "1px solid",
   borderColor: alpha(theme.palette.primary.main, isDark ? 0.3 : 0.2),
   borderLeft: `4px solid ${theme.palette.primary.main}`,
+  flex: { xs: "0 0 auto", sm: 1 },
+  minWidth: 0,
+  "& .MuiSvgIcon-root": {
+    flexShrink: 0,
+    mt: { xs: 0.15, sm: 0 },
+  },
+  "& .MuiTypography-root": {
+    lineHeight: 1.3,
+  },
 });
 export const selfTicketsDetailModelDynamicDynamicBoxSx2 = ({
   alpha,
@@ -2454,7 +2702,7 @@ export const selfTicketsDetailModelDynamicDynamicBoxSx2 = ({
   justifyContent: "center",
   border: "1px solid",
   borderColor: "divider",
-  borderRadius: RADIUS_PX.lg,
+  borderRadius: RADIUS_PX.sm,
   bgcolor: alpha(theme.palette.background.paper, isDark ? 0.32 : 0.72),
 });
 
@@ -2531,6 +2779,50 @@ export const selfTicketsDetailModelIconButtonSx1: SxProps<Theme> = {
   height: 36,
   width: 36,
   color: "text.secondary",
+};
+export const selfTicketsDetailModelDialogPaperSx: SxProps<Theme> = {
+  m: { xs: 1, sm: 2 },
+  width: { xs: "calc(100% - 16px)", sm: "100%" },
+  maxHeight: { xs: "calc(100dvh - 16px)", sm: "calc(100dvh - 32px)" },
+  display: "flex",
+  flexDirection: "column",
+};
+
+export const selfTicketsDetailModelDialogContentSx: SxProps<Theme> = {
+  flex: "1 1 auto",
+  minHeight: 0,
+  overflowY: "auto",
+};
+
+export const selfTicketsDetailModelDialogActionsSx: SxProps<Theme> = {
+  alignItems: "stretch",
+  flexShrink: 0,
+  justifyContent: "stretch",
+  p: { xs: 0.75, sm: 1.5 },
+};
+
+export const selfTicketsDetailModelFooterStackSx: SxProps<Theme> = {
+  width: "100%",
+  display: "flex",
+  flexDirection: { xs: "column", sm: "row" },
+  alignItems: { xs: "stretch", sm: "center" },
+  gap: { xs: 0.75, sm: 1.5 },
+};
+
+export const selfTicketsDetailModelFooterButtonsSx: SxProps<Theme> = {
+  justifyContent: "space-between",
+  alignItems: "center",
+  width: { xs: "100%", sm: "auto" },
+  "& .MuiButton-root": {
+    minWidth: 0,
+    flex: { xs: "1 1 0", sm: "0 0 auto" },
+    px: { xs: 0.65, sm: 1.5 },
+    fontSize: { xs: 11, sm: 13 },
+    whiteSpace: "nowrap",
+  },
+  "& .MuiButton-startIcon": {
+    mr: { xs: 0.4, sm: 0.5 },
+  },
 };
 export const selfTicketsDetailModelButtonSx1: SxProps<Theme> = {
   fontWeight: 800,
@@ -2673,7 +2965,6 @@ export const tableViewDynamicDynamicPaperSx1 = ({
   borderColor: "divider",
   borderRadius: RADIUS_PX.lg,
   bgcolor: "background.paper",
-  boxShadow: (theme) => theme.shadows[1],
 });
 
 // components/TableView.styles.ts
@@ -2794,10 +3085,14 @@ export const ticketsBasicCardDynamicDynamicCardSx1 = ({
   highlighted,
   styles,
 }: DynamicStyleValues): SxProps<Theme> => ({
+  animation: highlighted
+    ? `${alarmBorderBlink(styles.color)} 1.4s ease-in-out infinite`
+    : "none",
+  "@media (prefers-reduced-motion: reduce)": { animation: "none" },
   mb: 1.5,
   borderRadius: RADIUS_PX.sm,
   border: "1px solid",
-  borderColor: highlighted ? alpha(styles.color, 0.55) : "divider",
+  borderColor: highlighted ? styles.color : "divider",
   borderLeft: highlighted ? "6px solid" : `6px solid ${styles.color}`,
   borderLeftColor: highlighted ? styles.color : undefined,
   bgcolor: highlighted
@@ -2806,14 +3101,16 @@ export const ticketsBasicCardDynamicDynamicCardSx1 = ({
     : "background.paper",
   boxShadow: highlighted
     ? (theme) =>
-        `0 0 0 1px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.34 : 0.2)}`
+        `0 0 0 1px ${alpha(styles.color, 0.5)}, 0 0 12px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.55 : 0.35)}`
     : "none",
   transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   cursor: "pointer",
   position: "relative",
   "&:hover": {
     boxShadow: (theme) =>
-      theme.palette.mode === "dark"
+      highlighted
+        ? `0 0 0 1px ${alpha(styles.color, 0.65)}, 0 0 18px ${alpha(styles.color, theme.palette.mode === "dark" ? 0.65 : 0.45)}`
+        : theme.palette.mode === "dark"
         ? ELEVATION.dark.cardHover
         : ELEVATION.light.cardHover,
     transform: "translateY(-3px)",
@@ -3432,6 +3729,142 @@ export const approveDetailDialogPaperSx = {
   width: "95vw",
   maxWidth: "95vw",
 };
+
+export const teamReportModalPaperSx: SxProps<Theme> = {
+  height: { xs: "100%", sm: "min(88vh, 860px)" },
+  borderRadius: { xs: 0, sm: RADIUS_PX.lg },
+  bgcolor: "background.default",
+  overflow: "hidden",
+};
+
+export const teamReportModalTitleRowSx: SxProps<Theme> = {
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 1.5,
+};
+
+export const teamReportModalTitleContentSx: SxProps<Theme> = {
+  alignItems: "center",
+  minWidth: 0,
+  flex: 1,
+};
+
+export const teamReportModalTitleIconSx: SxProps<Theme> = (theme) => ({
+  width: 38,
+  height: 38,
+  display: "grid",
+  placeItems: "center",
+  flexShrink: 0,
+  borderRadius: RADIUS_PX.md,
+  bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.2 : 0.12),
+  color: "primary.main",
+});
+
+export const teamReportModalTitleSx: SxProps<Theme> = {
+  fontSize: { xs: "1rem", sm: "1.125rem" },
+  fontWeight: 900,
+  lineHeight: 1.2,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+export const teamReportModalSubtitleSx: SxProps<Theme> = {
+  color: "text.secondary",
+  fontSize: "0.8125rem",
+  fontWeight: 600,
+  lineHeight: 1.4,
+};
+
+export const teamReportModalTitleMetaSx: SxProps<Theme> = {
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 0.75,
+  mt: 0.4,
+  "& .MuiChip-root": {
+    height: 22,
+    borderRadius: RADIUS_PX.xs,
+    fontSize: 11,
+    fontWeight: 800,
+  },
+};
+
+export const teamReportModalLoadingSx: SxProps<Theme> = {
+  minHeight: 360,
+  display: "grid",
+  placeItems: "center",
+  gap: 1,
+  color: "text.secondary",
+};
+
+export const teamReportModalSectionStackSx: SxProps<Theme> = {
+  gap: 1.5,
+  pb: 2,
+};
+
+export const teamReportModalSectionHeaderSx: SxProps<Theme> = {
+  alignItems: "center",
+  mb: 1.25,
+};
+
+export const teamReportModalSectionPanelSx: SxProps<Theme> = (theme) => ({
+  p: { xs: 1.25, sm: 1.5 },
+  border: "1px solid",
+  borderColor: "divider",
+  borderRadius: RADIUS_PX.lg,
+  bgcolor:
+    theme.palette.mode === "dark"
+      ? alpha(theme.palette.text.primary, 0.025)
+      : theme.palette.background.paper,
+  boxShadow: theme.shadows[1],
+  minWidth: 0,
+});
+
+export const teamReportModalSectionIconSx =
+  (color: "primary" | "secondary"): SxProps<Theme> =>
+  (theme) => {
+    const paletteColor =
+      color === "secondary"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main;
+
+    return {
+      width: 30,
+      height: 30,
+      display: "grid",
+      placeItems: "center",
+      flexShrink: 0,
+      borderRadius: RADIUS_PX.sm,
+      bgcolor: alpha(paletteColor, theme.palette.mode === "dark" ? 0.18 : 0.1),
+      color: paletteColor,
+    };
+  };
+
+export const teamReportModalSummaryStackSx: SxProps<Theme> = {
+  flexWrap: "wrap",
+  gap: 0.75,
+};
+
+export const teamReportModalSummaryChipSx =
+  (color: string): SxProps<Theme> =>
+  (theme) => ({
+    height: 24,
+    borderRadius: RADIUS_PX.xs,
+    bgcolor: alpha(color, theme.palette.mode === "dark" ? 0.18 : 0.08),
+    borderColor: alpha(color, 0.42),
+    color,
+    fontSize: 11,
+    fontWeight: 800,
+    "& .MuiChip-label": {
+      px: 1,
+    },
+  });
+
+export const teamReportModalTableWrapSx: SxProps<Theme> = {
+  mt: 1.25,
+  height: { xs: 300, sm: 300 },
+  minWidth: 0,
+};
+
 /* ================= RIGHT UNLOCK REQUESTS ================= */
 export const unlockRequestStyles: {
   container: SxProps<Theme>;

@@ -38,6 +38,7 @@ class Ticket(models.Model):
     task = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
     department = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='groups')
+    is_internal = models.BooleanField(default=False, db_index=True)
     est_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     target_date = models.DateField(default=timezone.now)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
@@ -67,15 +68,7 @@ class Ticket(models.Model):
     def __str__(self):
         return f"{self.number} - {self.task}"
 
-    # class Meta:
-    #     default_permissions = ()
-    #     # customise the permissions for the Notice model
-    #     permissions = [
-    #         ('view_ticket', 'Handle View Ticket'),
-    #         ('add_ticket', 'Handle Create Ticket'),
-    #         ('change_ticket', 'Handle Change Ticket'),
-    #         ('delete_ticket', 'Handle Delete Ticket')]
-
+   
 class Ticket_Log(models.Model): # Renamed from Ticket_Logs (PEP8 style)
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='logs')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
@@ -120,8 +113,7 @@ class Self_Ticket(models.Model):
     type = models.CharField(max_length=10, default='open')
     ticket_number = models.CharField(max_length=30, blank=True, null=True)
     reminder_interval = models.IntegerField(default=1)
-
-    # comments = models.CharField(max_length=500,default=None,null=True) 
+    alarm = models.BooleanField(default=False, db_index=True)
 
     def save(self, *args, **kwargs):
         if not self.number:

@@ -13,12 +13,13 @@ import {
   Typography,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
-import api from "../api/axios";
-import bgImage from "../assets/taskmanagementloginimage.jpg";
-import logo from "../assets/icpro_logo.svg";
+import api from "../../api/axios";
+import bgImage from "../../assets/taskmanagementloginimage.jpg";
+import logo from "../../assets/icpro_logo.svg";
 import {
   loginDynamicPageDynamicBoxSx1,
   loginPageBoxSx1,
@@ -27,7 +28,32 @@ import {
   loginPageCardSx1,
   loginPageCircularProgressSx1,
   marginBottomSectionSx,
-} from "../styles/common";
+} from "../../styles/common";
+
+type ResetPasswordField = "email" | "token" | "new_password" | "confirm_password";
+type ResetPasswordErrors = Partial<
+  Record<ResetPasswordField | "non_field_errors" | "detail", string | string[]>
+>;
+type ResetPasswordErrorResponse = {
+  response?: {
+    status?: number;
+    data?: ResetPasswordErrors;
+  };
+};
+
+function isResetPasswordErrorResponse(
+  error: unknown,
+): error is ResetPasswordErrorResponse {
+  return typeof error === "object" && error !== null && "response" in error;
+}
+
+function formatFieldError(error?: string | string[]) {
+  if (Array.isArray(error)) {
+    return error.join(" ");
+  }
+
+  return error;
+}
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -41,13 +67,21 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ResetPasswordErrors>({});
+
+  const clearFieldError = (field: ResetPasswordField) => {
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
 
   const submitResetPassword = async () => {
     setLoading(true);
     setError("");
+    setFieldErrors({});
 
     if (newPassword !== confirmPassword) {
-      setError("New password and confirm password do not match.");
+      setFieldErrors({
+        confirm_password: "New password and confirm password do not match.",
+      });
       setLoading(false);
       return;
     }
@@ -63,8 +97,21 @@ export default function ResetPassword() {
         replace: true,
         state: { message: "Password reset successfully. Please login." },
       });
-    } catch {
-      setError("Unable to reset password. The link may be invalid or expired.");
+    } catch (requestError: unknown) {
+      if (
+        isResetPasswordErrorResponse(requestError) &&
+        requestError.response?.status === 400
+      ) {
+        const errors = requestError.response.data ?? {};
+        setFieldErrors(errors);
+        setError(
+          formatFieldError(errors.non_field_errors) ||
+            formatFieldError(errors.detail) ||
+            "",
+        );
+      } else {
+        setError("Unable to reset password. The link may be invalid or expired.");
+      }
     } finally {
       setLoading(false);
     }
@@ -91,16 +138,26 @@ export default function ResetPassword() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                clearFieldError("email");
+                setEmail(event.target.value);
+              }}
               required
+              error={Boolean(fieldErrors.email)}
+              helperText={formatFieldError(fieldErrors.email)}
               sx={marginBottomSectionSx}
             />
             <TextField
               fullWidth
               label="Token"
               value={token}
-              onChange={(event) => setToken(event.target.value)}
+              onChange={(event) => {
+                clearFieldError("token");
+                setToken(event.target.value);
+              }}
               required
+              error={Boolean(fieldErrors.token)}
+              helperText={formatFieldError(fieldErrors.token)}
               sx={marginBottomSectionSx}
             />
             <TextField
@@ -109,8 +166,13 @@ export default function ResetPassword() {
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
+              onChange={(event) => {
+                clearFieldError("new_password");
+                setNewPassword(event.target.value);
+              }}
               required
+              error={Boolean(fieldErrors.new_password)}
+              helperText={formatFieldError(fieldErrors.new_password)}
               sx={marginBottomSectionSx}
               slotProps={{
                 input: {
@@ -140,8 +202,13 @@ export default function ResetPassword() {
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                clearFieldError("confirm_password");
+                setConfirmPassword(event.target.value);
+              }}
               required
+              error={Boolean(fieldErrors.confirm_password)}
+              helperText={formatFieldError(fieldErrors.confirm_password)}
               sx={marginBottomSectionSx}
             />
             <Button
@@ -150,6 +217,7 @@ export default function ResetPassword() {
               variant="contained"
               size="large"
               disabled={loading}
+              startIcon={loading ? undefined : <LockResetOutlinedIcon />}
               sx={loginPageButtonSx1}
             >
               {loading ? (

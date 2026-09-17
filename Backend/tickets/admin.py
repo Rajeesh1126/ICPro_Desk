@@ -5,8 +5,8 @@ from .models import Ticket, Ticket_File, Ticket_Log, Self_Ticket, Self_Ticket_Lo
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ["number", "task", "creator", "assigned_to", "department", "current_status", "priority", "created_at"]
-    list_filter = ["current_status", "priority", "department", "created_at"]
+    list_display = ["number", "task", "creator", "assigned_to", "department", "is_internal", "current_status", "priority", "created_at"]
+    list_filter = ["current_status", "priority", "department", "is_internal", "created_at"]
     search_fields = ["number", "task", "creator__username", "assigned_to__username"]
     readonly_fields = ["number", "created_at", "updated_at"]
 

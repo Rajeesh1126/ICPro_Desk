@@ -1,32 +1,30 @@
 import * as React from "react";
 import {
   Box,
-  Chip,
+  ButtonBase,
   Collapse,
+  useMediaQuery,
+  Chip,
   Stack,
   Typography,
-  useMediaQuery,
 } from "@mui/material";
-import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDownOutlined";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import { alpha } from "@mui/material/styles";
-import type { Theme } from "@mui/material/styles";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { SelfTicketData, TicketData } from "../../types/dataTypes";
 import BasicCardComponent from "../tickets/BasicCard";
 import BasicCardSelfTicket from "../selfTickets/BasicCard";
 import {
   cardViewBoxSx1,
+  cardViewCollapseSx,
+  cardViewExpandIcon,
   cardViewBoxSx2,
   cardViewBoxSx3,
-  cardViewCollapseContent,
   cardViewDynamicDynamicBoxSx1,
+  cardViewDynamicDynamicActionRequiredSx1,
   cardViewDynamicDynamicChipSx1,
   cardViewDynamicDynamicStackSx1,
-  cardViewExpandIcon,
-  cardViewOverdueChip,
   cardViewTypographySx1,
   getStatusColor,
-  type TableRowStatus,
 } from "../../styles/common";
 
 type TicketCardViewProps =
@@ -34,63 +32,53 @@ type TicketCardViewProps =
       cardType: "Ticket";
       data: TicketData[];
       onCardClick: (ticket: TicketData) => void;
-      getCardStatus?: (ticket: TicketData) => TableRowStatus | undefined;
     }
   | {
       cardType: "Self";
       data: SelfTicketData[];
       onCardClick: (ticket: SelfTicketData) => void;
-      getCardStatus?: (ticket: SelfTicketData) => TableRowStatus | undefined;
+      onAcknowledgeAlarm?: (ticket: SelfTicketData) => void;
     };
 
 type ColumnProps = {
   title: string;
   count: number;
-  overdueCount: number;
   accent: string;
   children: React.ReactNode;
+  isSmallScreen: boolean;
   expanded: boolean;
-  isMobile: boolean;
-  onToggle: () => void;
+  hasAlarm: boolean;
+  cardType: "Ticket" | "Self";
+  onExpand: () => void;
 };
 
 function TicketColumn({
   title,
   count,
-  overdueCount,
   accent,
   children,
+  isSmallScreen,
   expanded,
-  isMobile,
-  onToggle,
+  hasAlarm,
+  cardType,
+  onExpand,
 }: ColumnProps) {
-  return (
-    <Box sx={cardViewDynamicDynamicBoxSx1({ alpha })}>
+  const panelId = React.useId();
+  const headerId = React.useId();
+  const header = (
       <Stack
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        onClick={onToggle}
-        onKeyDown={(event) => {
-          if (!isMobile) return;
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onToggle();
-          }
-        }}
-        role={isMobile ? "button" : undefined}
-        tabIndex={isMobile ? 0 : undefined}
-        aria-expanded={isMobile ? expanded : undefined}
         sx={cardViewDynamicDynamicStackSx1({ accent })}
       >
         <Typography fontWeight={800}>{title}</Typography>
         <Stack direction="row" spacing={0.75} alignItems="center">
-          {overdueCount > 0 && (
+          {hasAlarm && (
             <Chip
-              icon={<WarningAmberOutlinedIcon />}
-              label={`${overdueCount} overdue`}
+              label="Action Required"
               size="small"
-              sx={cardViewOverdueChip}
+              sx={cardViewDynamicDynamicActionRequiredSx1({ accent, alpha })}
             />
           )}
           <Chip
@@ -98,16 +86,31 @@ function TicketColumn({
             size="small"
             sx={cardViewDynamicDynamicChipSx1({ accent, alpha })}
           />
-          <KeyboardArrowDownOutlinedIcon sx={cardViewExpandIcon(expanded)} />
+          {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}
         </Stack>
       </Stack>
-      {isMobile ? (
-        <Collapse in={expanded} timeout="auto">
-          <Box sx={[cardViewBoxSx1, cardViewCollapseContent]}>{children}</Box>
+  );
+  return (
+    <Box sx={cardViewDynamicDynamicBoxSx1({ alpha }, expanded)}>
+      {isSmallScreen ? (
+        <ButtonBase
+          id={headerId}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={onExpand}
+          sx={{ display: "block", width: "100%", textAlign: "left",
+            "&.Mui-focusVisible": { outline: "2px solid", outlineColor: accent, outlineOffset: -2 } }}
+        >
+          {header}
+        </ButtonBase>
+      ) : header}
+      {isSmallScreen ? (
+        <Collapse in={expanded} sx={cardViewCollapseSx}>
+          <Box id={panelId} role="region" aria-labelledby={headerId} sx={cardViewBoxSx1(cardType)}>
+            {children}
+          </Box>
         </Collapse>
-      ) : (
-        <Box sx={cardViewBoxSx1}>{children}</Box>
-      )}
+      ) : <Box sx={cardViewBoxSx1(cardType)}>{children}</Box>}
     </Box>
   );
 }
@@ -126,11 +129,9 @@ function EmptyColumn() {
 }
 
 export default function TicketCardView(props: TicketCardViewProps) {
-  const isMobile = useMediaQuery((theme: Theme) =>
-    theme.breakpoints.down("md"),
-  );
-  const [expandedColumn, setExpandedColumn] = React.useState("");
-
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("lg"));
+  const [expandedStatus, setExpandedStatus] = React.useState("Open");
   if (props.cardType === "Ticket") {
     const columns = [
       {
@@ -148,6 +149,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
             "assigned",
             "not-satisfied",
             "accepted",
+            "in progress",
             "recall requested",
           ].includes(ticket.current_status),
         ),
@@ -160,12 +162,6 @@ export default function TicketCardView(props: TicketCardViewProps) {
         ),
       },
     ];
-    const firstColumnTitle = columns[0]?.title ?? "";
-    const activeExpandedColumn =
-      isMobile && columns.some((column) => column.title === expandedColumn)
-        ? expandedColumn
-        : firstColumnTitle;
-
     return (
       <Box sx={cardViewBoxSx2}>
         {columns.map((column) => (
@@ -173,17 +169,12 @@ export default function TicketCardView(props: TicketCardViewProps) {
             key={column.title}
             title={column.title}
             count={column.rows.length}
-            overdueCount={
-              column.rows.filter(
-                (ticket) => props.getCardStatus?.(ticket) === "warning",
-              ).length
-            }
             accent={column.accent}
-            expanded={!isMobile || activeExpandedColumn === column.title}
-            isMobile={isMobile}
-            onToggle={() => {
-              if (isMobile) setExpandedColumn(column.title);
-            }}
+            isSmallScreen={isSmallScreen}
+            expanded={expandedStatus === column.title}
+            hasAlarm={column.rows.some((ticket) => ticket.alarm === true)}
+            cardType="Ticket"
+            onExpand={() => setExpandedStatus(column.title)}
           >
             {column.rows.length ? (
               column.rows.map((ticket) => (
@@ -191,7 +182,6 @@ export default function TicketCardView(props: TicketCardViewProps) {
                   key={ticket.id ?? ticket.number}
                   ticket={ticket}
                   onOpen={props.onCardClick}
-                  highlighted={props.getCardStatus?.(ticket) === "warning"}
                 />
               ))
             ) : (
@@ -215,12 +205,6 @@ export default function TicketCardView(props: TicketCardViewProps) {
       rows: props.data.filter((ticket) => ticket.current_status === "closed"),
     },
   ];
-  const firstColumnTitle = columns[0]?.title ?? "";
-  const activeExpandedColumn =
-    isMobile && columns.some((column) => column.title === expandedColumn)
-      ? expandedColumn
-      : firstColumnTitle;
-
   return (
     <Box sx={cardViewBoxSx3}>
       {columns.map((column) => (
@@ -228,17 +212,12 @@ export default function TicketCardView(props: TicketCardViewProps) {
           key={column.title}
           title={column.title}
           count={column.rows.length}
-          overdueCount={
-            column.rows.filter(
-              (ticket) => props.getCardStatus?.(ticket) === "warning",
-            ).length
-          }
           accent={column.accent}
-          expanded={!isMobile || activeExpandedColumn === column.title}
-          isMobile={isMobile}
-          onToggle={() => {
-            if (isMobile) setExpandedColumn(column.title);
-          }}
+          isSmallScreen={isSmallScreen}
+          expanded={expandedStatus === column.title}
+          hasAlarm={column.rows.some((ticket) => ticket.alarm === true)}
+          cardType="Self"
+          onExpand={() => setExpandedStatus(column.title)}
         >
           {column.rows.length ? (
             column.rows.map((ticket) => (
@@ -246,7 +225,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
                 key={ticket.id ?? ticket.number}
                 ticket={ticket}
                 onOpen={props.onCardClick}
-                highlighted={props.getCardStatus?.(ticket) === "warning"}
+                onAcknowledgeAlarm={props.onAcknowledgeAlarm}
               />
             ))
           ) : (

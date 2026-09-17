@@ -7,15 +7,18 @@ import {
   Divider,
   Avatar,
   Stack,
+  Tooltip,
 } from "@mui/material";
+
+import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 
 import { alpha } from "@mui/material/styles";
 import type { TicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
+  alarmBellSx,
   detailLabelSx,
   detailValueSx,
-  dueTaskChip,
   minWidthZeroSx,
   pushRightSx,
   secondaryTextSx,
@@ -35,11 +38,48 @@ import {
 interface BasicCardProps {
   ticket: TicketData;
   onOpen: (data: TicketData) => void;
-  highlighted?: boolean;
+}
+
+function parseTicketDueDay(value: string | null | undefined) {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
+  }
+
+  const normalizedValue = value.replace(" ", "T");
+  const dueDate = new Date(normalizedValue);
+  const timestamp = dueDate.getTime();
+  dueDate.setHours(0, 0, 0, 0);
+
+  return Number.isNaN(timestamp) ? null : dueDate.getTime();
+}
+
+function isActiveDueTicket(ticket: TicketData) {
+  const dueDay = parseTicketDueDay(ticket.target_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const status = ticket.current_status?.toLowerCase() ?? "";
+  const activeStatuses = [
+    "open",
+    "modified",
+    "reopened",
+    "in progress",
+    "assigned",
+    "not-satisfied",
+    "accepted",
+    "recall requested",
+  ];
+
+  return (
+    dueDay !== null &&
+    dueDay <= today.getTime() &&
+    activeStatuses.includes(status)
+  );
 }
 
 export default function BasicCardComponent({
-  highlighted = false,
   ticket,
   onOpen,
 }: BasicCardProps) {
@@ -59,6 +99,8 @@ export default function BasicCardComponent({
   };
 
   const styles = getPriorityStyles(ticket.priority);
+  const hasAlarm = ticket.alarm === true;
+  const highlighted = hasAlarm || isActiveDueTicket(ticket);
   const assignedInitials = ticket.assigned_to_name
     ? ticket.assigned_to_name
         .split(" ")
@@ -93,8 +135,15 @@ export default function BasicCardComponent({
             alignItems="center"
             sx={secondaryTextSx}
           >
-            {highlighted && (
-              <Chip label="Due" size="small" sx={dueTaskChip(styles.color)} />
+            {hasAlarm && (
+              <Tooltip title="Reminder active">
+                <NotificationsActiveRoundedIcon
+                  fontSize="small"
+                  style={{ color: styles.color }}
+                  titleAccess="Reminder active"
+                  sx={alarmBellSx}
+                />
+              </Tooltip>
             )}
             <Typography sx={ticketsBasicCardTypographySx1}>
               {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
@@ -135,7 +184,7 @@ export default function BasicCardComponent({
             sx={pushRightSx}
           >
             <Box sx={ticketsBasicCardBoxSx2}>
-              <Typography sx={detailLabelSx}>Due date</Typography>
+              <Typography sx={detailLabelSx}>Target date</Typography>
               <Typography sx={detailValueSx}>
                 {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
               </Typography>

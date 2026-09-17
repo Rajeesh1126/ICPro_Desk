@@ -318,21 +318,22 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
       }
 
       if (
+        action === "Accepted" &&
         !isOthersProject(row.project) &&
         (!row.rating || row.rating === "0")
       ) {
         showNotification(
-          "Please select a rating before approving or rejecting.",
+          "Please select a rating before approving.",
           "warning",
         );
         return false;
       }
 
-      const ratingNumber = isOthersProject(row.project)
+      const ratingNumber = action === "Rejected" || isOthersProject(row.project)
         ? 0
         : Number(row.rating);
 
-      const requiresRating = !isOthersProject(row.project);
+      const requiresRating = action === "Accepted" && !isOthersProject(row.project);
 
       if (
         requiresRating &&

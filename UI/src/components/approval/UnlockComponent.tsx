@@ -11,6 +11,8 @@ import { compactFieldSx, unlockRequestStyles } from "../../styles/common";
 import type { timesheetStatusData } from "../../types/dataTypes";
 import ConfirmDialog from "../common/ConfirmDialog";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
 
 
 interface UnlockComponentProps {
@@ -65,6 +67,7 @@ const UnlockComponent: React.FC<UnlockComponentProps> = ({
                                 {/* ACCEPT */}
                                 <Button
                                     variant="contained"
+                                    startIcon={<CheckCircleOutlinedIcon />}
                                     onClick={() => handleUnlockStatus(request.id, "Unlocked") }
                                     sx={ unlockRequestStyles.acceptButton }
                                 >
@@ -74,6 +77,7 @@ const UnlockComponent: React.FC<UnlockComponentProps> = ({
                                 {/* REJECT */}
                                 <Button
                                     variant="contained"
+                                    startIcon={<HighlightOffOutlinedIcon />}
                                     // onClick={() =>handleUnlockStatus(request.id, "Unlock Rejected")}
                                     onClick={() => {
                                         setRejectModelOpen(true);

@@ -5,15 +5,17 @@ import Box from "@mui/material/Box";
 import api from "../../api/axios";
 
 import Approval from "./Approval";
-import Submission, { type BudgetOwnerValidation, type DailyHoursValidation, type TimesheetSubmitEntry, type WeeklyHoursValidation } from "./Submission";
+import Submission, {
+  type BudgetOwnerValidation,
+  type DailyHoursValidation,
+  type TimesheetSubmitEntry,
+  type WeeklyHoursValidation,
+} from "./Submission";
 import Temp from "./Temp";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
-import {
-  useCallback,
-  useEffect,
-  useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AssignmentOutlined as AssignmentOutlinedIcon,
   CalendarMonthOutlined as CalendarMonthOutlinedIcon,
@@ -24,7 +26,7 @@ import {
   UpdateOutlined as UpdateOutlinedIcon,
   SendOutlined as SendOutlinedIcon,
   DeleteOutlineOutlined as DeleteOutlineOutlinedIcon,
-  KeyboardArrowDownOutlined as KeyboardArrowDownOutlinedIcon
+  KeyboardArrowDownOutlined as KeyboardArrowDownOutlinedIcon,
 } from "@mui/icons-material";
 
 import {
@@ -49,7 +51,8 @@ import {
   timesheetPageHeader,
   weekSelectorPanel,
 } from "../../styles/common";
-import { Badge,
+import {
+  Badge,
   Button,
   Chip,
   Divider,
@@ -60,28 +63,29 @@ import { Badge,
   MenuItem,
   Paper,
   Stack,
-  Typography } from "@mui/material";
+  Typography,
+} from "@mui/material";
 import {
   ChevronLeftOutlined as ChevronLeftOutlinedIcon,
-  ChevronRightOutlined as ChevronRightOutlinedIcon
+  ChevronRightOutlined as ChevronRightOutlinedIcon,
 } from "@mui/icons-material";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showNotification } from "../../api/notificationService";
-import type {
-  ERPQuotation,
-  SubmissionProject,
-} from "../../types/dataTypes";
+import type { ERPQuotation, SubmissionProject } from "../../types/dataTypes";
 import ERPQuotationModal from "../../components/timesheet/ERPQuotationModal";
-import CreateUndefinedModal from "../../components/timesheet/CreateUndefinedModal"
-import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/timesheet/TimeSheetPreviewModal"
+import CreateUndefinedModal from "../../components/timesheet/CreateUndefinedModal";
+import TimeSheetPreviewModal, {
+  type TimeSheetDay,
+} from "../../components/timesheet/TimeSheetPreviewModal";
 import TimeSheetUnlockRequestModal from "../../components/timesheet/TimeSheetUnlockRequestModal";
-import TimeSheetTicketsModal, { type TimeSheetTicketOption } from "../../components/timesheet/TimeSheetTicketsModal";
+import TimeSheetTicketsModal, {
+  type TimeSheetTicketOption,
+} from "../../components/timesheet/TimeSheetTicketsModal";
 import AssignCostMasterTasksModal, {
   type TimeSheetCostCategory,
   type TimeSheetCostMaster,
   type TimeSheetPhaseMapping,
 } from "../../components/timesheet/AssignCostMasterTasksModal";
-
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -89,15 +93,13 @@ interface TabPanelProps {
   value: number;
 }
 
-type WeeklyTimesheetStatus = {
+type WeeklyTimesheetLog = {
   timesheet_status: string;
   submission_status?: boolean;
 };
 
 function CustomTabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
-
-
 
   return (
     <div
@@ -108,11 +110,7 @@ function CustomTabPanel(props: TabPanelProps) {
       style={{ height: value === index ? "100%" : undefined, minHeight: 0 }}
       {...other}
     >
-      {value === index && (
-        <Box sx={tabPanelContent}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={tabPanelContent}>{children}</Box>}
     </div>
   );
 }
@@ -131,42 +129,58 @@ function TimeSheet() {
 
   const [quotationModalOpen, setQuotationModalOpen] = useState(false);
   const [timeSheetPreviewOpen, setTimeSheetPreviewOpen] = useState(false);
-  const [timeSheetPreviewDays, setTimeSheetPreviewDays] = useState<TimeSheetDay[]>([]);
-  const [timeSheetSubmitEntries, setTimeSheetSubmitEntries] = useState<TimesheetSubmitEntry[]>([]);
-  const [budgetOwnerValidation, setBudgetOwnerValidation] = useState<BudgetOwnerValidation>({
-    missingCount: 0,
-    missingTaskNames: [],
-  });
-  const [dailyHoursValidation, setDailyHoursValidation] = useState<DailyHoursValidation>({
-    exceededDays: [],
-  });
-  const [weeklyHoursValidation, setWeeklyHoursValidation] = useState<WeeklyHoursValidation>({
-    estimatedHours: 54,
-    actualHours: 0,
-    isSatisfied: false,
-  });
+  const [timeSheetPreviewDays, setTimeSheetPreviewDays] = useState<
+    TimeSheetDay[]
+  >([]);
+  const [timeSheetSubmitEntries, setTimeSheetSubmitEntries] = useState<
+    TimesheetSubmitEntry[]
+  >([]);
+  const [budgetOwnerValidation, setBudgetOwnerValidation] =
+    useState<BudgetOwnerValidation>({
+      missingCount: 0,
+      missingTaskNames: [],
+    });
+  const [dailyHoursValidation, setDailyHoursValidation] =
+    useState<DailyHoursValidation>({
+      exceededDays: [],
+    });
+  const [weeklyHoursValidation, setWeeklyHoursValidation] =
+    useState<WeeklyHoursValidation>({
+      estimatedHours: 54,
+      actualHours: 0,
+      isSatisfied: false,
+    });
   const [submittingTimeSheet, setSubmittingTimeSheet] = useState(false);
 
   const [quotations, setQuotations] = useState<ERPQuotation[]>([]);
   const [loadingQuotations, setLoadingQuotations] = useState(false);
   const [assigningQuotations, setAssigningQuotations] = useState(false);
 
-
   const [undefinedModalOpen, setUndefinedModalOpen] = useState(false);
   const [creatingUndefinedJob, setCreatingUndefinedJob] = useState(false);
   const [ticketsModalOpen, setTicketsModalOpen] = useState(false);
-  const [ticketOptions, setTicketOptions] = useState<TimeSheetTicketOption[]>([]);
+  const [ticketOptions, setTicketOptions] = useState<TimeSheetTicketOption[]>(
+    [],
+  );
   const [loadingTicketOptions, setLoadingTicketOptions] = useState(false);
   const [assigningTickets, setAssigningTickets] = useState(false);
   const [assignTasksModalOpen, setAssignTasksModalOpen] = useState(false);
-  const [assignedWeekProjects, setAssignedWeekProjects] = useState<SubmissionProject[]>([]);
-  const [phaseMappings, setPhaseMappings] = useState<TimeSheetPhaseMapping[]>([]);
-  const [costCategories, setCostCategories] = useState<TimeSheetCostCategory[]>([]);
+  const [assignedWeekProjects, setAssignedWeekProjects] = useState<
+    SubmissionProject[]
+  >([]);
+  const [phaseMappings, setPhaseMappings] = useState<TimeSheetPhaseMapping[]>(
+    [],
+  );
+  const [costCategories, setCostCategories] = useState<TimeSheetCostCategory[]>(
+    [],
+  );
   const [costMasters, setCostMasters] = useState<TimeSheetCostMaster[]>([]);
-  const [loadingAssignTaskOptions, setLoadingAssignTaskOptions] = useState(false);
+  const [loadingAssignTaskOptions, setLoadingAssignTaskOptions] =
+    useState(false);
   const [assignTaskOptionsError, setAssignTaskOptionsError] = useState("");
-  const [assigningCostMasterTasks, setAssigningCostMasterTasks] = useState(false);
-  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetStatus>({
+  const [assigningCostMasterTasks, setAssigningCostMasterTasks] =
+    useState(false);
+  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetLog>({
     timesheet_status: "Not Submitted",
     submission_status: false,
   });
@@ -217,7 +231,9 @@ function TimeSheet() {
     setLoadingTicketOptions(true);
 
     try {
-      const response = await api.get<TimeSheetTicketOption[]>("/timesheet-entries/ticket-options/");
+      const response = await api.get<TimeSheetTicketOption[]>(
+        "/timesheet-entries/ticket-options/",
+      );
       setTicketOptions(Array.isArray(response.data) ? response.data : []);
     } finally {
       setLoadingTicketOptions(false);
@@ -237,7 +253,12 @@ function TimeSheet() {
     setAssignTaskOptionsError("");
 
     try {
-      const [projectsResponse, phasesResponse, categoriesResponse, costMastersResponse] = await Promise.all([
+      const [
+        projectsResponse,
+        phasesResponse,
+        categoriesResponse,
+        costMastersResponse,
+      ] = await Promise.all([
         api.get<SubmissionProject[]>("/timesheet-entries/", {
           params: { week_start: weekStartKey },
         }),
@@ -246,16 +267,26 @@ function TimeSheet() {
         api.get<TimeSheetCostMaster[]>("/erp/cost-masters/"),
       ]);
 
-      setAssignedWeekProjects(Array.isArray(projectsResponse.data) ? projectsResponse.data : []);
-      setPhaseMappings(Array.isArray(phasesResponse.data) ? phasesResponse.data : []);
-      setCostCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : []);
-      setCostMasters(Array.isArray(costMastersResponse.data) ? costMastersResponse.data : []);
+      setAssignedWeekProjects(
+        Array.isArray(projectsResponse.data) ? projectsResponse.data : [],
+      );
+      setPhaseMappings(
+        Array.isArray(phasesResponse.data) ? phasesResponse.data : [],
+      );
+      setCostCategories(
+        Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [],
+      );
+      setCostMasters(
+        Array.isArray(costMastersResponse.data) ? costMastersResponse.data : [],
+      );
     } catch {
       setAssignedWeekProjects([]);
       setPhaseMappings([]);
       setCostCategories([]);
       setCostMasters([]);
-      setAssignTaskOptionsError("Could not load assigned projects or mapped cost master items.");
+      setAssignTaskOptionsError(
+        "Could not load assigned projects or mapped cost master items.",
+      );
     } finally {
       setLoadingAssignTaskOptions(false);
     }
@@ -399,7 +430,9 @@ function TimeSheet() {
     }
   };
 
-  const [selectedAssignedTaskIds, setSelectedAssignedTaskIds] = useState<number[]>([]);
+  const [selectedAssignedTaskIds, setSelectedAssignedTaskIds] = useState<
+    number[]
+  >([]);
   const [extendDialogOpen, setExtendDialogOpen] = useState(false);
   const [extendingTasks, setExtendingTasks] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -420,7 +453,7 @@ function TimeSheet() {
     let active = true;
 
     void api
-      .get<WeeklyTimesheetStatus>("/timesheet-statuses/current/", {
+      .get<WeeklyTimesheetLog>("/timesheet-week-logs/current/", {
         params: { week_start: weekStartKey },
       })
       .then((response) => {
@@ -445,12 +478,16 @@ function TimeSheet() {
     };
   }, [weekStartKey, refreshKey]);
 
-  const normalizedTimesheetStatus = weeklyStatus.timesheet_status.toLowerCase();
+  const normalizedTimesheetLog = weeklyStatus.timesheet_status.toLowerCase();
+  const isRejectedStatus = normalizedTimesheetLog === "rejected";
   const isSubmittedStatus =
-    normalizedTimesheetStatus === "submitted" ||
-    Boolean(weeklyStatus.submission_status);
-  const isAcceptedStatus = normalizedTimesheetStatus === "accepted";
-  const isUnlockedStatus = normalizedTimesheetStatus === "unlocked";
+    !isRejectedStatus &&
+    (
+      normalizedTimesheetLog === "submitted" ||
+      Boolean(weeklyStatus.submission_status)
+    );
+  const isAcceptedStatus = normalizedTimesheetLog === "accepted";
+  const isUnlockedStatus = normalizedTimesheetLog === "requested";
   const timesheetActionsDisabled =
     isSubmittedStatus || isAcceptedStatus || isUnlockedStatus;
   const previewSubmitDisabled = timesheetActionsDisabled;
@@ -459,7 +496,8 @@ function TimeSheet() {
   const showLockedActionMessage = () => {
     showNotification({
       type: "warning",
-      message: "This action is not available for the current time sheet status.",
+      message:
+        "This action is not available for the current time sheet status.",
     });
   };
 
@@ -507,21 +545,33 @@ function TimeSheet() {
     setTimeSheetPreviewDays(days);
   }, []);
 
-  const handleSubmitEntriesChange = useCallback((entries: TimesheetSubmitEntry[]) => {
-    setTimeSheetSubmitEntries(entries);
-  }, []);
+  const handleSubmitEntriesChange = useCallback(
+    (entries: TimesheetSubmitEntry[]) => {
+      setTimeSheetSubmitEntries(entries);
+    },
+    [],
+  );
 
-  const handleBudgetOwnerValidationChange = useCallback((validation: BudgetOwnerValidation) => {
-    setBudgetOwnerValidation(validation);
-  }, []);
+  const handleBudgetOwnerValidationChange = useCallback(
+    (validation: BudgetOwnerValidation) => {
+      setBudgetOwnerValidation(validation);
+    },
+    [],
+  );
 
-  const handleDailyHoursValidationChange = useCallback((validation: DailyHoursValidation) => {
-    setDailyHoursValidation(validation);
-  }, []);
+  const handleDailyHoursValidationChange = useCallback(
+    (validation: DailyHoursValidation) => {
+      setDailyHoursValidation(validation);
+    },
+    [],
+  );
 
-  const handleWeeklyHoursValidationChange = useCallback((validation: WeeklyHoursValidation) => {
-    setWeeklyHoursValidation(validation);
-  }, []);
+  const handleWeeklyHoursValidationChange = useCallback(
+    (validation: WeeklyHoursValidation) => {
+      setWeeklyHoursValidation(validation);
+    },
+    [],
+  );
 
   const submitTimeSheet = async (comments: string) => {
     if (previewSubmitDisabled) {
@@ -534,9 +584,12 @@ function TimeSheet() {
     }
 
     if (dailyHoursValidation.exceededDays.length > 0) {
-      const visibleDays = dailyHoursValidation.exceededDays.slice(0, 3).join(", ");
+      const visibleDays = dailyHoursValidation.exceededDays
+        .slice(0, 3)
+        .join(", ");
       const remainingCount = dailyHoursValidation.exceededDays.length - 3;
-      const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+      const remainingText =
+        remainingCount > 0 ? ` and ${remainingCount} more` : "";
 
       showNotification({
         type: "error",
@@ -554,9 +607,12 @@ function TimeSheet() {
     }
 
     if (budgetOwnerValidation.missingCount > 0) {
-      const visibleNames = budgetOwnerValidation.missingTaskNames.slice(0, 3).join(", ");
+      const visibleNames = budgetOwnerValidation.missingTaskNames
+        .slice(0, 3)
+        .join(", ");
       const remainingCount = budgetOwnerValidation.missingCount - 3;
-      const remainingText = remainingCount > 0 ? ` and ${remainingCount} more` : "";
+      const remainingText =
+        remainingCount > 0 ? ` and ${remainingCount} more` : "";
 
       showNotification({
         type: "error",
@@ -585,10 +641,15 @@ function TimeSheet() {
     }
   };
 
-  const toggleAssignedTaskSelection = (assignedTaskId: number, checked: boolean) => {
+  const toggleAssignedTaskSelection = (
+    assignedTaskId: number,
+    checked: boolean,
+  ) => {
     setSelectedAssignedTaskIds((current) => {
       if (checked) {
-        return current.includes(assignedTaskId) ? current : [...current, assignedTaskId];
+        return current.includes(assignedTaskId)
+          ? current
+          : [...current, assignedTaskId];
       }
 
       return current.filter((id) => id !== assignedTaskId);
@@ -668,7 +729,8 @@ function TimeSheet() {
       if (blockedCount > 0) {
         showNotification({
           type: "warning",
-          message: "Some selected tasks have time entries and cannot be removed.",
+          message:
+            "Some selected tasks have time entries and cannot be removed.",
         });
       } else {
         showNotification({
@@ -698,7 +760,7 @@ function TimeSheet() {
     setRequestingUnlock(true);
 
     try {
-      await api.post("/timesheet-statuses/request-unlock/", {
+      await api.post("/timesheet-week-logs/request-unlock/", {
         week_start: weekStartKey,
         unlock_reason: unlockReason.trim(),
       });
@@ -723,7 +785,6 @@ function TimeSheet() {
   };
 
   const permissionList = [
-   
     "view_submission",
     "view_approval",
     // "New",
@@ -750,12 +811,7 @@ function TimeSheet() {
     {
       permission: "view_approval",
       label: "Approval",
-      component: (
-        <Approval
-          weekStart={weekStartKey}
-          refreshKey={refreshKey}
-        />
-      ),
+      component: <Approval weekStart={weekStartKey} refreshKey={refreshKey} />,
     },
     {
       permission: "New",
@@ -781,11 +837,11 @@ function TimeSheet() {
 
   return (
     <Box sx={pageFill}>
-      <Box
-        sx={timesheetPageHeader(isApprovalTab)}
-      >
+      <Box sx={timesheetPageHeader(isApprovalTab)}>
         <Box sx={pageHeaderContent}>
-          <Typography variant="h5" sx={pageTitle}>Time Sheet</Typography>
+          <Typography variant="h5" sx={pageTitle}>
+            Time Sheet
+          </Typography>
           <Typography variant="body2" sx={pageSubtitle}>
             Submit and approve time sheets for your team.
           </Typography>
@@ -796,10 +852,7 @@ function TimeSheet() {
           spacing={1}
           sx={timesheetHeaderActions}
         >
-          <Paper
-            elevation={0}
-            sx={weekSelectorPanel(isApprovalTab)}
-          >
+          <Paper elevation={0} sx={weekSelectorPanel(isApprovalTab)}>
             <IconButton
               aria-label="Previous week"
               onClick={previousWeek}
@@ -829,7 +882,8 @@ function TimeSheet() {
                 fontWeight={700}
                 sx={nowrapResponsiveText}
               >
-                {weekStart.format("DD-MMM-YYYY")} - {weekEnd.format("DD-MMM-YYYY")}
+                {weekStart.format("DD-MMM-YYYY")} -{" "}
+                {weekEnd.format("DD-MMM-YYYY")}
               </Typography>
             </Stack>
 
@@ -898,7 +952,14 @@ function TimeSheet() {
                   </ListItemIcon>
                   <ListItemText
                     primary="Create Undefined Jobs"
-                    secondary="Add a temporary job when ERP details are unavailable."
+                    // secondary="Add a temporary job when ERP details are unavailable."
+                    secondary="Add a temporary job if ERP details are missing."
+                    //                 sx={{
+                    //   // Target the secondary text sub-component
+                    //   '& .MuiListItemText-secondary': {
+                    //     display: { xs: 'none', sm: 'block' } // Hide on extra-small screens, show on small screens and up
+                    //   }
+                    // }}
                   />
                 </MenuItem>
 
@@ -912,7 +973,8 @@ function TimeSheet() {
                   </ListItemIcon>
                   <ListItemText
                     primary="Import Undefined Tasks To Job"
-                    secondary="Move temporary tasks under mapped job cost masters."
+                    // secondary="Move temporary tasks under mapped job cost masters."
+                    secondary="Map temporary tasks to cost codes."
                   />
                 </MenuItem>
 
@@ -947,7 +1009,10 @@ function TimeSheet() {
                   />
                 </MenuItem>
 
-                <MenuItem onClick={openExtendDialog} sx={actionMenuItem("info")}>
+                <MenuItem
+                  onClick={openExtendDialog}
+                  sx={actionMenuItem("info")}
+                >
                   <ListItemIcon>
                     <UpdateOutlinedIcon fontSize="small" />
                   </ListItemIcon>
@@ -997,7 +1062,6 @@ function TimeSheet() {
               </Menu>
             </>
           )}
-
         </Stack>
       </Box>
 
@@ -1029,7 +1093,6 @@ function TimeSheet() {
           </CustomTabPanel>
         ))}
       </Box>
-
 
       <ConfirmDialog
         open={extendDialogOpen}

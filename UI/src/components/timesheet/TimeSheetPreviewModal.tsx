@@ -4,29 +4,26 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
-  Table,
-  TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
   TableRow,
   TextField,
   Button,
   Box,
   Typography,
-  useTheme,
 } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import {
-  tableHeaderCellSx,
-  tableHeadSx,
-} from "../../styles/common";
+  VirtualizedTable,
+  type ColumnData,
+} from "../common/TableView";
 
 export interface TimeSheetDay {
   day: string;
   hours: number;
 }
+
+type TimeSheetPreviewRow = Record<string, unknown> & TimeSheetDay;
 
 interface TimeSheetPreviewModalProps {
   open: boolean;
@@ -47,10 +44,12 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
   days,
   submitting = false,
 }) => {
-  const theme = useTheme();
   const [comments, setComments] = useState("");
 
-  const timeSheetDays = useMemo(() => days ?? [], [days]);
+  const timeSheetDays = useMemo<TimeSheetPreviewRow[]>(
+    () => (days ?? []).map((item) => ({ ...item })),
+    [days],
+  );
 
   const totalHours = useMemo(() => {
     return timeSheetDays.reduce(
@@ -70,6 +69,32 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
   const formatHours = (hours: number) => {
     return hours > 0 ? hours.toFixed(2) : "";
   };
+
+  const columns = useMemo<ColumnData<TimeSheetPreviewRow>[]>(
+    () => [
+      {
+        label: "Day",
+        dataKey: "day",
+      },
+      {
+        label: "Hours",
+        dataKey: "hours",
+        width: 120,
+        numeric: true,
+        render: (row) => formatHours(row.hours),
+      },
+    ],
+    [],
+  );
+
+  const renderFooter = () => (
+    <TableRow>
+      <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
+      <TableCell align="right" sx={{ fontWeight: 800 }}>
+        {totalHours.toFixed(2)}
+      </TableCell>
+    </TableRow>
+  );
 
   return (
     <Dialog
@@ -110,78 +135,14 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ px: 2, py: 2 }}>
-        {/* Hours Table */}
-        <TableContainer>
-          <Table size="small">
-            <TableHead sx={tableHeadSx(theme)}>
-              <TableRow>
-                <TableCell sx={tableHeaderCellSx(theme)}>
-                  Day
-                </TableCell>
-
-                <TableCell sx={tableHeaderCellSx(theme)}>
-                  Hours
-                </TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {timeSheetDays.map((item) => (
-                <TableRow key={item.day}>
-                  <TableCell
-                    sx={{
-                      py: 1.1,
-                      color: "#444",
-                      backgroundColor:
-                        item.hours > 0 ? "#fafafa" : "#fff",
-                    }}
-                  >
-                    {item.day}
-                  </TableCell>
-
-                  <TableCell
-                    sx={{
-                      py: 1.1,
-                      color: "#555",
-                      backgroundColor:
-                        item.hours > 0 ? "#fafafa" : "#fff",
-                    }}
-                  >
-                    {formatHours(item.hours)}
-                  </TableCell>
-                </TableRow>
-              ))}
-
-              {/* Total */}
-              <TableRow
-                sx={{
-                  borderTop: "2px solid #222",
-                  borderBottom: "1px solid #ddd",
-                }}
-              >
-                <TableCell
-                  sx={{
-                    fontWeight: 500,
-                    color: "#555",
-                    py: 1.1,
-                  }}
-                >
-                  Total
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    fontWeight: 600,
-                    color: "#555",
-                    py: 1.1,
-                  }}
-                >
-                  {totalHours.toFixed(2)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <VirtualizedTable
+          columns={columns}
+          rows={timeSheetDays}
+          height="45dvh"
+          tableHead="Work Hours"
+          tableMinWidth={360}
+          fixedFooterContent={renderFooter}
+        />
 
         {/* Comments */}
         <Box sx={{ mt: 2 }}>

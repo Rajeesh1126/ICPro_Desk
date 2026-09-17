@@ -14,13 +14,14 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import {
@@ -40,6 +41,7 @@ import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
 import {
   buttonLabelCompact,
   buttonLabelFull,
+  dateFieldSx,
   dialogContentTop,
   inlineCenterGapSx,
   marginBottomSectionSx,
@@ -56,7 +58,8 @@ import {
   pageSubtitle,
   pageTitle,
   tablePageContent,
-  toggleButton,
+  tabs,
+  tabsContainer,
 } from "../../styles/common";
 
 type Department = { id: number; name: string };
@@ -122,6 +125,7 @@ function FilterFields({
           size="small"
           value={filters.startDate}
           onChange={(event) => update("startDate", event.target.value)}
+          sx={dateFieldSx}
           slotProps={{
             inputLabel: { shrink: true },
             htmlInput: { max: filters.endDate || undefined },
@@ -136,6 +140,7 @@ function FilterFields({
           size="small"
           value={filters.endDate}
           onChange={(event) => update("endDate", event.target.value)}
+          sx={dateFieldSx}
           slotProps={{
             inputLabel: { shrink: true },
             htmlInput: { min: filters.startDate || undefined },
@@ -322,10 +327,18 @@ export default function Reports() {
     let active = true;
     const endpoint =
       reportType === "tickets"
-        ? "/tickets/?include_executive=true"
+        ? "/tickets/"
         : "/self-tickets/?include_executive=true";
     void api
-      .get(endpoint)
+      .get(endpoint, {
+        params:
+          reportType === "tickets"
+            ? {
+                include_executive: true,
+                is_internal: false,
+              }
+            : undefined,
+      })
       .then((response) => {
         if (!active) return;
         if (reportType === "tickets") {
@@ -436,7 +449,7 @@ export default function Reports() {
       },
       {
         label: "Task Number",
-        width: 180,
+         width: { xs: 160, sm: 180 },
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
@@ -564,28 +577,8 @@ export default function Reports() {
 
   const renderReportControls = () => (
     <>
-      <ToggleButtonGroup
-        exclusive
-        value={reportType}
-        onChange={(_, next: "tickets" | "dolist" | null) =>
-          next && setReportType(next)
-        }
-        aria-label="Task view"
-        sx={toggleButton}
-      >
-        <ToggleButton value="tickets" aria-label="Tickets">
-          <Tooltip title="Tickets" arrow>
-            <Box component="span">Tickets</Box>
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton value="dolist" aria-label="Do List">
-          <Tooltip title="Do List" arrow>
-            <Box component="span">Do List</Box>
-          </Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
       <Button
-        startIcon={<FilterAltOutlinedIcon />}
+        startIcon={<FilterListOutlinedIcon />}
         variant="outlined"
         onClick={() => setFilterDialogOpen(true)}
       >
@@ -617,7 +610,7 @@ export default function Reports() {
                   onClick={() => setMobileControlsOpen((open) => !open)}
                   sx={pageHeaderFilterToggle}
                 >
-                  <FilterAltOutlinedIcon />
+                  <FilterListOutlinedIcon />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -640,6 +633,20 @@ export default function Reports() {
           >
             {renderReportControls()}
           </Stack>
+        </Box>
+
+        <Box sx={tabsContainer}>
+          <Tabs
+            value={reportType}
+            onChange={(_, value: "tickets" | "dolist") => setReportType(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={tabs}
+          >
+            <Tab value="tickets" label={`Tickets (${filteredTickets.length})`} />
+            <Tab value="dolist" label={`Do List (${filteredSelfTickets.length})`} />
+          </Tabs>
         </Box>
 
         <Box sx={tablePageContent}>
@@ -707,6 +714,7 @@ export default function Reports() {
           <Button
             fullWidth
             variant="contained"
+            startIcon={<FilterAltOutlinedIcon />}
             onClick={() => setFilterDialogOpen(false)}
           >
             {reportType === "tickets"

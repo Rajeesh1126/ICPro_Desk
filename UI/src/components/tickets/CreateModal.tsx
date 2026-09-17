@@ -29,8 +29,10 @@ import type {
   TicketData,
   TicketFormData,
   groupData,
+  UserSummary,
 } from "../../types/dataTypes";
 import {
+  dateFieldSx,
   ticketsCreateModalBoxSx1,
   ticketsCreateModalBoxSx2,
   ticketsCreateModalBoxSx3,
@@ -44,8 +46,13 @@ type CreateTicketModalProps = {
   open: boolean;
   handleClose: () => void;
   Data: TicketData | null;
+  internalMode?: boolean;
+  departmentsOverride?: groupData[];
+  assignableUsers?: UserSummary[];
 };
 type Priority = "high" | "medium" | "low" | "";
+
+const emptyAssignableUsers: UserSummary[] = [];
 
 type ValidationErrorResponse = {
   response?: {
@@ -71,6 +78,7 @@ const emptyForm: TicketFormData = {
   description: "",
   department: "",
   current_status: "open",
+  is_internal: false,
   est_hours: 0,
   assigned_to: "",
   priority: "",
@@ -86,6 +94,8 @@ const getAttachmentName = (pathOrName?: string) =>
 const getAttachmentKey = (pathOrName?: string) =>
   getAttachmentName(pathOrName).toLowerCase();
 
+const getUserId = (user?: UserSummary) => user?.id ?? user?.users_id ?? "";
+
 function loggedUser(): number | null {
   const value = localStorage.getItem("user");
   const id = value ? Number(value) : NaN;
@@ -97,6 +107,9 @@ export default function CreateTicketModal({
   open,
   handleClose,
   Data,
+  internalMode = false,
+  departmentsOverride,
+  assignableUsers = emptyAssignableUsers,
 }: CreateTicketModalProps) {
   const [formData, setFormData] = useState<TicketFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<
@@ -113,20 +126,26 @@ export default function CreateTicketModal({
         ? {
           task: Data.task || "",
           description: Data.description || "",
-          department: Data.department || "",
-          current_status: Data.current_status || "open",
-          est_hours: Data.est_hours,
-          assigned_to: Data.assigned_to ?? "",
-          priority: (Data.priority?.toLowerCase() as Priority) || "",
+            department: Data.department || "",
+            current_status: Data.current_status || "open",
+            is_internal: Boolean(Data.is_internal),
+            est_hours: Data.est_hours,
+            assigned_to: Data.assigned_to ?? (internalMode ? getUserId(assignableUsers[0]) : ""),
+            priority: (Data.priority?.toLowerCase() as Priority) || "",
           target_date: Data.target_date || "",
           files: Data.files || [],
           newAttachments: [],
           deletedFileIds: [],
         }
-        : emptyForm,
+        : {
+            ...emptyForm,
+            is_internal: internalMode,
+            department: internalMode ? departmentsOverride?.[0]?.id ?? "" : "",
+            assigned_to: internalMode ? getUserId(assignableUsers[0]) : "",
+          },
     );
     setFormErrorData({});
-  }, [Data, open]);
+  }, [Data, open, internalMode, departmentsOverride, assignableUsers]);
 
   // Combine existing and newly selected attachments
   const allAttachments = [
@@ -144,6 +163,11 @@ export default function CreateTicketModal({
 
   useEffect(() => {
     if (!open) return;
+    if (departmentsOverride) {
+      setDepartments(departmentsOverride);
+      return;
+    }
+
     let active = true;
     void api
       .get("/departments/")
@@ -160,7 +184,7 @@ export default function CreateTicketModal({
     return () => {
       active = false;
     };
-  }, [open, userId]);
+  }, [open, userId, departmentsOverride]);
 
   const update = <K extends keyof TicketFormData>(
     field: K,
@@ -228,7 +252,9 @@ export default function CreateTicketModal({
     setFormData((current) => ({
       ...current,
       department: selectedDepartment?.id ?? "",
-      assigned_to: selectedDepartment?.manager?.id ?? "",
+      assigned_to: internalMode
+        ? current.assigned_to || getUserId(assignableUsers[0])
+        : selectedDepartment?.manager?.id ?? "",
     }));
   };
 
@@ -238,7 +264,9 @@ export default function CreateTicketModal({
   );
 
   const assignedToName =
-    selectedDepartment?.manager?.name ||
+    (internalMode
+      ? assignableUsers.find((user) => (user.id ?? user.users_id) === formData.assigned_to)?.first_name
+      : selectedDepartment?.manager?.name) ||
     selectedDepartment?.manager?.username ||
     Data?.assigned_to_name ||
     "";
@@ -263,12 +291,17 @@ export default function CreateTicketModal({
         (item) => item.id === Number(formData.department),
       );
       const resolvedAssignedTo =
-        formData.assigned_to || selectedDepartmentForSubmit?.manager?.id || "";
+        formData.assigned_to ||
+        (internalMode ? getUserId(assignableUsers[0]) : selectedDepartmentForSubmit?.manager?.id) ||
+        "";
       const payloadData: TicketFormData = {
         ...formData,
         assigned_to: resolvedAssignedTo,
         department: formData.department ? Number(formData.department) : "",
-        current_status: Data ? "open" : formData.current_status,
+        current_status: Data
+          ? formData.current_status || Data.current_status
+          : formData.current_status,
+        is_internal: Data ? Boolean(Data.is_internal) : internalMode,
       };
 
       Object.entries(payloadData).forEach(([key, value]) => {
@@ -344,10 +377,18 @@ export default function CreateTicketModal({
         >
           <Box>
             <Typography variant="h6">
-              {Data ? "Edit Ticket" : "Create Ticket"}
+              {Data
+                ? internalMode
+                  ? "Edit Internal Ticket"
+                  : "Edit Ticket"
+                : internalMode
+                  ? "Create Internal Ticket"
+                  : "Create Ticket"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Add clear ownership, priority, and timing.
+              {internalMode
+                ? "Assign internal work to an immediate reportee."
+                : "Add clear ownership, priority, and timing."}
             </Typography>
           </Box>
           <IconButton
@@ -392,6 +433,7 @@ export default function CreateTicketModal({
                 value={formData.department}
                 label="Teams"
                 onChange={handleGroupChange}
+                disabled={internalMode}
               >
                 {departments.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
@@ -404,12 +446,36 @@ export default function CreateTicketModal({
           <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl required fullWidth>
               <InputLabel>Assigned to</InputLabel>
-              <Select value={formData.assigned_to} label="Assigned to" disabled>
-                {formData.assigned_to && (
-                  <MenuItem value={formData.assigned_to}>
-                    {assignedToName}
-                  </MenuItem>
-                )}
+              <Select
+                value={formData.assigned_to}
+                label="Assigned to"
+                disabled={!internalMode}
+                onChange={(event) =>
+                  update("assigned_to", Number(event.target.value))
+                }
+              >
+                {internalMode
+                  ? assignableUsers.map((user) => {
+                      const userId = user.id ?? user.users_id;
+                      const userName =
+                        [user.first_name, user.last_name]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() ||
+                        user.username ||
+                        `User ${userId}`;
+
+                      return (
+                        <MenuItem key={userId} value={userId}>
+                          {userName}
+                        </MenuItem>
+                      );
+                    })
+                  : formData.assigned_to && (
+                      <MenuItem value={formData.assigned_to}>
+                        {assignedToName}
+                      </MenuItem>
+                    )}
               </Select>
             </FormControl>
           </Grid>
@@ -450,6 +516,7 @@ export default function CreateTicketModal({
               fullWidth
               value={formData.target_date}
               onChange={(event) => update("target_date", event.target.value)}
+              sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
                 htmlInput: { min: tomorrow },

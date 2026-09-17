@@ -19,14 +19,16 @@ import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
-import api from "../api/axios";
-import { showNotification } from "../api/notificationService";
-import { formatDateTime } from "../components/common/formatDate";
+import api from "../../api/axios";
+import { showNotification } from "../../api/notificationService";
+import { formatDateTime } from "../../components/common/formatDate";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "../../components/common/TableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -39,7 +41,8 @@ import {
   pageContent,
   pageSubtitle,
   pageTitle,
-} from "../styles/common";
+  deleteIconSx,
+} from "../../styles/common";
 
 type SuggestionStatus =
   | "Open"
@@ -83,6 +86,8 @@ export default function Suggestions() {
   const [suggestions, setSuggestions] = useState<SystemSuggestion[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSuggestion, setEditingSuggestion] =
+    useState<SystemSuggestion | null>(null);
+  const [deleteSuggestion, setDeleteSuggestion] =
     useState<SystemSuggestion | null>(null);
   const [form, setForm] = useState<SuggestionFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -164,28 +169,42 @@ export default function Suggestions() {
     }
   };
 
+  const handleDeleteSuggestion = async () => {
+    if (!deleteSuggestion) return;
+
+    await api.delete(`/documents/system-suggestions/${deleteSuggestion.id}/`);
+    showNotification({
+      type: "success",
+      message: "Suggestion deleted successfully.",
+    });
+    setDeleteSuggestion(null);
+    await loadSuggestions();
+  };
+
   const columns = useMemo<ColumnData<SystemSuggestion>[]>(
     () => [
       {
         label: "#",
         width: { xs: 40, sm: 40 },
+        // width: "auto",
         render: (_row, index) => index + 1,
         numeric: true,
       },
       {
         label: "Suggestion",
         dataKey: "suggestion",
-        width: 360,
+        // width: 360,
+        width: "auto",
       },
       {
         label: "Status",
         dataKey: "status",
-        width: 130,
+        // width: 130,
       },
       {
         label: "Submitted By",
         dataKey: "user_name",
-        width: 160,
+        // width: 160,
       },
       {
         label: "Remarks",
@@ -195,28 +214,38 @@ export default function Suggestions() {
       {
         label: "Created Date",
         dataKey: "created_at",
-        width: 160,
+        width: 150,
         render: (row) => formatDateTime(row.created_at),
       },
       {
         label: "Updated Date",
         dataKey: "updated_at",
-        width: 160,
+        width: 150,
         render: (row) => formatDateTime(row.updated_at),
       },
       {
         label: "Actions",
-        width: 90,
+        width: 85,
         render: (row) => (
-          <Tooltip title="Edit suggestion">
-            <IconButton
-              size="small"
-              color="primary"
-              onClick={() => openEditDialog(row)}
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="Edit suggestion">
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => openEditDialog(row)}
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete suggestion">
+              <IconButton
+                size="small"
+                onClick={() => setDeleteSuggestion(row)}
+              >
+                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         ),
       },
     ],
@@ -328,6 +357,18 @@ export default function Suggestions() {
           </Button>
         </DialogActions>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteSuggestion)}
+        onClose={() => setDeleteSuggestion(null)}
+        title="Delete Suggestion"
+        description="Delete this suggestion?"
+        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
+        confirmLabel="Delete"
+        confirmColor="error"
+        confirmIcon={<DeleteOutlinedIcon />}
+        tone="error"
+        onConfirm={handleDeleteSuggestion}
+      />
     </Box>
   );
 }

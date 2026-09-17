@@ -35,6 +35,7 @@ import type {
 } from "../../types/dataTypes";
 import {
   compactFieldSx,
+  dateFieldSx,
   marginTopSmallSx,
   selfTicketsCreateModelBoxSx1,
   selfTicketsCreateModelBoxSx2,
@@ -323,6 +324,7 @@ export default function CreateSelfTicketModel({
                   onChange={(event) =>
                     update("target_date", event.target.value)
                   }
+                  sx={dateFieldSx}
                   slotProps={{
                     inputLabel: { shrink: true },
                     htmlInput: { min: tomorrow },

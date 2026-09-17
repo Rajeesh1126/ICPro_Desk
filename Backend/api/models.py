@@ -24,7 +24,7 @@ class Submission(models.Model):
     def __str__(self):
         return f"{self.assignId} - {self.date}"
 
-class TimesheetStatus(models.Model):
+class TimesheetWeekLog(models.Model):
     STATUS_CHOICES = [
         ('Requested', 'Requested'),
         ('Accepted', 'Accepted'),
@@ -37,7 +37,7 @@ class TimesheetStatus(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         db_index=True,
-        related_name='timesheet_statuses',
+        related_name='timesheet_week_logs',
     )
     timesheet_status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Requested', null=True)
     weeknumber = models.IntegerField(default=None, null=True, db_index=True)
@@ -55,4 +55,4 @@ class TimesheetStatus(models.Model):
         ]
 
     def __str__(self):
-        return f"TimesheetStatus({self.uid} - {self.weekyear}: W{self.weeknumber})"
+        return f"TimesheetWeekLog({self.uid} - {self.weekyear}: W{self.weeknumber})"

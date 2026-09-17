@@ -15,6 +15,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
@@ -45,6 +47,7 @@ import {
   pageContent,
   pageSubtitle,
   pageTitle,
+  priorityAlarmRowHighlight,
   priorityDueRowHighlight,
   tabs,
   tabsContainer,
@@ -167,6 +170,13 @@ export default function SelfTickets() {
     setRefreshKey((key) => key + 1);
   }, []);
 
+  const acknowledgeAlarm = useCallback(async (ticket: SelfTicketData) => {
+    if (!ticket.id) return;
+
+    await api.post(`/self-tickets/${ticket.id}/acknowledge-alarm/`);
+    setRefreshKey((key) => key + 1);
+  }, []);
+
   const columns = useMemo<ColumnData<SelfTicketData>[]>(
     () => [
       {
@@ -177,7 +187,7 @@ export default function SelfTickets() {
       },
       {
         label: "Task Number",
-        width: 195,
+        width: 230,
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
@@ -203,6 +213,18 @@ export default function SelfTickets() {
               </IconButton>
             </Tooltip>
             <Typography variant="body2">{row.number}</Typography>
+            {row.alarm && (
+              <Tooltip title="Acknowledge reminder">
+                <IconButton
+                  aria-label={`Acknowledge reminder ${row.number}`}
+                  size="small"
+                  color="warning"
+                  onClick={() => void acknowledgeAlarm(row)}
+                >
+                  <NotificationsActiveOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         ),
       },
@@ -213,8 +235,25 @@ export default function SelfTickets() {
       { label: "Type", dataKey: "type" },
       { label: "Priority", dataKey: "priority" },
       { label: "Est Hrs", dataKey: "est_hours" },
+      {
+        label: "Reminder",
+        width: 120,
+        render: (row) =>
+          row.alarm ? (
+            <Typography color="warning.main" fontWeight={700} fontSize={13}>
+              Active
+            </Typography>
+          ) : (
+            <Box sx={inlineCenterGapSx}>
+              <NotificationsOffOutlinedIcon color="disabled" fontSize="small" />
+              <Typography color="text.secondary" fontSize={13}>
+                Off
+              </Typography>
+            </Box>
+          ),
+      },
     ],
-    [userId, openDetails, openEdit],
+    [acknowledgeAlarm, userId, openDetails, openEdit],
   );
 
   const activeRows = tabValue === 0 ? tickets.self : tickets.others;
@@ -321,9 +360,7 @@ export default function SelfTickets() {
               data={filteredRows}
               onCardClick={openDetails}
               cardType="Self"
-              getCardStatus={(ticket) =>
-                isOpenDueTask(ticket) ? "warning" : undefined
-              }
+              onAcknowledgeAlarm={acknowledgeAlarm}
             />
           ) : (
             <VirtualizedTable
@@ -332,7 +369,9 @@ export default function SelfTickets() {
               height="100%"
               tableMinWidth="100%"
               getRowSx={(row) =>
-                isOpenDueTask(row)
+                row.alarm === true
+                  ? priorityAlarmRowHighlight(row.priority)
+                  : isOpenDueTask(row)
                   ? priorityDueRowHighlight(row.priority)
                   : undefined
               }

@@ -41,9 +41,14 @@ import {
   selfTicketsDetailModelAvatarSx1,
   selfTicketsDetailModelBoxSx1,
   selfTicketsDetailModelButtonSx1,
+  selfTicketsDetailModelDialogActionsSx,
+  selfTicketsDetailModelDialogContentSx,
+  selfTicketsDetailModelDialogPaperSx,
   selfTicketsDetailModelCommentPaperSx,
   selfTicketsDetailModelCommentTitleSx,
   selfTicketsDetailModelCommentWrapperSx,
+  selfTicketsDetailModelFooterButtonsSx,
+  selfTicketsDetailModelFooterStackSx,
   selfTicketsDetailModelDynamicDynamicBoxSx2,
   selfTicketsDetailModelDynamicDynamicChipSx1,
   selfTicketsDetailModelDynamicDynamiccommentBoxSx,
@@ -139,7 +144,17 @@ export default function TicketDetailModal({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <Dialog
+        open={open}
+        onClose={onClose}
+        fullWidth
+        maxWidth="md"
+        slotProps={{
+          paper: {
+            sx: selfTicketsDetailModelDialogPaperSx,
+          },
+        }}
+      >
         <DialogTitle component="div">
           <Stack
             direction="row"
@@ -215,7 +230,7 @@ export default function TicketDetailModal({
           </Stack>
         </DialogTitle>
 
-        <DialogContent>
+        <DialogContent sx={selfTicketsDetailModelDialogContentSx}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: task.logs?.length > 0 ? 8 : 12 }}>
               <Paper variant="outlined" sx={formSectionSx}>
@@ -374,10 +389,10 @@ export default function TicketDetailModal({
           </Grid>
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions sx={selfTicketsDetailModelDialogActionsSx}>
           {["open"].includes(task.current_status) &&
             task.creator === userId && (
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+              <Stack sx={selfTicketsDetailModelFooterStackSx}>
                 <Box
                   sx={selfTicketsDetailModelNoteBoxSx({
                     alpha,
@@ -395,11 +410,7 @@ export default function TicketDetailModal({
                 <Stack
                   direction="row"
                   spacing={1}
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    width: { xs: "100%", sm: "auto" },
-                  }}
+                  sx={selfTicketsDetailModelFooterButtonsSx}
                 >
                   <Button
                     onClick={() => setOpenProgressModal(true)}

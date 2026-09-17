@@ -16,9 +16,9 @@ import ForwardToInboxOutlinedIcon from "@mui/icons-material/ForwardToInboxOutlin
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
-import api from "../api/axios";
-import bgImage from "../assets/taskmanagementloginimage.jpg";
-import logo from "../assets/icpro_logo.svg";
+import api from "../../api/axios";
+import bgImage from "../../assets/taskmanagementloginimage.jpg";
+import logo from "../../assets/icpro_logo.svg";
 import {
   loginDynamicPageDynamicBoxSx1,
   loginPageBoxSx1,
@@ -27,7 +27,7 @@ import {
   loginPageCardSx1,
   loginPageCircularProgressSx1,
   marginBottomSectionSx,
-} from "../styles/common";
+} from "../../styles/common";
 
 export default function ForgotPassword() {
   const [username, setUsername] = useState("");

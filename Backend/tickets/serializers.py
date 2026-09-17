@@ -3,6 +3,7 @@ from .models import Ticket, Ticket_Log, Ticket_File, Self_Ticket,Self_Ticket_Log
 from core.emailContents import ticketCreateEmailBody
 from django.contrib.auth import get_user_model
 from datetime import date
+from users.models import DepartmentManager
 
 
 User = get_user_model()
@@ -54,7 +55,7 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = [
             'id', 'number', 'task', 'description', 'creator', 'creator_name', 'department','department_name',
-            'assigned_to', 'assigned_to_name', 'est_hours', 'target_date', 'rating',
+            'assigned_to', 'assigned_to_name', 'is_internal', 'est_hours', 'target_date', 'rating',
             'priority', 'current_status', 'created_at', 'updated_at', 'logs', 'files','attachments',
             'remarks', 'act_hours', 'actual_start_date', 'actual_end_date', 'work_efficiency', 'schedule_efficiency','latest_logremarks'
         ]
@@ -71,11 +72,48 @@ class TicketSerializer(serializers.ModelSerializer):
         return obj.assigned_to.get_full_name() or obj.assigned_to.username
 
     def validate(self, attrs):
+        request = self.context.get('request')
+        user = request.user if request and request.user and request.user.is_authenticated else None
+        is_internal = attrs.get(
+            'is_internal',
+            self.instance.is_internal if self.instance else False,
+        )
+        assigned_to = attrs.get(
+            'assigned_to',
+            self.instance.assigned_to if self.instance else None,
+        )
+
         if self.instance is None:
             if not attrs.get('department'):
                 raise serializers.ValidationError({'department': 'Department is required.'})
             if not attrs.get('assigned_to'):
                 raise serializers.ValidationError({'assigned_to': 'Assigned user is required.'})
+
+        if is_internal:
+            if not user:
+                raise serializers.ValidationError({'is_internal': 'Authentication is required for internal tickets.'})
+
+            is_department_manager = DepartmentManager.objects.filter(manager=user).exists()
+            is_lead = bool(getattr(getattr(user, 'profile', None), 'dept_role', False))
+
+            if not (is_department_manager or is_lead):
+                raise serializers.ValidationError(
+                    {'is_internal': 'Only a department manager or lead can create internal tickets.'}
+                )
+
+            if not assigned_to:
+                raise serializers.ValidationError({'assigned_to': 'Assigned user is required.'})
+
+            reports_to_user = (
+                getattr(getattr(assigned_to, 'profile', None), 'reporting_to_id', None)
+                == user.id
+            )
+
+            if not reports_to_user:
+                raise serializers.ValidationError(
+                    {'assigned_to': 'Internal tickets can be assigned only to immediate reportees.'}
+                )
+
         return attrs
     
     def create(self, validated_data):
@@ -126,10 +164,10 @@ class TicketSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         attachments = validated_data.pop("attachments", [])
+        remarks = validated_data.pop('remarks', None)
         old_status = instance.current_status
         new_status = validated_data.get('current_status', old_status)
         validated_data['current_status'] = new_status
-        remarks = validated_data.get('remarks')
         assigned_to = validated_data.get('assigned_to', instance.assigned_to)
         # Perform the actual update on the Ticket
         instance = super().update(instance, validated_data)
@@ -243,9 +281,10 @@ class TicketSerializer(serializers.ModelSerializer):
                                                     remarks)
             # send_mail(subject,html_content,[Receivermail])
         else:
-            logLatest = Ticket_Log.objects.filter(ticket=instance).latest('created_at')
-            logLatest.assigned_to = assigned_to
-            logLatest.save(update_fields=['assigned_to'])
+            logLatest = Ticket_Log.objects.filter(ticket=instance).order_by('-created_at').first()
+            if logLatest:
+                logLatest.assigned_to = assigned_to
+                logLatest.save(update_fields=['assigned_to'])
         return instance
 
 class TicketSummarySerializer(serializers.Serializer):

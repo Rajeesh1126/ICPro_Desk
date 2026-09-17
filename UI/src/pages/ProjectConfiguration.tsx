@@ -10,7 +10,6 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   TextField,
@@ -33,19 +32,16 @@ import {
 import {
   buttonLabelCompact,
   buttonLabelFull,
-  contentGrid,
-  contentGridItem,
   deleteIconSx,
   editIconSx,
-  filterSurface,
   inlineCenterGapSx,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
   pageSubtitle,
   pageTitle,
+  projectConfigurationPageHeaderActionsSx,
+  projectConfigurationPageHeaderContentSx,
+  projectConfigurationPageHeaderSx,
   scrollableContent,
   wideFilterField,
 } from "../styles/common";
@@ -75,6 +71,7 @@ type TaskConfig = {
 
 type DialogMode = "create" | "edit";
 type DialogType = "project" | "milestone" | "task";
+type ConfigTableType = "projects" | "milestones" | "tasks";
 type FormErrors = Record<string, string>;
 
 type ConfigTableRow = Record<string, unknown> & {
@@ -108,9 +105,6 @@ const emptyTaskForm = {
   description: "",
 };
 
-const tableHeight = (rowCount: number, maxHeight = 360) =>
-  `${Math.min(maxHeight, 112 + Math.max(rowCount, 1) * 43)}px`;
-
 export default function ProjectConfiguration() {
   const [projects, setProjects] = useState<ProjectConfig[]>([]);
   const [milestones, setMilestones] = useState<MilestoneConfig[]>([]);
@@ -131,6 +125,8 @@ export default function ProjectConfiguration() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [expandedConfigTable, setExpandedConfigTable] =
+    useState<ConfigTableType | null>("projects");
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -428,7 +424,7 @@ export default function ProjectConfiguration() {
 
   const actionColumn: ColumnData<ConfigTableRow> = {
     label: "Actions",
-    width: { xs: '20%', sm: '20%' },
+    width: 75,
     render: (row) => (
       <Box
         sx={{
@@ -464,24 +460,24 @@ export default function ProjectConfiguration() {
   };
 
   const projectColumns: ColumnData<ConfigTableRow>[] = [
-    { label: "Code", dataKey: "name", width: { xs: '40%', sm: '40%' } },
-    { label: "Description", dataKey: "description", width: { xs: '40%', sm: '40%' } },
+    { label: "Code", dataKey: "name", width: "auto" },
+    { label: "Description", dataKey: "description", width: "auto" },
     actionColumn,
   ];
 
   const milestoneColumns: ColumnData<ConfigTableRow>[] = [
-    { label: "Name", dataKey: "name", width: { xs: '40%', sm: '40%' } },
-    { label: "Category", dataKey: "category", width: { xs: '40%', sm: '40%' } },
+    { label: "Name", dataKey: "name", width: "auto" },
+    { label: "Category", dataKey: "category", width: "auto" },
     actionColumn,
   ];
 
   const taskColumns: ColumnData<ConfigTableRow>[] = [
-    { label: "Name", dataKey: "name", width: { xs: '20%', sm: '15%' } },
-    { label: "Milestone", dataKey: "milestone", width: { xs: '20%', sm: '20%' } },
+    { label: "Name", dataKey: "name", width: "auto" },
+    { label: "Milestone", dataKey: "milestone", width: "auto" },
     {
       label: "Cost",
       dataKey: "cost",
-      width: { xs: '20%', sm: '10%' },
+      width: { xs: "20%", sm: "10%" },
       numeric: true,
     },
     { label: "Description", dataKey: "description", width: "auto" },
@@ -539,9 +535,11 @@ export default function ProjectConfiguration() {
   return (
     <Box sx={page}>
       <Box component="main" sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Project Configuration</Typography>
+        <Box sx={projectConfigurationPageHeaderSx}>
+          <Box sx={projectConfigurationPageHeaderContentSx}>
+            <Typography variant="h5" sx={pageTitle}>
+              Project Configuration
+            </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Configure projects, milestones, and tasks without assigning users.
             </Typography>
@@ -549,15 +547,19 @@ export default function ProjectConfiguration() {
           <Stack
             direction={{ xs: "row-reverse", sm: "row" }}
             spacing={1}
-            sx={pageHeaderActions}
+            sx={projectConfigurationPageHeaderActionsSx}
           >
             <Button
               variant="contained"
               startIcon={<AddOutlinedIcon />}
               onClick={() => openProjectDialog("create")}
             >
-              <Box component="span" sx={buttonLabelFull}>New Project</Box>
-              <Box component="span" sx={buttonLabelCompact}>Project</Box>
+              <Box component="span" sx={buttonLabelFull}>
+                New Project
+              </Box>
+              <Box component="span" sx={buttonLabelCompact}>
+                Project
+              </Box>
             </Button>
             <Button
               variant="contained"
@@ -565,8 +567,12 @@ export default function ProjectConfiguration() {
               disabled={!selectedProject}
               onClick={() => openMilestoneDialog("create")}
             >
-              <Box component="span" sx={buttonLabelFull}>New Milestone</Box>
-              <Box component="span" sx={buttonLabelCompact}>Milestone</Box>
+              <Box component="span" sx={buttonLabelFull}>
+                New Milestone
+              </Box>
+              <Box component="span" sx={buttonLabelCompact}>
+                Milestone
+              </Box>
             </Button>
             <Button
               variant="contained"
@@ -574,87 +580,85 @@ export default function ProjectConfiguration() {
               disabled={!selectedProject}
               onClick={() => openTaskDialog("create")}
             >
-              <Box component="span" sx={buttonLabelFull}>New Task</Box>
-              <Box component="span" sx={buttonLabelCompact}>Task</Box>
+              <Box component="span" sx={buttonLabelFull}>
+                New Task
+              </Box>
+              <Box component="span" sx={buttonLabelCompact}>
+                Task
+              </Box>
             </Button>
           </Stack>
         </Box>
 
-        <Box sx={scrollableContent}>
-          <Paper
-            elevation={0}
-            sx={filterSurface}
+        <Box sx={{ ...scrollableContent, pt: 0.75 }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1}
+            alignItems={{ md: "center" }}
           >
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              alignItems={{ md: "center" }}
-            >
-              <FormControl
-                size="small"
-                sx={wideFilterField}
+            <FormControl sx={wideFilterField}>
+              <InputLabel>Project</InputLabel>
+              <Select
+                label="Project"
+                value={selectedProjectId}
+                onChange={(event) =>
+                  setSelectedProjectId(event.target.value as number | "")
+                }
               >
-                <InputLabel>Project</InputLabel>
-                <Select
-                  label="Project"
-                  value={selectedProjectId}
-                  onChange={(event) =>
-                    setSelectedProjectId(event.target.value as number | "")
-                  }
-                >
-                  {projects.map((project) => (
-                    <MenuItem key={project.id} value={project.id}>
-                      {project.code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant="body2" color="text.secondary">
-                {loading
-                  ? "Loading..."
-                  : `${visibleMilestones.length} milestones, ${visibleTasks.length} tasks`}
-              </Typography>
-            </Stack>
-          </Paper>
+                {projects.map((project) => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.code}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary">
+              {loading
+                ? "Loading..."
+                : `${visibleMilestones.length} milestones, ${visibleTasks.length} tasks`}
+            </Typography>
+          </Stack>
 
-          <Box sx={contentGrid}>
-            <Box sx={contentGridItem}>
-              <VirtualizedTable
-                tableHead="Projects"
-                height={tableHeight(projectRows.length)}
-                // tableMinWidth={520}
-                tableMinWidth="100%"
-                columns={projectColumns}
-                rows={projectRows}
-              />
-            </Box>
+          <Stack spacing={1.5} sx={{ height: "100%" }}>
+            <VirtualizedTable
+              tableHead="Projects"
+              height="100%"
+              tableMinWidth="100%"
+              columns={projectColumns}
+              rows={projectRows}
+              collapsible
+              expanded={expandedConfigTable === "projects"}
+              onExpandedChange={(expanded) =>
+                setExpandedConfigTable(expanded ? "projects" : null)
+              }
+            />
 
-            <Box sx={contentGridItem}>
-              <VirtualizedTable
-                tableHead={
-                  selectedProject
-                    ? `Milestones - ${selectedProject.code}`
-                    : "Milestones"
-                }
-                height={tableHeight(milestoneRows.length)}
-                tableMinWidth="100%"
-                columns={milestoneColumns}
-                rows={milestoneRows}
-              />
-            </Box>
+            <VirtualizedTable
+              tableHead="Milestones"
+              height="100%"
+              tableMinWidth="100%"
+              columns={milestoneColumns}
+              rows={milestoneRows}
+              collapsible
+              expanded={expandedConfigTable === "milestones"}
+              onExpandedChange={(expanded) =>
+                setExpandedConfigTable(expanded ? "milestones" : null)
+              }
+            />
 
-            <Box sx={contentGridItem}>
-              <VirtualizedTable
-                tableHead={
-                  selectedProject ? `Tasks - ${selectedProject.code}` : "Tasks"
-                }
-                height={tableHeight(taskRows.length)}
-                tableMinWidth={520}
-                columns={taskColumns}
-                rows={taskRows}
-              />
-            </Box>
-          </Box>
+            <VirtualizedTable
+              tableHead="Tasks"
+              height="100%"
+              tableMinWidth="100%"
+              columns={taskColumns}
+              rows={taskRows}
+              collapsible
+              expanded={expandedConfigTable === "tasks"}
+              onExpandedChange={(expanded) =>
+                setExpandedConfigTable(expanded ? "tasks" : null)
+              }
+            />
+          </Stack>
         </Box>
 
         <Dialog
@@ -729,7 +733,11 @@ export default function ProjectConfiguration() {
                     ))}
                   </Select>
                   {formErrors.project && (
-                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      sx={{ mt: 0.5, ml: 1.75 }}
+                    >
                       {formErrors.project}
                     </Typography>
                   )}
@@ -794,7 +802,11 @@ export default function ProjectConfiguration() {
                     ))}
                   </Select>
                   {formErrors.project && (
-                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      sx={{ mt: 0.5, ml: 1.75 }}
+                    >
                       {formErrors.project}
                     </Typography>
                   )}
@@ -890,6 +902,7 @@ export default function ProjectConfiguration() {
           description={`Delete ${deleteTarget?.label ?? "this item"}?`}
           confirmLabel={deleting ? "Deleting..." : "Delete"}
           confirmColor="error"
+          confirmIcon={<DeleteOutlinedIcon />}
           confirmDisabled={deleting}
           titleIcon={<DeleteOutlinedIcon fontSize="small" />}
           onClose={() => setDeleteTarget(null)}

@@ -119,6 +119,14 @@ def currentUserGroups(request):
         .distinct()
         .order_by('first_name', 'last_name', 'username')
     )
+    reportees = (
+        User.objects
+        .filter(profile__reporting_to=request.user)
+        .values('id', 'username', 'first_name', 'last_name', 'email')
+        .distinct()
+        .order_by('first_name', 'last_name', 'username')
+    )
+    profile = getattr(request.user, 'profile', None)
     data = {
         "department_ids": department_ids,
         "departments": DepartmentSerializer(departments, many=True).data,
@@ -128,6 +136,10 @@ def currentUserGroups(request):
             many=True,
         ).data,
         "userslist": list(userslist),
+        "reportees": list(reportees),
+        "can_create_internal_ticket": bool(
+            managed_departments.exists() or getattr(profile, 'dept_role', False)
+        ),
     }
     return Response(data)
 

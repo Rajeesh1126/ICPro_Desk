@@ -1,0 +1,461 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  IconButton,
+  Stack,
+  Tab,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
+import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
+import {
+  VirtualizedTable,
+  type ColumnData,
+} from "../../components/common/TableView";
+import CreateTicketModal from "../../components/tickets/CreateModal";
+import TicketDetailModal from "../../components/tickets/DetailModal";
+import TicketCardView from "../../components/common/CardView";
+import type {
+  groupData,
+  TicketCollections,
+  TicketData,
+  TicketLog,
+  UserSummary,
+} from "../../types/dataTypes";
+import api from "../../api/axios";
+import {
+  buttonLabelCompact,
+  buttonLabelFull,
+  inlineCenterGapSx,
+  pageHeaderActions,
+  pageHeaderContent,
+  pageHeader,
+  page,
+  pageContent,
+  pageSubtitle,
+  pageTitle,
+  priorityAlarmRowHighlight,
+  priorityDueRowHighlight,
+  tabs,
+  tabsContainer,
+  tablePageContent,
+  toggleButton,
+} from "../../styles/common";
+
+type CurrentUserGroupsResponse = {
+  departments?: groupData[];
+  managed_departments?: groupData[];
+  reportees?: UserSummary[];
+  can_create_internal_ticket?: boolean;
+};
+
+const emptyTickets: TicketCollections = {
+  all: [],
+  assigned: [],
+  created: [],
+  closed: [],
+  rejected: [],
+  recalled: [],
+};
+
+function loggedUser(): number | null {
+  const value = localStorage.getItem("user");
+  const id = value ? Number(value) : NaN;
+
+  return Number.isInteger(id) ? id : null;
+}
+
+function parseTicketDueDay(value: string | null | undefined) {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
+  }
+
+  const normalizedValue = value.replace(" ", "T");
+  const dueDate = new Date(normalizedValue);
+  const timestamp = dueDate.getTime();
+  dueDate.setHours(0, 0, 0, 0);
+
+  return Number.isNaN(timestamp) ? null : dueDate.getTime();
+}
+
+function isOpenOrInProgressDueTicket(ticket: TicketData) {
+  const dueDay = parseTicketDueDay(ticket.target_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const status = ticket.current_status?.toLowerCase() ?? "";
+  const activeStatuses = [
+    "open",
+    "modified",
+    "reopened",
+    "in progress",
+    "assigned",
+    "not-satisfied",
+    "accepted",
+    "recall requested",
+  ];
+
+  return (
+    dueDay !== null &&
+    dueDay <= today.getTime() &&
+    activeStatuses.includes(status)
+  );
+}
+
+export default function InternalTickets() {
+  const userId = useMemo(() => loggedUser(), []);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
+  const [view, setView] = useState<"table" | "card">("table");
+  const [tabValue, setTabValue] = useState(0);
+  const [tickets, setTickets] = useState<TicketCollections>(emptyTickets);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [departments, setDepartments] = useState<groupData[]>([]);
+  const [reportees, setReportees] = useState<UserSummary[]>([]);
+  const [canCreateInternalTicket, setCanCreateInternalTicket] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .get<CurrentUserGroupsResponse>("/users/currentUserGroups/")
+      .then((response) => {
+        if (!active) return;
+
+        const managedDepartments = Array.isArray(response.data.managed_departments)
+          ? response.data.managed_departments
+          : [];
+        const allDepartments = Array.isArray(response.data.departments)
+          ? response.data.departments
+          : [];
+
+        setDepartments(managedDepartments.length ? managedDepartments : allDepartments);
+        setReportees(Array.isArray(response.data.reportees) ? response.data.reportees : []);
+        setCanCreateInternalTicket(Boolean(response.data.can_create_internal_ticket));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .get("/tickets/", {
+        params: {
+          is_internal: true,
+        },
+      })
+      .then((response) => {
+        if (!active) return;
+
+        const source = (
+          Array.isArray(response.data) ? response.data : []
+        ) as TicketData[];
+        const all = source.map((ticket) => {
+            const latestAcceptedLog: TicketLog | null =
+              ticket.current_status === "assigned"
+                ? (ticket.logs?.find((log) => log.status.includes("open")) ??
+                  null)
+                : null;
+
+            return {
+              ...ticket,
+              assigned_to_name: ticket.assigned_to_name || "Unassigned",
+              creator_name: ticket.creator_name || "Unassigned",
+              display_status: ticket.current_status,
+              latestAcceptedLog,
+            };
+          });
+        const inactiveStatuses = ["rejected", "closed", "recall successful"];
+
+        setTickets({
+          all: all.filter(
+            (ticket) =>
+              ticket.assigned_to === userId || ticket.creator === userId,
+          ),
+          assigned: all.filter(
+            (ticket) =>
+              (!inactiveStatuses.includes(ticket.current_status) &&
+                ticket.assigned_to === userId) ||
+              ticket.latestAcceptedLog?.assigned_to === userId,
+          ),
+          created: all.filter(
+            (ticket) =>
+              ticket.creator === userId &&
+              !inactiveStatuses.includes(ticket.current_status),
+          ),
+          closed: all.filter(
+            (ticket) =>
+              (ticket.assigned_to === userId || ticket.creator === userId) &&
+              ticket.display_status === "closed",
+          ),
+          rejected: all.filter(
+            (ticket) =>
+              ticket.current_status === "rejected" &&
+              (ticket.assigned_to === userId || ticket.creator === userId),
+          ),
+          recalled: all.filter(
+            (ticket) =>
+              ticket.current_status === "recall successful" &&
+              (ticket.assigned_to === userId || ticket.creator === userId),
+          ),
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [userId, refreshKey]);
+
+  const openCreate = useCallback(() => {
+    setSelectedRow(null);
+    setEditing(false);
+    setDialogOpen(true);
+  }, []);
+
+  const openEdit = useCallback((ticket: TicketData) => {
+    setSelectedRow(ticket);
+    setEditing(true);
+    setDialogOpen(true);
+  }, []);
+
+  const openDetails = useCallback((ticket: TicketData) => {
+    setSelectedRow(ticket);
+    setEditing(false);
+    setDialogOpen(true);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogOpen(false);
+    setEditing(false);
+    setSelectedRow(null);
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  const columns = useMemo<ColumnData<TicketData>[]>(
+    () => [
+      {
+        label: "#",
+        width: 20,
+        render: (_row, index) => index + 1,
+        numeric: true,
+      },
+      {
+        label: "Ticket Number",
+        width: 195,
+        render: (row) => (
+          <Box sx={inlineCenterGapSx}>
+            <Tooltip title="View details">
+              <IconButton
+                aria-label={`View ${row.number}`}
+                color="primary"
+                onClick={() => openDetails(row)}
+              >
+                <VisibilityOutlinedIcon fontSize="small" color="primary" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit ticket">
+              <IconButton
+                aria-label={`Edit ${row.number}`}
+                onClick={() => openEdit(row)}
+                color="secondary"
+                disabled={
+                  row.creator !== userId ||
+                  [
+                    "closed",
+                    "recall successful",
+                    "recall requested",
+                    "completed",
+                  ].includes(row.current_status)
+                }
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="body2">{row.number}</Typography>
+          </Box>
+        ),
+      },
+      { label: "Subject", dataKey: "task", width: 350 },
+      { label: "Status", dataKey: "current_status" },
+      { label: "Assigned By", dataKey: "creator_name" },
+      { label: "Assigned To", dataKey: "assigned_to_name" },
+      { label: "Team", dataKey: "department_name" },
+      { label: "Priority", dataKey: "priority" },
+      { label: "Est Hrs", dataKey: "est_hours" },
+      { label: "Target Completion", dataKey: "target_date" },
+      { label: "Actual Completion", dataKey: "actual_end_date" },
+    ],
+    [userId, openDetails, openEdit],
+  );
+
+  const activeRows =
+    [
+      tickets.all,
+      tickets.assigned,
+      tickets.created,
+      tickets.rejected,
+      tickets.recalled,
+      tickets.closed,
+    ][tabValue] ?? tickets.all;
+  const canOpenCreate = canCreateInternalTicket && reportees.length > 0 && departments.length > 0;
+
+  return (
+    <Box sx={page}>
+      <Box component="main" sx={pageContent}>
+        <Box sx={pageHeader}>
+          <Box sx={pageHeaderContent}>
+            <Typography variant="h5" sx={pageTitle}>Internal Tickets</Typography>
+            <Typography variant="body2" sx={pageSubtitle}>
+              Raise and track internal tickets for your immediate reportees.
+            </Typography>
+          </Box>
+          <Stack
+            direction={{ xs: "row", sm: "row" }}
+            spacing={1}
+            sx={pageHeaderActions}
+          >
+            {tabValue === 0 && (
+              <Tooltip
+                title={
+                  canOpenCreate
+                    ? "Create internal ticket"
+                    : "Internal tickets require a managed department and immediate reportees"
+                }
+              >
+                <span>
+                  <Button
+                    startIcon={<AddOutlinedIcon />}
+                    variant="contained"
+                    onClick={openCreate}
+                    disabled={!canOpenCreate}
+                  >
+                    <Box component="span" sx={buttonLabelFull}>New Internal Ticket</Box>
+                    <Box component="span" sx={buttonLabelCompact}>New</Box>
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
+            <ToggleButtonGroup
+              exclusive
+              value={view}
+              size="small"
+              onChange={(_, next: "table" | "card" | null) => {
+                if (!next) return;
+                setView(next);
+                if (next === "card" && tabValue > 2) {
+                  setTabValue(0);
+                }
+              }}
+              aria-label="Task view"
+              sx={toggleButton}
+            >
+              <Tooltip title="Table view" arrow>
+                <ToggleButton value="table" aria-label="Table view">
+                  <TableRowsOutlinedIcon fontSize="small" />
+                </ToggleButton>
+              </Tooltip>
+              <Tooltip title="Board view" arrow>
+                <ToggleButton value="card" aria-label="Board view">
+                  <ViewKanbanOutlinedIcon fontSize="small" />
+                </ToggleButton>
+              </Tooltip>
+            </ToggleButtonGroup>
+          </Stack>
+        </Box>
+
+        <Box sx={tabsContainer}>
+          <Tabs
+            value={tabValue}
+            onChange={(_, value: number) => setTabValue(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={tabs}
+          >
+            <Tab label={`Overview (${tickets.all.length})`} />
+            <Tab label={`Assigned To Me (${tickets.assigned.length})`} />
+            <Tab label={`Assigned By Me (${tickets.created.length})`} />
+            {view !== "card" && (
+              <Tab label={`Rejected (${tickets.rejected.length})`} />
+            )}
+            {view !== "card" && (
+              <Tab label={`Recalled (${tickets.recalled.length})`} />
+            )}
+            {view !== "card" && (
+              <Tab label={`Closed (${tickets.closed.length})`} />
+            )}
+          </Tabs>
+        </Box>
+
+        <Box sx={tablePageContent}>
+          {view === "card" ? (
+            <TicketCardView
+              data={activeRows}
+              onCardClick={openDetails}
+              cardType="Ticket"
+            />
+          ) : (
+            <VirtualizedTable
+              columns={columns}
+              rows={activeRows}
+              height="100%"
+              getRowSx={(row) =>
+                row.alarm === true
+                  ? priorityAlarmRowHighlight(row.priority)
+                  : isOpenOrInProgressDueTicket(row)
+                  ? priorityDueRowHighlight(row.priority)
+                  : undefined
+              }
+              tableHead="Internal Tickets"
+            />
+          )}
+        </Box>
+      </Box>
+
+      {!selectedRow && !editing && (
+        <CreateTicketModal
+          open={dialogOpen}
+          handleClose={closeDialog}
+          Data={null}
+          internalMode
+          departmentsOverride={departments}
+          assignableUsers={reportees}
+        />
+      )}
+      {selectedRow && !editing && (
+        <TicketDetailModal
+          open={dialogOpen}
+          onClose={closeDialog}
+          data={selectedRow}
+        />
+      )}
+      {selectedRow && editing && (
+        <CreateTicketModal
+          open={dialogOpen}
+          handleClose={closeDialog}
+          Data={selectedRow}
+          internalMode
+          departmentsOverride={departments}
+          assignableUsers={reportees}
+        />
+      )}
+    </Box>
+  );
+}

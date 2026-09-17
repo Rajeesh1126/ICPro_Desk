@@ -19,14 +19,16 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
-import api from "../api/axios";
-import { showNotification } from "../api/notificationService";
-import { formatDateTime } from "../components/common/formatDate";
+import api from "../../api/axios";
+import { showNotification } from "../../api/notificationService";
+import { formatDateTime } from "../../components/common/formatDate";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "../../components/common/TableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -40,7 +42,8 @@ import {
   pageSubtitle,
   pageTitle,
   responsiveRightActions,
-} from "../styles/common";
+  deleteIconSx,
+} from "../../styles/common";
 
 type DocumentType = "FDS" | "SDS" | "Template" | "Other";
 
@@ -83,7 +86,8 @@ const resolveFileUrl = (filePath: string) => {
   if (!filePath) return "";
   if (/^https?:\/\//i.test(filePath)) return filePath;
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const baseUrl = new URL(apiBaseUrl, window.location.origin).origin;
   return new URL(filePath, baseUrl).toString();
 };
 
@@ -92,6 +96,8 @@ export default function Documents() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<DocumentFormState>(emptyForm);
   const [editingDocument, setEditingDocument] =
+    useState<DocumentTemplate | null>(null);
+  const [deleteDocument, setDeleteDocument] =
     useState<DocumentTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -203,6 +209,18 @@ export default function Documents() {
     link.click();
   };
 
+  const handleDeleteDocument = async () => {
+    if (!deleteDocument) return;
+
+    await api.delete(`/documents/document-templates/${deleteDocument.id}/`);
+    showNotification({
+      type: "success",
+      message: "Document deleted successfully.",
+    });
+    setDeleteDocument(null);
+    await loadDocuments();
+  };
+
   const columns = useMemo<ColumnData<DocumentTemplate>[]>(
     () => [
       {
@@ -264,6 +282,14 @@ export default function Documents() {
                 onClick={() => downloadDocument(row)}
               >
                 <DownloadOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete document">
+              <IconButton
+                size="small"
+                onClick={() => setDeleteDocument(row)}
+              >
+                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -423,6 +449,18 @@ export default function Documents() {
           </Button>
         </DialogActions>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteDocument)}
+        onClose={() => setDeleteDocument(null)}
+        title="Delete Document"
+        description={`Delete "${deleteDocument?.document_name || "this document"}"?`}
+        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
+        confirmLabel="Delete"
+        confirmColor="error"
+        confirmIcon={<DeleteOutlinedIcon />}
+        tone="error"
+        onConfirm={handleDeleteDocument}
+      />
     </Box>
   );
 }

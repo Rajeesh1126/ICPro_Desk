@@ -92,6 +92,7 @@ export interface TicketFile {
 }
 
 export interface TicketData {
+  alarm?: boolean;
   [key: string]: unknown;
   id?: number;
   number: string;
@@ -101,6 +102,7 @@ export interface TicketData {
   est_hours?: number;
   priority: string;
   current_status: string;
+  is_internal?: boolean;
   target_date: string;
   assigned_to_name?: string | null;
   creator_name?: string;
@@ -130,6 +132,7 @@ export interface TicketFormData {
   department?: number | "";
   est_hours?: number;
   current_status?: string;
+  is_internal?: boolean;
   priority: string;
   target_date: string;
   assigned_to: number | "";
@@ -180,6 +183,7 @@ export interface SelfTicketData {
   reporting_to: number;
   creator_name?: string;
   reminder_interval?: number | 0;
+  alarm?: boolean;
   comments?: string | "";
   team?: number;
   team_name?: string;

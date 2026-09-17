@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from projects.models import AssignedTask, Project
 from tickets.models import Ticket
-from .models import Submission, TimesheetStatus
+from .models import Submission, TimesheetWeekLog
 
 User = get_user_model()
 
@@ -187,9 +187,13 @@ class ApprovalActionSerializer(serializers.Serializer):
         project_code = getattr(assigned_task.project_obj, 'code', '') or ''
         is_others_project = project_code.strip().lower() == 'others'
 
-        if not is_others_project and attrs.get('rating', 0) < 1:
+        if (
+            attrs.get('action') == 'Accepted'
+            and not is_others_project
+            and attrs.get('rating', 0) < 1
+        ):
             raise serializers.ValidationError({
-                'rating': 'Rating is required before approving or rejecting.'
+                'rating': 'Rating is required before approving.'
             })
 
         return attrs
@@ -198,14 +202,14 @@ class ApprovalActionSerializer(serializers.Serializer):
 
 
 # (querysets provided above)
-class TimesheetStatusSerializer(serializers.ModelSerializer):
+class TimesheetWeekLogSerializer(serializers.ModelSerializer):
     uid = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
     first_name = serializers.SerializerMethodField()
-    timesheet_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
-    # unlock_status = serializers.ChoiceField(choices=TimesheetStatus.STATUS_CHOICES)
+    timesheet_status = serializers.ChoiceField(choices=TimesheetWeekLog.STATUS_CHOICES)
+    # unlock_status = serializers.ChoiceField(choices=TimesheetWeekLog.STATUS_CHOICES)
 
     class Meta:
-        model = TimesheetStatus
+        model = TimesheetWeekLog
         fields = [
             'id', 'uid', 'first_name', 'timesheet_status', 'weeknumber', 'submission_status', 'action_status',
             'weekyear', 'created_date', 'unlock_reason',  'updated_date', 'comments',

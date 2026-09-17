@@ -341,7 +341,7 @@ export default function TicketDetailModal({
                       >
                         <Box>
                           <Typography sx={detailLabelSx}>
-                            Estimated hrs
+                            Estimated
                           </Typography>
                           <Typography
                             sx={ticketsDetailModalDynamicDynamicTypographySx3({

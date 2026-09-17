@@ -14,10 +14,10 @@ import {
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
-import type { UsersData, groupData } from "../types/dataTypes";
+import type { UsersData, groupData } from "../../types/dataTypes";
 
-import UserCreateModal from "../components/users/UserCreateModal";
-import GroupCreateModal from "../components/users/GroupCreateModal";
+import UserCreateModal from "../../components/users/UserCreateModal";
+import GroupCreateModal from "../../components/users/GroupCreateModal";
 
 import {
   buttonLabelCompact,
@@ -34,13 +34,13 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
-} from "../styles/common";
-import api from "../api/axios";
+} from "../../styles/common";
+import api from "../../api/axios";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
-import { showNotification } from "../api/notificationService";
+} from "../../components/common/TableView";
+import { showNotification } from "../../api/notificationService";
 
 function storedUserId(): number | null {
   const value = localStorage.getItem("user");

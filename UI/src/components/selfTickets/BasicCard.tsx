@@ -5,17 +5,20 @@ import {
   Box,
   Chip,
   Divider,
+  IconButton,
   Stack,
+  Tooltip,
 } from "@mui/material";
+import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 
 import { alpha } from "@mui/material/styles";
 import type { SelfTicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
   compactTextSx,
+  alarmBellSx,
   detailLabelSx,
   detailValueSx,
-  dueTaskChip,
   secondaryTextSx,
   // secondaryTextSx,
   selfTicketsBasicCardBoxSx1,
@@ -31,16 +34,16 @@ import {
 interface BasicCardProps {
   ticket: SelfTicketData;
   onOpen: (data: SelfTicketData) => void;
-  highlighted?: boolean;
+  onAcknowledgeAlarm?: (data: SelfTicketData) => void;
 }
 const currentUserParsed = Number(localStorage.getItem("user") || "null");
 
 const userId = currentUserParsed ?? null;
 
 export default function BasicCardSelfTicket({
-  highlighted = false,
   ticket,
   onOpen,
+  onAcknowledgeAlarm,
 }: BasicCardProps) {
   if (!ticket?.number) return null;
 
@@ -58,6 +61,7 @@ export default function BasicCardSelfTicket({
   };
 
   const styles = getPriorityStyles(ticket.priority);
+  const highlighted = ticket.alarm === true;
 
   return (
     <Card
@@ -85,7 +89,19 @@ export default function BasicCardSelfTicket({
             sx={secondaryTextSx}
           >
             {highlighted && (
-              <Chip label="Due" size="small" sx={dueTaskChip(styles.color)} />
+              <Tooltip title="Acknowledge reminder">
+                <IconButton
+                  aria-label={`Acknowledge reminder ${ticket.number}`}
+                  size="small"
+                  sx={{ color: styles.color }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAcknowledgeAlarm?.(ticket);
+                  }}
+                >
+                  <NotificationsActiveRoundedIcon fontSize="small" sx={alarmBellSx} />
+                </IconButton>
+              </Tooltip>
             )}
             {ticket.creator !== userId ? (
               <Typography sx={compactTextSx}>
@@ -118,7 +134,7 @@ export default function BasicCardSelfTicket({
             </Typography>
           </Box>
           <Box>
-            <Typography sx={detailLabelSx}>Due date</Typography>
+            <Typography sx={detailLabelSx}>Target date</Typography>
             <Typography sx={detailValueSx}>
               {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
             </Typography>

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Submission, TimesheetStatus
+from .models import Submission, TimesheetWeekLog
 
 
 @admin.register(Submission)
@@ -9,8 +9,8 @@ class SubmissionAdmin(admin.ModelAdmin):
     list_filter = ['approved_status', 'date']
 
 
-@admin.register(TimesheetStatus)
-class TimesheetStatusAdmin(admin.ModelAdmin):
+@admin.register(TimesheetWeekLog)
+class TimesheetWeekLogAdmin(admin.ModelAdmin):
     list_display = [
         'uid',
         'timesheet_status',

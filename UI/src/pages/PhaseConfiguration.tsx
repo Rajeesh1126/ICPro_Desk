@@ -34,7 +34,6 @@ import {
   dashedMutedChip,
   footerSurface,
   helperText,
-  helperTextSpaced,
   mappedTagChip,
   metaChip,
   minWidthZero,
@@ -231,7 +230,7 @@ export default function PhaseConfiguration() {
   const columns: ColumnData<CostCategoryRow>[] = [
     {
       label: "Map",
-      width: 70,
+      width: { xs: "14%", sm: 70 },
       render: (row) => (
         <Checkbox
           checked={row.selected}
@@ -242,10 +241,14 @@ export default function PhaseConfiguration() {
         />
       ),
     },
-    { label: "Cost Category", dataKey: "name" },
+    {
+      label: "Cost Category",
+      dataKey: "name",
+      width: { xs: "46%", sm: "auto" },
+    },
     {
       label: "Mapped Phases",
-      width: 260,
+      width: { xs: "40%", sm: 260 },
       render: (row) => (
         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
           {row.mappedPhases === "Unmapped" ? (
@@ -300,7 +303,7 @@ export default function PhaseConfiguration() {
         <Box sx={scrollableContent}>
           <Box sx={sectionInset}>
             <Typography sx={stepLabel}>Step 1 - Choose Phase</Typography>
-            <Typography sx={helperTextSpaced}>
+            <Typography sx={helperText}>
               Pick the phase you want to configure.
             </Typography>
             <ToggleButtonGroup
@@ -312,7 +315,12 @@ export default function PhaseConfiguration() {
             >
               {phaseOptions.map((phase) => (
                 <ToggleButton key={phase} value={phase}>
-                  {phaseMeta[phase]?.icon}
+                  <Box
+                    alignItems='center'
+                    sx={{ display: { xs: "none", sm: "flex" } }}
+                  >
+                    {phaseMeta[phase]?.icon}
+                  </Box>
                   {phase}
                   <Chip
                     label={mappedCountByPhase[phase] ?? 0}
@@ -340,6 +348,7 @@ export default function PhaseConfiguration() {
                 height="100%"
                 columns={columns}
                 rows={rows}
+                tableMinWidth="100%"
                 onRowClick={(row) => toggleCategory(row.id, !row.selected)}
               />
             </Box>
@@ -348,7 +357,7 @@ export default function PhaseConfiguration() {
           <Box sx={footerSurface}>
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              spacing={2}
+              spacing={1}
               rowGap={1.5}
               flexWrap="wrap"
               alignItems={{ xs: "stretch", sm: "center" }}

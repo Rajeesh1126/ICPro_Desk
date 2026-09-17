@@ -11,34 +11,38 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import ArticleIcon from "@mui/icons-material/Article";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import EventNoteIcon from "@mui/icons-material/EventNote";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
+import GroupsIcon from "@mui/icons-material/Groups";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import InsightsIcon from "@mui/icons-material/Insights";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
-import BadgeIcon from "@mui/icons-material/Badge";
-import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
-import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
-import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import AnalyticsIcon from "@mui/icons-material/Analytics";
-import AnalyticsOutlinedIcon from "@mui/icons-material/AnalyticsOutlined";
-import AssessmentIcon from "@mui/icons-material/Assessment";
-import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
-import HomeIcon from "@mui/icons-material/Home";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import FactCheckIcon from "@mui/icons-material/FactCheck";
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
-import RuleFolderIcon from "@mui/icons-material/RuleFolder";
-import RuleFolderOutlinedIcon from "@mui/icons-material/RuleFolderOutlined";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
-import CategoryIcon from "@mui/icons-material/Category";
-import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
-import DescriptionIcon from "@mui/icons-material/Description";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import FeedbackIcon from "@mui/icons-material/Feedback";
-import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
-import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import QueryStatsOutlinedIcon from "@mui/icons-material/QueryStatsOutlined";
+import RateReviewIcon from "@mui/icons-material/RateReview";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import SchemaIcon from "@mui/icons-material/Schema";
+import SchemaOutlinedIcon from "@mui/icons-material/SchemaOutlined";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import TuneIcon from "@mui/icons-material/Tune";
+import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
+import WorkHistoryOutlinedIcon from "@mui/icons-material/WorkHistoryOutlined";
 import Header from "../components/appBar/Header";
 import {
   appMain,
@@ -74,92 +78,81 @@ const pages: readonly SidebarPage[] = [
   {
     label: "Home",
     path: "/Home",
-    icon: <HomeOutlinedIcon />,
-    activeIcon: <HomeIcon />,
-    iconColor: "#1976d2",
+    icon: <DashboardOutlinedIcon />,
+    activeIcon: <DashboardIcon />,
+    iconColor: "#2563eb",
   },
   {
     label: "Do List",
     section: "Tickets",
     path: "/Home/SelfTickets",
-    icon: <FormatListBulletedOutlinedIcon />,
-    activeIcon: <FormatListBulletedIcon />,
-    iconColor: "#0288d1",
+    icon: <AssignmentTurnedInOutlinedIcon />,
+    activeIcon: <AssignmentTurnedInIcon />,
+    iconColor: "#0891b2",
     codeName: "access_self_tickets",
   },
   {
     label: "Tickets",
     section: "Tickets",
     path: "/Home/Tickets",
-    icon: <ConfirmationNumberOutlinedIcon />,
-    activeIcon: <ConfirmationNumberIcon />,
-    iconColor: "#2e7d32",
+    icon: <SupportAgentOutlinedIcon />,
+    activeIcon: <SupportAgentIcon />,
+    iconColor: "#16a34a",
+    codeName: "access_tickets",
+  },
+  {
+    label: "Work Let",
+    section: "Tickets",
+    path: "/Home/InternalTickets",
+    icon: <WorkHistoryOutlinedIcon />,
+    activeIcon: <WorkHistoryIcon />,
+    iconColor: "#0f766e",
     codeName: "access_tickets",
   },
   {
     label: "Timesheet",
     section: "Timesheet",
     path: "/Home/TimeSheet",
-    icon: <FactCheckOutlinedIcon />,
-    activeIcon: <FactCheckIcon />,
-    iconColor: "#d32f2f",
+    icon: <CalendarMonthOutlinedIcon />,
+    activeIcon: <CalendarMonthIcon />,
+    iconColor: "#dc2626",
     codeName: "access_timesheet",
   },
- 
-  {
-    label: "Document Templates",
-    section: "General",
-    path: "/Home/Documents",
-    icon: <DescriptionOutlinedIcon />,
-    activeIcon: <DescriptionIcon />,
-    iconColor: "#455a64",
-    codeName: "access_document_template",
-  },
-  {
-    label: "Suggestion / Feedback",
-    section: "General",
-    path: "/Home/Suggestions",
-    icon: <FeedbackOutlinedIcon />,
-    activeIcon: <FeedbackIcon />,
-    iconColor: "#00897b",
-    codeName: "access_system_suggetions",
-  },
-  {
-    label: "Lesson Learnt",
-    section: "General",
-    path: "/Home/LessonLearnt",
-    icon: <PsychologyAltOutlinedIcon />,
-    activeIcon: <PsychologyAltIcon />,
-    iconColor: "#6d4c41",
-    codeName: "access_lesson_learnt",
-  },
-
   {
     label: "Executive Overview",
     section: "Analysis",
     path: "/Home/Reports",
-    icon: <AssessmentOutlinedIcon />,
-    activeIcon: <AssessmentIcon />,
-    iconColor: "#ed6c02",
+    icon: <InsightsOutlinedIcon />,
+    activeIcon: <InsightsIcon />,
+    iconColor: "#ea580c",
     codeName: "access_executive_overview",
   },
   {
     label: "Team Analysis",
     section: "Analysis",
     path: "/Home/Dashboard",
-    icon: <AnalyticsOutlinedIcon />,
-    activeIcon: <AnalyticsIcon />,
-    iconColor: "#9c27b0",
+    icon: <GroupsOutlinedIcon />,
+    activeIcon: <GroupsIcon />,
+    iconColor: "#7c3aed",
     codeName: "access_team_analysis",
   },
-   {
+  {
     label: "Timesheet Logs",
     section: "Analysis",
     path: "/Home/TimesheetLogs",
-    icon: <RuleFolderOutlinedIcon />,
-    activeIcon: <RuleFolderIcon />,
-    iconColor: "#7b1fa2",
+    icon: <EventNoteOutlinedIcon />,
+    activeIcon: <EventNoteIcon />,
+    iconColor: "#9333ea",
     codeName: "access_timesheet_log",
+  },
+  {
+    label: "Timesheet Analysis",
+    section: "Analysis",
+    path: "/Home/TimesheetAnalysis",
+    icon: <QueryStatsOutlinedIcon />,
+    activeIcon: <QueryStatsIcon />,
+    iconColor: "#0284c7",
+    codeName: "access_timesheet",
   },
   {
     label: "Users Managment",
@@ -174,17 +167,17 @@ const pages: readonly SidebarPage[] = [
     label: "Roles Managment",
     section: "User Management",
     path: "/Home/Roles",
-    icon: <BadgeOutlinedIcon />,
-    activeIcon: <BadgeIcon />,
-    iconColor: "#3949ab",
+    icon: <AdminPanelSettingsOutlinedIcon />,
+    activeIcon: <AdminPanelSettingsIcon />,
+    iconColor: "#4f46e5",
     codeName: "access_role_management",
   },
   {
     label: "Project Configuration",
     section: "Configuration",
     path: "/Home/ProjectConfiguration",
-    icon: <AccountTreeOutlinedIcon />,
-    activeIcon: <AccountTreeIcon />,
+    icon: <SchemaOutlinedIcon />,
+    activeIcon: <SchemaIcon />,
     iconColor: "#00695c",
     codeName: "access_project_configuration",
   },
@@ -192,11 +185,38 @@ const pages: readonly SidebarPage[] = [
     label: "Phase Configuration",
     section: "Configuration",
     path: "/Home/PhaseConfiguration",
-    icon: <CategoryOutlinedIcon />,
-    activeIcon: <CategoryIcon />,
-    iconColor: "#5d4037",
+    icon: <TuneOutlinedIcon />,
+    activeIcon: <TuneIcon />,
+    iconColor: "#64748b",
     codeName: "access_phase_configuration",
   },
+  {
+    label: "Document Templates",
+    section: "General",
+    path: "/Home/Documents",
+    icon: <ArticleOutlinedIcon />,
+    activeIcon: <ArticleIcon />,
+    iconColor: "#475569",
+    codeName: "access_document_template",
+  },
+  {
+    label: "Suggestion / Feedback",
+    section: "General",
+    path: "/Home/Suggestions",
+    icon: <RateReviewOutlinedIcon />,
+    activeIcon: <RateReviewIcon />,
+    iconColor: "#059669",
+    codeName: "access_system_suggetions",
+  },
+  {
+    label: "Lesson Learnt",
+    section: "General",
+    path: "/Home/LessonLearnt",
+    icon: <LightbulbOutlinedIcon />,
+    activeIcon: <LightbulbIcon />,
+    iconColor: "#ca8a04",
+    codeName: "access_lesson_learnt",
+  }
 ] as const;
 
 function getStoredPermissions(): string[] {

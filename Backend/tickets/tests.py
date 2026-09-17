@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -7,6 +8,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from .models import Self_Ticket, Self_Ticket_Log, Ticket, Ticket_Log
+from .services.self_ticket_reminders import send_self_ticket_reminders
+from users.models import DepartmentManager, UserProfile
 
 
 User = get_user_model()
@@ -128,6 +131,43 @@ class TicketCrudApiTests(TestCase):
         self.assertIn("department", response.data)
         self.assertIn("assigned_to", response.data)
 
+    def test_department_manager_can_create_internal_ticket_for_immediate_reportee(self):
+        UserProfile.objects.create(user=self.user, dept_role=False)
+        UserProfile.objects.create(user=self.assigned_to, reporting_to=self.user)
+        DepartmentManager.objects.create(department=self.department, manager=self.user)
+
+        response = self.create_ticket(is_internal=True)
+
+        ticket = Ticket.objects.get(id=response.data["id"])
+        self.assertTrue(ticket.is_internal)
+        self.assertEqual(ticket.assigned_to, self.assigned_to)
+
+    def test_internal_ticket_requires_immediate_reportee(self):
+        UserProfile.objects.create(user=self.user, dept_role=True)
+        UserProfile.objects.create(user=self.assigned_to)
+
+        response = self.client.post(
+            "/api/tickets/",
+            self.ticket_payload(is_internal=True),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("assigned_to", response.data)
+
+    def test_internal_ticket_requires_manager_or_lead(self):
+        UserProfile.objects.create(user=self.user, dept_role=False)
+        UserProfile.objects.create(user=self.assigned_to, reporting_to=self.user)
+
+        response = self.client.post(
+            "/api/tickets/",
+            self.ticket_payload(is_internal=True),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("is_internal", response.data)
+
 
 class SelfTicketCrudApiTests(TestCase):
     def setUp(self):
@@ -172,6 +212,40 @@ class SelfTicketCrudApiTests(TestCase):
         self.assertTrue(self_ticket.number.startswith("DL-"))
         self.assertEqual(self_ticket.creator, self.user)
         self.assertEqual(self_ticket.current_status, "open")
+        self.assertFalse(self_ticket.alarm)
+
+    def test_acknowledge_alarm_resets_self_ticket_alarm(self):
+        response = self.create_self_ticket()
+        self_ticket = Self_Ticket.objects.get(id=response.data["id"])
+        self_ticket.alarm = True
+        self_ticket.save(update_fields=["alarm"])
+
+        response = self.client.post(
+            f"/api/self-tickets/{self_ticket.id}/acknowledge-alarm/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self_ticket.refresh_from_db()
+        self.assertFalse(self_ticket.alarm)
+
+    @patch("tickets.services.self_ticket_reminders.send_mail")
+    def test_self_ticket_reminder_job_sets_due_alarm(self, mock_send_mail):
+        response = self.create_self_ticket(reminder_interval=2)
+        self_ticket = Self_Ticket.objects.get(id=response.data["id"])
+        Self_Ticket.objects.filter(id=self_ticket.id).update(
+            created_at=date.today() - timedelta(days=4),
+            alarm=False,
+        )
+        self_ticket.refresh_from_db()
+
+        reminded_tickets = send_self_ticket_reminders(date.today())
+
+        self_ticket.refresh_from_db()
+        self.assertEqual([ticket.id for ticket in reminded_tickets], [self_ticket.id])
+        self.assertTrue(self_ticket.alarm)
+        mock_send_mail.assert_called_once()
+        self.assertEqual(mock_send_mail.call_args.args[2], ["self@example.com"])
+        self.assertIn(self_ticket.number, mock_send_mail.call_args.args[0])
 
     def test_list_and_retrieve_self_ticket(self):
         create_response = self.create_self_ticket(task="Listable self ticket")

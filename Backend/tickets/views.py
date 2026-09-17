@@ -19,6 +19,7 @@ from datetime import date, timedelta
 from django.http import JsonResponse
 from django.db.models import Exists, OuterRef
 from django.contrib.auth.models import Group
+from django.utils.dateparse import parse_date
 # from xhtml2pdf import pisa
 import logging
 
@@ -45,7 +46,6 @@ class DepartmentMixin:
         if include_executive:
             executive = set(set(user.groups.values_list("id", flat=True)))
             groups |= executive
-
         return list(groups)
 
 class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
@@ -64,10 +64,11 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                 ticket=OuterRef("pk")
             )
 
-            return (
+            queryset = (
                 Ticket.objects
                 .filter(
                     Q(creator=self.request.user) |
+                    Q(assigned_to=self.request.user) |
                     Q(department__in=department_ids)
                 )
                 .select_related(
@@ -129,6 +130,14 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                 )
                 .order_by("-created_at")
             )
+
+            is_internal = self.request.query_params.get("is_internal")
+            if is_internal is not None:
+                queryset = queryset.filter(
+                    is_internal=is_internal.lower() in {"true", "1", "yes"}
+                )
+
+            return queryset
         except Exception:
             logger.exception(
                 "Failed to fetch tickets for user '%s'.",
@@ -200,6 +209,16 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         start_of_week = today - timedelta(days=today.weekday())
 
         queryset = self.get_queryset()
+        department_id = request.query_params.get("department_id")
+        start_date = parse_date(request.query_params.get("start_date", ""))
+        end_date = parse_date(request.query_params.get("end_date", ""))
+
+        if start_date and end_date:
+            queryset = queryset.filter(target_date__range=(start_date, end_date))
+        elif start_date:
+            queryset = queryset.filter(target_date__gte=start_date)
+        elif end_date:
+            queryset = queryset.filter(target_date__lte=end_date)
 
         excluded_status = ["recall requested", "recall successful"]
 
@@ -211,6 +230,92 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         ]
 
         progress_status = ["assigned", "accepted","in progress"]
+
+        if department_id:
+            department_queryset = queryset.filter(department_id=department_id)
+            department = Group.objects.filter(id=department_id).first()
+            department_manager = getattr(
+                getattr(department, "manager_mapping", None),
+                "manager",
+                None,
+            )
+            dolist_queryset = (
+                Self_Ticket.objects
+                .filter(creator=department_manager)
+                .exclude(current_status="cancelled")
+                .annotate(creator_name=F("creator__first_name"))
+            )
+            if start_date and end_date:
+                dolist_queryset = dolist_queryset.filter(
+                    target_date__range=(start_date, end_date)
+                )
+            elif start_date:
+                dolist_queryset = dolist_queryset.filter(target_date__gte=start_date)
+            elif end_date:
+                dolist_queryset = dolist_queryset.filter(target_date__lte=end_date)
+
+            ticket_status_summary = department_queryset.exclude(
+                current_status__in=excluded_status
+            ).aggregate(
+                Open=Count("id", filter=Q(current_status__in=active_status)),
+                InProgress=Count("id", filter=Q(current_status__in=progress_status)),
+                Completed=Count("id", filter=Q(current_status="completed")),
+                Closed=Count("id", filter=Q(current_status="closed")),
+            )
+            dolist_status_summary = dolist_queryset.aggregate(
+                Open=Count("id", filter=Q(current_status__in=active_status)),
+                InProgress=Count("id", filter=Q(current_status__in=progress_status)),
+                Completed=Count("id", filter=Q(current_status="completed")),
+                Closed=Count("id", filter=Q(current_status="closed")),
+            )
+
+            return Response(
+                {
+                    "department": {
+                        "id": department.id if department else None,
+                        "name": department.name if department else "",
+                        "manager": (
+                            department_manager.get_full_name()
+                            or department_manager.username
+                        ) if department_manager else "",
+                    },
+                    "ticket_summary": {
+                        key.replace("_", "-"): value
+                        for key, value in ticket_status_summary.items()
+                    },
+                    "dolist_summary": {
+                        key.replace("_", "-"): value
+                        for key, value in dolist_status_summary.items()
+                    },
+                    "tickets": list(
+                        department_queryset
+                        .annotate(
+                            creator_name=F("creator__first_name"),
+                            assigned_to_name=F("assigned_to__first_name"),
+                        )
+                        .values(
+                            "number",
+                            "task",
+                            "current_status",
+                            "priority",
+                            "creator_name",
+                            "assigned_to_name",
+                        )
+                        .order_by("-created_at")
+                    ),
+                    "dolist": list(
+                        dolist_queryset
+                        .values(
+                            "number",
+                            "task",
+                            "current_status",
+                            "priority",
+                            "creator_name",
+                        )
+                        .order_by("-created_at")
+                    ),
+                }
+            )
 
         # ----------------------------------
         # Status Summary (Single Query)
@@ -258,7 +363,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         # Department Counts
         # ----------------------------------
         departments = list(
-            queryset.values("department__name")
+            queryset.values("department_id", "department__name")
             .annotate(total=Count("id"))
             .order_by("department__name")
         )
@@ -293,11 +398,14 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         # ----------------------------------
         # Weekly Target Tickets
         # ----------------------------------
-        weekly_target_tickets = list(
-            queryset.filter(
-                target_date__gte=start_of_week,
-                current_status__in=active_status,
+        target_ticket_queryset = queryset.filter(current_status__in=active_status)
+        if not (start_date or end_date):
+            target_ticket_queryset = target_ticket_queryset.filter(
+                target_date__gte=start_of_week
             )
+
+        weekly_target_tickets = list(
+            target_ticket_queryset
             .annotate(
                 creator_name=F("creator__first_name"),
                 assigned_to_name=F("assigned_to__first_name"),
@@ -334,15 +442,16 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
             queryset.filter(
                 current_status__in=active_status + progress_status
             )
-            .values("department__name")
+            .values("department_id", "department__name")
             .annotate(count=Count("id"))
             .order_by("department__name")
         )
 
-        total = len(dept_chart)
+        total = max(len(dept_chart), 1)
 
         deptData = [
             {
+                "id": row["department_id"],
                 "name": row["department__name"],
                 "count": row["count"],
                 "color": f"hsl({int(i * 360 / total)},65%,55%)",
@@ -429,6 +538,20 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                 self.request.user.username,
             )
             raise
+
+    @action(detail=True, methods=["post"], url_path="acknowledge-alarm")
+    def acknowledge_alarm(self, request, pk=None):
+        self_ticket = self.get_object()
+        self_ticket.alarm = False
+        self_ticket.save(update_fields=["alarm", "updated_at"])
+
+        return Response(
+            {
+                "message": "Self ticket reminder acknowledged.",
+                "alarm": self_ticket.alarm,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()

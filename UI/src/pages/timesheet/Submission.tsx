@@ -87,7 +87,7 @@ export type WeeklyHoursValidation = {
   isSatisfied: boolean;
 };
 
-type WeeklyTimesheetStatus = {
+type WeeklyTimesheetLog = {
   timesheet_status: string;
   submission_status?: boolean;
 };
@@ -288,7 +288,7 @@ export default function Submission({
 
   const [savingDraft, setSavingDraft] = useState(false);
   const [hasUnsavedHourChanges, setHasUnsavedHourChanges] = useState(false);
-  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetStatus>({
+  const [weeklyStatus, setWeeklyStatus] = useState<WeeklyTimesheetLog>({
     timesheet_status: "Not Submitted",
     submission_status: false,
   });
@@ -413,7 +413,7 @@ export default function Submission({
     let active = true;
 
     void api
-      .get<WeeklyTimesheetStatus>("/timesheet-statuses/current/", {
+      .get<WeeklyTimesheetLog>("/timesheet-week-logs/current/", {
         params: {
           week_start: weekStart,
         },
@@ -608,7 +608,7 @@ export default function Submission({
     taskId: number,
     owner: string,
   ) => {
-    if (isSubmitted || isAccepted) {
+    if (isLockedSubmitted) {
       showNotification({
         type: "warning",
         message: "Budget owner cannot be changed after submission.",
@@ -793,10 +793,12 @@ export default function Submission({
     formatLocalDate(today),
     formatLocalDate(addDays(today, 1)),
   ]);
-  const isUnlocked = ["Unlocked"].includes(weeklyStatus.timesheet_status);
+  const isRejected = weeklyStatus.timesheet_status === "Rejected";
+  const isUnlocked = ["Unlocked", "Rejected"].includes(weeklyStatus.timesheet_status);
   const isSubmitted = weeklyStatus.timesheet_status === "Submitted" || Boolean(weeklyStatus.submission_status);
   const isAccepted = weeklyStatus.timesheet_status === "Accepted";
-  const budgetOwnerDisabled = isSubmitted || isAccepted;
+  const isLockedSubmitted = isSubmitted && !isUnlocked;
+  const budgetOwnerDisabled = isLockedSubmitted || isAccepted;
   const canEditDate = (date: string, project: SubmissionProject) =>
     isUnlocked || (!isSubmitted && (isOthersProject(project) || editableDates.has(date)));
 
@@ -1692,8 +1694,16 @@ export default function Submission({
                 ? "Unsaved hours"
                 : `Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`
             }
-            color={hasUnsavedHourChanges ? "warning" : isSubmitted ? "success" : "default"}
-            variant={hasUnsavedHourChanges || isSubmitted ? "filled" : "outlined"}
+            color={
+              hasUnsavedHourChanges
+                ? "warning"
+                : isRejected
+                  ? "error"
+                  : isSubmitted
+                    ? "success"
+                    : "default"
+            }
+            variant={hasUnsavedHourChanges || isSubmitted || isRejected ? "filled" : "outlined"}
             sx={{
               borderRadius: 5,
               fontWeight: 700,
@@ -1707,7 +1717,7 @@ export default function Submission({
             variant="contained"
             startIcon={<SaveOutlinedIcon />}
             onClick={saveDraft}
-            disabled={savingDraft || (isSubmitted && !isUnlocked)}
+            disabled={savingDraft || isLockedSubmitted}
             sx={{
               bgcolor: hasUnsavedHourChanges ? "warning.main" : undefined,
               color: hasUnsavedHourChanges ? "warning.contrastText" : undefined,

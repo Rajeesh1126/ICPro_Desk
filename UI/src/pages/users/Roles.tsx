@@ -12,7 +12,7 @@ import {
   FormControlLabel,
 } from "@mui/material";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import type { rolesData, permissionData } from "../types/dataTypes";
+import type { rolesData, permissionData } from "../../types/dataTypes";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -29,17 +29,17 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
-} from "../styles/common";
-import api from "../api/axios";
+} from "../../styles/common";
+import api from "../../api/axios";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "../../components/common/TableView";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import RoleModel from "../components/roles/RoleModel";
+import RoleModel from "../../components/roles/RoleModel";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
-import ConfirmDialog from "../components/common/ConfirmDialog";
-import { showNotification } from "../api/notificationService";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { showNotification } from "../../api/notificationService";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
 const formatPermissionLabel = (permission: permissionData) => {
@@ -277,8 +277,7 @@ export default function Roles() {
   const permissionColumns = useMemo<ColumnData<rolesData>[]>(() => {
     const roleColumn: ColumnData<rolesData> = {
       label: "Roles",
-      width: 180,
-
+      width: { xs: 180, sm: 200 },
       render: (row) => {
         const visiblePermissionIds = permissions.map(
           (permission) => permission.id,
@@ -311,7 +310,6 @@ export default function Roles() {
     const permissionColumns = permissions.map(
       (permission): ColumnData<rolesData> => ({
         label: formatPermissionLabel(permission),
-        width: 125,
 
         render: (row) => (
           <Checkbox

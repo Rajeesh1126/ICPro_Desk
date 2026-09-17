@@ -108,6 +108,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
         () => [
             {
                 label: "Select",
+                width: 60,
                 render: (quotation) => (
                     <Checkbox
                         checked={selectedIds.includes(quotation.id)}
@@ -119,13 +120,16 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
             {
                 label: "Quotation No",
                 dataKey: "quotation_no",
+                width: 150,
             },
             {
                 label: "Customer",
                 dataKey: "customer_name",
+                width: 200,
             },
             {
                 label: "Project Name",
+                width: 250,
                 render: (quotation): React.ReactNode => {
                     const projectName =
                         quotation.custom_project_name ||
@@ -135,16 +139,16 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                     return projectName ? String(projectName) : "-";
                 },
             },
-            {
-                label: "Created Date",
-                dataKey: "create_date",
-                render: (quotation) =>
-                    quotation.create_date
-                        ? new Date(
-                            quotation.create_date
-                        ).toLocaleDateString()
-                        : "",
-            },
+            // {
+            //     label: "Created Date",
+            //     dataKey: "create_date",
+            //     render: (quotation) =>
+            //         quotation.create_date
+            //             ? new Date(
+            //                 quotation.create_date
+            //             ).toLocaleDateString()
+            //             : "",
+            // },
         ],
         [selectedIds]
     );
@@ -154,7 +158,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
             open={open}
             onClose={handleClose}
             fullWidth
-            maxWidth="xl"
+            maxWidth="md"
             PaperProps={{
                 sx: {
                     height: "80vh",

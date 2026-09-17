@@ -8,6 +8,7 @@ import {
   TableHead,
   TableRow,
   Paper,
+  IconButton,
   TextField,
   Box,
   Badge,
@@ -22,6 +23,8 @@ import type { Theme } from "@mui/material/styles";
 import { TableVirtuoso } from "react-virtuoso";
 import type { TableComponents } from "react-virtuoso";
 import { TableSortLabel } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import {
@@ -80,6 +83,9 @@ interface VirtualizedTableProps<T> {
   tableHeadSub?: string;
   fixedFooterContent?: (rows: T[]) => React.ReactNode;
   stickyFirstColumn?: boolean;
+  collapsible?: boolean;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 const formatDate = (value: unknown) => {
@@ -126,6 +132,9 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
   tableHeadSub,
   fixedFooterContent,
   stickyFirstColumn = false,
+  collapsible = false,
+  expanded = true,
+  onExpandedChange,
 }: VirtualizedTableProps<T>) {
   const [sortField, setSortField] = React.useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">(
@@ -226,13 +235,25 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
     }
   };
 
+  const tableTitle = tableHead ? tableHead : "Data";
+  const isTableExpanded = !collapsible || expanded;
+  const paperSx = tableViewDynamicDynamicPaperSx1({ height }) as Record<
+    string,
+    unknown
+  >;
+
+  const toggleExpanded = () => {
+    if (!collapsible) return;
+    onExpandedChange?.(!expanded);
+  };
+
   const fixedHeaderContent = () => (
     <TableRow>
       {columns.map((column, index) => (
         <TableCell
           key={column.label}
           variant="head"
-          align={column.numeric ? "right" : "left"}
+          align="left"
           sx={tableViewCallbackCallbackSx2({
             column,
             index,
@@ -261,7 +282,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
       {columns.map((column, index) => (
         <TableCell
           key={column.label}
-          align={column.numeric ? "right" : "left"}
+          align="left"
           sx={tableViewCallbackCallbackSx3({
             column,
             index,
@@ -300,23 +321,80 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
       ))}
     </React.Fragment>
   );
+
+  const tableContent = (
+    <Box sx={tableViewBoxSx3}>
+      <TableVirtuoso
+        style={tableViewTableVirtuosoStyle1}
+        data={processedRows}
+        components={virtuosoTableComponents}
+        fixedHeaderContent={fixedHeaderContent}
+        fixedFooterContent={
+          fixedFooterContent
+            ? () => fixedFooterContent(processedRows)
+            : undefined
+        }
+        itemContent={rowContent}
+      />
+      {processedRows.length === 0 && (
+        <Box sx={tableViewBoxSx4}>
+          <Box sx={tableViewBoxSx5}>
+            <TableChartOutlinedIcon sx={tableViewTableChartIconSx2} />
+            <Typography fontWeight={700}>No records found</Typography>
+            <Typography variant="body2">
+              Try changing the search or filters.
+            </Typography>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
-    <Paper elevation={0} sx={tableViewDynamicDynamicPaperSx1({ height })}>
-      <Box sx={tableViewBoxSx2}>
+    <Paper
+      elevation={0}
+      sx={{
+        ...paperSx,
+        ...(collapsible && !isTableExpanded
+          ? { height: "auto", flex: "0 0 auto" }
+          : null),
+      }}
+    >
+      <Box
+        sx={{
+          ...tableViewBoxSx2,
+          cursor: collapsible ? "pointer" : "default",
+        }}
+        onClick={toggleExpanded}
+      >
         <Box sx={tableViewTitleGroupSx}>
+          {collapsible && (
+            <IconButton
+              size="small"
+              aria-label={isTableExpanded ? "Collapse table" : "Expand table"}
+              aria-expanded={isTableExpanded}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleExpanded();
+              }}
+              sx={{ width: 30, height: 30, flexShrink: 0 }}
+            >
+              {isTableExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+            </IconButton>
+          )}
           <TableChartOutlinedIcon
             color="action"
             fontSize="small"
             sx={tableViewTableChartIconSx1}
           />
 
-          <Stack spacing={0} sx={tableViewTitleStackSx}>
+          <Stack spacing={0.5} sx={tableViewTitleStackSx}>
             <Typography
               variant="subtitle1"
               fontWeight={700}
               sx={tableViewTypographySx2}
             >
-              {tableHead ? tableHead : "Data"}
+              {tableTitle}
             </Typography>
             <Typography
               variant="subtitle2"
@@ -327,13 +405,13 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
             </Typography>
           </Stack>
         </Box>
+        {isTableExpanded &&
         <TextField
-          size="small"
-          // label="Search"
           placeholder="Search..."
           variant="outlined"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          onClick={(event) => event.stopPropagation()}
           slotProps={{
             input: {
               startAdornment: (
@@ -345,32 +423,9 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
           }}
           sx={tableViewTextFieldSx1}
         />
+}
       </Box>
-      <Box sx={tableViewBoxSx3}>
-        <TableVirtuoso
-          style={tableViewTableVirtuosoStyle1}
-          data={processedRows}
-          components={virtuosoTableComponents}
-          fixedHeaderContent={fixedHeaderContent}
-          fixedFooterContent={
-            fixedFooterContent
-              ? () => fixedFooterContent(processedRows)
-              : undefined
-          }
-          itemContent={rowContent}
-        />
-        {processedRows.length === 0 && (
-          <Box sx={tableViewBoxSx4}>
-            <Box sx={tableViewBoxSx5}>
-              <TableChartOutlinedIcon sx={tableViewTableChartIconSx2} />
-              <Typography fontWeight={700}>No records found</Typography>
-              <Typography variant="body2">
-                Try changing the search or filters.
-              </Typography>
-            </Box>
-          </Box>
-        )}
-      </Box>
+      {isTableExpanded && tableContent}
     </Paper>
   );
 }

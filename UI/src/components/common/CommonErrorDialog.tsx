@@ -1,4 +1,5 @@
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
   Box,
   Button,
@@ -70,6 +71,7 @@ export default function CommonErrorDialog({
         <Button
           variant="contained"
           color="error"
+          startIcon={<CheckOutlinedIcon />}
           onClick={onClose}
         >
           OK

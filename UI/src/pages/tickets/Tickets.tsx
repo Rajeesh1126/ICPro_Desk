@@ -40,6 +40,7 @@ import {
   pageContent,
   pageSubtitle,
   pageTitle,
+  priorityAlarmRowHighlight,
   priorityDueRowHighlight,
   tabs,
   tabsContainer,
@@ -115,9 +116,12 @@ export default function Tickets() {
   useEffect(() => {
     let active = true;
     void api
-      .get("/tickets/")
+      .get("/tickets/", {
+        params: {
+          is_internal: false,
+        },
+      })
       .then((response) => {
-        console.log("tickets....", response);
         if (!active) return;
         const source = (
           Array.isArray(response.data) ? response.data : []
@@ -297,9 +301,14 @@ export default function Tickets() {
               exclusive
               value={view}
               size="small"
-              onChange={(_, next: "table" | "card" | null) =>
-                next && setView(next)
-              }
+              onChange={(_, next: "table" | "card" | null) => {
+                if (!next) return;
+
+                setView(next);
+                if (next === "card" && tabValue > 2) {
+                  setTabValue(0);
+                }
+              }}
               aria-label="Task view"
               sx={toggleButton}
             >
@@ -330,9 +339,15 @@ export default function Tickets() {
             <Tab label={`Overview (${tickets.all.length})`} />
             <Tab label={`Assigned To Me (${tickets.assigned.length})`} />
             <Tab label={`Assigned By Me (${tickets.created.length})`} />
-            <Tab label={`Rejected (${tickets.rejected.length})`} />
-            <Tab label={`Recalled (${tickets.recalled.length})`} />
-            <Tab label={`Closed (${tickets.closed.length})`} />
+            {view !== "card" && (
+              <Tab label={`Rejected (${tickets.rejected.length})`} />
+            )}
+            {view !== "card" && (
+              <Tab label={`Recalled (${tickets.recalled.length})`} />
+            )}
+            {view !== "card" && (
+              <Tab label={`Closed (${tickets.closed.length})`} />
+            )}
           </Tabs>
         </Box>
         {/* </Paper> */}
@@ -343,9 +358,6 @@ export default function Tickets() {
               data={activeRows}
               onCardClick={openDetails}
               cardType="Ticket"
-              getCardStatus={(ticket) =>
-                isOpenOrInProgressDueTicket(ticket) ? "warning" : undefined
-              }
             />
           ) : (
             <VirtualizedTable
@@ -353,7 +365,9 @@ export default function Tickets() {
               rows={activeRows}
               height="100%"
               getRowSx={(row) =>
-                isOpenOrInProgressDueTicket(row)
+                row.alarm === true
+                  ? priorityAlarmRowHighlight(row.priority)
+                  : isOpenOrInProgressDueTicket(row)
                   ? priorityDueRowHighlight(row.priority)
                   : undefined
               }

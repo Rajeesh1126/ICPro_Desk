@@ -78,6 +78,51 @@ class PasswordAPITests(APITestCase):
         created_user = User.objects.get(username='newuser')
         self.assertTrue(created_user.check_password('CreatePass123!'))
 
+    def test_update_user_email(self):
+        change_permission = Permission.objects.get(codename='change_user')
+        role = Role.objects.create(name='Admin')
+        role.permissions.add(change_permission)
+        self.user.profile.role = role
+        self.user.profile.save()
+
+        response = self.client.patch(f'/api/users/{self.user.id}/', {
+            'email': 'updated@example.com',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'updated@example.com')
+
+    def test_update_user_can_clear_email(self):
+        change_permission = Permission.objects.get(codename='change_user')
+        role = Role.objects.create(name='Admin')
+        role.permissions.add(change_permission)
+        self.user.profile.role = role
+        self.user.profile.save()
+
+        response = self.client.patch(f'/api/users/{self.user.id}/', {
+            'email': '',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, '')
+
+    def test_update_user_rejects_duplicate_email(self):
+        change_permission = Permission.objects.get(codename='change_user')
+        role = Role.objects.create(name='Admin')
+        role.permissions.add(change_permission)
+        self.user.profile.role = role
+        self.user.profile.save()
+        User.objects.create_user(username='other_email_user', email='other@example.com')
+
+        response = self.client.patch(f'/api/users/{self.user.id}/', {
+            'email': 'other@example.com',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+
     def test_user_without_permission_cannot_list_users(self):
         response = self.client.get('/api/users/')
 
@@ -141,4 +186,5 @@ class PasswordAPITests(APITestCase):
         self.assertEqual({'role'}, {item['model'] for item in response.data})
         self.assertIn('access_tickets', {item['codename'] for item in response.data})
         self.assertIn('access_self_tickets', {item['codename'] for item in response.data})
+        self.assertIn('access_all_timesheet_logs', {item['codename'] for item in response.data})
         self.assertNotIn('view_user', {item['codename'] for item in response.data})

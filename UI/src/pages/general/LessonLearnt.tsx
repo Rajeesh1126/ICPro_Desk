@@ -21,13 +21,15 @@ import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
-import api from "../api/axios";
-import { showNotification } from "../api/notificationService";
+import api from "../../api/axios";
+import { showNotification } from "../../api/notificationService";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "../../components/common/TableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -40,8 +42,9 @@ import {
   pageContent,
   pageSubtitle,
   pageTitle,
-} from "../styles/common";
-import { formatDateTime } from "../components/common/formatDate";
+  deleteIconSx,
+} from "../../styles/common";
+import { formatDateTime } from "../../components/common/formatDate";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
@@ -98,7 +101,8 @@ const getFileName = (filePath: string | null) => {
 const resolveFileUrl = (filePath: string) => {
   if (/^https?:\/\//i.test(filePath)) return filePath;
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const baseUrl = new URL(apiBaseUrl, window.location.origin).origin;
   return new URL(filePath, baseUrl).toString();
 };
 
@@ -106,6 +110,9 @@ export default function LessonLearnt() {
   const [lessons, setLessons] = useState<LessonLearntRow[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(
+    null,
+  );
+  const [deleteLesson, setDeleteLesson] = useState<LessonLearntRow | null>(
     null,
   );
   const [form, setForm] = useState<LessonFormState>(emptyForm);
@@ -219,6 +226,18 @@ export default function LessonLearnt() {
     link.click();
   };
 
+  const handleDeleteLesson = async () => {
+    if (!deleteLesson) return;
+
+    await api.delete(`/documents/lesson-learnt/${deleteLesson.id}/`);
+    showNotification({
+      type: "success",
+      message: "Lesson learnt deleted successfully.",
+    });
+    setDeleteLesson(null);
+    await loadLessons();
+  };
+
   const columns = useMemo<ColumnData<LessonLearntRow>[]>(
     () => [
       {
@@ -270,7 +289,7 @@ export default function LessonLearnt() {
       },
       {
         label: "Actions",
-        width: 110,
+        width: 115,
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Edit lesson">
@@ -289,6 +308,14 @@ export default function LessonLearnt() {
                 onClick={() => downloadFile(row)}
               >
                 <DownloadOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete lesson">
+              <IconButton
+                size="small"
+                onClick={() => setDeleteLesson(row)}
+              >
+                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -464,6 +491,18 @@ export default function LessonLearnt() {
           </Button>
         </DialogActions>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteLesson)}
+        onClose={() => setDeleteLesson(null)}
+        title="Delete Lesson"
+        description={`Delete "${deleteLesson?.event || "this lesson learnt"}"?`}
+        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
+        confirmLabel="Delete"
+        confirmColor="error"
+        confirmIcon={<DeleteOutlinedIcon />}
+        tone="error"
+        onConfirm={handleDeleteLesson}
+      />
     </Box>
   );
 }

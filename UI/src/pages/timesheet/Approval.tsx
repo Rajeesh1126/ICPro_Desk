@@ -33,6 +33,8 @@ import type {
 
 import ApprovalDetailedView from "../../components/approval/ApprovalDetailedView";
 import UnlockComponent from "../../components/approval/UnlockComponent";
+import RatingsDistribution from "../../components/timesheet/RatingsDistribution";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 interface ApprovalProps {
     weekStart: string;
@@ -53,6 +55,7 @@ const Approval: React.FC<ApprovalProps> = ({
         useState<ApprovalRow | null>(null);
 
     const [detailOpen, setDetailOpen] = useState(false);
+    const [ratingsOpen, setRatingsOpen] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -64,7 +67,6 @@ const Approval: React.FC<ApprovalProps> = ({
                 },
             })
             .then((response) => {
-                console.log("Approval Data", response.data);
 
                 if (!active) return;
 
@@ -84,14 +86,14 @@ const Approval: React.FC<ApprovalProps> = ({
 
     const fetchUnlockRequests = useCallback(async () => {
         try {
-            const response = await api.get("/timesheet-statuses/", {
+            const response = await api.get("/timesheet-week-logs/", {
                 params: {
                     weekStart,
-                    timesheetstatus: "Requested",
+                    timesheet_status: "Requested",
                 },
             });
 
-            console.log("timesheet-statuses", response.data);
+            console.log("timesheet-week-logs", response.data);
 
             setUnlockRequests(response.data);
         } catch (error) {
@@ -130,7 +132,7 @@ const Approval: React.FC<ApprovalProps> = ({
             }
             console.log(payload)
             await api.patch(
-                `/timesheet-statuses/${id}/`,
+                `/timesheet-week-logs/${id}/`,
                 payload
             );
 
@@ -306,6 +308,37 @@ const Approval: React.FC<ApprovalProps> = ({
 
             {/* Approval Table */}
             <Box sx={flexFillPanel}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        px: 1,
+                        pb: 1,
+                    }}
+                >
+                    <Box
+                        component="button"
+                        type="button"
+                        onClick={() => setRatingsOpen(true)}
+                        sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            border: 0,
+                            p: 0,
+                            background: "none",
+                            color: "primary.main",
+                            cursor: "pointer",
+                            font: "inherit",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            "&:hover": { textDecoration: "underline" },
+                        }}
+                    >
+                        Rating info
+                        <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+                    </Box>
+                </Box>
                 <VirtualizedTable<ApprovalRow>
                     columns={columns}
                     rows={approvalData}
@@ -330,6 +363,11 @@ const Approval: React.FC<ApprovalProps> = ({
                 employee={selectedEmployee}
                 onClose={handleCloseDetail}
                 weekStart={weekStart}
+            />
+
+            <RatingsDistribution
+                open={ratingsOpen}
+                onClose={() => setRatingsOpen(false)}
             />
 
         </Box>

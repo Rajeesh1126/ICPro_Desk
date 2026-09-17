@@ -4,15 +4,18 @@ from rest_framework import routers
 from .views import (
     ApprovalDetailDataViewSet,
     SubmissionViewSet,
-    TimesheetStatusViewSet,
+    TimesheetWeekLogViewSet,
     TimesheetEntryViewSet,
     TimesheetApprovalViewSet,
+    TimesheetAnalysisViewSet,
 )
 
 router = routers.DefaultRouter()
 router.register(r'submissions', SubmissionViewSet, basename='submission')
-router.register(r'timesheet-statuses', TimesheetStatusViewSet, basename='timesheetstatus')
+router.register(r'timesheet-week-logs', TimesheetWeekLogViewSet, basename='timesheetweeklog')
+router.register(r'timesheet-statuses', TimesheetWeekLogViewSet, basename='timesheetstatus-legacy')
 router.register(r'approvals', TimesheetApprovalViewSet, basename='approval')
+router.register(r'timesheet-analysis', TimesheetAnalysisViewSet, basename='timesheet-analysis')
 
 urlpatterns = [
     path('', include(router.urls)),

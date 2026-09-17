@@ -1,24 +1,26 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import Login from "./pages/Login.tsx";
-import ForgotPassword from "./pages/ForgotPassword.tsx";
-import ResetPassword from "./pages/ResetPassword.tsx";
+import ForgotPassword from "./pages/users/ForgotPassword.tsx";
+import ResetPassword from "./pages/users/ResetPassword.tsx";
 import HomePage from "./pages/HomePage.tsx";
 import Landing from "./pages/Landing.tsx";
 import Dashboard from "./pages/tickets/Dashboard.tsx";
 import Reports from "./pages/tickets/Reports.tsx";
 import TicketDashboard from "./pages/tickets/Tickets.tsx";
+import InternalTickets from "./pages/tickets/InternalTickets.tsx";
 import SelfTickets from "./pages/tickets/SelfTickets.tsx";
-import Users from "./pages/Users.tsx"
-import Roles from "./pages/Roles.tsx"
-import Documents from "./pages/Documents.tsx";
-import Suggestions from "./pages/Suggestions.tsx";
-import LessonLearnt from "./pages/LessonLearnt.tsx";
+import Users from "./pages/users/Users.tsx"
+import Roles from "./pages/users/Roles.tsx"
+import Documents from "./pages/general/Documents.tsx";
+import Suggestions from "./pages/general/Suggestions.tsx";
+import LessonLearnt from "./pages/general/LessonLearnt.tsx";
 import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
 import PhaseConfiguration from "./pages/PhaseConfiguration.tsx";
 
 import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
 import TimesheetLogs from "./pages/timesheet/TimesheetLogs.tsx";
+import TimesheetAnalysis from "./pages/timesheet/TimesheetAnalysis.tsx";
 
 import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
 import { isTokenExpired } from "./api/axios.ts";
@@ -54,10 +56,12 @@ const homeRoutes = [
   { index: true, element: <Landing /> },
   { path: "Dashboard", element: <Dashboard />, permission: "access_team_analysis" },
   { path: "Tickets", element: <TicketDashboard />, permission: "access_tickets" },
+  { path: "InternalTickets", element: <InternalTickets />, permission: "access_tickets" },
   { path: "SelfTickets", element: <SelfTickets />, permission: "access_self_tickets" },
   { path: "Reports", element: <Reports />, permission: "access_executive_overview" },
   { path: "TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
   { path: "TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
+  { path: "TimesheetAnalysis", element: <TimesheetAnalysis />, permission: "access_timesheet" },
   { path: "Documents", element: <Documents /> },
   { path: "Suggestions", element: <Suggestions /> },
   { path: "LessonLearnt", element: <LessonLearnt /> },

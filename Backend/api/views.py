@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
@@ -13,7 +14,7 @@ from rest_framework.response import Response
 from core.permissions import RoleBasedPermission
 from projects.models import AssignedTask, Milestone, Project, Task
 from tickets.models import Ticket
-from .models import Submission, TimesheetStatus
+from .models import Submission, TimesheetWeekLog
 from .serializers import (
     ApprovalActionSerializer,
     SubmissionSerializer,
@@ -23,11 +24,48 @@ from .serializers import (
     TimesheetExtendTasksSerializer,
     TimesheetRemoveTasksSerializer,
     TimesheetSubmitSerializer,
-    TimesheetStatusSerializer,
+    TimesheetWeekLogSerializer,
     TimesheetUnlockRequestSerializer,
+)
+from .services.timesheet_notifications import (
+    send_timesheet_rejection_notification,
+    send_timesheet_submission_notification,
+    send_unlock_decision_notification,
+    send_unlock_request_notification,
 )
 
 User = get_user_model()
+
+
+def _excluded_timesheet_role_names():
+    return [
+        role.strip()
+        for role in getattr(settings, 'TIMESHEET_EXCLUDED_ROLE_NAMES', [])
+        if role and role.strip()
+    ]
+
+
+def _exclude_timesheet_roles(queryset, user_field=''):
+    role_names = _excluded_timesheet_role_names()
+    if not role_names:
+        return queryset
+
+    lookup_prefix = f'{user_field}__' if user_field else ''
+    return queryset.exclude(**{f'{lookup_prefix}profile__role__name__in': role_names})
+
+
+def _can_view_all_timesheet_logs(user):
+    if not user or not user.is_authenticated:
+        return False
+
+    if user.is_staff or user.is_superuser:
+        return True
+
+    role = getattr(getattr(user, 'profile', None), 'role', None)
+    if not role:
+        return False
+
+    return role.permissions.filter(codename='access_all_timesheet_logs').exists()
 
 
 def _display_name(user):
@@ -125,18 +163,26 @@ def _last_four_iso_weeks():
     return weeks
 
 
-def _submission_timing(timesheet_status, week_start):
+def _submission_timing(timesheet_status, week_start, user=None):
+    week_end = week_start + timedelta(days=6)
+    joined_date = user.date_joined.date() if user and user.date_joined else None
+    if joined_date and joined_date > week_end:
+        return 'Not Applicable'
+
     due_date = week_start + timedelta(days=7)
 
     if not timesheet_status:
-        return 'Delayed' if timezone.localdate() > due_date else 'Not Submitted'
+        return 'Not Submitted'
 
     submitted_statuses = {'Submitted', 'Accepted', 'Rejected'}
     if (
         not timesheet_status.submission_status and
-        timesheet_status.timesheet_status not in submitted_statuses
+        timesheet_status.timesheet_status in submitted_statuses
     ):
-        return 'Delayed' if timezone.localdate() > due_date else 'Not Submitted'
+        return 'Delayed'
+
+    if not timesheet_status.submission_status:
+        return 'Not Submitted'
 
     submitted_date = timesheet_status.created_date.date()
     return 'OnTime' if submitted_date <= due_date else 'Delayed'
@@ -164,7 +210,7 @@ def _sync_timesheet_status(user, week_start):
     week_end = week_start + timedelta(days=6)
     iso_year, iso_week, _ = week_start.isocalendar()
 
-    timesheet_status = TimesheetStatus.objects.filter(
+    timesheet_status = TimesheetWeekLog.objects.filter(
         uid=user,
         weeknumber=iso_week,
         weekyear=iso_year,
@@ -186,10 +232,10 @@ def _sync_timesheet_status(user, week_start):
 
     action_completed = has_submissions and not has_pending
     timesheet_status.action_status = action_completed and _is_approval_on_time(timesheet_status)
-    if all_accepted:
-        timesheet_status.timesheet_status = 'Accepted'
-    elif has_submissions and not has_pending and has_rejected:
+    if has_rejected:
         timesheet_status.timesheet_status = 'Rejected'
+    elif all_accepted:
+        timesheet_status.timesheet_status = 'Accepted'
     elif has_submissions:
         timesheet_status.timesheet_status = 'Submitted'
 
@@ -203,9 +249,160 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     permission_classes = [RoleBasedPermission]
 
 
-class TimesheetStatusViewSet(viewsets.ModelViewSet):
-    queryset = TimesheetStatus.objects.all()
-    serializer_class = TimesheetStatusSerializer
+class TimesheetAnalysisViewSet(viewsets.ViewSet):
+    permission_classes = [RoleBasedPermission]
+    queryset = Submission.objects.all()
+
+    def list(self, request):
+        today = timezone.localdate()
+        start_date = parse_date(request.query_params.get('start_date', ''))
+        end_date = parse_date(request.query_params.get('end_date', ''))
+        employee_id = request.query_params.get('employee_id')
+        project_id = request.query_params.get('project_id')
+        task_id = request.query_params.get('task_id')
+
+        if not start_date:
+            start_date = today - timedelta(days=30)
+        if not end_date:
+            end_date = today
+
+        if start_date > end_date:
+            return Response(
+                {'detail': 'start_date must be before or equal to end_date.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_submissions = (
+            Submission.objects
+            .filter(date__range=(start_date, end_date), hours__gt=0)
+            .select_related(
+                'assignId',
+                'assignId__assign_to',
+                'assignId__assign_by',
+                'assignId__project_obj',
+                'assignId__task_obj',
+            )
+            .order_by('-date', 'assignId__assign_to__first_name')
+        )
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            base_submissions = base_submissions.filter(
+                Q(assignId__assign_to=request.user)
+                | Q(assignId__assign_by=request.user)
+                | Q(assignId__assign_to__profile__reporting_to=request.user)
+            ).distinct()
+
+        filter_options_source = list(base_submissions)
+        submissions = base_submissions
+
+        if employee_id:
+            submissions = submissions.filter(assignId__assign_to_id=employee_id)
+        if project_id:
+            submissions = submissions.filter(assignId__project_obj_id=project_id)
+        if task_id:
+            submissions = submissions.filter(assignId__task_obj_id=task_id)
+
+        rows = []
+        project_employee_totals = {}
+        task_employee_totals = {}
+        employees = {}
+        projects = {}
+        tasks = {}
+
+        for submission in filter_options_source:
+            assigned_task = submission.assignId
+            employee = assigned_task.assign_to
+            project = assigned_task.project_obj
+            task = assigned_task.task_obj
+
+            if employee:
+                employees[employee.id] = _display_name(employee)
+            if project:
+                projects[project.id] = project.code or f'Project {project.id}'
+            if task:
+                tasks[task.id] = task.name or f'Task {task.id}'
+
+        for submission in submissions:
+            assigned_task = submission.assignId
+            employee = assigned_task.assign_to
+            approver = submission.approvedBy or assigned_task.assign_by
+            project = assigned_task.project_obj
+            task = assigned_task.task_obj
+
+            employee_name = _display_name(employee)
+            project_name = project.code if project and project.code else 'Unassigned Project'
+            task_name = task.name if task else 'Unassigned Task'
+            hours = _seconds_to_decimal_hours(submission.hours)
+
+            rows.append({
+                'id': submission.id,
+                'date': submission.date.strftime('%Y-%m-%d'),
+                'employee_id': employee.id if employee else None,
+                'employee_name': employee_name,
+                'project_id': project.id if project else None,
+                'project': project_name,
+                'task_id': task.id if task else None,
+                'task': task_name,
+                'hours': hours,
+                'status': submission.status or 'Draft',
+                'rate': submission.rate,
+                'approver_id': approver.id if approver else None,
+                'approver_name': _display_name(approver),
+            })
+
+            project_key = (project_name, employee_name)
+            task_key = (task_name, employee_name)
+            project_employee_totals[project_key] = project_employee_totals.get(project_key, 0) + hours
+            task_employee_totals[task_key] = task_employee_totals.get(task_key, 0) + hours
+
+        return Response(
+            {
+                'filters': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'employee_id': employee_id or '',
+                    'project_id': project_id or '',
+                    'task_id': task_id or '',
+                },
+                'filter_options': {
+                    'employees': [
+                        {'id': item_id, 'name': name}
+                        for item_id, name in sorted(employees.items(), key=lambda item: item[1])
+                    ],
+                    'projects': [
+                        {'id': item_id, 'name': name}
+                        for item_id, name in sorted(projects.items(), key=lambda item: item[1])
+                    ],
+                    'tasks': [
+                        {'id': item_id, 'name': name}
+                        for item_id, name in sorted(tasks.items(), key=lambda item: item[1])
+                    ],
+                },
+                'rows': rows,
+                'project_employee': [
+                    {
+                        'project': project,
+                        'employee': employee,
+                        'hours': round(hours, 2),
+                    }
+                    for (project, employee), hours in project_employee_totals.items()
+                ],
+                'task_employee': [
+                    {
+                        'task': task,
+                        'employee': employee,
+                        'hours': round(hours, 2),
+                    }
+                    for (task, employee), hours in task_employee_totals.items()
+                ],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TimesheetWeekLogViewSet(viewsets.ModelViewSet):
+    queryset = TimesheetWeekLog.objects.all()
+    serializer_class = TimesheetWeekLogSerializer
     permission_classes = [RoleBasedPermission]
 
     def get_permissions(self):
@@ -215,13 +412,14 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        queryset = TimesheetStatus.objects.select_related('uid', 'uid__profile', 'uid__profile__reporting_to')
+        queryset = TimesheetWeekLog.objects.select_related('uid', 'uid__profile', 'uid__profile__reporting_to')
+        queryset = _exclude_timesheet_roles(queryset, 'uid')
         user = self.request.user
 
         if not user or not user.is_authenticated:
-            return TimesheetStatus.objects.none()
+            return TimesheetWeekLog.objects.none()
 
-        if not (user.is_staff or user.is_superuser):
+        if not _can_view_all_timesheet_logs(user):
             queryset = queryset.filter(
                 Q(uid__profile__reporting_to=user)
                 | Q(uid__tasks__assign_by=user)
@@ -236,7 +434,9 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(weeknumber=iso_week, weekyear=iso_year)
 
         requested_status = (
-            self.request.query_params.get('timesheetstatus')
+            self.request.query_params.get('timesheet_week_log')
+            or self.request.query_params.get('timesheetweeklog')
+            or self.request.query_params.get('timesheetstatus')
             or self.request.query_params.get('timesheet_status')
         )
         if requested_status:
@@ -258,7 +458,8 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                 partial=True,
             )
             serializer.is_valid(raise_exception=True)
-            serializer.save(submission_status=False, action_status=False)
+            timesheet_status = serializer.save(submission_status=False, action_status=False)
+            send_unlock_decision_notification(timesheet_status, action_by=request.user)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return super().partial_update(request, *args, **kwargs)
@@ -273,7 +474,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
             )
 
         iso_year, iso_week, _ = week_start.isocalendar()
-        timesheet_status = TimesheetStatus.objects.filter(
+        timesheet_status = TimesheetWeekLog.objects.filter(
             uid=request.user,
             weeknumber=iso_week,
             weekyear=iso_year,
@@ -292,7 +493,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
             )
 
         return Response(
-            TimesheetStatusSerializer(timesheet_status).data,
+            TimesheetWeekLogSerializer(timesheet_status).data,
             status=status.HTTP_200_OK,
         )
 
@@ -353,8 +554,9 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
             or request.query_params.get('employee_id')
         )
 
-        users = User.objects.filter(is_active=True).select_related('profile', 'profile__reporting_to')
-        if not (request.user.is_staff or request.user.is_superuser):
+        users = User.objects.filter(is_active=True).exclude(is_superuser=True).select_related('profile', 'profile__reporting_to')
+        users = _exclude_timesheet_roles(users)
+        if not _can_view_all_timesheet_logs(request.user):
             users = users.filter(
                 Q(profile__reporting_to=request.user)
                 | Q(tasks__assign_by=request.user)
@@ -368,7 +570,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
 
         statuses = {
             (item.uid_id, item.weekyear, item.weeknumber): item
-            for item in TimesheetStatus.objects.filter(
+            for item in TimesheetWeekLog.objects.filter(
                 uid__in=users,
                 weekyear__in=years,
             )
@@ -408,9 +610,10 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                 week_start = _week_start_from_iso(week_year, week_number)
                 week_end = week_start + timedelta(days=6)
                 timesheet_status = statuses.get((user.id, week_year, week_number))
-                timing = _submission_timing(timesheet_status, week_start)
+                timing = _submission_timing(timesheet_status, week_start, user)
                 total_seconds = submission_hours.get((user.id, week_year, week_number), 0)
                 week_key = f'{week_year}-W{week_number:02d}'
+                is_not_applicable = timing == 'Not Applicable'
 
                 week_data[week_key] = {
                     'weeknumber': week_number,
@@ -420,7 +623,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                     'timesheet_status': (
                         timesheet_status.timesheet_status
                         if timesheet_status
-                        else 'Not Submitted'
+                        else 'Not Applicable' if is_not_applicable else 'Not Submitted'
                     ),
                     'submission_status': bool(timesheet_status.submission_status) if timesheet_status else False,
                     'submission_timing': timing,
@@ -504,7 +707,8 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
         )
 
         users = User.objects.filter(is_active=True).select_related('profile', 'profile__reporting_to')
-        if not (request.user.is_staff or request.user.is_superuser):
+        users = _exclude_timesheet_roles(users)
+        if not _can_view_all_timesheet_logs(request.user):
             users = users.filter(
                 Q(profile__reporting_to=request.user)
                 | Q(tasks__assign_by=request.user)
@@ -518,7 +722,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
 
         statuses = {
             (item.uid_id, item.weekyear, item.weeknumber): item
-            for item in TimesheetStatus.objects.filter(
+            for item in TimesheetWeekLog.objects.filter(
                 uid__in=users,
                 weekyear__in=years,
             ).filter(week_query)
@@ -638,7 +842,11 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                 pending_approvers = total_approvers - completed_approvers
                 reviewed_any = any(submission.status in reviewed_statuses for submission in week_submissions)
 
-                if not reviewed_any:
+                approval_delayed = timesheet_status and not _is_approval_on_time(timesheet_status)
+
+                if pending_approvers > 0 and approval_delayed:
+                    review_status = 'Delayed'
+                elif not reviewed_any:
                     review_status = 'No Action'
                 elif pending_approvers > 0:
                     review_status = 'Partially Approved'
@@ -684,7 +892,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
         week_start = serializer.validated_data['week_start']
         iso_year, iso_week, _ = week_start.isocalendar()
 
-        existing_status = TimesheetStatus.objects.filter(
+        existing_status = TimesheetWeekLog.objects.filter(
             uid=request.user,
             weeknumber=iso_week,
             weekyear=iso_year,
@@ -698,7 +906,7 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        timesheet_status, _ = TimesheetStatus.objects.update_or_create(
+        timesheet_status, _ = TimesheetWeekLog.objects.update_or_create(
             uid=request.user,
             weeknumber=iso_week,
             weekyear=iso_year,
@@ -708,11 +916,16 @@ class TimesheetStatusViewSet(viewsets.ModelViewSet):
                 'submission_status': False,
             },
         )
+        send_unlock_request_notification(
+            request.user,
+            week_start,
+            serializer.validated_data['unlock_reason'],
+        )
 
         return Response(
             {
                 'message': 'Unlock request submitted successfully.',
-                'timesheet_status': TimesheetStatusSerializer(timesheet_status).data,
+                'timesheet_status': TimesheetWeekLogSerializer(timesheet_status).data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -738,6 +951,7 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
                 date__range=(week_start, week_end),
                 hours__gt=0,
             )
+            .exclude(assignId__assign_to__profile__role__name__in=_excluded_timesheet_role_names())
             .select_related(
                 'assignId',
                 'assignId__assign_to',
@@ -768,9 +982,9 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
             employee_data['hours'] += _seconds_to_decimal_hours(submission.hours)
             employee_data['statuses'].append(submission.status or 'Submitted')
 
-        timesheet_statuses = {
+        timesheet_week_logs = {
             item.uid_id: item
-            for item in TimesheetStatus.objects.filter(
+            for item in TimesheetWeekLog.objects.filter(
                 uid_id__in=employees.keys(),
                 weeknumber=iso_week,
                 weekyear=iso_year,
@@ -780,7 +994,7 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
         payload = []
         for employee_id, employee_data in employees.items():
             statuses = employee_data.pop('statuses')
-            timesheet_status = timesheet_statuses.get(employee_id)
+            timesheet_status = timesheet_week_logs.get(employee_id)
 
             if timesheet_status:
                 overview = timesheet_status.timesheet_status or 'Submitted'
@@ -877,7 +1091,7 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
             })
 
         iso_year, iso_week, _ = week_start.isocalendar()
-        timesheet_status = TimesheetStatus.objects.filter(
+        timesheet_status = TimesheetWeekLog.objects.filter(
             uid_id=employee_id,
             weeknumber=iso_week,
             weekyear=iso_year,
@@ -932,6 +1146,14 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
                 rejection_reason=comments if action_value == 'Rejected' else None,
             )
             action_status = _sync_timesheet_status(employee, week_start)
+            if action_value == 'Rejected':
+                send_timesheet_rejection_notification(
+                    employee,
+                    request.user,
+                    assigned_task,
+                    week_start,
+                    comments,
+                )
 
         return Response(
             {
@@ -1015,7 +1237,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         if update_fields:
             assigned_task.save(update_fields=update_fields)
 
-    def _save_entries(self, entries, entry_status):
+    def _save_entries(self, entries, entry_status, preserve_accepted_unchanged=False):
         saved_entries = []
         deleted_entries = []
 
@@ -1034,17 +1256,33 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
 
                 continue
 
-            submission, _ = Submission.objects.update_or_create(
+            existing_submission = Submission.objects.filter(
                 assignId=entry['assignId'],
                 date=entry['date'],
-                defaults={
-                    'hours': entry['hours'],
-                    'rate': entry.get('rate', 0),
-                    'status': entry_status,
-                    'approvedBy': entry['assignId'].assign_by,
-                    'approved_status': False,
-                },
+            ).first()
+
+            keep_accepted_status = (
+                preserve_accepted_unchanged
+                and existing_submission
+                and existing_submission.status == 'Accepted'
+                and existing_submission.hours == entry['hours']
             )
+
+            if keep_accepted_status:
+                submission = existing_submission
+            else:
+                submission, _ = Submission.objects.update_or_create(
+                    assignId=entry['assignId'],
+                    date=entry['date'],
+                    defaults={
+                        'hours': entry['hours'],
+                        'rate': entry.get('rate', 0),
+                        'status': entry_status,
+                        'approvedBy': entry['assignId'].assign_by,
+                        'approved_status': False,
+                        'rejection_reason': None,
+                    },
+                )
             saved_entries.append({
                 'id': submission.id,
                 'assignId': submission.assignId_id,
@@ -1144,8 +1382,8 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
     def ticket_options(self, request):
         tickets = (
             Ticket.objects
-            .filter(assigned_to=request.user)
-            .exclude(current_status__in=['open', 'closed'])
+            # .filter(assigned_to=request.user)
+            .filter(current_status__in=['accepted','modified', 'in progress','feedback provided'])
             .order_by('-created_at')
         )
 
@@ -1269,9 +1507,10 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             saved_entries, deleted_entries = self._save_entries(
                 serializer.validated_data['entries'],
                 'Submitted',
+                preserve_accepted_unchanged=True,
             )
 
-            timesheet_status, _ = TimesheetStatus.objects.update_or_create(
+            timesheet_status, _ = TimesheetWeekLog.objects.update_or_create(
                 uid=request.user,
                 weeknumber=week_number,
                 weekyear=week_year,
@@ -1282,13 +1521,20 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                     'comments': comments,
                 },
             )
+            _sync_timesheet_status(request.user, week_start)
+            timesheet_status.refresh_from_db()
+            send_timesheet_submission_notification(
+                request.user,
+                week_start,
+                saved_entries,
+            )
 
         return Response(
             {
                 'message': 'Time sheet submitted successfully.',
                 'entries': saved_entries,
                 'deleted_entries': deleted_entries,
-                'timesheet_status': TimesheetStatusSerializer(timesheet_status).data,
+                'timesheet_status': TimesheetWeekLogSerializer(timesheet_status).data,
             },
             status=status.HTTP_200_OK,
         )
