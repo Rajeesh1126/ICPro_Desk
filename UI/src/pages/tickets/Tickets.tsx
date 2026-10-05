@@ -87,13 +87,15 @@ function isOpenOrInProgressDueTicket(ticket: TicketData) {
   const status = ticket.current_status?.toLowerCase() ?? "";
   const activeStatuses = [
     "open",
-    "modified",
+    "revised",
     "reopened",
     "in progress",
     "assigned",
     "not-satisfied",
     "accepted",
     "recall requested",
+    "date revision",
+    "pending",
   ];
 
   return (

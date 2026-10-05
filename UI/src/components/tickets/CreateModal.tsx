@@ -126,23 +126,23 @@ export default function CreateTicketModal({
         ? {
           task: Data.task || "",
           description: Data.description || "",
-            department: Data.department || "",
-            current_status: Data.current_status || "open",
-            is_internal: Boolean(Data.is_internal),
-            est_hours: Data.est_hours,
-            assigned_to: Data.assigned_to ?? (internalMode ? getUserId(assignableUsers[0]) : ""),
-            priority: (Data.priority?.toLowerCase() as Priority) || "",
-          target_date: Data.target_date || "",
+          department: Data.department || "",
+          current_status: Data.current_status === "open" ? "open" : "revised",
+          is_internal: Boolean(Data.is_internal),
+          est_hours: Data.est_hours,
+          assigned_to: Data.assigned_to ?? (internalMode ? getUserId(assignableUsers[0]) : ""),
+          priority: (Data.priority?.toLowerCase() as Priority) || "",
+          target_date: Data.target_date === "" || new Date(Data.target_date) < new Date(getTomorrowDate()) ? getTomorrowDate() : Data.target_date,
           files: Data.files || [],
           newAttachments: [],
           deletedFileIds: [],
         }
         : {
-            ...emptyForm,
-            is_internal: internalMode,
-            department: internalMode ? departmentsOverride?.[0]?.id ?? "" : "",
-            assigned_to: internalMode ? getUserId(assignableUsers[0]) : "",
-          },
+          ...emptyForm,
+          is_internal: internalMode,
+          department: internalMode ? departmentsOverride?.[0]?.id ?? "" : "",
+          assigned_to: internalMode ? getUserId(assignableUsers[0]) : "",
+        },
     );
     setFormErrorData({});
   }, [Data, open, internalMode, departmentsOverride, assignableUsers]);
@@ -298,9 +298,9 @@ export default function CreateTicketModal({
         ...formData,
         assigned_to: resolvedAssignedTo,
         department: formData.department ? Number(formData.department) : "",
-        current_status: Data
-          ? formData.current_status || Data.current_status
-          : formData.current_status,
+        current_status: formData.current_status,
+        // ? formData.current_status || Data.current_status
+        // : formData.current_status,
         is_internal: Data ? Boolean(Data.is_internal) : internalMode,
       };
 
@@ -456,26 +456,26 @@ export default function CreateTicketModal({
               >
                 {internalMode
                   ? assignableUsers.map((user) => {
-                      const userId = user.id ?? user.users_id;
-                      const userName =
-                        [user.first_name, user.last_name]
-                          .filter(Boolean)
-                          .join(" ")
-                          .trim() ||
-                        user.username ||
-                        `User ${userId}`;
+                    const userId = user.id ?? user.users_id;
+                    const userName =
+                      [user.first_name, user.last_name]
+                        .filter(Boolean)
+                        .join(" ")
+                        .trim() ||
+                      user.username ||
+                      `User ${userId}`;
 
-                      return (
-                        <MenuItem key={userId} value={userId}>
-                          {userName}
-                        </MenuItem>
-                      );
-                    })
-                  : formData.assigned_to && (
-                      <MenuItem value={formData.assigned_to}>
-                        {assignedToName}
+                    return (
+                      <MenuItem key={userId} value={userId}>
+                        {userName}
                       </MenuItem>
-                    )}
+                    );
+                  })
+                  : formData.assigned_to && (
+                    <MenuItem value={formData.assigned_to}>
+                      {assignedToName}
+                    </MenuItem>
+                  )}
               </Select>
             </FormControl>
           </Grid>

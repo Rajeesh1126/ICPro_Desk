@@ -23,6 +23,7 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 
 import api from "../../api/axios";
 import { useState } from "react";
@@ -84,6 +85,7 @@ export default function TicketDetailModal({
   const [cancelModelOpen, setCancelModelOpen] = useState(false);
   const [openCommentsModal, setOpenCommentsModal] = useState(false);
   const [openProgressModal, setOpenProgressModal] = useState(false);
+  const [openTargetRevisionModal, setOpenTargetRevisionModal] = useState(false);
   const [comments, setcomments] = useState("");
   const [task, setTask] = useState(data);
   const theme = useTheme();
@@ -98,6 +100,7 @@ export default function TicketDetailModal({
   const statusMessages: Record<string, string> = {
     closed: "Do List task closed successfully.",
     cancelled: "Do List task cancelled successfully.",
+    "date revision": "Target date revision request sent successfully.",
   };
 
   const handleConfirm = async (
@@ -148,7 +151,7 @@ export default function TicketDetailModal({
         open={open}
         onClose={onClose}
         fullWidth
-        maxWidth="md"
+        maxWidth="lg"
         slotProps={{
           paper: {
             sx: selfTicketsDetailModelDialogPaperSx,
@@ -475,16 +478,28 @@ export default function TicketDetailModal({
             )}
 
           {task.creator !== userId && (
-            <Button
-              onClick={() => setOpenCommentsModal(true)}
-              variant="outlined"
-              color="warning"
-              disabled={task.current_status === "closed"}
-              startIcon={<ChatBubbleOutlineOutlinedIcon />}
-              sx={selfTicketsDetailModelButtonSx1}
-            >
-              Comments
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                onClick={() => setOpenCommentsModal(true)}
+                variant="outlined"
+                color="warning"
+                disabled={task.current_status === "closed"}
+                startIcon={<ChatBubbleOutlineOutlinedIcon />}
+                sx={selfTicketsDetailModelButtonSx1}
+              >
+                Comments
+              </Button>
+              <Button
+                onClick={() => setOpenTargetRevisionModal(true)}
+                variant="outlined"
+                color="warning"
+                disabled={["closed", "cancelled"].includes(task.current_status)}
+                startIcon={<EventRepeatOutlinedIcon />}
+                sx={selfTicketsDetailModelButtonSx1}
+              >
+                Revise Target Date
+              </Button>
+            </Stack>
           )}
         </DialogActions>
       </Dialog>
@@ -605,6 +620,36 @@ export default function TicketDetailModal({
           value={comments}
           onChange={(event) => setcomments(event.target.value)}
           placeholder="e.g., Insufficient information provided, Duplicate task, Out of scope..."
+          sx={compactFieldSx}
+        />
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={openTargetRevisionModal}
+        onClose={() => setOpenTargetRevisionModal(false)}
+        onConfirm={async () => {
+          if (await handleConfirm("date revision", { comments }))
+            setOpenTargetRevisionModal(false);
+        }}
+        title="Request Target Date Revision"
+        titleIcon={<EventRepeatOutlinedIcon />}
+        description="Please provide the reason for extending or revising the target date."
+        confirmLabel="Send Request"
+        confirmColor="warning"
+        confirmIcon={<SendOutlinedIcon />}
+        confirmDisabled={!comments.trim()}
+        tone="warning"
+      >
+        <TextField
+          autoFocus
+          required
+          multiline
+          rows={4}
+          fullWidth
+          label="Reason for target date revision"
+          value={comments}
+          onChange={(event) => setcomments(event.target.value)}
+          placeholder="Explain why the target date needs to be revised or extended..."
           sx={compactFieldSx}
         />
       </ConfirmDialog>

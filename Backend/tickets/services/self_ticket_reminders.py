@@ -6,7 +6,16 @@ from core.microsoftGraphAPI import send_mail
 from tickets.models import Self_Ticket
 
 
-REMINDER_STATUSES = {'open', 'assigned', 'accepted', 'on hold', 'in progress', 'modified'}
+REMINDER_STATUSES = {
+    'open',
+    'assigned',
+    'accepted',
+    'on hold',
+    'in progress',
+    'revised',
+    'date revision',
+    'pending',
+}
 
 
 def due_self_ticket_queryset(today=None):

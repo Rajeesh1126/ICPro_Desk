@@ -478,11 +478,11 @@ export default function Reports() {
 
   const filteredTickets = useMemo<TicketData[]>(() => {
     const statusGroups: Record<string, string[]> = {
-      open: ["open", "modified-open"],
-      accepted: ["accepted", "modified-accepted"],
-      assigned: ["assigned", "modified-assigned"],
+      open: ["open", "revised", "revised-open"],
+      accepted: ["accepted", "revised-accepted"],
+      assigned: ["assigned", "revised-assigned"],
       completed: ["completed"],
-      progress: ["in progress", "feedback provided"],
+      progress: ["in progress", "feedback provided", "date revision", "pending"],
       rejected: ["rejected", "not-satisfied"],
       closed: ["closed", "recall requested", "recall successful"],
     };
@@ -509,7 +509,7 @@ export default function Reports() {
 
   const filteredSelfTickets = useMemo<SelfTicketData[]>(() => {
     const statusGroups: Record<string, string[]> = {
-      open: ["open", "modified-open"],
+      open: ["open", "revised-open", "date revision"],
       closed: ["closed", "recall requested", "recall successful"],
     };
 

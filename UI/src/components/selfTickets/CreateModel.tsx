@@ -361,12 +361,12 @@ export default function CreateSelfTicketModel({
 
           <Box>
             <Typography sx={selfTicketsCreateModelTypographySx3} gutterBottom>
-              Related task
+              Related Ticket
             </Typography>
             <Grid container spacing={1.5} alignItems="center">
               <Grid size={{ xs: 12, sm: 8 }}>
                 <FormControlLabel
-                  label="Is this task linked to any other task?"
+                  label="Is this task linked to any other ticket?"
                   control={
                     <Checkbox
                       checked={checked}
@@ -385,7 +385,7 @@ export default function CreateSelfTicketModel({
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField
-                  label="Related task number"
+                  label="Related ticket number"
                   fullWidth
                   value={formData.ticket_number}
                   disabled={!checked}

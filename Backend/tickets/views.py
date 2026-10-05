@@ -33,7 +33,6 @@ class DepartmentMixin:
 
     def get_department_ids(self):
         user = self.request.user
-        print(user)
 
         groups = set(DepartmentManager.objects.filter(
                 manager=user
@@ -224,12 +223,12 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
 
         active_status = [
             "open",
-            "modified",
+            "revised",
             "reopened",
             "not-satisfied",
         ]
 
-        progress_status = ["assigned", "accepted","in progress"]
+        progress_status = ["assigned", "accepted","in progress", "date revision", "pending"]
 
         if department_id:
             department_queryset = queryset.filter(department_id=department_id)
@@ -619,7 +618,7 @@ class NotificationView(DepartmentMixin, APIView):
             "selfticketOpenCount":
                 Self_Ticket.objects.filter(
                     creator=request.user,
-                    current_status="open"
+                    current_status__in=["open", "date revision"]
                 ).count(),
             "ticketOpenCount":
                 ticket_queryset.filter(
@@ -630,10 +629,12 @@ class NotificationView(DepartmentMixin, APIView):
                             "in progress",
                             "assigned",
                             "feedback provided",
-                            "modified",
+                            "revised",
                             "recall requested",
                             "reopened",
-                            "not-satisfied"
+                            "not-satisfied",
+                            "date revision",
+                            "pending",
                         ]
                     )
                     |

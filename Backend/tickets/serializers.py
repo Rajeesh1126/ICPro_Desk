@@ -72,6 +72,8 @@ class TicketSerializer(serializers.ModelSerializer):
         return obj.assigned_to.get_full_name() or obj.assigned_to.username
 
     def validate(self, attrs):
+        if attrs.get('current_status') == 'pending' and not attrs.get('remarks', '').strip():
+            raise serializers.ValidationError({'remarks': 'A pending reason is required.'})
         request = self.context.get('request')
         user = request.user if request and request.user and request.user.is_authenticated else None
         is_internal = attrs.get(
@@ -93,6 +95,13 @@ class TicketSerializer(serializers.ModelSerializer):
             if not user:
                 raise serializers.ValidationError({'is_internal': 'Authentication is required for internal tickets.'})
 
+        requires_assignment_validation = is_internal and (
+            self.instance is None
+            or not self.instance.is_internal
+            or assigned_to != self.instance.assigned_to
+        )
+
+        if requires_assignment_validation:
             is_department_manager = DepartmentManager.objects.filter(manager=user).exists()
             is_lead = bool(getattr(getattr(user, 'profile', None), 'dept_role', False))
 
@@ -177,8 +186,8 @@ class TicketSerializer(serializers.ModelSerializer):
                 ticket=instance,
                 file=attachment,
             )
-
-        if old_status != new_status or new_status == "in progress" or new_status == "feedback provided":
+ 
+        if old_status != new_status or new_status in ("in progress", "feedback provided"):
             # Logic: If authenticated, use that user. If not (Dev Mode), 
             # use User ID 3 as requested.
             user = self.context['request'].user
@@ -202,8 +211,9 @@ class TicketSerializer(serializers.ModelSerializer):
             content = ""
             subject = f"Ticket {new_status} - Your ticket with Ticket Id -"+instance.number
             text_content = "Ticket emails"
-            Heading = "Ticket Modified"
+            Heading = "Ticket Revised"
             today = date.today().strftime('%d-%m-%Y')
+           
             if new_status == "rejected":
                 content = f"On { today } the ticket with the below data has been rejected with the reason as mentioned below."
                 Receivermail = instance.creator.email
@@ -259,8 +269,18 @@ class TicketSerializer(serializers.ModelSerializer):
                 Receivermail = instance.assigned_to.email
                 Receivername = instance.assigned_to.first_name
                 Heading = "Ticket Feedback Provided"
+            elif new_status == "pending":
+                content = f"On {today}, the ticket was marked as pending. Please review the reason below."
+                Receivermail = instance.creator.email
+                Receivername = instance.creator.first_name
+                Heading = "Ticket Pending"
+            elif new_status =="date revision":
+                content = f"On {today}, the assigned person has requested a target date revision. Please review the reason below."
+                Receivermail = instance.creator.email
+                Receivername = instance.creator.first_name
+                Heading = "Target Date Revision Requested"
             else:
-                content = f"On { today } the ticket with the below data - has been Modified / Update and status updated to Modified / Updated and Open."
+                content = f"On {today}, the ticket with the below data has been revised."
                 Receivermail = instance.assigned_to.email
                 Receivername = instance.assigned_to.first_name
 

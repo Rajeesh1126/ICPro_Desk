@@ -26,8 +26,10 @@ import {
   VirtualizedTable,
   type ColumnData,
 } from "../../components/common/TableView";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import CreateSelfTicketModel from "../../components/selfTickets/CreateModel";
 import TicketCardView from "../../components/common/CardView";
+import { shouldBlinkSelfTicket } from "../../components/selfTickets/highlight";
 import type {
   SelfTicketCollections,
   SelfTicketData,
@@ -68,31 +70,6 @@ function loggedUser(): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
-function parseTaskDueDay(value: string | null | undefined) {
-  if (!value) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
-  }
-
-  const normalizedValue = value.replace(" ", "T");
-  const dueDate = new Date(normalizedValue);
-  const timestamp = dueDate.getTime();
-  dueDate.setHours(0, 0, 0, 0);
-
-  return Number.isNaN(timestamp) ? null : dueDate.getTime();
-}
-
-function isOpenDueTask(ticket: SelfTicketData) {
-  const dueDay = parseTaskDueDay(ticket.target_date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isOpen = ticket.current_status?.toLowerCase() === "open";
-
-  return isOpen && dueDay !== null && dueDay <= today.getTime();
-}
-
 export default function SelfTickets() {
   const userId = useMemo(() => loggedUser(), []);
   const [selectedUser, setSelectedUser] = useState("");
@@ -105,6 +82,9 @@ export default function SelfTickets() {
   const [tickets, setTickets] =
     useState<SelfTicketCollections>(emptyCollections);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [acknowledgeTarget, setAcknowledgeTarget] =
+    useState<SelfTicketData | null>(null);
+  const [acknowledging, setAcknowledging] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -170,18 +150,34 @@ export default function SelfTickets() {
     setRefreshKey((key) => key + 1);
   }, []);
 
-  const acknowledgeAlarm = useCallback(async (ticket: SelfTicketData) => {
-    if (!ticket.id) return;
-
-    await api.post(`/self-tickets/${ticket.id}/acknowledge-alarm/`);
-    setRefreshKey((key) => key + 1);
+  const requestAcknowledgeAlarm = useCallback((ticket: SelfTicketData) => {
+    setAcknowledgeTarget(ticket);
   }, []);
+
+  const closeAcknowledgeDialog = useCallback(() => {
+    if (acknowledging) return;
+    setAcknowledgeTarget(null);
+  }, [acknowledging]);
+
+  const confirmAcknowledgeAlarm = useCallback(async () => {
+    const ticket = acknowledgeTarget;
+    if (!ticket?.id) return;
+
+    setAcknowledging(true);
+    try {
+      await api.post(`/self-tickets/${ticket.id}/acknowledge-alarm/`);
+      setAcknowledgeTarget(null);
+      setRefreshKey((key) => key + 1);
+    } finally {
+      setAcknowledging(false);
+    }
+  }, [acknowledgeTarget]);
 
   const columns = useMemo<ColumnData<SelfTicketData>[]>(
     () => [
       {
         label: "#",
-        width: 10,
+        width: 45,
         render: (_row, index) => index + 1,
         numeric: true,
       },
@@ -219,7 +215,7 @@ export default function SelfTickets() {
                   aria-label={`Acknowledge reminder ${row.number}`}
                   size="small"
                   color="warning"
-                  onClick={() => void acknowledgeAlarm(row)}
+                  onClick={() => requestAcknowledgeAlarm(row)}
                 >
                   <NotificationsActiveOutlinedIcon fontSize="small" />
                 </IconButton>
@@ -253,7 +249,7 @@ export default function SelfTickets() {
           ),
       },
     ],
-    [acknowledgeAlarm, userId, openDetails, openEdit],
+    [requestAcknowledgeAlarm, userId, openDetails, openEdit],
   );
 
   const activeRows = tabValue === 0 ? tickets.self : tickets.others;
@@ -360,7 +356,7 @@ export default function SelfTickets() {
               data={filteredRows}
               onCardClick={openDetails}
               cardType="Self"
-              onAcknowledgeAlarm={acknowledgeAlarm}
+              onAcknowledgeAlarm={requestAcknowledgeAlarm}
             />
           ) : (
             <VirtualizedTable
@@ -371,7 +367,7 @@ export default function SelfTickets() {
               getRowSx={(row) =>
                 row.alarm === true
                   ? priorityAlarmRowHighlight(row.priority)
-                  : isOpenDueTask(row)
+                  : shouldBlinkSelfTicket(row)
                   ? priorityDueRowHighlight(row.priority)
                   : undefined
               }
@@ -402,6 +398,21 @@ export default function SelfTickets() {
           data={selectedRow}
         />
       )}
+      <ConfirmDialog
+        open={Boolean(acknowledgeTarget)}
+        title="Acknowledge Reminder"
+        description={`Are you sure you want to acknowledge reminder ${
+          acknowledgeTarget?.number ? `#${acknowledgeTarget.number}` : ""
+        }?`}
+        titleIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
+        confirmLabel={acknowledging ? "Acknowledging..." : "Acknowledge"}
+        confirmColor="warning"
+        confirmIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
+        confirmDisabled={acknowledging}
+        tone="warning"
+        onClose={closeAcknowledgeDialog}
+        onConfirm={() => void confirmAcknowledgeAlarm()}
+      />
     </Box>
   );
 }

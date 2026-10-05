@@ -245,12 +245,19 @@ const submissionLegendItems = [
 ];
 
 const reviewerLegendItems = [
-  { icon: CheckCircleOutlinedIcon, color: reviewColor.OnTime, label: "Approved OnTime" },
+  { icon: CheckCircleOutlinedIcon, color: reviewColor.OnTime, label: "Approved On Time" },
   { icon: RateReviewOutlinedIcon, color: reviewColor["Partially Approved"], label: "Partially Approved" },
   { icon: HourglassTopOutlinedIcon, color: reviewColor.Delayed, label: "Approval Delayed" },
   { icon: CancelOutlinedIcon, color: reviewColor.Rejected, label: "Rejected" },
-  { icon: PendingActionsOutlinedIcon, color: reviewColor["No Action"], label: "No Action" },
-  { icon: HelpOutlineOutlinedIcon, color: reviewColor["N/A"], label: "N/A" },
+  { icon: PendingActionsOutlinedIcon, color: reviewColor["No Action"], label: "Awaiting Approval" },
+  { icon: HelpOutlineOutlinedIcon, color: reviewColor["N/A"], label: "Not Submitted" },
+];
+
+const approverLegendItems = [
+  { icon: RateReviewOutlinedIcon, color: reviewColor.OnTime, label: "All Submitters Accepted" },
+  { icon: RateReviewOutlinedIcon, color: reviewColor["No Action"], label: "Pending Submitters" },
+  { icon: RateReviewOutlinedIcon, color: reviewColor.Rejected, label: "Rejected Submitters" },
+  { icon: RateReviewOutlinedIcon, color: reviewColor["N/A"], label: "No Submissions" },
 ];
 
 function LegendItem({
@@ -313,10 +320,10 @@ function TimingIcon({ week }: { week?: TimesheetLogWeek }) {
     timing === "OnTime"
       ? CheckCircleOutlinedIcon
       : timing === "Delayed"
-      ? HourglassTopOutlinedIcon
-      : timing === "Not Applicable"
-      ? HelpOutlineOutlinedIcon
-      : CancelOutlinedIcon;
+        ? HourglassTopOutlinedIcon
+        : timing === "Not Applicable"
+          ? HelpOutlineOutlinedIcon
+          : CancelOutlinedIcon;
 
   return (
     <Tooltip
@@ -350,14 +357,14 @@ function ReviewerIcon({
     status === "OnTime"
       ? CheckCircleOutlinedIcon
       : status === "Rejected"
-      ? CancelOutlinedIcon
-      : status === "Partially Approved"
-      ? RateReviewOutlinedIcon
-      : status === "Delayed"
-      ? HourglassTopOutlinedIcon
-      : status === "No Action"
-      ? PendingActionsOutlinedIcon
-      : HelpOutlineOutlinedIcon;
+        ? CancelOutlinedIcon
+        : status === "Partially Approved"
+          ? RateReviewOutlinedIcon
+          : status === "Delayed"
+            ? HourglassTopOutlinedIcon
+            : status === "No Action"
+              ? PendingActionsOutlinedIcon
+              : HelpOutlineOutlinedIcon;
   const canOpen = Boolean(week?.submitted && week.approvers.length > 0);
 
   return (
@@ -397,10 +404,10 @@ function ApproverWeekIcon({
   const color = !week
     ? reviewColor["N/A"]
     : hasRejected
-    ? reviewColor.Rejected
-    : hasPending
-    ? reviewColor["No Action"]
-    : reviewColor.OnTime;
+      ? reviewColor.Rejected
+      : hasPending
+        ? reviewColor["No Action"]
+        : reviewColor.OnTime;
 
   return (
     <Tooltip title={formatApproverWeekValue(week)}>
@@ -686,12 +693,12 @@ export default function TimesheetLogs() {
         label: "Approver",
         dataKey: "approver_name",
       },
-      {
-        label: "Submitted Employees",
-        dataKey: "total_submitters",
-        numeric: true,
-        width: { xs: 130, sm: 160 },
-      },
+      // {
+      //   label: "Submitted Employees",
+      //   dataKey: "total_submitters",
+      //   numeric: true,
+      //   width: { xs: 130, sm: 160 },
+      // },
       ...reviewerLogs.week_columns.map((week) => ({
         label: week.label,
         width: 54,
@@ -804,12 +811,12 @@ export default function TimesheetLogs() {
         exportRow[`${weekLabel} Summary`] = formatApproverWeekValue(week);
         exportRow[`${weekLabel} Submitter Details`] = week
           ? week.submitters
-              .map(
-                (submitter) =>
-                  `${submitter.employee_name}: ${submitter.status} ` +
-                  `(Accepted ${submitter.accepted_count}, Rejected ${submitter.rejected_count}, Pending ${submitter.pending_count})`,
-              )
-              .join("; ")
+            .map(
+              (submitter) =>
+                `${submitter.employee_name}: ${submitter.status} ` +
+                `(Accepted ${submitter.accepted_count}, Rejected ${submitter.rejected_count}, Pending ${submitter.pending_count})`,
+            )
+            .join("; ")
           : "";
       });
 
@@ -856,8 +863,8 @@ export default function TimesheetLogs() {
     tabValue === 0
       ? logs.results.length === 0
       : tabValue === 1
-      ? reviewerLogs.results.length === 0
-      : approverRows.length === 0;
+        ? reviewerLogs.results.length === 0
+        : approverRows.length === 0;
 
   return (
     <Box sx={page}>
@@ -944,7 +951,7 @@ export default function TimesheetLogs() {
               fixedFooterContent={() => (
                 <IconLegendFooter
                   colSpan={approverColumns.length}
-                  items={reviewerLegendItems}
+                  items={approverLegendItems}
                 />
               )}
             />
@@ -1117,10 +1124,10 @@ export default function TimesheetLogs() {
                     approver.status === "Accepted"
                       ? "success"
                       : approver.status === "Rejected"
-                      ? "error"
-                      : approver.status === "Mixed"
-                      ? "warning"
-                      : "default"
+                        ? "error"
+                        : approver.status === "Mixed"
+                          ? "warning"
+                          : "default"
                   }
                   variant={approver.status === "Pending" ? "outlined" : "filled"}
                 />
@@ -1197,10 +1204,10 @@ export default function TimesheetLogs() {
                     submitter.status === "Accepted"
                       ? "success"
                       : submitter.status === "Rejected"
-                      ? "error"
-                      : submitter.status === "Mixed"
-                      ? "warning"
-                      : "default"
+                        ? "error"
+                        : submitter.status === "Mixed"
+                          ? "warning"
+                          : "default"
                   }
                   variant={submitter.status === "Pending" ? "outlined" : "filled"}
                 />

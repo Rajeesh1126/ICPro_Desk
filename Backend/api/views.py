@@ -1383,7 +1383,7 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         tickets = (
             Ticket.objects
             # .filter(assigned_to=request.user)
-            .filter(current_status__in=['accepted','modified', 'in progress','feedback provided'])
+            .filter(current_status__in=['accepted','revised', 'in progress','feedback provided', 'date revision', 'pending'])
             .order_by('-created_at')
         )
 

@@ -2,12 +2,12 @@ import {
   Card,
   CardContent,
   Typography,
-  Box,
   Chip,
   Divider,
   IconButton,
   Stack,
   Tooltip,
+  Grid,
 } from "@mui/material";
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 
@@ -15,13 +15,17 @@ import { alpha } from "@mui/material/styles";
 import type { SelfTicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
+  getSelfTicketAlertMessage,
+  shouldBlinkSelfTicket,
+} from "./highlight";
+import {
   compactTextSx,
   alarmBellSx,
   detailLabelSx,
   detailValueSx,
   secondaryTextSx,
   // secondaryTextSx,
-  selfTicketsBasicCardBoxSx1,
+  // selfTicketsBasicCardBoxSx1,
   selfTicketsBasicCardCardContentSx1,
   selfTicketsBasicCardDividerSx1,
   selfTicketsBasicCardDynamicDynamicCardSx1,
@@ -61,7 +65,9 @@ export default function BasicCardSelfTicket({
   };
 
   const styles = getPriorityStyles(ticket.priority);
-  const highlighted = ticket.alarm === true;
+  const hasAlarm = ticket.alarm === true;
+  const highlighted = shouldBlinkSelfTicket(ticket);
+  const alertMessage = getSelfTicketAlertMessage(ticket);
 
   return (
     <Card
@@ -70,6 +76,37 @@ export default function BasicCardSelfTicket({
       sx={selfTicketsBasicCardDynamicDynamicCardSx1({ highlighted, styles })}
     >
       <CardContent sx={selfTicketsBasicCardCardContentSx1}>
+
+        {alertMessage && (
+          <Stack direction="row" justifyContent="flex-end" mb={0.75}>
+            <Chip
+              label={alertMessage}
+              size="small"
+              variant="outlined"
+              sx={{
+                color: styles.color,
+                borderColor: styles.color,
+              }}
+              // sx={{
+              //   ...selfTicketsBasicCardDynamicDynamicChipSx1({ alpha, styles }),
+              //   minWidth: { xs: "auto", sm: 60 },
+              // }}
+            />
+            {/* <Typography
+              variant="caption"
+              sx={{
+                color: styles.color,
+                fontSize: 11,
+                fontWeight: 700,
+                lineHeight: 1.3,
+                textAlign: "right",
+              }}
+            >
+              {alertMessage}
+            </Typography> */}
+          </Stack>
+        )}
+
         <Stack
           direction={{ xs: "row", sm: "row" }}
           justifyContent="space-between"
@@ -88,18 +125,17 @@ export default function BasicCardSelfTicket({
             alignItems="center"
             sx={secondaryTextSx}
           >
-            {highlighted && (
+            {hasAlarm && (
               <Tooltip title="Acknowledge reminder">
                 <IconButton
                   aria-label={`Acknowledge reminder ${ticket.number}`}
-                  size="small"
                   sx={{ color: styles.color }}
                   onClick={(event) => {
                     event.stopPropagation();
                     onAcknowledgeAlarm?.(ticket);
                   }}
                 >
-                  <NotificationsActiveRoundedIcon fontSize="small" sx={alarmBellSx} />
+                  <NotificationsActiveRoundedIcon sx={alarmBellSx} />
                 </IconButton>
               </Tooltip>
             )}
@@ -116,42 +152,64 @@ export default function BasicCardSelfTicket({
           </Stack>
         </Stack>
 
+        
+
         <Typography variant="h6" sx={selfTicketsBasicCardTypographySx4}>
           {ticket.task}
         </Typography>
 
         <Divider sx={selfTicketsBasicCardDividerSx1} />
 
-        <Box sx={selfTicketsBasicCardBoxSx1}>
-          <Box>
+        <Grid container spacing={1}>
+          <Grid size={{ xs: 6, md: 3.5 }}>
             <Typography sx={detailLabelSx}>Reminder Interval</Typography>
             <Typography sx={detailValueSx}>
               {ticket.reminder_interval
                 ? `${ticket.reminder_interval} day${
-                    ticket.reminder_interval > 1 ? "s" : ""
-                  }`
+                  ticket.reminder_interval > 1 ? "s" : ""
+                }`
                 : "N/A"}
             </Typography>
-          </Box>
-          <Box>
+          </Grid>
+          <Grid
+            size={{ xs: 6, md: 3 }}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: { xs: "flex-end", sm: "flex-start" },
+              justifyContent: "flex-start",
+              textAlign: { xs: "right", sm: "left" },
+            }}
+          >
             <Typography sx={detailLabelSx}>Target date</Typography>
             <Typography sx={detailValueSx}>
               {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
             </Typography>
-          </Box>
-          <Box>
+          </Grid>
+          <Grid size={{ xs: 6, md: 3.5 }}>
             <Typography sx={detailLabelSx}>Ticket No</Typography>
             <Typography sx={detailValueSx}>
               {ticket.ticket_number ? ticket.ticket_number : "N/A"}
             </Typography>
-          </Box>
-
-          <Chip
-            label={ticket.priority || "Normal"}
-            size="small"
-            sx={selfTicketsBasicCardDynamicDynamicChipSx1({ alpha, styles })}
-          />
-        </Box>
+          </Grid>
+          <Grid
+            size={{ xs: 6, md: 2 }}
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Chip
+              label={ticket.priority || "Normal"}
+              size="small"
+              sx={{
+                ...selfTicketsBasicCardDynamicDynamicChipSx1({ alpha, styles }),
+                minWidth: { xs: "auto", sm: 60 },
+              }}
+            />
+          </Grid>
+        </Grid>
       </CardContent>
     </Card>
   );

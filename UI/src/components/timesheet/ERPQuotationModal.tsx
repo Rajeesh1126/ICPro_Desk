@@ -108,7 +108,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
         () => [
             {
                 label: "Select",
-                width: 60,
+                width: 50,
                 render: (quotation) => (
                     <Checkbox
                         checked={selectedIds.includes(quotation.id)}
@@ -120,7 +120,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
             {
                 label: "Quotation No",
                 dataKey: "quotation_no",
-                width: 150,
+                width: 120,
             },
             {
                 label: "Customer",
@@ -128,7 +128,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                 width: 200,
             },
             {
-                label: "Project Name",
+                label: "Name",
                 width: 250,
                 render: (quotation): React.ReactNode => {
                     const projectName =

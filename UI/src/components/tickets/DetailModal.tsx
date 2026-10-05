@@ -31,6 +31,7 @@ import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurned
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import api from "../../api/axios";
 import { useState, useEffect } from "react";
 import { Rating } from "@mui/material";
@@ -110,7 +111,7 @@ export default function TicketDetailModal({
   data: TicketData;
 }) {
   // const status = data.current_status;
-  // const status = data.current_status.includes("modified-") ? data.current_status.replace("modified-", "") : data.current_status;
+  // const status = data.current_status.includes("revised-") ? data.current_status.replace("revised-", "") : data.current_status;
   const status = data.current_status;
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -130,6 +131,9 @@ export default function TicketDetailModal({
   const [openRecallModal, setOpenRecallModal] = useState(false);
   const [openInProgressModal, setOpenInProgressModal] = useState(false);
   const [openFeedback, setOpenFeedback] = useState(false);
+  const [openTargetRevisionModal, setOpenTargetRevisionModal] = useState(false);
+  const [openPendingModal, setOpenPendingModal] = useState(false);
+  const [pendingReason, setPendingReason] = useState("");
 
   const [remarks, setRemarks] = useState("");
 
@@ -164,6 +168,8 @@ export default function TicketDetailModal({
     "recall successful": "Recalled and closed successful.",
     "not-satisfied": "Ticket marked as Not Satisfactory successfully.",
     "on hold": "Ticket put on hold successfully.",
+    "date revision": "Target date revision request sent successfully.",
+    pending: "Ticket marked as pending successfully.",
     closed: "Ticket closed successfully.",
     cancelled: "Ticket cancelled successfully.",
   };
@@ -210,12 +216,12 @@ export default function TicketDetailModal({
       const payload = {
         current_status: action,
         ...additionalData,
-        remarks: remarks
+        remarks: additionalData?.remarks ?? (remarks
           ? remarks
           : `Status changed to "${action}" by user ${userName}` +
-            (additionalData?.assigned_to
-              ? ` and assigned to ${assignedName}`
-              : ""),
+          (additionalData?.assigned_to
+            ? ` and assigned to ${assignedName}`
+            : "")),
         assigned_to: additionalData?.assigned_to
           ? Number(assignedId)
           : data.assigned_to,
@@ -290,7 +296,7 @@ export default function TicketDetailModal({
               onClick={onClose}
               sx={ticketsDetailModalIconButtonSx1}
             >
-              <CloseOutlinedIcon/>
+              <CloseOutlinedIcon />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -517,9 +523,8 @@ export default function TicketDetailModal({
           {/* Right: Action buttons */}
           <Stack direction="row" spacing={1.5} sx={ticketsDetailModalStackSx2}>
             {/* Buttons here */}
-
             {/* 1. If status is OPEN and the logged-in user is the one ASSIGNED to the Task */}
-            {["open", "modified", "reopened"].includes(status) &&
+            {["open", "revised", "reopened"].includes(status) &&
               data.assigned_to === user && (
                 <Stack direction="row" spacing={1.5}>
                   <Button
@@ -540,13 +545,14 @@ export default function TicketDetailModal({
                     Reassign
                   </Button>
                   <Button
-                    onClick={() => setOpenHoldModal(true)}
+                    onClick={() => { setPendingReason(""); setOpenPendingModal(true); }}
                     variant="outlined"
                     color="warning"
                     startIcon={<PauseCircleOutlineOutlinedIcon />}
                   >
-                    On Hold
+                    Pending
                   </Button>
+                  
                   <Button
                     onClick={() => setOpenRejectModal(true)}
                     variant="outlined"
@@ -564,6 +570,8 @@ export default function TicketDetailModal({
               "assigned",
               "in progress",
               "feedback provided",
+              "date revision",
+              "pending",
             ].includes(status) &&
               data.creator === user && (
                 <Stack direction="row" spacing={1.5}>
@@ -593,9 +601,9 @@ export default function TicketDetailModal({
             {[
               "accepted",
               "assigned",
-              "not-satisfied",
               "in progress",
               "feedback provided",
+              "date revision",
             ].includes(status) &&
               data.assigned_to === user && (
                 <Stack direction="row" spacing={1.5}>
@@ -607,7 +615,7 @@ export default function TicketDetailModal({
                   >
                     Update Progress
                   </Button>
-                  <Button
+                   <Button
                     // onClick={() => handleAction("completed")}
                     onClick={() => setcloseDblConfirmOpen(true)}
                     variant="contained"
@@ -615,6 +623,23 @@ export default function TicketDetailModal({
                     startIcon={<TaskAltOutlinedIcon />}
                   >
                     Completed
+                  </Button>
+                  <Button
+                    onClick={() => setOpenHoldModal(true)}
+                    variant="outlined"
+                    color="warning"
+                    startIcon={<PauseCircleOutlineOutlinedIcon />}
+                  >
+                    On Hold
+                  </Button>
+                 
+                  <Button
+                    onClick={() => setOpenTargetRevisionModal(true)}
+                    variant="outlined"
+                    color="warning"
+                    startIcon={<EventRepeatOutlinedIcon />}
+                  >
+                    Revise Target Date
                   </Button>
                 </Stack>
               )}
@@ -653,21 +678,21 @@ export default function TicketDetailModal({
               )}
 
             {/* 5. If the task is in recall requested state when the assigner part */}
-            {((["open", "modified", "reopened", "not-satisfied"].includes(
+            {((["open", "revised", "reopened", "not-satisfied"].includes(
               status,
             ) &&
               data.creator === user) ||
               (status === "recall requested" && data.assigned_to === user)) && (
-              <Button
-                // onClick={() => handleAction("recall successful")}
-                onClick={() => setOpenRecallNCloseModal(true)}
-                variant="contained"
-                color="success"
-                startIcon={<AssignmentTurnedInOutlinedIcon />}
-              >
-                Recall and closed
-              </Button>
-            )}
+                <Button
+                  // onClick={() => handleAction("recall successful")}
+                  onClick={() => setOpenRecallNCloseModal(true)}
+                  variant="contained"
+                  color="success"
+                  startIcon={<AssignmentTurnedInOutlinedIcon />}
+                >
+                  Recall and closed
+                </Button>
+              )}
           </Stack>
         </DialogActions>
       </Dialog>
@@ -767,10 +792,10 @@ export default function TicketDetailModal({
           multiline
           rows={4}
           fullWidth
-          label="Reason for Hold"
+          label="Details for Hold"
           value={remarks}
           onChange={(event) => setRemarks(event.target.value)}
-          placeholder="e.g., Insufficient information provided, Duplicate ticket, Out of scope..."
+          placeholder="e.g., Work is temporarily stopped, usually waiting for another department, vendor, hardware, etc."
         />
       </ConfirmDialog>
 
@@ -885,6 +910,33 @@ export default function TicketDetailModal({
         />
       </ConfirmDialog>
 
+      <ConfirmDialog
+        open={openPendingModal}
+        onClose={() => setOpenPendingModal(false)}
+        onConfirm={() => {
+          void handleAction("pending", { remarks: pendingReason.trim() });
+          setOpenPendingModal(false);
+        }}
+        title="Mark Ticket Pending"
+        titleIcon={<PauseCircleOutlineOutlinedIcon />}
+        confirmLabel="Mark Pending"
+        confirmColor="warning"
+        confirmDisabled={!pendingReason.trim()}
+        tone="warning"
+      >
+        <TextField
+          autoFocus
+          required
+          multiline
+          rows={4}
+          fullWidth
+          label="Pending Reason"
+          placeholder="Waiting for information/action from the requester."
+          value={pendingReason}
+          onChange={(event) => setPendingReason(event.target.value)}
+        />
+      </ConfirmDialog>
+
       {/* Update Progress */}
       <ConfirmDialog
         open={openInProgressModal}
@@ -912,6 +964,35 @@ export default function TicketDetailModal({
           value={remarks}
           onChange={(event) => setRemarks(event.target.value)}
           placeholder="Describe the current progress, completed work, and any pending tasks..."
+        />
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={openTargetRevisionModal}
+        onClose={() => setOpenTargetRevisionModal(false)}
+        onConfirm={() => {
+          void handleAction("date revision", { remarks });
+          setOpenTargetRevisionModal(false);
+        }}
+        title="Request Target Date Revision"
+        titleIcon={<EventRepeatOutlinedIcon />}
+        description="Please provide the reason for extending or revising the target date."
+        confirmLabel="Send Request"
+        confirmColor="warning"
+        confirmIcon={<SendOutlinedIcon />}
+        confirmDisabled={!remarks.trim()}
+        tone="warning"
+      >
+        <TextField
+          autoFocus
+          required
+          multiline
+          rows={4}
+          fullWidth
+          label="Reason for target date revision"
+          value={remarks}
+          onChange={(event) => setRemarks(event.target.value)}
+          placeholder="Explain why the target date needs to be revised or extended..."
         />
       </ConfirmDialog>
 

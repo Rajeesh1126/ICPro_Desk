@@ -288,7 +288,7 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
  */
 export const STATUS_COLORS: Record<string, string> = {
   open: "#D97706",
-  modified: "#7C3AED",
+  revised: "#7C3AED",
   reopened: "#0F766E",
   accepted: "#146C94",
   assigned: "#1499C0",
@@ -298,6 +298,8 @@ export const STATUS_COLORS: Record<string, string> = {
   "not-satisfied": "#C2410C",
   "recall requested": "#A16207",
   "recall successful": "#4F46E5",
+  "date revision": "#A16207",
+  pending: "#B45309",
   submitted: "#146C94",
   ontime: "#0F8A50",
   delayed: "#DC3B4B",

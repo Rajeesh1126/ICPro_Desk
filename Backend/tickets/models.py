@@ -9,9 +9,9 @@ from django.contrib.auth.models import Group
 # Create your models here.
 STATUS_CHOICES = [
     ('open', 'Open'),
-    ('assigned', 'Assigned'),
     ('accepted', 'Accepted'),
     ('on hold','On Hold'),
+    ('pending', 'Pending'),
     ('in progress','In Progress'),
     ('feedback provided','Feedback Provided'),
     ('completed', 'Completed'),
@@ -19,7 +19,8 @@ STATUS_CHOICES = [
     ('rejected', 'Rejected'),
     ('recall requested', 'Recall Requested'),
     ('recall successful','Recall Successful'),
-    ('modified','Modified'),
+    ('date revision','Target Date Revision Requested'),
+    ('revised','Revised'),
     ('not-satisfied','Not-Satisfied'),
     ('cancelled','Cancelled'),
 ]

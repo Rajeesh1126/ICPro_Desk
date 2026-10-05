@@ -13,6 +13,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import type { SelfTicketData, TicketData } from "../../types/dataTypes";
 import BasicCardComponent from "../tickets/BasicCard";
 import BasicCardSelfTicket from "../selfTickets/BasicCard";
+import { shouldBlinkSelfTicket } from "../selfTickets/highlight";
 import {
   cardViewBoxSx1,
   cardViewCollapseSx,
@@ -66,29 +67,29 @@ function TicketColumn({
   const panelId = React.useId();
   const headerId = React.useId();
   const header = (
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={cardViewDynamicDynamicStackSx1({ accent })}
-      >
-        <Typography fontWeight={800}>{title}</Typography>
-        <Stack direction="row" spacing={0.75} alignItems="center">
-          {hasAlarm && (
-            <Chip
-              label="Action Required"
-              size="small"
-              sx={cardViewDynamicDynamicActionRequiredSx1({ accent, alpha })}
-            />
-          )}
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      sx={cardViewDynamicDynamicStackSx1({ accent })}
+    >
+      <Typography fontWeight={800}>{title}</Typography>
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        {hasAlarm && (
           <Chip
-            label={count}
+            label="Action Required"
             size="small"
-            sx={cardViewDynamicDynamicChipSx1({ accent, alpha })}
+            sx={cardViewDynamicDynamicActionRequiredSx1({ accent, alpha })}
           />
-          {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}
-        </Stack>
+        )}
+        <Chip
+          label={count}
+          size="small"
+          sx={cardViewDynamicDynamicChipSx1({ accent, alpha })}
+        />
+        {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}
       </Stack>
+    </Stack>
   );
   return (
     <Box sx={cardViewDynamicDynamicBoxSx1({ alpha }, expanded)}>
@@ -98,19 +99,36 @@ function TicketColumn({
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onExpand}
-          sx={{ display: "block", width: "100%", textAlign: "left",
-            "&.Mui-focusVisible": { outline: "2px solid", outlineColor: accent, outlineOffset: -2 } }}
+          sx={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            "&.Mui-focusVisible": {
+              outline: "2px solid",
+              outlineColor: accent,
+              outlineOffset: -2,
+            },
+          }}
         >
           {header}
         </ButtonBase>
-      ) : header}
+      ) : (
+        header
+      )}
       {isSmallScreen ? (
         <Collapse in={expanded} sx={cardViewCollapseSx}>
-          <Box id={panelId} role="region" aria-labelledby={headerId} sx={cardViewBoxSx1(cardType)}>
+          <Box
+            id={panelId}
+            role="region"
+            aria-labelledby={headerId}
+            sx={cardViewBoxSx1(cardType)}
+          >
             {children}
           </Box>
         </Collapse>
-      ) : <Box sx={cardViewBoxSx1(cardType)}>{children}</Box>}
+      ) : (
+        <Box sx={cardViewBoxSx1(cardType)}>{children}</Box>
+      )}
     </Box>
   );
 }
@@ -128,6 +146,17 @@ function EmptyColumn() {
   );
 }
 
+const DateChecker = (targetDateStr: string) => {
+  const targetDate = new Date(targetDateStr);
+
+  const currentDate = new Date();
+
+  targetDate.setHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
+
+  return !Number.isNaN(targetDate.getTime()) && targetDate <= currentDate;
+};
+
 export default function TicketCardView(props: TicketCardViewProps) {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("lg"));
@@ -138,7 +167,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
         title: "Open",
         accent: getStatusColor("open"),
         rows: props.data.filter((ticket) =>
-          ["open", "modified", "reopened"].includes(ticket.current_status),
+          ["open", "revised", "reopened"].includes(ticket.current_status),
         ),
       },
       {
@@ -172,7 +201,10 @@ export default function TicketCardView(props: TicketCardViewProps) {
             accent={column.accent}
             isSmallScreen={isSmallScreen}
             expanded={expandedStatus === column.title}
-            hasAlarm={column.rows.some((ticket) => ticket.alarm === true)}
+            hasAlarm={column.rows.some(
+              (ticket) =>
+                ticket.alarm === true || DateChecker(ticket.target_date),
+            )}
             cardType="Ticket"
             onExpand={() => setExpandedStatus(column.title)}
           >
@@ -215,7 +247,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
           accent={column.accent}
           isSmallScreen={isSmallScreen}
           expanded={expandedStatus === column.title}
-          hasAlarm={column.rows.some((ticket) => ticket.alarm === true)}
+          hasAlarm={column.rows.some((ticket) => shouldBlinkSelfTicket(ticket))}
           cardType="Self"
           onExpand={() => setExpandedStatus(column.title)}
         >
