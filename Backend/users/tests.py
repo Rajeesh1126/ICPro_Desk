@@ -139,6 +139,31 @@ class PasswordAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_user_options_returns_basic_active_user_data(self):
+        active_user = User.objects.create_user(
+            username='active_options_user',
+            email='active-options@example.com',
+            first_name='Active',
+            last_name='User',
+        )
+        User.objects.create_user(
+            username='inactive_options_user',
+            email='inactive-options@example.com',
+            is_active=False,
+        )
+
+        response = self.client.get('/api/users/options/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usernames = {item['username'] for item in response.data}
+        self.assertIn(self.user.username, usernames)
+        self.assertIn(active_user.username, usernames)
+        self.assertNotIn('inactive_options_user', usernames)
+        self.assertEqual(
+            set(response.data[0].keys()),
+            {'id', 'username', 'first_name', 'last_name', 'email'},
+        )
+
     def test_current_user_groups_returns_user_and_managed_departments(self):
         group = Group.objects.create(name='Engineering')
         managed_department = Group.objects.create(name='Operations')

@@ -21,6 +21,11 @@ class Submission(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['assignId', 'date'], name='api_submission_assign_date_idx'),
+        ]
+
     def __str__(self):
         return f"{self.assignId} - {self.date}"
 

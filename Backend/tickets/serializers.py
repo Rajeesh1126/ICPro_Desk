@@ -167,7 +167,7 @@ class TicketSerializer(serializers.ModelSerializer):
                                                 ticket.department,
                                                 ticket.assigned_to.first_name,
                                                 "Ticket is created")
-        # send_mail(subject,html_content,[ticket.assigned_to.email])
+        send_mail(subject,html_content,[ticket.assigned_to.email])
 
         return ticket
 
@@ -299,7 +299,7 @@ class TicketSerializer(serializers.ModelSerializer):
                                                     instance.department,
                                                     instance.assigned_to.first_name,
                                                     remarks)
-            # send_mail(subject,html_content,[Receivermail])
+            send_mail(subject,html_content,[Receivermail])
         else:
             logLatest = Ticket_Log.objects.filter(ticket=instance).order_by('-created_at').first()
             if logLatest:

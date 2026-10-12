@@ -23,14 +23,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         permissions = []
 
         if role:
+            # Get the permission assisiated with modal role and applabel user
             permissions = list(
-                role.permissions.values_list("codename", flat=True)
+                role.permissions.values_list("codename", flat=True).filter(content_type__app_label='users', content_type__model='role')
             )
         return {
             "refresh": data["refresh"],
             "access": data["access"],
             "id": self.user.id,
             "first_name":self.user.first_name,
+            "last_name":self.user.last_name,
+            "email": self.user.email,
+            # reportng to first name and last name
+            "reporting_to_first_name": self.user.profile.reporting_to.first_name if self.user.profile.reporting_to else None,
+            "reporting_to_last_name": self.user.profile.reporting_to.last_name if self.user.profile.reporting_to else None,
+            "designation": self.user.profile.designation,
             "role": role.name if role else None,
             "permissions": permissions,
         }

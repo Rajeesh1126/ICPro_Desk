@@ -152,7 +152,7 @@ const pages: readonly SidebarPage[] = [
     icon: <QueryStatsOutlinedIcon />,
     activeIcon: <QueryStatsIcon />,
     iconColor: "#0284c7",
-    codeName: "access_timesheet",
+    codeName: "access_timesheet_log",
   },
   {
     label: "Users Managment",

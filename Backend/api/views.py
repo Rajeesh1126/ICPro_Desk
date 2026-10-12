@@ -1180,25 +1180,77 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             return
 
         default_budget_owner = self._default_budget_owner(user)
-        other_tasks = Task.objects.filter(project=others_project).select_related('milestone')
-        for task in other_tasks:
-            AssignedTask.objects.get_or_create(
+        other_tasks = list(Task.objects.filter(project=others_project).select_related('milestone'))
+        if not other_tasks:
+            return
+
+        existing_assignments = list(
+            AssignedTask.objects.filter(
                 assign_to=user,
+                project_obj=others_project,
+                task_obj__in=other_tasks,
+            )
+        )
+        existing_task_ids = {assignment.task_obj_id for assignment in existing_assignments}
+
+        assignments_to_update = []
+        tasks_by_id = {task.id: task for task in other_tasks}
+        for assignment in existing_assignments:
+            update_fields = []
+            expected_task = tasks_by_id.get(assignment.task_obj_id)
+
+            if assignment.start_date is not None:
+                assignment.start_date = None
+                update_fields.append('start_date')
+
+            if assignment.end_date is not None:
+                assignment.end_date = None
+                update_fields.append('end_date')
+
+            if not assignment.assign_by and default_budget_owner:
+                assignment.assign_by = default_budget_owner
+                update_fields.append('assign_by')
+
+            if expected_task and assignment.milestone_obj_id != expected_task.milestone_id:
+                assignment.milestone_obj = expected_task.milestone
+                update_fields.append('milestone_obj')
+
+            if update_fields:
+                assignments_to_update.append(assignment)
+
+        if assignments_to_update:
+            AssignedTask.objects.bulk_update(
+                assignments_to_update,
+                ['start_date', 'end_date', 'assign_by', 'milestone_obj'],
+            )
+
+        missing_assignments = [
+            AssignedTask(
+                assign_to=user,
+                assign_by=default_budget_owner,
                 project_obj=others_project,
                 task_obj=task,
                 milestone_obj=task.milestone,
-                defaults={
-                    'assign_by': default_budget_owner,
-                },
+                start_date=None,
+                end_date=None,
             )
+            for task in other_tasks
+            if task.id not in existing_task_ids
+        ]
+
+        if missing_assignments:
+            AssignedTask.objects.bulk_create(missing_assignments)
 
     def _assigned_task_payload(self, assigned_task, week_start, week_end):
         entries = {}
-        submissions = Submission.objects.filter(assignId=assigned_task)
-        if week_start and week_end:
-            submissions = submissions.filter(date__range=(week_start, week_end))
+        submissions = getattr(assigned_task, 'week_submissions', None)
+        if submissions is None:
+            submissions = Submission.objects.filter(assignId=assigned_task)
+            if week_start and week_end:
+                submissions = submissions.filter(date__range=(week_start, week_end))
+            submissions = submissions.order_by('date')
 
-        for submission in submissions.order_by('date'):
+        for submission in submissions:
             entries[submission.date.strftime('%Y-%m-%d')] = _seconds_to_time_value(submission.hours)
 
         return {
@@ -1311,13 +1363,26 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                 Q(start_date__isnull=True) | Q(start_date__lte=week_end)
             )
 
+        submission_queryset = Submission.objects.all().order_by('date')
+        if week_start and week_end:
+            submission_queryset = submission_queryset.filter(date__range=(week_start, week_end))
+
         assigned_tasks = AssignedTask.objects.filter(
             assigned_task_filters,
         ).select_related(
+            'assign_by',
             'task_obj',
             'milestone_obj',
             'project_obj',
+        ).prefetch_related(
+            Prefetch('submission_set', queryset=submission_queryset, to_attr='week_submissions'),
         ).order_by('id')
+
+        assigned_tasks = list(assigned_tasks)
+        assigned_tasks_by_project_milestone = {}
+        for assigned_task in assigned_tasks:
+            key = (assigned_task.project_obj_id, assigned_task.milestone_obj_id)
+            assigned_tasks_by_project_milestone.setdefault(key, []).append(assigned_task)
 
         projects = Project.objects.filter(
             assigned_tasks__in=assigned_tasks,
@@ -1331,12 +1396,10 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
         for project in projects:
             milestones_payload = []
             for milestone in project.milestones.all():
-                milestone_assigned_tasks = [
-                    assigned_task
-                    for assigned_task in assigned_tasks
-                    if assigned_task.project_obj_id == project.id
-                    and assigned_task.milestone_obj_id == milestone.id
-                ]
+                milestone_assigned_tasks = assigned_tasks_by_project_milestone.get(
+                    (project.id, milestone.id),
+                    [],
+                )
                 if not milestone_assigned_tasks:
                     continue
 
@@ -1352,12 +1415,10 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
                     'assigned_tasks': assigned_tasks_payload,
                 })
 
-            ungrouped_assigned_tasks = [
-                assigned_task
-                for assigned_task in assigned_tasks
-                if assigned_task.project_obj_id == project.id
-                and assigned_task.milestone_obj_id is None
-            ]
+            ungrouped_assigned_tasks = assigned_tasks_by_project_milestone.get(
+                (project.id, None),
+                [],
+            )
             if ungrouped_assigned_tasks:
                 milestones_payload.append({
                     'id': -project.id,

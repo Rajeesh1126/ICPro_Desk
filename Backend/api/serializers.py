@@ -28,7 +28,7 @@ def _estimated_week_seconds(week_start):
 
 class SubmissionSerializer(serializers.ModelSerializer):
     assignId = serializers.PrimaryKeyRelatedField(queryset=AssignedTask.objects.all())
-    approvedBy = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all(), allow_null=True)
+    approvedBy = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.filter(is_active=True), allow_null=True)
 
     class Meta:
         model = Submission
@@ -206,7 +206,6 @@ class TimesheetWeekLogSerializer(serializers.ModelSerializer):
     uid = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
     first_name = serializers.SerializerMethodField()
     timesheet_status = serializers.ChoiceField(choices=TimesheetWeekLog.STATUS_CHOICES)
-    # unlock_status = serializers.ChoiceField(choices=TimesheetWeekLog.STATUS_CHOICES)
 
     class Meta:
         model = TimesheetWeekLog

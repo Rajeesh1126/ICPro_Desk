@@ -26,9 +26,27 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('first_name', 'last_name')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated, RoleBasedPermission]
+
+    def get_queryset(self):
+        return (
+            User.objects
+            .select_related('profile', 'profile__role', 'profile__reporting_to')
+            .prefetch_related('groups', 'profile__role__permissions__content_type')
+            .order_by('first_name', 'last_name', 'username')
+        )
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def options(self, request):
+        users = (
+            User.objects
+            .filter(is_active=True)
+            .only('id', 'username', 'first_name', 'last_name', 'email')
+            .order_by('first_name', 'last_name', 'username')
+        )
+        return Response(TeamSerializer(users, many=True).data)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def change_password(self, request):
@@ -114,14 +132,14 @@ def currentUserGroups(request):
 
     userslist = (
         User.objects
-        .filter(groups__id__in=department_ids)
+        .filter(groups__id__in=department_ids,is_active=True)
         .values('id', 'username', 'first_name', 'last_name', 'email')
         .distinct()
         .order_by('first_name', 'last_name', 'username')
     )
     reportees = (
         User.objects
-        .filter(profile__reporting_to=request.user)
+        .filter(profile__reporting_to=request.user,is_active=True)
         .values('id', 'username', 'first_name', 'last_name', 'email')
         .distinct()
         .order_by('first_name', 'last_name', 'username')

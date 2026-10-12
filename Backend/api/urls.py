@@ -24,7 +24,10 @@ urlpatterns = [
         ApprovalDetailDataViewSet.as_view({'get': 'list', 'patch': 'partial_update'}),
         name='approval-detail-data',
     ),
-    path('timesheet-entries/', TimesheetEntryViewSet.as_view({'get': 'entries'}), name='timesheet-entries'),
+    path('timesheet-entries/', 
+        TimesheetEntryViewSet.as_view({'get': 'entries'}), 
+        name='timesheet-entries'),
+    
     path(
         'timesheet-entries/save-draft/',
         TimesheetEntryViewSet.as_view({'post': 'save_draft'}),

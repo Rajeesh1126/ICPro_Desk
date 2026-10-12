@@ -509,8 +509,8 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                     )
                     .filter(
                         Q(creator=self.request.user) |
-                        Q(creator_id__in=reportee_ids) |
-                        Q(has_group=True)
+                        Q(creator_id__in=reportee_ids) 
+                        # Q(has_group=True)
                     )
                     .order_by("-created_at")
                 )
@@ -656,7 +656,7 @@ def dailyMail(request):
 
         reminderList = []
 
-        selfTickets = Self_Ticket.objects.filter(current_status="open",reminder_interval__gt=0,creator__in = [9,26]).values("number",
+        selfTickets = Self_Ticket.objects.filter(current_status="open",reminder_interval__gt=0).values("number",
                             "creator__first_name","creator__email","task",
                             "description","est_hours","target_date","priority","current_status",
                             "created_at","updated_at","type",

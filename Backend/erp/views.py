@@ -64,7 +64,7 @@ class QuotationViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Quotation.objects
             .filter(id__in=latest_ids)
-            .order_by("-create_date")[:10]
+            .order_by("-create_date")
         )
 
     @action(detail=False, methods=['get'], url_path='budget-summary')

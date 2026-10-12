@@ -238,6 +238,9 @@ const secondsToDecimalHours = (seconds: number) => Number((seconds / 3600).toFix
 const getSaturdayOfMonthOccurrence = (date: Date) =>
   Math.ceil(date.getDate() / 7);
 
+// ========================================================
+// Estimated Week Hours
+// ========================================================
 const getEstimatedWeekHours = (weekStart: string) => {
   const startDate = new Date(`${weekStart}T00:00:00`);
 
@@ -486,7 +489,8 @@ export default function Submission({
       .get<UsersData[]>("/users/")
       .then((response) => {
         if (!active) return;
-        setBudgetOwners(Array.isArray(response.data) ? response.data : []);
+        // Only active users should be considered as budget owners. Assuming the API returns a field `is_active` to indicate active users.
+        setBudgetOwners(Array.isArray(response.data) ? response.data.filter((user) => user.is_active) : []);
       })
       .catch((error) => {
         console.error("Failed to load users", error);

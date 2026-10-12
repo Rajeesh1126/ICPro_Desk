@@ -151,22 +151,22 @@ export default function Users() {
             : users.find((user) => user.id === managerId);
         const managerName = manager
           ? `${manager.first_name ?? ""} ${manager.last_name ?? ""}`.trim() ||
-            manager.username
+          manager.username
           : "";
 
         setGroups((currentGroups) =>
           currentGroups.map((item) =>
             item.id === group.id
               ? {
-                  ...item,
-                  manager: manager
-                    ? {
-                        id: manager.id,
-                        username: manager.username,
-                        name: managerName,
-                      }
-                    : null,
-                }
+                ...item,
+                manager: manager
+                  ? {
+                    id: manager.id,
+                    username: manager.username,
+                    name: managerName,
+                  }
+                  : null,
+              }
               : item,
           ),
         );
