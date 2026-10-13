@@ -1,3 +1,4 @@
+import { INSET_X } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
   Box,
@@ -18,7 +19,6 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import { VirtualizedTable, type ColumnData } from "../common/TableView";
 
 export type TimeSheetTicketOption = {
-  [key: string]: unknown;
   id: number;
   number: string;
   task: string;
@@ -97,13 +97,13 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           Assigned Tickets
           <Tooltip title="Close">
-            <IconButton size="small" onClick={closeModal}>
+            <IconButton aria-label="Close dialog" size="small" onClick={closeModal}>
               <CloseOutlinedIcon />
             </IconButton>
           </Tooltip>
         </Stack>
       </DialogTitle>
-      <DialogContent sx={{ height: 520, p: 2 }}>
+      <DialogContent sx={{ height: 520 }}>
         <VirtualizedTable
           columns={columns}
           rows={tickets}
@@ -124,7 +124,7 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
           {submitting ? "Assigning..." : "Assign Tickets"}
         </Button>
       </DialogActions>
-      <Box sx={{ px: 2, pb: 1.5, color: "text.secondary", fontSize: 13 }}>
+      <Box sx={{ px: INSET_X, pb: 1.5, color: "text.secondary", fontSize: 13 }}>
         Open and closed tickets are not listed.
       </Box>
     </Dialog>

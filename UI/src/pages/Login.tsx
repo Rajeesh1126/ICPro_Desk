@@ -1,5 +1,6 @@
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -10,6 +11,7 @@ import {
   IconButton,
   InputAdornment,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -17,14 +19,53 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import bgImage from "../assets/taskmanagementloginimage.jpg";
 import logo from "../assets/icpro_logo.svg";
 import api from "../api/axios";
-import { loginDynamicPageDynamicBoxSx1, loginPageBoxSx1, loginPageBoxSx2, loginPageButtonSx1, loginPageCardContentSx1, loginPageCardSx1, loginPageCircularProgressSx1, loginPageTypographySx1, loginPageTypographySx2, marginBottomSectionSx } from "../styles/common";
+import { queryClient } from "../api/queryClient";
+import { getErrorStatus } from "../utils/errorUtils";
+import { useThemeMode } from "../styles/theme/themeModeContext";
+import {
+  getSafeReturnTo,
+  hasActiveSession,
+  RETURN_TO_PARAM,
+  SESSION_EXPIRED_PARAM,
+  SESSION_EXPIRED_VALUE,
+} from "../api/session";
+import {
+  authPageBackgroundSx,
+  authLogoSx,
+  authIconBadgeSx,
+  authSubmitButtonSx,
+  authThemeToggleSx,
+  authCardContentSx,
+  authCardSx,
+  authSpinnerSx,
+  authSubtitleSx,
+  authFootnoteSx,
+  marginBottomSectionSx,
+} from "../styles/common";
+
+type LoginResponse = {
+  access: string;
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  reporting_to_first_name: string;
+  reporting_to_last_name: string;
+  designation: string;
+  role: string;
+  permissions: string[];
+};
 
 export default function Login() {
+  useDocumentTitle("Sign in");
   const navigate = useNavigate();
   const location = useLocation();
+  const { mode, toggleMode } = useThemeMode();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,77 +73,149 @@ export default function Login() {
   const [error, setError] = useState("");
   const successMessage =
     typeof location.state === "object" &&
-      location.state !== null &&
-      "message" in location.state
+    location.state !== null &&
+    "message" in location.state
       ? String(location.state.message)
       : "";
+  const searchParams = new URLSearchParams(location.search);
+  const sessionExpired =
+    searchParams.get(SESSION_EXPIRED_PARAM) === SESSION_EXPIRED_VALUE;
+  const returnTo = getSafeReturnTo(searchParams.get(RETURN_TO_PARAM));
 
   const handleLogin = async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await api.post("/users/login/", { username, password });
-      console.log(response)
+      const response = await api.post<LoginResponse>("/users/login/", {
+        username,
+        password,
+      });
+      queryClient.clear();
+
       localStorage.setItem("accessToken", response.data.access);
-      localStorage.setItem("user", response.data.id);
+      localStorage.setItem("user", String(response.data.id));
       localStorage.setItem("first_name", response.data.first_name);
-      
       localStorage.setItem("role", response.data.role);
       localStorage.setItem(
-        "permissions",
-        JSON.stringify(response.data.permissions ?? [])
+        "currentUser",
+        JSON.stringify({
+          id: response.data.id,
+          first_name: response.data.first_name,
+          last_name: response.data.last_name,
+          email: response.data.email,
+          reporting_to_first_name: response.data.reporting_to_first_name,
+          reporting_to_last_name: response.data.reporting_to_last_name,
+          designation: response.data.designation,
+          role: response.data.role,
+        }),
       );
-      navigate("/Home");
-    } catch {
-      setError("We could not sign you in. Check your credentials and try again.");
+      localStorage.setItem(
+        "permissions",
+        JSON.stringify(response.data.permissions ?? []),
+      );
+      navigate(returnTo ?? "/Home", { replace: true });
+    } catch (requestError: unknown) {
+      const status = getErrorStatus(requestError);
+      setError(
+        status === 400 || status === 401
+          ? "Incorrect username or password."
+          : status === 429
+            ? "Please wait a moment and try again."
+            : "Unable to sign in right now. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+
+  // Already signed in (e.g. opened "/" or used Back): skip the form.
+  if (hasActiveSession()) {
+    return <Navigate to={returnTo ?? "/Home"} replace />;
+  }
+
   return (
-    <Box
-      sx={loginDynamicPageDynamicBoxSx1({ bgImage })}
-    >
-      <Card
-        sx={loginPageCardSx1}
-      >
-        <CardContent
-          sx={loginPageCardContentSx1}
-        >
-          <Box
-            component="img"
-            src={logo}
-            alt="ICPro"
-            sx={loginPageBoxSx1}
-          />
-          <Box
-            sx={loginPageBoxSx2}
+    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
+      <Card sx={authCardSx}>
+        <CardContent sx={authCardContentSx}>
+          <Tooltip
+            title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
+            <IconButton
+              aria-label={
+                mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+              onClick={toggleMode}
+              sx={authThemeToggleSx(mode === "dark")}
+            >
+              {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
+          <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
+          <Box sx={authIconBadgeSx}>
             <LockOutlinedIcon />
           </Box>
-          <Typography variant="h5" align="center">
+          <Typography variant="h5" component="h1" align="center">
             Welcome back
           </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={loginPageTypographySx1}>
+          <Typography
+            variant="body2"
+            align="center"
+            color="text.secondary"
+            sx={authSubtitleSx}
+          >
             Use your Timesheet App credentials to continue.
           </Typography>
 
-          {error && <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>}
-          {successMessage && <Alert severity="success" sx={marginBottomSectionSx}>{successMessage}</Alert>}
+          {sessionExpired && !error && (
+            <Alert severity="warning" sx={marginBottomSectionSx}>
+              Your session expired for security. Sign in again
+              {returnTo ? " to return to the page you were on." : " to continue."}
+            </Alert>
+          )}
+          {!sessionExpired && returnTo && !error && (
+            <Alert severity="info" sx={marginBottomSectionSx}>
+              Sign in to continue to the page you requested.
+            </Alert>
+          )}
+          {error && (
+            <Alert severity="error" sx={marginBottomSectionSx}>
+              {error}
+            </Alert>
+          )}
+          {successMessage && (
+            <Alert severity="success" sx={marginBottomSectionSx}>
+              {successMessage}
+            </Alert>
+          )}
 
-          <Box component="form" onSubmit={(event) => { event.preventDefault(); void handleLogin(); }}>
+          <Box
+            component="form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleLogin();
+            }}
+          >
             <TextField
-            autoFocus fullWidth
+              autoFocus
+              fullWidth
               label="Username"
               autoComplete="username"
-              value={username} onChange={(event) => setUsername(event.target.value)}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
               slotProps={{
                 input: {
-                  startAdornment: <InputAdornment position="start"><PersonOutlineOutlinedIcon
-                    color="action" fontSize="small" /></InputAdornment>
-                }
-              }} sx={marginBottomSectionSx}
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonOutlineOutlinedIcon
+                        color="action"
+                        fontSize="small"
+                      />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={marginBottomSectionSx}
               required
             />
             <TextField
@@ -112,11 +225,57 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockOutlinedIcon color="action" fontSize="small" /></InputAdornment>, endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((visible) => !visible)} onMouseDown={(event) => event.preventDefault()} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon color="action" fontSize="small" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        onMouseDown={(event) => event.preventDefault()}
+                        edge="end"
+                      >
+                        {showPassword ? (
+                          <VisibilityOffOutlinedIcon />
+                        ) : (
+                          <VisibilityOutlinedIcon />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
               required
             />
-            <Button fullWidth type="submit" variant="contained" color="primary" size="large" disabled={loading} startIcon={loading ? undefined : <LoginOutlinedIcon />} sx={loginPageButtonSx1}>
-              {loading ? <><CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} /> Signing in…</> : "Sign In"}
+            <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              color="primary"
+              size="large"
+              disabled={loading}
+              startIcon={loading ? undefined : <LoginOutlinedIcon />}
+              sx={authSubmitButtonSx}
+            >
+              {loading ? (
+                <>
+                  <CircularProgress
+                    size={20}
+                    color="inherit"
+                    sx={authSpinnerSx}
+                  />{" "}
+                  Signing in…
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
             <Typography
               component={RouterLink}
@@ -129,7 +288,13 @@ export default function Login() {
             >
               Forgot password?
             </Typography>
-            <Typography variant="caption" align="center" color="text.secondary" display="block" sx={loginPageTypographySx2}>
+            <Typography
+              variant="caption"
+              align="center"
+              color="text.secondary"
+              display="block"
+              sx={authFootnoteSx}
+            >
               Contact your administrator if you cannot access your account.
             </Typography>
           </Box>

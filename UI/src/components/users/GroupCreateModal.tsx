@@ -1,23 +1,20 @@
+import { useDiscardGuard } from "../common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
-  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Grid,
-  IconButton,
-  Stack,
   TextField,
-  Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../../api/axios";
+import { sanitizeUserMessage } from "../../utils/errorUtils";
 import { showNotification } from "../../api/notificationService";
 
 import type { groupData } from "../../types/dataTypes";
@@ -71,10 +68,14 @@ export default function GroupCreateModal({
     setFormErrorData({});
   }, [Data, open]);
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
+
   const update = <K extends keyof GroupFormData>(
     field: K,
     value: GroupFormData[K],
   ) => {
+    discard.markDirty();
     setFormData((current) => ({ ...current, [field]: value }));
   };
 
@@ -89,6 +90,7 @@ export default function GroupCreateModal({
       await api[Data ? "patch" : "post"](
         Data ? `/groups/${Data.id}/` : "/groups/",
         payload,
+        { suppressGlobalError: true },
       );
 
       handleClose();
@@ -100,8 +102,6 @@ export default function GroupCreateModal({
     } catch (error: unknown) {
       if (isValidationErrorResponse(error) && error.response?.status === 400) {
         setFormErrorData(error.response.data ?? {});
-      } else {
-        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -111,10 +111,10 @@ export default function GroupCreateModal({
   const errorText = (field: keyof GroupFormData) => {
     const error = formErrorData?.[field];
     if (Array.isArray(error)) {
-      return error.join(" ");
+      return sanitizeUserMessage(error.join(" "));
     }
     if (typeof error === "string") {
-      return error;
+      return sanitizeUserMessage(error);
     }
     return undefined;
   };
@@ -124,33 +124,17 @@ export default function GroupCreateModal({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={loading ? undefined : discard.requestClose}
+      onChangeCapture={discard.markDirty}
       fullWidth
       maxWidth="sm"
     >
-      <DialogTitle component="div">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Box>
-            <Typography variant="h6">
-              {Data ? "Edit Team" : "Create Team"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Configure team details.
-            </Typography>
-          </Box>
-          <IconButton
-            aria-label="Close"
-            onClick={handleClose}
-            disabled={loading}
-          >
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+      <DialogHeader
+        title={Data ? "Edit Team" : "Create Team"}
+        subtitle="Configure team details."
+        onClose={discard.requestClose}
+        closeDisabled={loading}
+      />
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid size={{ xs: 12 }}>
@@ -168,10 +152,11 @@ export default function GroupCreateModal({
         </Grid>
       </DialogContent>
       <DialogActions>
+        <RequiredFieldsNote />
         <Button
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
-          onClick={handleClose}
+          onClick={discard.requestClose}
           disabled={loading}
         >
           Cancel
@@ -185,6 +170,7 @@ export default function GroupCreateModal({
           {loading ? "Saving..." : Data ? "Update" : "Submit"}
         </Button>
       </DialogActions>
+      {discard.dialog}
     </Dialog>
   );
 }

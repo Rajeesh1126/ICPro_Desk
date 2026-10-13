@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { insetSx } from "../../styles/tokens";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -9,9 +10,17 @@ import {
   Tooltip,
   IconButton,
   Checkbox,
+  Chip,
   FormControlLabel,
+  InputAdornment,
+  TextField,
 } from "@mui/material";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import KeyIcon from "@mui/icons-material/Key";
+import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
 import type { rolesData, permissionData } from "../../types/dataTypes";
 import {
   buttonLabelCompact,
@@ -31,6 +40,8 @@ import {
   tablePageContent,
 } from "../../styles/common";
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
+import { queryClient } from "../../api/queryClient";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -56,52 +67,29 @@ export default function Roles() {
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<rolesData | null>(null);
   const [tabValue, setTabValue] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [roles, setRoles] = useState<rolesData[]>([]);
-  const [permissions, setPermissions] = useState<permissionData[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<rolesData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [permissionQuery, setPermissionQuery] = useState("");
 
-  // role Data
-  useEffect(() => {
-    // if (!open) return;
-    let active = true;
-    void api
-      .get("/roles/")
-      .then((response) => {
-        console.log("Roles", response.data);
-        if (!active) return;
-        setRoles(response.data);
-      })
-      .catch((error) => {
-        console.error("Failed to load roles", error);
-      });
-    return () => {
-      active = false;
-    };
-    // }, [open, refreshKey]);
-  }, [refreshKey]);
-
-  // Permission Data
-  useEffect(() => {
-    // if (!open) return;
-    let active = true;
-    void api
-      .get("/permissions/")
-      .then((response) => {
-        console.log("permissions", response.data);
-        if (!active) return;
-        setPermissions(response.data);
-      })
-      .catch((error) => {
-        console.error("Failed to load permissions", error);
-      });
-    return () => {
-      active = false;
-    };
-    // }, [open, refreshKey]);
-  }, [refreshKey]);
+  // Roles and permissions load independently and are cached. The server copy
+  // (`savedRoles`) lives in the query cache; checkbox edits go into a local
+  // draft, so a background refresh never overwrites unsaved changes.
+  const rolesQuery = useApiQuery<rolesData[]>("/roles/");
+  const permissionsQuery = useApiQuery<permissionData[]>("/permissions/");
+  const savedRoles = useMemo(() => asArray<rolesData>(rolesQuery.data), [rolesQuery.data]);
+  const permissions = useMemo(
+    () => asArray<permissionData>(permissionsQuery.data),
+    [permissionsQuery.data],
+  );
+  const rolesLoading = rolesQuery.isPending;
+  const [draftRoles, setDraftRoles] = useState<rolesData[] | null>(null);
+  const roles = draftRoles ?? savedRoles;
+  const setRoles = useCallback(
+    (update: (current: rolesData[]) => rolesData[]) =>
+      setDraftRoles((current) => update(current ?? savedRoles)),
+    [savedRoles],
+  );
 
   const openCreate = useCallback(() => {
     setSelectedRow(null);
@@ -119,13 +107,11 @@ export default function Roles() {
     setDialogOpen(false);
     setEditing(false);
     setSelectedRow(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const openDelete = useCallback((row: rolesData) => {
     setDeleteRow(row);
     setDeleteDialogOpen(true);
-    console.log("Delete role:", row);
   }, []);
 
   const handleDelete = useCallback(async () => {
@@ -134,13 +120,12 @@ export default function Roles() {
       await api.delete(`/roles/${deleteRow.id}/`);
       setDeleteDialogOpen(false);
       setDeleteRow(null);
-      setRefreshKey((key) => key + 1);
       showNotification({
         type: "success",
         message: "Roles deleted successfully.",
       });
-    } catch (error) {
-      console.error("Failed to delete role", error);
+    } catch {
+      // The shared request error UI handles failures.
     }
   }, [deleteRow]);
 
@@ -175,16 +160,40 @@ export default function Roles() {
         }),
       );
     },
-    [],
+    [setRoles],
   );
 
   // ========================================================
   // SELECT / UNSELECT ALL PERMISSIONS FOR ONE ROLE
   // ========================================================
 
+  const visiblePermissions = useMemo(() => {
+    const query = permissionQuery.trim().toLowerCase();
+    if (!query) return permissions;
+    return permissions.filter((permission) =>
+      `${formatPermissionLabel(permission)} ${permission.codename}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [permissions, permissionQuery]);
+
+  /** Roles whose permission set differs from the last saved state. */
+  const changedRoles = useMemo(() => {
+    const savedById = new Map(savedRoles.map((role) => [role.id, role]));
+    return roles.filter((role) => {
+      const saved = savedById.get(role.id);
+      if (!saved) return true;
+      const current = new Set(role.permissions);
+      return (
+        current.size !== new Set(saved.permissions).size ||
+        saved.permissions.some((id) => !current.has(id))
+      );
+    });
+  }, [roles, savedRoles]);
+
   const handleSelectAllForRole = useCallback(
     (roleId: number, checked: boolean) => {
-      const visiblePermissionIds = permissions.map(
+      const visiblePermissionIds = visiblePermissions.map(
         (permission) => permission.id,
       );
 
@@ -207,27 +216,29 @@ export default function Roles() {
         }),
       );
     },
-    [permissions],
+    [setRoles, visiblePermissions],
   );
 
   const handleSave = async () => {
+    if (!changedRoles.length) return;
     try {
       setSaving(true);
 
-      console.log("Roles to save:", roles);
-
-      // Later:
-      for (const role of roles) {
+      for (const role of changedRoles) {
         await api.patch(`/roles/${role.id}/`, {
           permissions: role.permissions,
         });
       }
+      // Commit the draft to the cache so the grid doesn't flash old values
+      // before the background refresh returns.
+      queryClient.setQueryData(["/roles/"], roles);
+      setDraftRoles(null);
       showNotification({
         type: "success",
-        message: "Permissions saved successfully.",
+        message: `Permissions saved for ${changedRoles.length} role${changedRoles.length === 1 ? "" : "s"}.`,
       });
-    } catch (error) {
-      console.error("Failed to save permissions:", error);
+    } catch {
+      // The shared request error UI handles failures.
     } finally {
       setSaving(false);
     }
@@ -246,7 +257,6 @@ export default function Roles() {
         width: { xs: 80, sm: 80 },
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
-            {/* edit btn */}
             <Tooltip title="Edit role">
               <IconButton
                 aria-label={`Edit ${row.id}`}
@@ -255,7 +265,6 @@ export default function Roles() {
                 <EditOutlinedIcon sx={editIconSx} />
               </IconButton>
             </Tooltip>
-            {/* delete btn */}
             <Tooltip title="Delete role">
               <IconButton
                 aria-label={`Delete ${row.id}`}
@@ -264,7 +273,6 @@ export default function Roles() {
                 <DeleteOutlinedIcon sx={deleteIconSx} />
               </IconButton>
             </Tooltip>
-            {/* <Typography variant="body2">{row.name}</Typography> */}
           </Box>
         ),
       },
@@ -279,7 +287,7 @@ export default function Roles() {
       label: "Roles",
       width: { xs: 180, sm: 200 },
       render: (row) => {
-        const visiblePermissionIds = permissions.map(
+        const visiblePermissionIds = visiblePermissions.map(
           (permission) => permission.id,
         );
         const selectedVisibleCount = visiblePermissionIds.filter(
@@ -294,6 +302,11 @@ export default function Roles() {
             control={
               <Checkbox
                 size="small"
+                slotProps={{
+                  input: {
+                    "aria-label": `Grant all ${permissionQuery ? "filtered " : ""}permissions to ${row.name}`,
+                  },
+                }}
                 checked={allSelected}
                 indeterminate={selectedVisibleCount > 0 && !allSelected}
                 onChange={(event) =>
@@ -301,19 +314,36 @@ export default function Roles() {
                 }
               />
             }
-            label={row.name}
+            label={
+              <Box component="span" sx={{ display: "flex", flexDirection: "column" }}>
+                <span>{row.name}</span>
+                <Typography component="span" variant="caption" color="text.secondary">
+                  {
+                    permissions.filter((permission) =>
+                      row.permissions.includes(permission.id),
+                    ).length
+                  }{" "}
+                  of {permissions.length} granted
+                </Typography>
+              </Box>
+            }
           />
         );
       },
     };
 
-    const permissionColumns = permissions.map(
+    const permissionColumns = visiblePermissions.map(
       (permission): ColumnData<rolesData> => ({
         label: formatPermissionLabel(permission),
 
         render: (row) => (
           <Checkbox
             size="small"
+            slotProps={{
+              input: {
+                "aria-label": `${formatPermissionLabel(permission)} for ${row.name}`,
+              },
+            }}
             checked={row.permissions.includes(permission.id)}
             onChange={(event) =>
               handlePermissionChange(
@@ -328,15 +358,37 @@ export default function Roles() {
     );
 
     return [roleColumn, ...permissionColumns];
-  }, [permissions, handleSelectAllForRole, handlePermissionChange]);
+  }, [
+    permissions,
+    visiblePermissions,
+    permissionQuery,
+    handleSelectAllForRole,
+    handlePermissionChange,
+  ]);
+
+  const saveButton = (
+    <Button
+      variant="contained"
+      startIcon={<SaveOutlinedIcon />}
+      onClick={handleSave}
+      disabled={saving || changedRoles.length === 0}
+    >
+      {saving ? "Saving..." : (
+        <>
+          <Box component="span" sx={buttonLabelFull}>Save Changes</Box>
+          <Box component="span" sx={buttonLabelCompact}>Save</Box>
+        </>
+      )}
+    </Button>
+  );
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>
-              {tabValue === 0 ? "Roles List" : "Permissions List"}
+            <Typography variant="h5" component="h1" sx={pageTitle}>
+              {tabValue === 0 ? "Role Management" : "Permission Management"}
             </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               {tabValue === 0
@@ -361,19 +413,7 @@ export default function Roles() {
                 </Button>
               )}
               {tabValue === 1 && (
-                <Button
-                  variant="contained"
-                  startIcon={<SaveOutlinedIcon />}
-                  onClick={handleSave}
-                  disabled={saving}
-              >
-                  {saving ? "Saving..." : (
-                    <>
-                      <Box component="span" sx={buttonLabelFull}>Save Changes</Box>
-                      <Box component="span" sx={buttonLabelCompact}>Save</Box>
-                    </>
-                  )}
-                </Button>
+                <Box sx={{ display: { xs: "none", sm: "block" } }}>{saveButton}</Box>
               )}
             </Stack>
           </Stack>
@@ -382,17 +422,22 @@ export default function Roles() {
         <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
-            onChange={(_, value: number) => {
-              setTabValue(value);
-              // setSelectedUser("");
-            }}
+            onChange={(_, value: number) => setTabValue(value)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab label="Roles" />
-            <Tab label="Permissions" />
+            <Tab
+              icon={tabValue === 0 ? <AdminPanelSettingsIcon /> : <AdminPanelSettingsOutlinedIcon />}
+              iconPosition="start"
+              label="Roles"
+            />
+            <Tab
+              icon={tabValue === 1 ? <KeyIcon /> : <KeyOutlinedIcon />}
+              iconPosition="start"
+              label="Permissions"
+            />
           </Tabs>
         </Box>
         {tabValue === 0 && (
@@ -403,6 +448,9 @@ export default function Roles() {
                 rows={roles}
                 height="100%"
                 tableHead="Roles"
+                loading={rolesLoading}
+                emptyTitle="No roles yet"
+                emptyDescription="Create a role to start assigning permissions."
               />
             </Box>
             <RoleModel
@@ -433,13 +481,66 @@ export default function Roles() {
         )}
         {tabValue === 1 && (
           <>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ sm: "center" }}
+              sx={{ px: { xs: 1.5, sm: 0 }, mb: 1 }}
+            >
+              <TextField
+                placeholder="Filter permissions"
+                value={permissionQuery}
+                onChange={(event) => setPermissionQuery(event.target.value)}
+                sx={{ width: { xs: "100%", sm: 280 } }}
+                slotProps={{
+                  htmlInput: { "aria-label": "Filter permissions by name" },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchOutlinedIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Typography variant="body2" color="text.secondary" role="status">
+                Showing {visiblePermissions.length} of {permissions.length} permissions.
+                Permissions are granted directly to each role.
+              </Typography>
+              {changedRoles.length > 0 && (
+                <Chip
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  label={`Unsaved changes in ${changedRoles.length} role${changedRoles.length === 1 ? "" : "s"}`}
+                />
+              )}
+            </Stack>
             <Box sx={tablePageContent}>
               <VirtualizedTable
                 columns={permissionColumns}
                 rows={roles}
                 height="100%"
                 tableHead="Role Permissions"
+                stickyFirstColumn
+                loading={rolesLoading}
               />
+            </Box>
+            <Box
+              sx={{
+                display: { xs: "flex", sm: "none" },
+                position: "sticky",
+                bottom: 0,
+                zIndex: 2,
+                justifyContent: "flex-end",
+                gap: 1,
+                ...insetSx,
+                bgcolor: "background.paper",
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              {saveButton}
             </Box>
           </>
         )}

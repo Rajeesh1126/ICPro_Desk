@@ -1,3 +1,4 @@
+import { useDiscardGuard } from "../common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -37,26 +38,26 @@ import {
   compactFieldSx,
   dateFieldSx,
   marginTopSmallSx,
-  selfTicketsCreateModelBoxSx1,
-  selfTicketsCreateModelBoxSx2,
-  selfTicketsCreateModelBoxSx3,
-  selfTicketsCreateModelBoxSx4,
-  selfTicketsCreateModelBoxSx5,
-  selfTicketsCreateModelBoxSx6,
-  selfTicketsCreateModelChipSx1,
-  selfTicketsCreateModelDynamicDynamicPopperSx1,
-  selfTicketsCreateModelFormControlLabelSx1,
-  selfTicketsCreateModelIconButtonSx1,
-  selfTicketsCreateModelInfoOutlinedSx1,
-  selfTicketsCreateModelInfoOutlinedSx2,
-  selfTicketsCreateModelPaperSx1,
-  selfTicketsCreateModelStackSx1,
-  selfTicketsCreateModelStackSx3,
-  selfTicketsCreateModelTypographySx1,
-  selfTicketsCreateModelTypographySx3,
-  selfTicketsCreateModelTypographySx6,
-  selfTicketsCreateModelTypographySx7,
-  selfTicketsCreateModelTypographySx8,
+  reminderHelpIconBadgeSx,
+  reminderExampleTextSx,
+  reminderExampleDaysSx,
+  reminderExampleLabelSx,
+  requiredNoteIconBadgeSx,
+  requiredMarkSx,
+  reminderExampleChipSx,
+  doListFormTooltipPopperSx,
+  formSwitchLabelSx,
+  doListFormCloseButtonSx,
+  reminderHelpIconSx,
+  requiredNoteIconSx,
+  reminderHelpPopoverSx,
+  reminderHelpHeaderSx,
+  requiredNoteRowSx,
+  doListFormTitleSx,
+  doListFormSectionTitleSx,
+  reminderHelpIntroSx,
+  reminderHelpExampleSx,
+  requiredNoteTextSx,
 } from "../../styles/common";
 
 
@@ -134,10 +135,16 @@ export default function CreateSelfTicketModel({
     setChecked(!!data.ticket_number);
   }, [Data, open]);
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
+
   const update = <K extends keyof SelfTicketFormData>(
     field: K,
     value: SelfTicketFormData[K],
-  ) => setFormData((current) => ({ ...current, [field]: value }));
+  ) => {
+    discard.markDirty();
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
 
   const submit = async () => {
     setLoading(true);
@@ -170,8 +177,6 @@ export default function CreateSelfTicketModel({
         "data" in error.response
       ) {
         setFormErrorData(error.response.data as Partial<SelfTicketFormData>);
-      } else {
-        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -188,7 +193,8 @@ export default function CreateSelfTicketModel({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={loading ? undefined : discard.requestClose}
+      onChangeCapture={discard.markDirty}
       fullWidth
       maxWidth="md"
     >
@@ -200,7 +206,7 @@ export default function CreateSelfTicketModel({
           gap={1.5}
         >
           <Box minWidth={0}>
-            <Typography variant="h6" sx={selfTicketsCreateModelTypographySx1}>
+            <Typography variant="h6" sx={doListFormTitleSx}>
               {Data ? "Edit self task" : "Create self task"}
             </Typography>
             <Typography
@@ -213,9 +219,9 @@ export default function CreateSelfTicketModel({
           </Box>
           <IconButton
             aria-label="Close"
-            onClick={handleClose}
+            onClick={discard.requestClose}
             disabled={loading}
-            sx={selfTicketsCreateModelIconButtonSx1}
+            sx={doListFormCloseButtonSx}
           >
             <CloseOutlinedIcon />
           </IconButton>
@@ -225,7 +231,7 @@ export default function CreateSelfTicketModel({
       <DialogContent >
         <Stack spacing={2.25}>
           <Box>
-            <Typography sx={selfTicketsCreateModelTypographySx3} gutterBottom>
+            <Typography sx={doListFormSectionTitleSx} gutterBottom>
               Task details
             </Typography>
             <Grid container spacing={1.5}>
@@ -310,7 +316,7 @@ export default function CreateSelfTicketModel({
           <Divider />
 
           <Box>
-            <Typography sx={selfTicketsCreateModelTypographySx3} gutterBottom>
+            <Typography sx={doListFormSectionTitleSx} gutterBottom>
               Schedule and Reminders
             </Typography>
             <Grid container spacing={1.5}>
@@ -360,7 +366,7 @@ export default function CreateSelfTicketModel({
           <Divider />
 
           <Box>
-            <Typography sx={selfTicketsCreateModelTypographySx3} gutterBottom>
+            <Typography sx={doListFormSectionTitleSx} gutterBottom>
               Related Ticket
             </Typography>
             <Grid container spacing={1.5} alignItems="center">
@@ -380,7 +386,7 @@ export default function CreateSelfTicketModel({
                       }}
                     />
                   }
-                  sx={selfTicketsCreateModelFormControlLabelSx1}
+                  sx={formSwitchLabelSx}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
@@ -403,17 +409,17 @@ export default function CreateSelfTicketModel({
           open={Boolean(reminderAnchor)}
           anchorEl={reminderAnchor}
           placement="bottom-start"
-          sx={selfTicketsCreateModelDynamicDynamicPopperSx1()}
+          sx={doListFormTooltipPopperSx()}
         >
-          <Paper elevation={8} sx={selfTicketsCreateModelPaperSx1}>
+          <Paper elevation={8} sx={reminderHelpPopoverSx}>
             <Stack
               direction="row"
               alignItems="center"
               spacing={0.75}
-              sx={selfTicketsCreateModelStackSx1}
+              sx={reminderHelpHeaderSx}
             >
-              <Box sx={selfTicketsCreateModelBoxSx1}>
-                <InfoOutlinedIcon sx={selfTicketsCreateModelInfoOutlinedSx1} />
+              <Box sx={reminderHelpIconBadgeSx}>
+                <InfoOutlinedIcon sx={reminderHelpIconSx} />
               </Box>
               <Typography
                 variant="subtitle2"
@@ -426,7 +432,7 @@ export default function CreateSelfTicketModel({
             </Stack>
             <Typography
               variant="caption"
-              sx={selfTicketsCreateModelTypographySx6}
+              sx={reminderHelpIntroSx}
             >
               Enter the reminder interval as the number of days between each
               notification. Reminder notifications will be sent automatically
@@ -436,30 +442,30 @@ export default function CreateSelfTicketModel({
               direction="row"
               flexWrap="wrap"
               gap={0.75}
-              sx={selfTicketsCreateModelStackSx1}
+              sx={reminderHelpHeaderSx}
             >
               {reminderExamples.map(({ days, label }) => (
                 <Chip
                   key={days}
                   label={
-                    <Box component="span" sx={selfTicketsCreateModelBoxSx2}>
-                      <Box component="span" sx={selfTicketsCreateModelBoxSx3}>
+                    <Box component="span" sx={reminderExampleTextSx}>
+                      <Box component="span" sx={reminderExampleDaysSx}>
                         {days} {days === 0 || days === 1 ? "day" : "days"}
                       </Box>
-                      <Box component="span" sx={selfTicketsCreateModelBoxSx4}>
+                      <Box component="span" sx={reminderExampleLabelSx}>
                         {" - "}
                         {label}
                       </Box>
                     </Box>
                   }
                   size="small"
-                  sx={selfTicketsCreateModelChipSx1}
+                  sx={reminderExampleChipSx}
                 />
               ))}
             </Stack>
             <Typography
               variant="caption"
-              sx={selfTicketsCreateModelTypographySx7}
+              sx={reminderHelpExampleSx}
             >
               Example: Enter <strong>7</strong> to send a reminder once every
               week.
@@ -473,17 +479,17 @@ export default function CreateSelfTicketModel({
           direction="row"
           alignItems="center"
           spacing={0.75}
-          sx={selfTicketsCreateModelStackSx3}
+          sx={requiredNoteRowSx}
         >
-          <Box sx={selfTicketsCreateModelBoxSx5}>
-            <InfoOutlinedIcon sx={selfTicketsCreateModelInfoOutlinedSx2} />
+          <Box sx={requiredNoteIconBadgeSx}>
+            <InfoOutlinedIcon sx={requiredNoteIconSx} />
           </Box>
           <Typography
             variant="caption"
-            sx={selfTicketsCreateModelTypographySx8}
+            sx={requiredNoteTextSx}
           >
             Fields marked with{" "}
-            <Box component="span" sx={selfTicketsCreateModelBoxSx6}>
+            <Box component="span" sx={requiredMarkSx}>
               *
             </Box>{" "}
             are required.
@@ -492,7 +498,7 @@ export default function CreateSelfTicketModel({
         <Button
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
-          onClick={handleClose}
+          onClick={discard.requestClose}
           disabled={loading}
         >
           Cancel
@@ -507,6 +513,7 @@ export default function CreateSelfTicketModel({
           {loading ? "Saving..." : Data ? "Update" : "Submit"}
         </Button>
       </DialogActions>
+      {discard.dialog}
     </Dialog>
   );
 }

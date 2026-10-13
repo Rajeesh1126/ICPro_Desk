@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 import type { PaletteMode } from "@mui/material";
 
+export const themeStorageKey = "themeMode";
+
 export type themeModeContextValue = {
   mode: PaletteMode;
   toggleMode: () => void;

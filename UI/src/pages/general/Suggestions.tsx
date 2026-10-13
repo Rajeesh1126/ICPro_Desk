@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   MenuItem,
   Stack,
@@ -22,9 +22,11 @@ import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import { showNotification } from "../../api/notificationService";
 import { formatDateTime } from "../../components/common/formatDate";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import DialogHeader from "../../components/common/DialogHeader";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -51,7 +53,7 @@ type SuggestionStatus =
   | "Rejected"
   | "Closed";
 
-type SystemSuggestion = Record<string, unknown> & {
+type SystemSuggestion = {
   id: number;
   user: number;
   user_name: string | null;
@@ -83,7 +85,6 @@ const suggestionStatuses: SuggestionStatus[] = [
 ];
 
 export default function Suggestions() {
-  const [suggestions, setSuggestions] = useState<SystemSuggestion[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSuggestion, setEditingSuggestion] =
     useState<SystemSuggestion | null>(null);
@@ -92,16 +93,12 @@ export default function Suggestions() {
   const [form, setForm] = useState<SuggestionFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const loadSuggestions = useCallback(async () => {
-    const response = await api.get<SystemSuggestion[]>(
-      "/documents/system-suggestions/",
-    );
-    setSuggestions(Array.isArray(response.data) ? response.data : []);
-  }, []);
-
-  useEffect(() => {
-    void loadSuggestions();
-  }, [loadSuggestions]);
+  // Cached list: returning to this page shows the last rows immediately and
+  // refreshes in the background. Successful saves/deletes refresh it
+  // automatically (see invalidateAfterMutation), so dialogs never reload it.
+  const listQuery = useApiQuery<SystemSuggestion[]>("/documents/system-suggestions/");
+  const suggestions = useMemo(() => asArray<SystemSuggestion>(listQuery.data), [listQuery.data]);
+  const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
     setEditingSuggestion(null);
@@ -126,10 +123,14 @@ export default function Suggestions() {
     setForm(emptyForm);
   };
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(dialogOpen, closeDialog);
+
   const updateForm = <K extends keyof SuggestionFormState>(
     key: K,
     value: SuggestionFormState[K],
   ) => {
+    discard.markDirty();
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -163,7 +164,8 @@ export default function Suggestions() {
           : "Suggestion submitted successfully.",
       });
       closeDialog();
-      await loadSuggestions();
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setSaving(false);
     }
@@ -172,13 +174,16 @@ export default function Suggestions() {
   const handleDeleteSuggestion = async () => {
     if (!deleteSuggestion) return;
 
-    await api.delete(`/documents/system-suggestions/${deleteSuggestion.id}/`);
-    showNotification({
-      type: "success",
-      message: "Suggestion deleted successfully.",
-    });
-    setDeleteSuggestion(null);
-    await loadSuggestions();
+    try {
+      await api.delete(`/documents/system-suggestions/${deleteSuggestion.id}/`);
+      showNotification({
+        type: "success",
+        message: "Suggestion deleted successfully.",
+      });
+      setDeleteSuggestion(null);
+    } catch {
+      // The shared request error dialog explains the failure.
+    }
   };
 
   const columns = useMemo<ColumnData<SystemSuggestion>[]>(
@@ -186,30 +191,27 @@ export default function Suggestions() {
       {
         label: "#",
         width: { xs: 40, sm: 40 },
-        // width: "auto",
         render: (_row, index) => index + 1,
         numeric: true,
       },
       {
         label: "Suggestion",
         dataKey: "suggestion",
-        // width: 360,
         width: "auto",
       },
       {
         label: "Status",
         dataKey: "status",
-        // width: 130,
       },
       {
         label: "Submitted By",
         dataKey: "user_name",
-        // width: 160,
       },
       {
         label: "Remarks",
         dataKey: "remarks",
         width: "auto",
+        render: (row) => row.remarks?.trim() || "No remarks",
       },
       {
         label: "Created Date",
@@ -230,6 +232,7 @@ export default function Suggestions() {
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Edit suggestion">
               <IconButton
+                aria-label="Edit suggestion"
                 size="small"
                 color="primary"
                 onClick={() => openEditDialog(row)}
@@ -239,6 +242,7 @@ export default function Suggestions() {
             </Tooltip>
             <Tooltip title="Delete suggestion">
               <IconButton
+                aria-label="Delete suggestion"
                 size="small"
                 onClick={() => setDeleteSuggestion(row)}
               >
@@ -254,10 +258,10 @@ export default function Suggestions() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Feedback / Suggestions</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>Suggestion / Feedback</Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Capture ICProDesk feedback and improvement suggestions.
             </Typography>
@@ -267,7 +271,6 @@ export default function Suggestions() {
               variant="contained"
               startIcon={<AddCommentOutlinedIcon />}
               onClick={openCreateDialog}
-              // sx={{ width: { xs: "160px", sm: "auto" } }}
             >
               <Box component="span" sx={buttonLabelFull}>Add Suggestion</Box>
               <Box component="span" sx={buttonLabelCompact}>Add</Box>
@@ -282,19 +285,19 @@ export default function Suggestions() {
             height="100%"
             tableMinWidth={1220}
             tableHead="Suggestion List"
+            loading={loading}
+            emptyTitle="No suggestions yet"
+            emptyDescription="Share an idea or feedback to help improve ICProDesk."
           />
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="sm">
-        <DialogTitle>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <FeedbackOutlinedIcon color="primary" />
-            <Typography variant="h6">
-              {editingSuggestion ? "Update Suggestion" : "Add Suggestion"}
-            </Typography>
-          </Stack>
-        </DialogTitle>
+      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="sm">
+        <DialogHeader
+          title={editingSuggestion ? "Update Suggestion" : "Add Suggestion"}
+          icon={<FeedbackOutlinedIcon />}
+          onClose={discard.requestClose}
+        />
         <DialogContent>
           <Stack spacing={2} sx={dialogContentTop}>
             <TextField
@@ -305,6 +308,7 @@ export default function Suggestions() {
               required
               multiline
               minRows={4}
+              helperText={`${form.suggestion.length} characters`}
             />
             <TextField
               label="Status"
@@ -314,7 +318,6 @@ export default function Suggestions() {
               }
               fullWidth
               select
-              size="small"
             >
               {suggestionStatuses.map((statusValue) => (
                 <MenuItem key={statusValue} value={statusValue}>
@@ -329,13 +332,14 @@ export default function Suggestions() {
               fullWidth
               multiline
               minRows={3}
+              helperText={`${form.remarks.length} characters`}
             />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button
             variant="outlined"
-            onClick={closeDialog}
+            onClick={discard.requestClose}
             disabled={saving}
             startIcon={<CancelOutlinedIcon />}
           >
@@ -356,6 +360,7 @@ export default function Suggestions() {
             {saving ? "Saving..." : editingSuggestion ? "Update" : "Submit"}
           </Button>
         </DialogActions>
+        {discard.dialog}
       </Dialog>
       <ConfirmDialog
         open={Boolean(deleteSuggestion)}

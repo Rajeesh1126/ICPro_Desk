@@ -2,9 +2,7 @@ import { useMemo, useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import type { PaletteMode } from "@mui/material";
 import { createAppTheme } from "./createAppTheme";
-import { themeModeContext } from "./themeModeContext";
-
-const themeStorageKey = "themeMode";
+import { themeModeContext, themeStorageKey } from "./themeModeContext";
 
 function getInitialMode(): PaletteMode {
   const stored = localStorage.getItem(themeStorageKey);

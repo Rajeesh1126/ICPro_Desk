@@ -1,9 +1,16 @@
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link as RouterLink, Outlet, useLocation } from "react-router-dom";
 import {
   Box,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
@@ -11,6 +18,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import ArticleIcon from "@mui/icons-material/Article";
@@ -44,6 +52,14 @@ import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 import WorkHistoryOutlinedIcon from "@mui/icons-material/WorkHistoryOutlined";
 import Header from "../components/appBar/Header";
+import { preloadRoute } from "../routes/lazyPages";
+import { useSessionExpiryWatch } from "../api/session";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { prefetchTeamSummary } from "./tickets/teamSummaryQuery";
+import { prefetchApi } from "../api/useApiQuery";
+import ErrorBoundary from "../components/common/ErrorBoundary";
+import ErrorPage from "./ErrorPage";
+import PageLoadingSkeleton from "../components/common/PageLoadingSkeleton";
 import {
   appMain,
   appShell,
@@ -69,7 +85,6 @@ type SidebarPage = {
   path: string;
   icon: ReactNode;
   activeIcon: ReactNode;
-  iconColor: `#${string}`;
   section?: string;
   codeName?: string;
 };
@@ -80,7 +95,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home",
     icon: <DashboardOutlinedIcon />,
     activeIcon: <DashboardIcon />,
-    iconColor: "#2563eb",
   },
   {
     label: "Do List",
@@ -88,7 +102,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/SelfTickets",
     icon: <AssignmentTurnedInOutlinedIcon />,
     activeIcon: <AssignmentTurnedInIcon />,
-    iconColor: "#0891b2",
     codeName: "access_self_tickets",
   },
   {
@@ -97,7 +110,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/Tickets",
     icon: <SupportAgentOutlinedIcon />,
     activeIcon: <SupportAgentIcon />,
-    iconColor: "#16a34a",
     codeName: "access_tickets",
   },
   {
@@ -106,7 +118,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/InternalTickets",
     icon: <WorkHistoryOutlinedIcon />,
     activeIcon: <WorkHistoryIcon />,
-    iconColor: "#0f766e",
     codeName: "access_tickets",
   },
   {
@@ -115,7 +126,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/TimeSheet",
     icon: <CalendarMonthOutlinedIcon />,
     activeIcon: <CalendarMonthIcon />,
-    iconColor: "#dc2626",
     codeName: "access_timesheet",
   },
   {
@@ -124,7 +134,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/Reports",
     icon: <InsightsOutlinedIcon />,
     activeIcon: <InsightsIcon />,
-    iconColor: "#ea580c",
     codeName: "access_executive_overview",
   },
   {
@@ -133,7 +142,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/Dashboard",
     icon: <GroupsOutlinedIcon />,
     activeIcon: <GroupsIcon />,
-    iconColor: "#7c3aed",
     codeName: "access_team_analysis",
   },
   {
@@ -142,7 +150,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/TimesheetLogs",
     icon: <EventNoteOutlinedIcon />,
     activeIcon: <EventNoteIcon />,
-    iconColor: "#9333ea",
     codeName: "access_timesheet_log",
   },
   {
@@ -151,25 +158,22 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/TimesheetAnalysis",
     icon: <QueryStatsOutlinedIcon />,
     activeIcon: <QueryStatsIcon />,
-    iconColor: "#0284c7",
     codeName: "access_timesheet_log",
   },
   {
-    label: "Users Managment",
+    label: "Users Management",
     section: "User Management",
     path: "/Home/Users",
     icon: <ManageAccountsOutlinedIcon />,
     activeIcon: <ManageAccountsIcon />,
-    iconColor: "#00838f",
     codeName: "access_user_management",
   },
   {
-    label: "Roles Managment",
+    label: "Roles Management",
     section: "User Management",
     path: "/Home/Roles",
     icon: <AdminPanelSettingsOutlinedIcon />,
     activeIcon: <AdminPanelSettingsIcon />,
-    iconColor: "#4f46e5",
     codeName: "access_role_management",
   },
   {
@@ -178,7 +182,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/ProjectConfiguration",
     icon: <SchemaOutlinedIcon />,
     activeIcon: <SchemaIcon />,
-    iconColor: "#00695c",
     codeName: "access_project_configuration",
   },
   {
@@ -187,7 +190,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/PhaseConfiguration",
     icon: <TuneOutlinedIcon />,
     activeIcon: <TuneIcon />,
-    iconColor: "#64748b",
     codeName: "access_phase_configuration",
   },
   {
@@ -196,7 +198,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/Documents",
     icon: <ArticleOutlinedIcon />,
     activeIcon: <ArticleIcon />,
-    iconColor: "#475569",
     codeName: "access_document_template",
   },
   {
@@ -205,7 +206,6 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/Suggestions",
     icon: <RateReviewOutlinedIcon />,
     activeIcon: <RateReviewIcon />,
-    iconColor: "#059669",
     codeName: "access_system_suggetions",
   },
   {
@@ -214,9 +214,8 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/LessonLearnt",
     icon: <LightbulbOutlinedIcon />,
     activeIcon: <LightbulbIcon />,
-    iconColor: "#ca8a04",
     codeName: "access_lesson_learnt",
-  }
+  },
 ] as const;
 
 function getStoredPermissions(): string[] {
@@ -232,9 +231,36 @@ function getStoredPermissions(): string[] {
   }
 }
 
+/** Preload a page's code and, for the busiest dashboard, its default data. */
+function warmRoute(path: string) {
+  preloadRoute(path);
+  if (path === "/Home") {
+    void prefetchApi("/erp/quotations/budget-summary/");
+  } else if (path === "/Home/Dashboard") {
+    void prefetchTeamSummary();
+  } else if (path === "/Home/PhaseConfiguration") {
+    void prefetchApi("/erp/cost-categories/");
+    void prefetchApi("/phases/");
+  } else if (path === "/Home/TimeSheet") {
+    const today = new Date();
+    const monday = new Date(today);
+    const day = today.getDay();
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    const weekStart = [
+      monday.getFullYear(),
+      String(monday.getMonth() + 1).padStart(2, "0"),
+      String(monday.getDate()).padStart(2, "0"),
+    ].join("-");
+    void prefetchApi("/timesheet-entries/", { week_start: weekStart });
+    void prefetchApi("/timesheet-week-logs/current/", { week_start: weekStart });
+    void prefetchApi("/users/");
+  }
+}
+
 export default function HomePage() {
+  useSessionExpiryWatch();
   const location = useLocation();
-  const isSidebarLayout = useMediaQuery("(min-width:600px)");
+  const isSidebarLayout = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [permissions] = useState<string[]>(getStoredPermissions);
@@ -247,6 +273,29 @@ export default function HomePage() {
     [permissions],
   );
 
+  // Browser-tab title follows the sidebar label ("Tickets · ICProDesk").
+  const currentPageLabel =
+    pages.find((page) => page.path === location.pathname)?.label ??
+    (location.pathname.startsWith("/error") ? "Error" : "Page not found");
+  useDocumentTitle(currentPageLabel);
+
+  // Warm the code for frequent destinations once the browser is idle.
+  useEffect(() => {
+    const frequent = [
+      "/Home/Dashboard",
+      "/Home/Tickets",
+      "/Home/SelfTickets",
+      "/Home/TimeSheet",
+    ].filter((path) => visiblePages.some((page) => page.path === path));
+    const run = () => frequent.forEach(preloadRoute);
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(run, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = globalThis.setTimeout(run, 2000);
+    return () => globalThis.clearTimeout(id);
+  }, [visiblePages]);
+
   const sidebar = (
     <Box sx={sidebarContent}>
       <List disablePadding>
@@ -255,7 +304,7 @@ export default function HomePage() {
             page.path === "/Home"
               ? location.pathname === page.path
               : location.pathname === page.path ||
-              location.pathname.startsWith(`${page.path}/`);
+                location.pathname.startsWith(`${page.path}/`);
           const showSectionHeader =
             page.section && page.section !== visiblePages[index - 1]?.section;
           return (
@@ -279,12 +328,15 @@ export default function HomePage() {
                 component={RouterLink}
                 to={page.path}
                 selected={selected}
+                onMouseEnter={() => warmRoute(page.path)}
+                onFocus={() => warmRoute(page.path)}
+                onTouchStart={() => warmRoute(page.path)}
                 onClick={() => {
                   if (!isSidebarLayout) setMobileSidebarOpen(false);
                 }}
-                sx={sidebarItem(selected, page.iconColor)}
+                sx={sidebarItem(selected)}
               >
-                <ListItemIcon sx={sidebarIcon(selected, page.iconColor)}>
+                <ListItemIcon sx={sidebarIcon(selected)}>
                   {selected ? page.activeIcon : page.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -301,6 +353,28 @@ export default function HomePage() {
 
   return (
     <Box sx={appShell}>
+      {/* First tab stop: jump past the header and sidebar to the page. */}
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: "absolute",
+          left: 8,
+          top: -48,
+          zIndex: (theme) => theme.zIndex.tooltip + 1,
+          px: 1.5,
+          py: 1,
+          borderRadius: 1,
+          bgcolor: "primary.main",
+          color: "primary.contrastText",
+          fontWeight: 700,
+          textDecoration: "none",
+          transition: "top 120ms ease",
+          "&:focus": { top: 8 },
+        }}
+      >
+        Skip to main content
+      </Box>
       <Header
         onMenuClick={() => {
           if (isSidebarLayout) {
@@ -313,7 +387,11 @@ export default function HomePage() {
       <Box sx={appShellBody}>
         <Box
           component="nav"
-          sx={sidebarNav(desktopSidebarOpen, sidebarWidth, sidebarCollapsedWidth)}
+          sx={sidebarNav(
+            desktopSidebarOpen,
+            sidebarWidth,
+            sidebarCollapsedWidth,
+          )}
           aria-label="Primary navigation"
         >
           <Box
@@ -334,10 +412,47 @@ export default function HomePage() {
           ModalProps={{ keepMounted: true }}
           sx={mobileDrawer}
         >
+          <Box
+            sx={{
+              display: "flex",
+              minHeight: 52,
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography fontWeight={700}>Navigation</Typography>
+            <IconButton
+              aria-label="Close navigation"
+              onClick={() => setMobileSidebarOpen(false)}
+            >
+              <CloseOutlinedIcon />
+            </IconButton>
+          </Box>
           {sidebar}
         </Drawer>
-        <Box component="main" sx={appMain}>
-          <Outlet />
+        <Box
+          component="main"
+          id="main-content"
+          tabIndex={-1}
+          sx={{ ...appMain, position: "relative", "&:focus": { outline: "none" } }}
+        >
+          {/*
+            The Suspense boundary stays mounted across navigations. Because
+            React Router navigates inside a transition, the current page stays
+            on screen while the next page's code loads; the skeleton only
+            appears on the very first load.
+          */}
+          <Suspense fallback={<PageLoadingSkeleton />}>
+            <ErrorBoundary
+              key={location.pathname}
+              fallback={<ErrorPage code="generic" />}
+            >
+              <Outlet />
+            </ErrorBoundary>
+          </Suspense>
         </Box>
       </Box>
     </Box>

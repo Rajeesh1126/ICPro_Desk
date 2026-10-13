@@ -1,3 +1,4 @@
+import { useDocumentTitle } from "../../utils/useDocumentTitle";
 import { useMemo, useState } from "react";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -18,15 +19,16 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 import api from "../../api/axios";
+import { getErrorStatus, sanitizeUserMessage } from "../../utils/errorUtils";
 import bgImage from "../../assets/taskmanagementloginimage.jpg";
 import logo from "../../assets/icpro_logo.svg";
 import {
-  loginDynamicPageDynamicBoxSx1,
-  loginPageBoxSx1,
-  loginPageButtonSx1,
-  loginPageCardContentSx1,
-  loginPageCardSx1,
-  loginPageCircularProgressSx1,
+  authPageBackgroundSx,
+  authLogoSx,
+  authSubmitButtonSx,
+  authCardContentSx,
+  authCardSx,
+  authSpinnerSx,
   marginBottomSectionSx,
 } from "../../styles/common";
 
@@ -49,13 +51,14 @@ function isResetPasswordErrorResponse(
 
 function formatFieldError(error?: string | string[]) {
   if (Array.isArray(error)) {
-    return error.join(" ");
+    return sanitizeUserMessage(error.join(" "));
   }
 
-  return error;
+  return error ? sanitizeUserMessage(error) : undefined;
 }
 
 export default function ResetPassword() {
+  useDocumentTitle("Reset password");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const emailFromLink = useMemo(() => searchParams.get("email") ?? "", [searchParams]);
@@ -68,6 +71,9 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<ResetPasswordErrors>({});
+
+  const confirmMismatch =
+    confirmPassword.length > 0 && newPassword !== confirmPassword;
 
   const clearFieldError = (field: ResetPasswordField) => {
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
@@ -98,11 +104,8 @@ export default function ResetPassword() {
         state: { message: "Password reset successfully. Please login." },
       });
     } catch (requestError: unknown) {
-      if (
-        isResetPasswordErrorResponse(requestError) &&
-        requestError.response?.status === 400
-      ) {
-        const errors = requestError.response.data ?? {};
+      if (isResetPasswordErrorResponse(requestError) && getErrorStatus(requestError) === 400) {
+        const errors = requestError.response?.data ?? {};
         setFieldErrors(errors);
         setError(
           formatFieldError(errors.non_field_errors) ||
@@ -110,7 +113,12 @@ export default function ResetPassword() {
             "",
         );
       } else {
-        setError("Unable to reset password. The link may be invalid or expired.");
+        const status = getErrorStatus(requestError);
+        setError(
+          status === 429
+            ? "Please wait a moment before trying again."
+            : "Unable to reset your password. Please request a new link and try again.",
+        );
       }
     } finally {
       setLoading(false);
@@ -118,11 +126,11 @@ export default function ResetPassword() {
   };
 
   return (
-    <Box sx={loginDynamicPageDynamicBoxSx1({ bgImage })}>
-      <Card sx={loginPageCardSx1}>
-        <CardContent sx={loginPageCardContentSx1}>
-          <Box component="img" src={logo} alt="ICPro" sx={loginPageBoxSx1} />
-          <Typography variant="h5" align="center">
+    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
+      <Card sx={authCardSx}>
+        <CardContent sx={authCardContentSx}>
+          <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
+          <Typography variant="h5" component="h1" align="center">
             Reset Password
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 2 }}>
@@ -147,19 +155,21 @@ export default function ResetPassword() {
               helperText={formatFieldError(fieldErrors.email)}
               sx={marginBottomSectionSx}
             />
-            <TextField
-              fullWidth
-              label="Token"
-              value={token}
-              onChange={(event) => {
-                clearFieldError("token");
-                setToken(event.target.value);
-              }}
-              required
-              error={Boolean(fieldErrors.token)}
-              helperText={formatFieldError(fieldErrors.token)}
-              sx={marginBottomSectionSx}
-            />
+            {!tokenFromLink && (
+              <TextField
+                fullWidth
+                label="Reset code"
+                value={token}
+                onChange={(event) => {
+                  clearFieldError("token");
+                  setToken(event.target.value);
+                }}
+                required
+                error={Boolean(fieldErrors.token)}
+                helperText={formatFieldError(fieldErrors.token) || "Copy the code from your reset email."}
+                sx={marginBottomSectionSx}
+              />
+            )}
             <TextField
               fullWidth
               label="New Password"
@@ -172,7 +182,10 @@ export default function ResetPassword() {
               }}
               required
               error={Boolean(fieldErrors.new_password)}
-              helperText={formatFieldError(fieldErrors.new_password)}
+              helperText={
+                formatFieldError(fieldErrors.new_password) ||
+                "Use at least 8 characters. Avoid common words and numbers only."
+              }
               sx={marginBottomSectionSx}
               slotProps={{
                 input: {
@@ -207,8 +220,11 @@ export default function ResetPassword() {
                 setConfirmPassword(event.target.value);
               }}
               required
-              error={Boolean(fieldErrors.confirm_password)}
-              helperText={formatFieldError(fieldErrors.confirm_password)}
+              error={Boolean(fieldErrors.confirm_password) || confirmMismatch}
+              helperText={
+                formatFieldError(fieldErrors.confirm_password) ||
+                (confirmMismatch ? "Passwords do not match yet." : " ")
+              }
               sx={marginBottomSectionSx}
             />
             <Button
@@ -218,11 +234,11 @@ export default function ResetPassword() {
               size="large"
               disabled={loading}
               startIcon={loading ? undefined : <LockResetOutlinedIcon />}
-              sx={loginPageButtonSx1}
+              sx={authSubmitButtonSx}
             >
               {loading ? (
                 <>
-                  <CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} />
+                  <CircularProgress size={20} color="inherit" sx={authSpinnerSx} />
                   Resetting...
                 </>
               ) : (

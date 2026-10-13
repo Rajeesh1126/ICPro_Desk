@@ -2,15 +2,17 @@ import { useEffect, useMemo, useRef } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import DonutLargeOutlinedIcon from "@mui/icons-material/DonutLargeOutlined";
-import * as echarts from "echarts";
+import { echarts, type ECharts } from "../../utils/charts";
+import ChartDataTable from "../common/ChartDataTable";
+import { summariseSeries } from "../../utils/chartSummary";
 import {
   borderedSurfaceSx,
-  dashboardAnalysisPieChartBoxSx1,
-  dashboardAnalysisPieChartBoxSx2,
-  dashboardAnalysisPieChartBoxSx3,
-  dashboardAnalysisPieChartDonutLargeRoundedIconSx1,
-  dashboardAnalysisPieChartDynamicDynamicBoxSx1,
-  dashboardAnalysisPieChartDynamicDynamicPaperSx1,
+  pieChartHeaderSx,
+  pieChartHeaderIconSx,
+  pieChartEmptyStateSx,
+  pieChartEmptyIconSx,
+  pieChartCanvasSx,
+  pieChartPanelSx,
   formatStatusLabel,
   getStatusColor,
 } from "../../styles/common";
@@ -27,7 +29,7 @@ export default function AnalysisPieChart({
   height = 300,
 }: AnalysisPieChartProps) {
   const chartElement = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<echarts.ECharts | null>(null);
+  const chartInstance = useRef<ECharts | null>(null);
   const theme = useTheme();
   const chartData = useMemo(
     () =>
@@ -41,18 +43,17 @@ export default function AnalysisPieChart({
 
   useEffect(() => {
     const element = chartElement.current;
-    if (!element) return;
+    if (!element || !chartData.length) return;
+
+    if (element.clientWidth === 0 || element.clientHeight === 0) {
+      return;
+    }
 
     const chart =
       chartInstance.current ??
       echarts.getInstanceByDom(element) ??
       echarts.init(element, undefined, { renderer: "canvas" });
     chartInstance.current = chart;
-
-    if (!chartData.length) {
-      chart.clear();
-      return;
-    }
 
     const total = chartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -119,12 +120,12 @@ export default function AnalysisPieChart({
   return (
     <Paper
       elevation={0}
-      sx={dashboardAnalysisPieChartDynamicDynamicPaperSx1({
+      sx={pieChartPanelSx({
         borderedSurfaceSx,
       })}
     >
-      <Box sx={dashboardAnalysisPieChartBoxSx1}>
-        <Box sx={dashboardAnalysisPieChartBoxSx2}>
+      <Box sx={pieChartHeaderSx}>
+        <Box sx={pieChartHeaderIconSx}>
           <DonutLargeOutlinedIcon fontSize="small" />
         </Box>
         <Box>
@@ -136,16 +137,28 @@ export default function AnalysisPieChart({
       </Box>
       <Box
         ref={chartElement}
+        role="img"
+        aria-label={
+          chartData.length
+            ? `Ticket status chart. ${summariseSeries(chartData)}`
+            : undefined
+        }
         sx={{
-          ...dashboardAnalysisPieChartDynamicDynamicBoxSx1({ height }),
+          ...pieChartCanvasSx({ height }),
           display: chartData.length ? "block" : "none",
         }}
       />
+      <ChartDataTable
+        caption="Tickets by status"
+        rowHeader="Status"
+        rows={chartData.map((item) => item.name)}
+        columns={[{ label: "Tickets", values: chartData.map((item) => item.value) }]}
+      />
       {!chartData.length && (
-        <Box sx={dashboardAnalysisPieChartBoxSx3}>
+        <Box sx={pieChartEmptyStateSx}>
           <Box>
             <DonutLargeOutlinedIcon
-              sx={dashboardAnalysisPieChartDonutLargeRoundedIconSx1}
+              sx={pieChartEmptyIconSx}
             />
             <Typography fontWeight={700}>No status data yet</Typography>
           </Box>

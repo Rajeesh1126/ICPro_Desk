@@ -1,6 +1,26 @@
 import { alpha, createTheme } from "@mui/material/styles";
 import type { PaletteMode } from "@mui/material";
-import { COLORS, ELEVATION, RADIUS, TYPOGRAPHY } from "../tokens";
+import { COLORS, ELEVATION, INSET_PX, RADIUS, TYPOGRAPHY } from "../tokens";
+
+/** The app-wide content inset as CSS, switching at the `sm` breakpoint. */
+/**
+ * The app-wide content inset, switching at the `sm` breakpoint.
+ *
+ * The breakpoint only changes CSS variables; `padding` itself is declared
+ * once, outside any media query. That way a component's own `p`/`px`/`py`
+ * (e.g. `p: 0` on a cell that wraps a nested table) always wins. A media
+ * query that set `padding` directly would come later in the stylesheet and
+ * silently override it from tablet width up.
+ */
+const insetPadding = (important = false) => ({
+  "--inset-y": `${INSET_PX.xs.y}px`,
+  "--inset-x": `${INSET_PX.xs.x}px`,
+  "@media (min-width: 600px)": {
+    "--inset-y": `${INSET_PX.sm.y}px`,
+    "--inset-x": `${INSET_PX.sm.x}px`,
+  },
+  padding: `var(--inset-y) var(--inset-x)${important ? " !important" : ""}`,
+});
 
 export const appFontFamily = TYPOGRAPHY.fontFamily;
 
@@ -134,7 +154,7 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            borderBottom: `1px solid ${palette.divider}`,
+            borderBottom: 0,
             backdropFilter: "blur(14px)",
           },
         },
@@ -143,6 +163,9 @@ export function createAppTheme(mode: PaletteMode) {
         defaultProps: { size: "small" },
       },
       MuiFormControl: {
+        defaultProps: { size: "small" },
+      },
+      MuiSelect: {
         defaultProps: { size: "small" },
       },
       MuiInputBase: {
@@ -167,8 +190,7 @@ export function createAppTheme(mode: PaletteMode) {
         },
         styleOverrides: {
           root: {
-            borderRadius: RADIUS.sm,
-            height: 36,
+            borderRadius: RADIUS.md,
             textTransform: "none",
             padding: "4px 12px",
             gap: 6,
@@ -181,7 +203,6 @@ export function createAppTheme(mode: PaletteMode) {
         },
         styleOverrides: {
           root: {
-            height: 36,
             textTransform: "none",
             fontWeight: 700,
           },
@@ -193,7 +214,7 @@ export function createAppTheme(mode: PaletteMode) {
         },
         styleOverrides: {
           root: {
-            border: "1px solid palette.primary.main",
+            border: `1px solid ${palette.divider}`,
           },
           grouped: {
             color: isDark ? palette.primary.dark : palette.primary.light,
@@ -227,6 +248,16 @@ export function createAppTheme(mode: PaletteMode) {
       MuiIconButton: {
         defaultProps: {
           size: "small",
+        },
+        styleOverrides: {
+          root: {
+            minWidth: 36,
+            minHeight: 36,
+            "@media (pointer: coarse)": {
+              minWidth: 44,
+              minHeight: 44,
+            },
+          },
         },
       },
       MuiSvgIcon: {
@@ -266,20 +297,30 @@ export function createAppTheme(mode: PaletteMode) {
       MuiDialogTitle: {
         styleOverrides: {
           root: {
-            padding: "12px 12px",
+            ...insetPadding(),
             borderBottom: `1px solid ${palette.divider}`,
+            "& .MuiIconButton-root": {
+              backgroundColor: alpha(palette.text.primary, isDark ? 0.1 : 0.07),
+              color: palette.text.secondary,
+              "&:hover": {
+                backgroundColor: alpha(
+                  palette.text.primary,
+                  isDark ? 0.16 : 0.12,
+                ),
+              },
+            },
           },
         },
       },
       MuiDialogContent: {
         styleOverrides: {
-          root: { padding: "12px 12px !important" },
+          root: insetPadding(true),
         },
       },
       MuiDialogActions: {
         styleOverrides: {
           root: {
-            padding: "12px 12px",
+            ...insetPadding(),
             borderTop: `1px solid ${palette.divider}`,
           },
         },
@@ -287,42 +328,34 @@ export function createAppTheme(mode: PaletteMode) {
       MuiTabs: {
         styleOverrides: {
           root: {
-            minHeight: 44,
-            backgroundColor: alpha(palette.primary.main, isDark ? 0.16 : 0.08),
+            backgroundColor: isDark
+              ? alpha(palette.text.primary, 0.035)
+              : alpha(palette.primary.main, 0.08),
             borderRadius: RADIUS.sm,
-            padding: 5,
-            // width: "fit-content",
           },
         },
       },
       MuiTab: {
         styleOverrides: {
           root: {
-            minHeight: 36,
             minWidth: 100,
-            padding: "6px 16px",
-            margin: "0px 4px",
+            padding: "4px 12px",
 
             textTransform: "none",
             fontSize: "0.875rem",
             fontWeight: 400,
 
-            color: isDark ? palette.primary.dark : palette.primary.light,
+            color: palette.text.secondary,
 
             transition: "all 0.2s ease",
 
             "&:hover": {
-              color: isDark ? palette.primary.light : palette.primary.dark,
+              color: palette.primary.main,
             },
 
             "&.Mui-selected": {
-              color: isDark ? palette.primary.light : palette.primary.dark,
-              borderColor: isDark
-                ? palette.primary.light
-                : palette.primary.dark,
-              // borderBottom: `3px solid ${
-              //   isDark ? palette.primary.light : palette.primary.dark
-              // }`,
+              color: palette.primary.main,
+              borderColor: palette.primary.main,
               fontWeight: 700,
             },
 
@@ -336,17 +369,69 @@ export function createAppTheme(mode: PaletteMode) {
         defaultProps: { size: "small" },
         styleOverrides: {
           root: {
+            ...insetPadding(),
             borderBottomColor: palette.divider,
             color: palette.text.primary,
             fontSize: "0.8125rem",
             lineHeight: 1.45,
           },
           head: {
+            backgroundColor: palette.background.paper,
             color: palette.text.primary,
             fontSize: "0.75rem",
             fontWeight: 700,
             letterSpacing: 0,
+            position: "sticky",
+            top: 0,
             textTransform: "uppercase",
+            zIndex: 2,
+          },
+        },
+      },
+      // Keep dense, scrollable tables visually consistent. Individual tables
+      // should only supply layout or behaviour that is unique to that view.
+      MuiTableContainer: {
+        styleOverrides: {
+          root: {
+            overflow: "auto",
+            border: `1px solid ${palette.divider}`,
+            borderRadius: RADIUS.md,
+            backgroundColor: palette.background.paper,
+            boxShadow: "none",
+          },
+        },
+      },
+      MuiTable: {
+        defaultProps: {
+          size: "small",
+          stickyHeader: true,
+        },
+        styleOverrides: {
+          root: {
+            width: "100%",
+            borderCollapse: "separate",
+            borderSpacing: 0,
+            "& .MuiTableCell-root": {
+              boxSizing: "border-box",
+            },
+            "& .MuiTableCell-head": {
+              backgroundColor: palette.background.paper,
+              backgroundImage: `linear-gradient(${alpha(
+                isDark ? palette.text.primary : palette.primary.main,
+                isDark ? 0.045 : 0.12,
+              )}, ${alpha(
+                isDark ? palette.text.primary : palette.primary.main,
+                isDark ? 0.045 : 0.12,
+              )})`,
+            },
+          },
+        },
+      },
+      MuiCardContent: {
+        styleOverrides: {
+          root: {
+            ...insetPadding(),
+            "&:last-child": { paddingBottom: "var(--inset-y)" },
           },
         },
       },

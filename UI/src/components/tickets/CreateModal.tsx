@@ -1,3 +1,4 @@
+import { useDiscardGuard } from "../common/useDiscardGuard";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   Box,
@@ -24,6 +25,8 @@ import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import api from "../../api/axios";
+import { sanitizeUserMessage } from "../../utils/errorUtils";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import type { SelectChangeEvent } from "@mui/material";
 import type {
   TicketData,
@@ -33,12 +36,12 @@ import type {
 } from "../../types/dataTypes";
 import {
   dateFieldSx,
-  ticketsCreateModalBoxSx1,
-  ticketsCreateModalBoxSx2,
-  ticketsCreateModalBoxSx3,
-  ticketsCreateModalButtonSx1,
-  ticketsCreateModalIconButtonSx1,
-  ticketsCreateModalTypographySx1,
+  attachmentDropZoneSx,
+  ticketAttachmentListSx,
+  attachmentChipSx,
+  attachmentButtonSx,
+  attachmentRemoveButtonSx,
+  ticketAttachmentNameSx,
 } from "../../styles/common";
 import { showNotification } from "../../api/notificationService";
 
@@ -115,7 +118,6 @@ export default function CreateTicketModal({
   const [formErrorData, setFormErrorData] = useState<
     Partial<Record<keyof TicketFormData, string | string[]>>
   >({});
-  const [departments, setDepartments] = useState<groupData[]>([]);
   const [loading, setLoading] = useState(false);
   const userId = useMemo(() => loggedUser(), []);
 
@@ -161,35 +163,30 @@ export default function CreateTicketModal({
     })),
   ];
 
-  useEffect(() => {
-    if (!open) return;
-    if (departmentsOverride) {
-      setDepartments(departmentsOverride);
-      return;
-    }
+  // Cached department list shared with the Users page; fetched only while
+  // the dialog is open and no override is supplied.
+  const departmentsQuery = useApiQuery<groupData[]>("/departments/", undefined, {
+    enabled: open && !departmentsOverride,
+  });
+  const departments = useMemo(
+    () =>
+      departmentsOverride ??
+      asArray<groupData>(departmentsQuery.data).filter(
+        (dept) => dept.manager && dept.manager.id !== userId,
+      ),
+    [departmentsOverride, departmentsQuery.data, userId],
+  );
 
-    let active = true;
-    void api
-      .get("/departments/")
-      .then((response) => {
-        if (!active) return;
-        const source = (
-          Array.isArray(response.data) ? response.data : []
-        ) as groupData[];
-        setDepartments(
-          source.filter((dept) => dept.manager && dept.manager.id !== userId),
-        );
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [open, userId, departmentsOverride]);
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
 
   const update = <K extends keyof TicketFormData>(
     field: K,
     value: TicketFormData[K],
-  ) => setFormData((current) => ({ ...current, [field]: value }));
+  ) => {
+    discard.markDirty();
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
 
   const handleAttachmentChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -246,6 +243,7 @@ export default function CreateTicketModal({
   };
 
   const handleGroupChange = (event: SelectChangeEvent<number | string>) => {
+    discard.markDirty();
     const selectedDepartment = departments.find(
       (item) => item.id === Number(event.target.value),
     );
@@ -274,10 +272,10 @@ export default function CreateTicketModal({
   const errorText = (field: keyof TicketFormData) => {
     const error = formErrorData?.[field];
     if (Array.isArray(error)) {
-      return error.join(" ");
+      return sanitizeUserMessage(error.join(" "));
     }
     if (typeof error === "string") {
-      return error;
+      return sanitizeUserMessage(error);
     }
     return undefined;
   };
@@ -329,6 +327,7 @@ export default function CreateTicketModal({
         Data ? `/tickets/${Data.id}/` : "/tickets/",
         payload,
         {
+          suppressGlobalError: true,
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -345,8 +344,6 @@ export default function CreateTicketModal({
     } catch (error: unknown) {
       if (isValidationErrorResponse(error) && error.response?.status === 400) {
         setFormErrorData(error.response.data ?? {});
-      } else {
-        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -365,7 +362,8 @@ export default function CreateTicketModal({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={loading ? undefined : discard.requestClose}
+      onChangeCapture={discard.markDirty}
       fullWidth
       maxWidth="md"
     >
@@ -393,7 +391,7 @@ export default function CreateTicketModal({
           </Box>
           <IconButton
             aria-label="Close"
-            onClick={handleClose}
+            onClick={discard.requestClose}
             disabled={loading}
           >
             <CloseOutlinedIcon />
@@ -524,12 +522,12 @@ export default function CreateTicketModal({
             />
           </Grid>
           <Grid size={{ xs: 12 }}>
-            <Box sx={ticketsCreateModalBoxSx1}>
+            <Box sx={attachmentDropZoneSx}>
               <Button
                 component="label"
                 variant="outlined"
                 startIcon={<AttachFileOutlinedIcon />}
-                sx={ticketsCreateModalButtonSx1}
+                sx={attachmentButtonSx}
               >
                 <input
                   type="file"
@@ -543,23 +541,23 @@ export default function CreateTicketModal({
                   : "Add Attachments"}
               </Button>
 
-              <Box sx={ticketsCreateModalBoxSx2}>
+              <Box sx={ticketAttachmentListSx}>
                 {allAttachments.map((attachment) => (
                   <Box
                     key={`${attachment.type}-${attachment.index}`}
-                    sx={ticketsCreateModalBoxSx3}
+                    sx={attachmentChipSx}
                   >
                     <Typography
                       variant="caption"
-                      sx={ticketsCreateModalTypographySx1}
+                      sx={ticketAttachmentNameSx}
                     >
                       {attachment.name}
                     </Typography>
 
-                    <IconButton
+                    <IconButton aria-label={`Remove attachment ${attachment.name}`}
                       size="small"
                       color="error"
-                      sx={ticketsCreateModalIconButtonSx1}
+                      sx={attachmentRemoveButtonSx}
                       onClick={() => {
                         if (attachment.type === "existing") {
                           const fileToDelete = formData.files[attachment.index];
@@ -597,7 +595,7 @@ export default function CreateTicketModal({
         <Button
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
-          onClick={handleClose}
+          onClick={discard.requestClose}
           disabled={loading}
         >
           Cancel
@@ -611,6 +609,7 @@ export default function CreateTicketModal({
           {loading ? "Saving…" : Data ? "Update" : "Submit"}
         </Button>
       </DialogActions>
+      {discard.dialog}
     </Dialog>
   );
 }

@@ -1,3 +1,4 @@
+import { insetSx } from "../../styles/tokens";
 import * as React from "react";
 import {
   Table,
@@ -15,9 +16,10 @@ import {
   Typography,
   InputAdornment,
   Stack,
+  useMediaQuery,
   type SxProps,
 } from "@mui/material";
-import type { Theme } from "@mui/material/styles";
+import { useTheme, type Theme } from "@mui/material/styles";
 
 // Corrected Imports for verbatimModuleSyntax
 import { TableVirtuoso } from "react-virtuoso";
@@ -27,6 +29,9 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import EmptyTableState from "./EmptyTableState";
+import { formatIfDate } from "../../utils/dateRange";
+import TableLoadingState from "./TableLoadingState";
 import {
   alternatingRowSx,
   formatStatusLabel,
@@ -35,27 +40,25 @@ import {
   tableHeadSx,
   tableHeaderCellSx,
   type TableRowStatus,
-  tableViewBoxSx1,
-  tableViewBoxSx2,
-  tableViewBoxSx3,
-  tableViewBoxSx4,
-  tableViewBoxSx5,
-  tableViewCallbackCallbackSx1,
-  tableViewCallbackCallbackSx2,
-  tableViewCallbackCallbackSx3,
-  tableViewDynamicDynamicBadgeSx1,
-  tableViewDynamicDynamicPaperSx1,
-  tableViewTableChartIconSx1,
-  tableViewTableChartIconSx2,
-  tableViewTableContainerSx1,
+  tableStatusCellSx,
+  tableHeaderBarSx,
+  tableBodyAreaSx,
+  tableEmptyOverlaySx,
+  tableBodyRowSx,
+  tableHeaderCellForColumnSx,
+  tableBodyCellForColumnSx,
+  tableStatusDotSx,
+  tablePanelSx,
+  tableTitleIconSx,
+  tableScrollContainerSx,
   tableViewTableWithMinWidth,
-  tableViewTableVirtuosoStyle1,
-  tableViewTextFieldSx1,
+  tableVirtuosoStyle,
+  tableSearchFieldSx,
   tableViewTitleGroupSx,
   tableViewTitleStackSx,
-  tableViewTypographySx3,
-  tableViewTypographySx1,
-  tableViewTypographySx2,
+  tableSubtitleSx,
+  tableStatusTextSx,
+  tableTitleSx,
 } from "../../styles/common";
 
 type ColumnWidth = number | "auto" | `${number}%`;
@@ -80,47 +83,109 @@ interface VirtualizedTableProps<T> {
   getRowStatus?: (row: T) => TableRowStatus | undefined;
   getRowSx?: (row: T) => SxProps<Theme> | undefined;
   tableHead?: string;
-  tableHeadSub?: string;
+  tableHeadSub?: React.ReactNode;
   fixedFooterContent?: (rows: T[]) => React.ReactNode;
   stickyFirstColumn?: boolean;
   collapsible?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  /** True until the first response resolves; shows a skeleton instead of the empty state. */
+  loading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-const formatDate = (value: unknown) => {
-  if (!value || typeof value !== "string") return value;
-
-  // Match YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-");
-    return `${day}-${month}-${year}`;
-  }
-
-  // Match YYYY-MM-DD HH:mm:ss
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    const [date, time] = value.split(" ");
-    const [year, month, day] = date.split("-");
-    return `${day}-${month}-${year}${time ? ` ${time}` : ""}`;
-  }
-
-  return value;
-};
 const formatCellValue = (value: unknown): React.ReactNode => {
+  if (value == null || value === "") return "—";
   if (Array.isArray(value)) {
-    return value
+    const formatted = value
       .map((item) =>
         typeof item === "object" && item !== null && "name" in item
           ? String(item.name)
           : String(item),
       )
       .join(", ");
+    return formatted || "—";
   }
 
-  return formatDate(value) as React.ReactNode;
+  return formatIfDate(value) as React.ReactNode;
 };
 
-export function VirtualizedTable<T extends Record<string, unknown>>({
+const cellTitle = (value: unknown) =>
+  typeof value === "string" || typeof value === "number"
+    ? String(formatCellValue(value))
+    : undefined;
+
+const getRowKey = <T extends object>(row: T, index: number) => {
+  if ("id" in row && row.id != null) return String(row.id);
+  if ("number" in row && row.number != null) return String(row.number);
+  return String(index);
+};
+
+type RowHandlers = {
+  onRowClick?: (row: never) => void;
+  getRowStatus?: (row: never) => TableRowStatus | undefined;
+  getRowSx?: (row: never) => SxProps<Theme> | undefined;
+};
+
+/**
+ * The table's latest row handlers. Virtuoso needs a stable row component:
+ * if it were recreated whenever a page passed a new inline handler, every
+ * row would remount, so keyboard focus would be lost after each action.
+ */
+const RowHandlersContext = React.createContext<RowHandlers>({});
+
+function VirtualRow({
+  item,
+  ...props
+}: {
+  item: Record<string, unknown>;
+} & React.HTMLAttributes<HTMLTableRowElement>) {
+  const { onRowClick, getRowStatus, getRowSx } = React.useContext(
+    RowHandlersContext,
+  ) as {
+    onRowClick?: (row: Record<string, unknown>) => void;
+    getRowStatus?: (row: Record<string, unknown>) => TableRowStatus | undefined;
+    getRowSx?: (row: Record<string, unknown>) => SxProps<Theme> | undefined;
+  };
+  return (
+    <TableRow
+      {...props}
+      hover={!!onRowClick}
+      onClick={() => onRowClick?.(item)}
+      // Clickable rows are reachable with Tab and open with Enter/Space.
+      tabIndex={onRowClick ? 0 : undefined}
+      onKeyDown={
+        onRowClick
+          ? (event: React.KeyboardEvent) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onRowClick(item);
+              }
+            }
+          : undefined
+      }
+      data-status={getRowStatus?.(item)}
+      sx={(theme) => {
+        const baseRowSx = tableBodyRowSx({
+          alternatingRowSx,
+          onRowClick,
+        }) as (theme: Theme) => Record<string, unknown>;
+        const customRowSx = getRowSx?.(item);
+
+        return {
+          ...baseRowSx(theme),
+          ...(typeof customRowSx === "function"
+            ? customRowSx(theme)
+            : customRowSx),
+        };
+      }}
+    />
+  );
+}
+
+export function VirtualizedTable<T extends object>({
   columns,
   rows,
   height,
@@ -135,7 +200,12 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
   collapsible = false,
   expanded = true,
   onExpandedChange,
+  loading = false,
+  emptyTitle,
+  emptyDescription,
 }: VirtualizedTableProps<T>) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [sortField, setSortField] = React.useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">(
     "asc",
@@ -153,7 +223,9 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
           const value = row[column.dataKey];
           if (value == null) return false;
 
-          return String(value).toLowerCase().includes(lower);
+          return `${String(value)} ${String(formatIfDate(value))}`
+            .toLowerCase()
+            .includes(lower);
         }),
       );
     }
@@ -173,6 +245,11 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
     return filtered;
   }, [rows, searchText, sortField, sortDirection, columns]);
 
+  const rowHandlers = React.useMemo(
+    () => ({ onRowClick, getRowStatus, getRowSx }) as RowHandlers,
+    [getRowSx, getRowStatus, onRowClick],
+  );
+
   const virtuosoTableComponents: TableComponents<T> = React.useMemo(
     () => ({
       Scroller: React.forwardRef<HTMLDivElement>((props, ref) => (
@@ -180,14 +257,11 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
           component={Paper}
           {...props}
           ref={ref}
-          sx={tableViewTableContainerSx1}
+          sx={tableScrollContainerSx}
         />
       )),
       Table: (props) => (
-        <Table
-          {...props}
-          sx={tableViewTableWithMinWidth(tableMinWidth)}
-        />
+        <Table {...props} sx={tableViewTableWithMinWidth(tableMinWidth)} />
       ),
       TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
         <TableHead {...props} ref={ref} sx={tableHeadSx} />
@@ -195,33 +269,12 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
       TableFoot: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
         <TableFooter {...props} ref={ref} />
       )),
-      TableRow: ({ item, ...props }) => (
-        <TableRow
-          {...props}
-          hover={!!onRowClick}
-          onClick={() => onRowClick?.(item)}
-          data-status={getRowStatus?.(item)}
-          sx={(theme) => {
-            const baseRowSx = tableViewCallbackCallbackSx1({
-              alternatingRowSx,
-              onRowClick,
-            }) as (theme: Theme) => Record<string, unknown>;
-            const customRowSx = getRowSx?.(item);
-
-            return {
-              ...baseRowSx(theme),
-              ...(typeof customRowSx === "function"
-                ? customRowSx(theme)
-                : customRowSx),
-            };
-          }}
-        />
-      ),
+      TableRow: VirtualRow as unknown as TableComponents<T>["TableRow"],
       TableBody: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
         <TableBody {...props} ref={ref} />
       )),
     }),
-    [getRowStatus, getRowSx, onRowClick, tableMinWidth],
+    [tableMinWidth],
   );
 
   const handleSort = (field?: keyof T) => {
@@ -235,12 +288,18 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
     }
   };
 
-  const tableTitle = tableHead ? tableHead : "Data";
+  const tableTitle = tableHead ? tableHead : "";
+  const isFiltered = searchText.trim() !== "" && rows.length > 0;
+  const emptyState = isFiltered ? (
+    <EmptyTableState
+      title="No matching records"
+      description={`Nothing in ${tableTitle} matches "${searchText.trim()}". Clear or change the search.`}
+    />
+  ) : (
+    <EmptyTableState title={emptyTitle} description={emptyDescription} />
+  );
   const isTableExpanded = !collapsible || expanded;
-  const paperSx = tableViewDynamicDynamicPaperSx1({ height }) as Record<
-    string,
-    unknown
-  >;
+  const paperSx = tablePanelSx({ height }) as Record<string, unknown>;
 
   const toggleExpanded = () => {
     if (!collapsible) return;
@@ -254,7 +313,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
           key={column.label}
           variant="head"
           align="left"
-          sx={tableViewCallbackCallbackSx2({
+          sx={tableHeaderCellForColumnSx({
             column,
             index,
             tableHeaderCellSx,
@@ -283,7 +342,12 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
         <TableCell
           key={column.label}
           align="left"
-          sx={tableViewCallbackCallbackSx3({
+          title={
+            !column.render && column.label !== "Status" && column.dataKey
+              ? cellTitle(row[column.dataKey])
+              : undefined
+          }
+          sx={tableBodyCellForColumnSx({
             column,
             index,
             stickyTableCellSx,
@@ -294,11 +358,11 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
             column.render(row, rowIndex)
           ) : column.dataKey ? (
             column.label === "Status" ? (
-              <Box sx={tableViewBoxSx1}>
+              <Box sx={tableStatusCellSx}>
                 <Badge
                   aria-hidden="true"
                   variant="dot"
-                  sx={tableViewDynamicDynamicBadgeSx1({
+                  sx={tableStatusDotSx({
                     column,
                     getStatusColor,
                     row,
@@ -308,7 +372,7 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
                 <Typography
                   component="span"
                   variant="body2"
-                  sx={tableViewTypographySx1}
+                  sx={tableStatusTextSx}
                 >
                   {formatStatusLabel(row[column.dataKey])}
                 </Typography>
@@ -322,30 +386,142 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
     </React.Fragment>
   );
 
-  const tableContent = (
-    <Box sx={tableViewBoxSx3}>
-      <TableVirtuoso
-        style={tableViewTableVirtuosoStyle1}
-        data={processedRows}
-        components={virtuosoTableComponents}
-        fixedHeaderContent={fixedHeaderContent}
-        fixedFooterContent={
-          fixedFooterContent
-            ? () => fixedFooterContent(processedRows)
-            : undefined
-        }
-        itemContent={rowContent}
-      />
-      {processedRows.length === 0 && (
-        <Box sx={tableViewBoxSx4}>
-          <Box sx={tableViewBoxSx5}>
-            <TableChartOutlinedIcon sx={tableViewTableChartIconSx2} />
-            <Typography fontWeight={700}>No records found</Typography>
-            <Typography variant="body2">
-              Try changing the search or filters.
-            </Typography>
-          </Box>
+  const renderColumnValue = (
+    column: ColumnData<T>,
+    row: T,
+    rowIndex: number,
+  ) => {
+    if (column.render) return column.render(row, rowIndex);
+    if (!column.dataKey) return null;
+
+    if (column.label === "Status") {
+      return (
+        <Box sx={tableStatusCellSx}>
+          <Badge
+            aria-hidden="true"
+            variant="dot"
+            sx={tableStatusDotSx({ column, getStatusColor, row })}
+          />
+          <Typography component="span" variant="body2" sx={tableStatusTextSx}>
+            {formatStatusLabel(row[column.dataKey])}
+          </Typography>
         </Box>
+      );
+    }
+
+    return formatCellValue(row[column.dataKey]);
+  };
+
+  const mobileContent = (
+    <Box
+      sx={{
+        display: "flex",
+        flex: 1,
+        minHeight: 0,
+        flexDirection: "column",
+        gap: 1,
+        overflowY: "auto",
+        ...insetSx,
+      }}
+    >
+      {processedRows.length ? (
+        processedRows.map((row, rowIndex) => (
+          <Paper
+            key={getRowKey(row, rowIndex)}
+            component="article"
+            role={onRowClick ? "button" : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            variant="outlined"
+            onClick={() => onRowClick?.(row)}
+            onKeyDown={(event) => {
+              if (onRowClick && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                onRowClick(row);
+              }
+            }}
+            sx={{
+              appearance: "none",
+              width: "100%",
+              ...insetSx,
+              textAlign: "left",
+              color: "text.primary",
+              bgcolor: "background.paper",
+              borderLeft: "3px solid",
+              borderLeftColor: getRowStatus?.(row)
+                ? `${getRowStatus?.(row)}.main`
+                : "primary.main",
+              cursor: onRowClick ? "pointer" : "default",
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(88px, 0.8fr) minmax(0, 1.6fr)",
+                columnGap: 1.25,
+                rowGap: 1,
+                alignItems: "start",
+              }}
+            >
+              {columns.map((column) => (
+                <React.Fragment key={column.label}>
+                  <Typography
+                    component="div"
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      fontWeight: 700,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {column.label || "Details"}
+                  </Typography>
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                      "& .MuiIconButton-root": { width: 44, height: 44 },
+                    }}
+                  >
+                    {renderColumnValue(column, row, rowIndex)}
+                  </Box>
+                </React.Fragment>
+              ))}
+            </Box>
+          </Paper>
+        ))
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            flex: 1,
+            minHeight: 220,
+            placeItems: "center",
+          }}
+        >
+          {emptyState}
+        </Box>
+      )}
+    </Box>
+  );
+
+  const tableContent = (
+    <Box sx={tableBodyAreaSx}>
+      <RowHandlersContext.Provider value={rowHandlers}>
+        <TableVirtuoso
+          style={tableVirtuosoStyle}
+          data={processedRows}
+          components={virtuosoTableComponents}
+          fixedHeaderContent={fixedHeaderContent}
+          fixedFooterContent={
+            fixedFooterContent
+              ? () => fixedFooterContent(processedRows)
+              : undefined
+          }
+          itemContent={rowContent}
+        />
+      </RowHandlersContext.Provider>
+      {processedRows.length === 0 && (
+        <Box sx={tableEmptyOverlaySx}>{emptyState}</Box>
       )}
     </Box>
   );
@@ -361,11 +537,21 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
       }}
     >
       <Box
+        role={collapsible ? "button" : undefined}
+        tabIndex={collapsible ? 0 : undefined}
+        aria-expanded={collapsible ? isTableExpanded : undefined}
         sx={{
-          ...tableViewBoxSx2,
+          ...tableHeaderBarSx,
           cursor: collapsible ? "pointer" : "default",
         }}
         onClick={toggleExpanded}
+        onKeyDown={(event) => {
+          if (!collapsible || event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleExpanded();
+          }
+        }}
       >
         <Box sx={tableViewTitleGroupSx}>
           {collapsible && (
@@ -379,53 +565,68 @@ export function VirtualizedTable<T extends Record<string, unknown>>({
               }}
               sx={{ width: 30, height: 30, flexShrink: 0 }}
             >
-              {isTableExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              {isTableExpanded ? (
+                <KeyboardArrowUpIcon />
+              ) : (
+                <KeyboardArrowDownIcon />
+              )}
             </IconButton>
           )}
-          <TableChartOutlinedIcon
-            color="action"
-            fontSize="small"
-            sx={tableViewTableChartIconSx1}
-          />
+          {tableTitle && (
+            <TableChartOutlinedIcon
+              color="action"
+              fontSize="small"
+              sx={tableTitleIconSx}
+            />
+          )}
 
           <Stack spacing={0.5} sx={tableViewTitleStackSx}>
-            <Typography
-              variant="subtitle1"
-              fontWeight={700}
-              sx={tableViewTypographySx2}
-            >
+            <Typography variant="subtitle1" fontWeight={700} sx={tableTitleSx}>
               {tableTitle}
             </Typography>
             <Typography
               variant="subtitle2"
               fontWeight={100}
-              sx={tableViewTypographySx3}
+              sx={tableSubtitleSx}
             >
               {tableHeadSub ? tableHeadSub : ""}
             </Typography>
           </Stack>
         </Box>
-        {isTableExpanded &&
-        <TextField
-          placeholder="Search..."
-          variant="outlined"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          onClick={(event) => event.stopPropagation()}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={tableViewTextFieldSx1}
-        />
-}
+        {isTableExpanded && (
+          <TextField
+            placeholder="Search..."
+            variant="outlined"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onClick={(event) => event.stopPropagation()}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlinedIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              },
+              htmlInput: {
+                "aria-label": `Search ${tableTitle}`,
+              },
+            }}
+            sx={tableSearchFieldSx}
+          />
+        )}
       </Box>
-      {isTableExpanded && tableContent}
+      {isTableExpanded &&
+        (loading ? (
+          <TableLoadingState
+            variant={isMobile ? "cards" : "table"}
+            label={`Loading ${tableTitle}`}
+          />
+        ) : isMobile ? (
+          mobileContent
+        ) : (
+          tableContent
+        ))}
     </Paper>
   );
 }

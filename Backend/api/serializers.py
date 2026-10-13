@@ -21,9 +21,9 @@ def _estimated_week_seconds(week_start):
             current_date.weekday() == 5 and
             _saturday_of_month_occurrence(current_date) in {2, 4}
         ):
-            return 45 * 3600
+            return 1 * 3600 #2nd and 4th Saturday of the month is 9 hours
 
-    return 54 * 3600
+    return 1 * 3600 # 1st, 3rd, 5th Saturday of the month is 9 hours and 6 days of 9 hours
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import PersonIcon from "@mui/icons-material/Person";
+import GroupsIcon from "@mui/icons-material/Groups";
 import {
   Box,
   Button,
@@ -8,6 +12,8 @@ import {
   Stack,
   Tab,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -34,29 +40,23 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
+  toggleButton,
 } from "../../styles/common";
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
+import { queryClient } from "../../api/queryClient";
 import {
   VirtualizedTable,
   type ColumnData,
 } from "../../components/common/TableView";
+import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
 import { showNotification } from "../../api/notificationService";
 
-function storedUserId(): number | null {
-  const value = localStorage.getItem("user");
-
-  if (!value) {
-    return null;
-  }
-  const id = Number(value);
-  return Number.isInteger(id) ? id : null;
-}
-
 export default function Users() {
-  const userId = useMemo(() => storedUserId(), []);
-  const [users, setUsers] = useState<UsersData[]>([]);
-  const [groups, setGroups] = useState<groupData[]>([]);
   const [savingGroupId, setSavingGroupId] = useState<number | null>(null);
+  const [userStatusFilter, setUserStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -69,48 +69,27 @@ export default function Users() {
   );
 
   const [tabValue, setTabValue] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  // api Request
-  useEffect(() => {
-    let active = true;
-
-    void api
-      .get<{ data: UsersData[] }>("/users/")
-      .then((response) => {
-        if (!active) return;
-        setUsers(
-          (Array.isArray(response.data) ? response.data : []) as UsersData[],
-        );
-      })
-      .catch((error) => {
-        console.error("Failed to load users", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [userId, refreshKey]);
-
-  // Groups
-  useEffect(() => {
-    let active = true;
-
-    void api
-      .get<groupData[]>("/departments/")
-      .then((response) => {
-        if (!active) return;
-
-        setGroups(Array.isArray(response.data) ? response.data : []);
-      })
-      .catch((error) => {
-        console.error("Failed to load departments", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [userId, refreshKey]);
+  // Users and teams load independently, so each tab renders as soon as its
+  // own data arrives. Both are cached reference data shared with the
+  // dialogs and other pages that use the same endpoints.
+  const usersQuery = useApiQuery<UsersData[]>("/users/");
+  const groupsQuery = useApiQuery<groupData[]>("/departments/");
+  const users = useMemo(() => asArray<UsersData>(usersQuery.data), [usersQuery.data]);
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) =>
+        userStatusFilter === "all"
+          ? true
+          : userStatusFilter === "active"
+            ? user.is_active === true
+            : user.is_active === false,
+      ),
+    [userStatusFilter, users],
+  );
+  const groups = useMemo(() => asArray<groupData>(groupsQuery.data), [groupsQuery.data]);
+  const usersLoading = usersQuery.isPending;
+  const groupsLoading = groupsQuery.isPending;
 
   const openCreate = useCallback(() => {
     setSelectedRow(null);
@@ -151,22 +130,23 @@ export default function Users() {
             : users.find((user) => user.id === managerId);
         const managerName = manager
           ? `${manager.first_name ?? ""} ${manager.last_name ?? ""}`.trim() ||
-          manager.username
+            manager.username
           : "";
 
-        setGroups((currentGroups) =>
+        // Show the new manager immediately; the background refresh confirms it.
+        queryClient.setQueryData<groupData[]>(["/departments/"], (currentGroups = []) =>
           currentGroups.map((item) =>
             item.id === group.id
               ? {
-                ...item,
-                manager: manager
-                  ? {
-                    id: manager.id,
-                    username: manager.username,
-                    name: managerName,
-                  }
-                  : null,
-              }
+                  ...item,
+                  manager: manager
+                    ? {
+                        id: manager.id,
+                        username: manager.username,
+                        name: managerName,
+                      }
+                    : null,
+                }
               : item,
           ),
         );
@@ -174,11 +154,11 @@ export default function Users() {
         showNotification({
           type: "success",
           message: managerId
-            ? "Manger Mapped successfully."
-            : "Managre Updated successfully.",
+            ? "Manager assigned successfully."
+            : "Manager removed successfully.",
         });
-      } catch (error) {
-        console.error("Failed to update department manager", error);
+      } catch {
+        // The shared request error UI handles failures.
       } finally {
         setSavingGroupId(null);
       }
@@ -190,14 +170,12 @@ export default function Users() {
     setDialogOpen(false);
     setEditing(false);
     setSelectedRow(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const closeGroupDialog = useCallback(() => {
     setGroupDialogOpen(false);
     setGroupEditing(false);
     setSelectedGroupRow(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const columns = useMemo<ColumnData<UsersData>[]>(
@@ -230,9 +208,9 @@ export default function Users() {
       { label: "Last Name", dataKey: "last_name" },
       { label: "Email", dataKey: "email" },
       { label: "Role", dataKey: "role" },
-      { label: "Exe_Teams", dataKey: "groups" },
+      { label: "Execution Teams", dataKey: "groups" },
       { label: "Designation", dataKey: "designation" },
-      { label: "ReportIng To", dataKey: "reporting_to" },
+      { label: "Reporting To", dataKey: "reporting_to" },
       { label: "Location", dataKey: "location" },
     ],
     [openEdit],
@@ -297,19 +275,41 @@ export default function Users() {
     ],
     [openEditGroup, savingGroupId, updateGroupManager, users],
   );
+  const primaryUserColumns = useMemo(
+    () =>
+      columns.filter((column) =>
+        ["#", "Employee ID", "First Name", "Email", "Role"].includes(
+          column.label,
+        ),
+      ),
+    [columns],
+  );
+  const detailUserColumns = useMemo(
+    () =>
+      columns.filter((column) =>
+        [
+          "Last Name",
+          "Execution Teams",
+          "Designation",
+          "Reporting To",
+          "Location",
+        ].includes(column.label),
+      ),
+    [columns],
+  );
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>
-              {tabValue === 0 ? "Users List" : "Teams List"}
+            <Typography variant="h5" component="h1" sx={pageTitle}>
+              {tabValue === 0 ? "User Management" : "Team Management"}
             </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               {tabValue === 0
                 ? "Manage user accounts, profiles, access, and assignments"
-                : "Manage Teams and Its Mangers"}
+                : "Manage teams and their managers"}
             </Typography>
           </Box>
           <Stack
@@ -319,18 +319,33 @@ export default function Users() {
           >
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               {tabValue === 0 ? (
-                <Button
-                  startIcon={<AddOutlinedIcon />}
-                  variant="contained"
-                  onClick={openCreate}
-                >
-                  <Box component="span" sx={buttonLabelFull}>
-                    New User
-                  </Box>
-                  <Box component="span" sx={buttonLabelCompact}>
-                    New
-                  </Box>
-                </Button>
+                <>
+                  <ToggleButtonGroup
+                    exclusive
+                    value={userStatusFilter}
+                    onChange={(_, value: "all" | "active" | "inactive" | null) => {
+                      if (value) setUserStatusFilter(value);
+                    }}
+                    aria-label="Filter users by status"
+                    sx={toggleButton}
+                  >
+                    <ToggleButton value="all">All</ToggleButton>
+                    <ToggleButton value="active">Active</ToggleButton>
+                    <ToggleButton value="inactive">In-Active</ToggleButton>
+                  </ToggleButtonGroup>
+                  <Button
+                    startIcon={<AddOutlinedIcon />}
+                    variant="contained"
+                    onClick={openCreate}
+                  >
+                    <Box component="span" sx={buttonLabelFull}>
+                      New User
+                    </Box>
+                    <Box component="span" sx={buttonLabelCompact}>
+                      New
+                    </Box>
+                  </Button>
+                </>
               ) : null}
               {tabValue === 1 ? (
                 <Button
@@ -361,17 +376,40 @@ export default function Users() {
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab label={`Users `} />
-            <Tab label={`Teams `} />
+            <Tab
+              icon={
+                tabValue === 0
+                  ? <PersonIcon fontSize="small" />
+                  : <PersonOutlineOutlinedIcon fontSize="small" />
+              }
+              iconPosition="start"
+              label={usersLoading ? "Users" : `Users (${users.length})`}
+            />
+            <Tab
+              icon={
+                tabValue === 1
+                  ? <GroupsIcon fontSize="small" />
+                  : <GroupsOutlinedIcon fontSize="small" />
+              }
+              iconPosition="start"
+              label={groupsLoading ? "Teams" : `Teams (${groups.length})`}
+            />
           </Tabs>
         </Box>
         {tabValue === 0 && (
           <Box sx={tablePageContent}>
-            <VirtualizedTable
-              columns={columns}
-              rows={users}
+            <CollapsibleTableView
+              columns={primaryUserColumns}
+              expandedColumns={detailUserColumns}
+              rows={filteredUsers}
+              getRowId={(row) => row.id}
               height="100%"
+              tableMinWidth={760}
               tableHead="Users"
+              tableHeadSub="User accounts, roles and team assignments"
+              loading={usersLoading}
+              emptyTitle="No users yet"
+              emptyDescription="Create a user to give someone access to ICProDesk."
             />
           </Box>
         )}
@@ -382,6 +420,10 @@ export default function Users() {
               rows={groups}
               height="100%"
               tableHead="Teams"
+              tableHeadSub="Teams and their managers"
+              loading={groupsLoading}
+              emptyTitle="No teams yet"
+              emptyDescription="Create a team and assign a manager."
             />
           </Box>
         )}

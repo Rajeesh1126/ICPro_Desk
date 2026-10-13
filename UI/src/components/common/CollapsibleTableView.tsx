@@ -1,3 +1,5 @@
+import type React from "react";
+import { INSET_X, INSET_Y, insetSx } from "../../styles/tokens";
 import {
   Fragment,
   useId,
@@ -22,14 +24,18 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
   type GridProps,
   type SxProps,
 } from "@mui/material";
-import type { Theme } from "@mui/material/styles";
+import { useTheme, type Theme } from "@mui/material/styles";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
+import EmptyTableState from "./EmptyTableState";
+import { formatIfDate } from "../../utils/dateRange";
+import TableLoadingState from "./TableLoadingState";
 import type { ColumnData } from "./TableView";
 import {
   detailLabelSx,
@@ -38,13 +44,13 @@ import {
   stickyTableCellSx,
   tableHeaderCellSx,
   tableHeadSx,
-  tableViewBoxSx2,
-  tableViewBoxSx3,
-  tableViewCallbackCallbackSx2,
-  tableViewCallbackCallbackSx3,
-  tableViewDynamicDynamicPaperSx1,
+  tableHeaderBarSx,
+  tableBodyAreaSx,
+  tableHeaderCellForColumnSx,
+  tableBodyCellForColumnSx,
+  tablePanelSx,
   tableViewTableWithMinWidth,
-  tableViewTextFieldSx1,
+  tableSearchFieldSx,
   tableViewTitleGroupSx,
 } from "../../styles/common";
 
@@ -55,15 +61,21 @@ export type ExpandedColumnData<T> = ColumnData<T> & {
 export interface CollapsibleTableViewProps<T> {
   columns: ColumnData<T>[];
   expandedColumns?: ExpandedColumnData<T>[];
+  /** Ordered fields for card layouts. Defaults to visible columns followed by details. */
+  mobileColumns?: ColumnData<T>[];
   rows: T[];
   tableHead?: string;
-  tableHeadSub?: string;
+  tableHeadSub?: React.ReactNode;
   height?: string;
   tableMinWidth?: number | string;
   expandColumnWidth?: number;
   getRowId: (row: T) => Key;
   renderRowDetails?: (row: T) => ReactNode;
   onRowClick?: (row: T) => void;
+  /** True until the first response resolves; shows a skeleton instead of the empty state. */
+  loading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 const defaultExpandColumnWidth = 28;
@@ -86,7 +98,7 @@ const bodyCellSx =
   <T,>(column: ColumnData<T>, index: number): SxProps<Theme> =>
   (theme) => ({
     ...(
-      tableViewCallbackCallbackSx3({
+      tableBodyCellForColumnSx({
         column,
         index,
         stickyTableCellSx,
@@ -100,7 +112,7 @@ const headerCellSx =
   <T,>(column: ColumnData<T>, index: number): SxProps<Theme> =>
   (theme) => ({
     ...(
-      tableViewCallbackCallbackSx2({
+      tableHeaderCellForColumnSx({
         column,
         index,
         tableHeaderCellSx,
@@ -111,18 +123,16 @@ const headerCellSx =
   });
 
 function formatValue(value: unknown): string {
-  if (value == null) return "";
-  if (Array.isArray(value)) return value.map(formatValue).join(", ");
+  if (value == null || value === "") return "—";
+  if (Array.isArray(value)) return value.length ? value.map(formatValue).join(", ") : "—";
   if (typeof value === "object") {
     return "name" in value ? String(value.name) : JSON.stringify(value);
   }
-  if (typeof value === "string") {
-    return value.replace(/^(\d{4})-(\d{2})-(\d{2})(?=$|[ T])/, "$3-$2-$1");
-  }
+  if (typeof value === "string") return String(formatIfDate(value));
   return String(value);
 }
 
-function CollapsibleRow<T extends Record<string, unknown>>({
+function CollapsibleRow<T extends object>({
   row,
   index,
   columns,
@@ -150,6 +160,18 @@ function CollapsibleRow<T extends Record<string, unknown>>({
       <TableRow
         hover={!!onRowClick}
         onClick={() => onRowClick?.(row)}
+        tabIndex={onRowClick ? 0 : undefined}
+        onKeyDown={
+          onRowClick
+            ? (event: React.KeyboardEvent) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onRowClick(row);
+            }
+          }
+            : undefined
+        }
         sx={{ cursor: onRowClick ? "pointer" : "default" }}
       >
         <TableCell sx={expandCellSx(expandColumnWidth)}>
@@ -190,7 +212,7 @@ function CollapsibleRow<T extends Record<string, unknown>>({
         >
           <Box id={detailsId}>
             <Collapse in={open} timeout="auto" unmountOnExit>
-              <Box sx={{ p: 2 }}>
+              <Box sx={{ ...insetSx }}>
                 {details ?? (
                   <Grid container spacing={1.25}>
                     {expandedColumns?.map((column) => (
@@ -200,8 +222,8 @@ function CollapsibleRow<T extends Record<string, unknown>>({
                       >
                         <Box
                           sx={(theme) => ({
-                            px: 1.25,
-                            py: 0.5,
+                            px: INSET_X,
+                            py: INSET_Y,
                             border: `1px solid ${theme.palette.divider}`,
                             borderRadius: 1,
                             bgcolor: theme.palette.background.paper,
@@ -236,9 +258,10 @@ function CollapsibleRow<T extends Record<string, unknown>>({
 }
 
 /** Reuses TableView columns; callers supply stable row IDs and expanded content. */
-export function CollapsibleTableView<T extends Record<string, unknown>>({
+export function CollapsibleTableView<T extends object>({
   columns,
   expandedColumns,
+  mobileColumns,
   rows,
   tableHead = "Data",
   tableHeadSub,
@@ -248,7 +271,13 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
   getRowId,
   renderRowDetails,
   onRowClick,
+  loading = false,
+  emptyTitle,
+  emptyDescription,
 }: CollapsibleTableViewProps<T>) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const resolvedMobileColumns = mobileColumns ?? [...columns, ...(expandedColumns ?? [])];
   const [searchText, setSearchText] = useState("");
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -266,6 +295,16 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
       : rows;
   }, [columns, expandedColumns, rows, searchText]);
 
+  const isFiltered = searchText.trim() !== "" && rows.length > 0;
+  const emptyState = isFiltered ? (
+    <EmptyTableState
+      title="No matching records"
+      description={`Nothing in ${tableHead} matches "${searchText.trim()}". Clear or change the search.`}
+    />
+  ) : (
+    <EmptyTableState title={emptyTitle} description={emptyDescription} />
+  );
+
   const resolvedTableMinWidth =
     tableMinWidth ??
     columns.reduce(
@@ -276,8 +315,8 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
     );
 
   return (
-    <Paper elevation={0} sx={tableViewDynamicDynamicPaperSx1({ height })}>
-      <Box sx={tableViewBoxSx2}>
+    <Paper elevation={0} sx={tablePanelSx({ height })}>
+      <Box sx={tableHeaderBarSx}>
         <Box sx={tableViewTitleGroupSx}>
           <TableChartOutlinedIcon color="action" fontSize="small" />
           <Stack spacing={0.5}>
@@ -292,11 +331,10 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
           </Stack>
         </Box>
         <TextField
-          size="small"
           placeholder="Search..."
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
-          sx={tableViewTextFieldSx1}
+          sx={tableSearchFieldSx}
           slotProps={{
             htmlInput: { "aria-label": `Search ${tableHead}` },
             input: {
@@ -309,7 +347,75 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
           }}
         />
       </Box>
-      <Box sx={tableViewBoxSx3}>
+      {loading ? (
+        <TableLoadingState
+          variant={isMobile ? "cards" : "table"}
+          label={`Loading ${tableHead}`}
+        />
+      ) : isMobile ? (
+        <Box
+          sx={{
+            display: "flex",
+            flex: 1,
+            minHeight: 0,
+            flexDirection: "column",
+            gap: 1,
+            overflowY: "auto",
+            ...insetSx,
+          }}
+        >
+          {filteredRows.length ? (
+            filteredRows.map((row, index) => (
+              <Paper
+                key={getRowId(row)}
+                component="article"
+                role={onRowClick ? "button" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                variant="outlined"
+                onClick={() => onRowClick?.(row)}
+                onKeyDown={(event) => {
+                  if (onRowClick && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    onRowClick(row);
+                  }
+                }}
+                sx={{ ...insetSx, borderLeft: "3px solid", borderLeftColor: "primary.main" }}
+              >
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(90px, 0.8fr) minmax(0, 1.6fr)",
+                    gap: 1,
+                    alignItems: "start",
+                  }}
+                >
+                  {resolvedMobileColumns.map((column) => (
+                    <Fragment key={column.label}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                        {column.label}
+                      </Typography>
+                      <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                        {column.render
+                          ? column.render(row, index)
+                          : column.dataKey
+                            ? column.label === "Status"
+                              ? formatStatusLabel(row[column.dataKey])
+                              : formatValue(row[column.dataKey])
+                            : null}
+                      </Box>
+                    </Fragment>
+                  ))}
+                </Box>
+              </Paper>
+            ))
+          ) : (
+            <Box sx={{ display: "grid", flex: 1, minHeight: 220, placeItems: "center", textAlign: "center" }}>
+              {emptyState}
+            </Box>
+          )}
+        </Box>
+      ) : (
+      <Box sx={tableBodyAreaSx}>
         <TableContainer
           sx={{
             overflow: "auto",
@@ -321,7 +427,6 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
         >
           <Table
             stickyHeader
-            size="small"
             aria-label={tableHead}
             sx={tableViewTableWithMinWidth(resolvedTableMinWidth)}
           >
@@ -378,13 +483,10 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length + 1}
-                    align="center"
-                    sx={{ py: 4 }}
-                  >
-                    <Typography fontWeight={700}>No records found</Typography>
-                    <Typography variant="body2">
-                      Try changing the search or filters.
-                    </Typography>
+                  align="center"
+                  sx={{ py: 4 }}
+                >
+                    {emptyState}
                   </TableCell>
                 </TableRow>
               )}
@@ -392,6 +494,7 @@ export function CollapsibleTableView<T extends Record<string, unknown>>({
           </Table>
         </TableContainer>
       </Box>
+      )}
     </Paper>
   );
 }

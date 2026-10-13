@@ -1,13 +1,14 @@
+import { insetSx } from "../../styles/tokens";
+import DateRange from "../../components/common/DateRange";
+import DateRangeSummary from "../../components/common/DateRangeSummary";
 import { useEffect, useMemo, useRef, useState } from "react";
+import FilterPopover, { ActiveFilterChips } from "../../components/common/FilterPopover";
+import EmptyTableState from "../../components/common/EmptyTableState";
+import ChartDataTable from "../../components/common/ChartDataTable";
+import { summariseSeries } from "../../utils/chartSummary";
 import {
   Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -16,24 +17,28 @@ import {
   Tabs,
   TextField,
   Typography,
+  Skeleton,
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
-import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import { useTheme } from "@mui/material/styles";
-import * as echarts from "echarts";
-import * as XLSX from "xlsx";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
+import GroupsIcon from "@mui/icons-material/Groups";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import { echarts, type ECharts, type EChartsOption } from "../../utils/charts";
+import { loadXlsx, useExportStatus } from "../../utils/useExportStatus";
 import {
   VirtualizedTable,
   type ColumnData,
 } from "../../components/common/TableView";
-import api from "../../api/axios";
+import ReportHeaderActions from "../../components/common/ReportHeaderActions";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
+import { useDebouncedValue } from "../../utils/useDebouncedValue";
+import { surfacePanel } from "../../styles/common";
+import { dateFieldSx } from "../../styles/filters";
 import {
-  dateFieldSx,
-  dialogContentTop,
-  marginBottomSectionSx,
   page,
   pageContent,
   pageHeader,
@@ -41,13 +46,12 @@ import {
   pageHeaderContent,
   pageSubtitle,
   pageTitle,
-  surfacePanel,
   tablePageContent,
   tabs,
   tabsContainer,
-} from "../../styles/common";
+} from "../../styles/layout";
 
-type AnalysisRow = Record<string, unknown> & {
+type AnalysisRow = {
   id: number;
   date: string;
   employee_name: string;
@@ -153,7 +157,7 @@ function TimesheetBarChart({
   series: BarChartSeries[];
 }) {
   const chartElement = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<echarts.ECharts | null>(null);
+  const chartInstance = useRef<ECharts | null>(null);
   const theme = useTheme();
 
   useEffect(() => {
@@ -263,7 +267,7 @@ function TimesheetBarChart({
           barMaxWidth: 42,
           emphasis: { focus: "series" },
         })),
-      } satisfies echarts.EChartsOption,
+      } satisfies EChartsOption,
       true,
     );
 
@@ -282,74 +286,70 @@ function TimesheetBarChart({
     };
   }, []);
 
-  return <Box ref={chartElement} sx={{ height: '100%', width: "100%" }} />;
+  const totals = labels.map((label, index) => ({
+    name: label,
+    value: Number(series.reduce((sum, item) => sum + (item.data[index] ?? 0), 0).toFixed(2)),
+  }));
+
+  return (
+    <>
+      <Box
+        ref={chartElement}
+        role="img"
+        aria-label={`Hours by group. ${summariseSeries(totals, " h")}`}
+        sx={{ height: "100%", width: "100%" }}
+      />
+      <ChartDataTable
+        caption="Hours by group and employee"
+        rowHeader="Group"
+        rows={labels}
+        columns={series.map((item) => ({ label: item.label, values: item.data }))}
+      />
+    </>
+  );
 }
 
 export default function TimesheetAnalysis() {
   const [tabValue, setTabValue] = useState(0);
   const [filters, setFilters] = useState<DateFilters>(initialFilters);
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
-  const [analysis, setAnalysis] = useState<AnalysisResponse>({
-    filters: {
-      start_date: filters.startDate,
-      end_date: filters.endDate,
-      employee_id: filters.employeeId,
-      project_id: filters.projectId,
-      task_id: filters.taskId,
+  const [filterOpen, setFilterOpen] = useState(false);
+  // The Filters button; the filter panel drops down from it.
+  const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
+  const { exporting, runExport } = useExportStatus();
+  // Debounced and cached per filter combination.
+  const debouncedFilters = useDebouncedValue(filters);
+  const analysisQuery = useApiQuery<AnalysisResponse>(
+    "/timesheet-analysis/",
+    {
+      start_date: debouncedFilters.startDate,
+      end_date: debouncedFilters.endDate,
+      employee_id: debouncedFilters.employeeId || undefined,
+      project_id: debouncedFilters.projectId || undefined,
+      task_id: debouncedFilters.taskId || undefined,
     },
-    filter_options: {
-      employees: [],
-      projects: [],
-      tasks: [],
-    },
-    rows: [],
-    project_employee: [],
-    task_employee: [],
-  });
-
-  useEffect(() => {
-    let active = true;
-
-    void api
-      .get<AnalysisResponse>("/timesheet-analysis/", {
-        params: {
-          start_date: filters.startDate,
-          end_date: filters.endDate,
-          employee_id: filters.employeeId || undefined,
-          project_id: filters.projectId || undefined,
-          task_id: filters.taskId || undefined,
-        },
-      })
-      .then((response) => {
-        if (!active) return;
-
-        setAnalysis({
-          filters: response.data.filters,
-          filter_options: response.data.filter_options ?? {
-            employees: [],
-            projects: [],
-            tasks: [],
-          },
-          rows: Array.isArray(response.data.rows) ? response.data.rows : [],
-          project_employee: Array.isArray(response.data.project_employee)
-            ? response.data.project_employee
-            : [],
-          task_employee: Array.isArray(response.data.task_employee)
-            ? response.data.task_employee
-            : [],
-        });
-      });
-
-    return () => {
-      active = false;
+  );
+  // Skeleton from the moment filters change (including the debounce wait).
+  const loading = filters !== debouncedFilters || analysisQuery.isPending;
+  const analysis = useMemo<AnalysisResponse>(() => {
+    const data = analysisQuery.data;
+    return {
+      filters: data?.filters ?? {
+        start_date: debouncedFilters.startDate,
+        end_date: debouncedFilters.endDate,
+        employee_id: debouncedFilters.employeeId,
+        project_id: debouncedFilters.projectId,
+        task_id: debouncedFilters.taskId,
+      },
+      filter_options: data?.filter_options ?? {
+        employees: [],
+        projects: [],
+        tasks: [],
+      },
+      rows: asArray(data?.rows),
+      project_employee: asArray(data?.project_employee),
+      task_employee: asArray(data?.task_employee),
     };
-  }, [
-    filters.employeeId,
-    filters.endDate,
-    filters.projectId,
-    filters.startDate,
-    filters.taskId,
-  ]);
+  }, [analysisQuery.data, debouncedFilters]);
 
   const columns = useMemo<ColumnData<AnalysisRow>[]>(
     () => [
@@ -365,7 +365,13 @@ export default function TimesheetAnalysis() {
       { label: "Task", dataKey: "task", width: "auto" },
       { label: "Hours", dataKey: "hours", width: 90, numeric: true },
       { label: "Status", dataKey: "status", width: 130 },
-      { label: "Rate", dataKey: "rate", width: 80, numeric: true },
+      {
+        label: "Rating",
+        dataKey: "rate",
+        width: 100,
+        numeric: true,
+        render: (row) => (row.rate > 0 ? row.rate : "Not rated"),
+      },
       { label: "Approver", dataKey: "approver_name", width: 180 },
     ],
     [],
@@ -403,7 +409,8 @@ export default function TimesheetAnalysis() {
     setFilters((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const exportReportToExcel = () => {
+  const exportReportToExcel = async () => {
+    const XLSX = await loadXlsx();
     const rows = analysis.rows.map((row, index) => ({
       "#": index + 1,
       Date: row.date,
@@ -412,7 +419,7 @@ export default function TimesheetAnalysis() {
       Task: row.task,
       Hours: row.hours,
       Status: row.status,
-      Rate: row.rate,
+      Rating: row.rate > 0 ? row.rate : "Not rated",
       Approver: row.approver_name,
     }));
 
@@ -430,21 +437,31 @@ export default function TimesheetAnalysis() {
     ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Timesheet Report");
-    XLSX.writeFile(
-      workbook,
-      `Timesheet_Analysis_${analysis.filters.start_date}_to_${analysis.filters.end_date}.xlsx`,
-    );
+    const fileName = `Timesheet_Analysis_${analysis.filters.start_date}_to_${analysis.filters.end_date}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    return fileName;
   };
 
   const renderBarChart = (labels: string[], series: BarChartSeries[]) => (
-    <Box sx={{ ...surfacePanel, height: "100%", minHeight: 440, p: 2 }}>
-      {labels.length ? (
+    <Box
+      sx={{
+        ...surfacePanel,
+        height: "100%",
+        // Short phones (and landscape) must not force a page-level scroll.
+        minHeight: { xs: "min(320px, 60dvh)", sm: 380, md: 440 },
+        ...insetSx,
+      }}
+    >
+      {loading ? (
+        <Skeleton variant="rounded" sx={{ height: "100%", minHeight: { xs: 240, sm: 340 } }} aria-label="Loading chart" />
+      ) : labels.length ? (
         <TimesheetBarChart labels={labels} series={series} />
       ) : (
-        <Box sx={{ display: "grid", placeItems: "center", height: 360 }}>
-          <Typography color="text.secondary">
-            No analysis data found.
-          </Typography>
+        <Box sx={{ display: "grid", placeItems: "center", height: "100%", minHeight: { xs: 220, sm: 340 } }}>
+          <EmptyTableState
+            title="No analysis data for these filters"
+            description="Widen the date range or clear the employee, project or task filter."
+          />
         </Box>
       )}
     </Box>
@@ -452,10 +469,10 @@ export default function TimesheetAnalysis() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>
+            <Typography variant="h5" component="h1" sx={pageTitle}>
               Timesheet Analysis
             </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
@@ -463,23 +480,17 @@ export default function TimesheetAnalysis() {
             </Typography>
           </Box>
           <Box sx={pageHeaderActions}>
-            <Button
-              variant="outlined"
-              startIcon={<FilterListOutlinedIcon />}
-              onClick={() => setFilterDialogOpen(true)}
-            >
-              Filters
-            </Button>
-            {tabValue === 0 && (
-              <Button
-                variant="contained"
-                startIcon={<DownloadOutlinedIcon />}
-                onClick={exportReportToExcel}
-                disabled={analysis.rows.length === 0}
-              >
-                Export Excel
-              </Button>
-            )}
+            <ReportHeaderActions
+              onExport={
+                tabValue === 0
+                  ? () => runExport(exportReportToExcel)
+                  : undefined
+              }
+              exportDisabled={analysis.rows.length === 0 || loading}
+              exporting={exporting}
+              onFilter={() => setFilterOpen(true)}
+              filterButtonRef={setFilterButton}
+            />
           </Box>
         </Box>
 
@@ -492,11 +503,54 @@ export default function TimesheetAnalysis() {
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab label={`Report (${analysis.rows.length})`} />
-            <Tab label="Project vs Employee" />
-            <Tab label="Task vs Employee" />
+            <Tab
+              icon={tabValue === 0 ? <AssessmentIcon /> : <AssessmentOutlinedIcon />}
+              iconPosition="start"
+              label={`Report (${analysis.rows.length})`}
+            />
+            <Tab
+              icon={tabValue === 1 ? <GroupsIcon /> : <GroupsOutlinedIcon />}
+              iconPosition="start"
+              label="Project vs Employee"
+            />
+            <Tab
+              icon={tabValue === 2 ? <AssignmentIcon /> : <AssignmentOutlinedIcon />}
+              iconPosition="start"
+              label="Task vs Employee"
+            />
           </Tabs>
         </Box>
+
+        <ActiveFilterChips
+          onClearAll={() => setFilters(initialFilters())}
+          filters={[
+            {
+              key: "dates",
+              label: <DateRange start={filters.startDate} end={filters.endDate} />,
+            },
+            ...(filters.employeeId
+              ? [{
+                  key: "employee",
+                  label: `Employee: ${analysis.filter_options.employees.find((item) => String(item.id) === filters.employeeId)?.name ?? filters.employeeId}`,
+                  onRemove: () => setFilters((current) => ({ ...current, employeeId: "" })),
+                }]
+              : []),
+            ...(filters.projectId
+              ? [{
+                  key: "project",
+                  label: `Project: ${analysis.filter_options.projects.find((item) => String(item.id) === filters.projectId)?.name ?? filters.projectId}`,
+                  onRemove: () => setFilters((current) => ({ ...current, projectId: "" })),
+                }]
+              : []),
+            ...(filters.taskId
+              ? [{
+                  key: "task",
+                  label: `Task: ${analysis.filter_options.tasks.find((item) => String(item.id) === filters.taskId)?.name ?? filters.taskId}`,
+                  onRemove: () => setFilters((current) => ({ ...current, taskId: "" })),
+                }]
+              : []),
+          ]}
+        />
 
         <Box sx={tablePageContent}>
           {tabValue === 0 && (
@@ -505,8 +559,10 @@ export default function TimesheetAnalysis() {
               rows={analysis.rows}
               height="100%"
               tableHead="Timesheet Report"
-              tableHeadSub={`${analysis.filters.start_date} to ${analysis.filters.end_date}`}
               tableMinWidth={700}
+              loading={loading}
+              emptyTitle="No timesheet entries for these filters"
+              emptyDescription="Widen the date range or clear a filter."
             />
           )}
           {tabValue === 1 &&
@@ -516,34 +572,23 @@ export default function TimesheetAnalysis() {
         </Box>
       </Box>
 
-      <Dialog
-        open={filterDialogOpen}
-        onClose={() => setFilterDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
+      <FilterPopover
+        open={filterOpen}
+        anchorEl={filterButton}
+        onClose={() => setFilterOpen(false)}
+        title="Timesheet analysis filters"
+        onReset={() => setFilters(initialFilters())}
+        applyLabel="Show results"
       >
-        <DialogTitle>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Typography variant="h6">Timesheet analysis filters</Typography>
-            <IconButton
-              aria-label="Close filters"
-              onClick={() => setFilterDialogOpen(false)}
-            >
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={1.5} sx={dialogContentTop}>
+        <Stack spacing={1.5}>
+            <DateRangeSummary
+              start={filters.startDate}
+              end={filters.endDate}
+            />
             <TextField
               fullWidth
               label="From"
               type="date"
-              size="small"
               value={filters.startDate}
               onChange={(event) => updateDate("startDate", event.target.value)}
               sx={dateFieldSx}
@@ -556,7 +601,6 @@ export default function TimesheetAnalysis() {
               fullWidth
               label="To"
               type="date"
-              size="small"
               value={filters.endDate}
               onChange={(event) => updateDate("endDate", event.target.value)}
               sx={dateFieldSx}
@@ -617,19 +661,8 @@ export default function TimesheetAnalysis() {
                 ))}
               </Select>
             </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={marginBottomSectionSx}>
-          <Button
-            fullWidth
-            variant="contained"
-            startIcon={<FilterAltOutlinedIcon />}
-            onClick={() => setFilterDialogOpen(false)}
-          >
-            Apply Filter
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+      </FilterPopover>
     </Box>
   );
 }

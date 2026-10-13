@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   MenuItem,
   Stack,
@@ -17,19 +17,21 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
+import FileUploadField from "../../components/common/FileUploadField";
 import { showNotification } from "../../api/notificationService";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import DialogHeader from "../../components/common/DialogHeader";
 import {
-  VirtualizedTable,
   type ColumnData,
 } from "../../components/common/TableView";
+import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -48,7 +50,7 @@ import { formatDateTime } from "../../components/common/formatDate";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
-type LessonLearntRow = Record<string, unknown> & {
+type LessonLearntRow = {
   id: number;
   project: string;
   category: string;
@@ -107,7 +109,6 @@ const resolveFileUrl = (filePath: string) => {
 };
 
 export default function LessonLearnt() {
-  const [lessons, setLessons] = useState<LessonLearntRow[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(
     null,
@@ -117,18 +118,13 @@ export default function LessonLearnt() {
   );
   const [form, setForm] = useState<LessonFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadLessons = useCallback(async () => {
-    const response = await api.get<LessonLearntRow[]>(
-      "/documents/lesson-learnt/",
-    );
-    setLessons(Array.isArray(response.data) ? response.data : []);
-  }, []);
-
-  useEffect(() => {
-    void loadLessons();
-  }, [loadLessons]);
+  // Cached list: returning to this page shows the last rows immediately and
+  // refreshes in the background. Successful saves/deletes refresh it
+  // automatically (see invalidateAfterMutation), so dialogs never reload it.
+  const listQuery = useApiQuery<LessonLearntRow[]>("/documents/lesson-learnt/");
+  const lessons = useMemo(() => asArray<LessonLearntRow>(listQuery.data), [listQuery.data]);
+  const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
     setEditingLesson(null);
@@ -158,10 +154,14 @@ export default function LessonLearnt() {
     setForm(emptyForm);
   };
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(dialogOpen, closeDialog);
+
   const updateForm = <K extends keyof LessonFormState>(
     key: K,
     value: LessonFormState[K],
   ) => {
+    discard.markDirty();
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -209,7 +209,8 @@ export default function LessonLearnt() {
           : "Lesson learnt added successfully.",
       });
       closeDialog();
-      await loadLessons();
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setSaving(false);
     }
@@ -229,13 +230,16 @@ export default function LessonLearnt() {
   const handleDeleteLesson = async () => {
     if (!deleteLesson) return;
 
-    await api.delete(`/documents/lesson-learnt/${deleteLesson.id}/`);
-    showNotification({
-      type: "success",
-      message: "Lesson learnt deleted successfully.",
-    });
-    setDeleteLesson(null);
-    await loadLessons();
+    try {
+      await api.delete(`/documents/lesson-learnt/${deleteLesson.id}/`);
+      showNotification({
+        type: "success",
+        message: "Lesson learnt deleted successfully.",
+      });
+      setDeleteLesson(null);
+    } catch {
+      // The shared request error dialog explains the failure.
+    }
   };
 
   const columns = useMemo<ColumnData<LessonLearntRow>[]>(
@@ -289,11 +293,12 @@ export default function LessonLearnt() {
       },
       {
         label: "Actions",
-        width: 115,
+        width: 120,
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="Edit lesson">
               <IconButton
+                aria-label="Edit lesson"
                 size="small"
                 color="primary"
                 onClick={() => openEditDialog(row)}
@@ -302,16 +307,18 @@ export default function LessonLearnt() {
               </IconButton>
             </Tooltip>
             <Tooltip title="Download attachment">
-              <IconButton
+              <span><IconButton
+                aria-label="Download lesson attachment"
                 size="small"
                 disabled={!row.file}
                 onClick={() => downloadFile(row)}
               >
                 <DownloadOutlinedIcon fontSize="small" />
-              </IconButton>
+              </IconButton></span>
             </Tooltip>
             <Tooltip title="Delete lesson">
               <IconButton
+                aria-label="Delete lesson"
                 size="small"
                 onClick={() => setDeleteLesson(row)}
               >
@@ -324,13 +331,31 @@ export default function LessonLearnt() {
     ],
     [],
   );
+  const primaryColumns = useMemo(
+    () =>
+      columns.filter((column) =>
+        ["#", "Project", "Event", "Status", "Shared By", "Actions"].includes(
+          column.label,
+        ),
+      ),
+    [columns],
+  );
+  const detailColumns = useMemo(
+    () =>
+      columns.filter((column) =>
+        ["Category", "Actions Taken", "Created Date", "Attachment"].includes(
+          column.label,
+        ),
+      ),
+    [columns],
+  );
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Lesson Learnt</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>Lessons Learned</Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Capture project execution learning and shared experience.
             </Typography>
@@ -348,24 +373,28 @@ export default function LessonLearnt() {
         </Box>
 
         <Box sx={contentPanel}>
-          <VirtualizedTable<LessonLearntRow>
-            columns={columns}
+          <CollapsibleTableView<LessonLearntRow>
+            columns={primaryColumns}
+            expandedColumns={detailColumns}
+            mobileColumns={columns}
             rows={lessons}
+            getRowId={(row) => row.id}
             height="100%"
-            tableHead="Lesson Learnt List"
+            tableMinWidth={900}
+            tableHead="Lessons Learned"
+            loading={loading}
+            emptyTitle="No lessons recorded yet"
+            emptyDescription="Add a lesson to share what the team learned on a project."
           />
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="md">
-        <DialogTitle>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <PsychologyAltOutlinedIcon color="primary" />
-            <Typography variant="h6">
-              {editingLesson ? "Update Lesson Learnt" : "Add Lesson Learnt"}
-            </Typography>
-          </Stack>
-        </DialogTitle>
+      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="md">
+        <DialogHeader
+          title={editingLesson ? "Update Lesson" : "Add Lesson"}
+          icon={<PsychologyAltOutlinedIcon />}
+          onClose={discard.requestClose}
+        />
         <DialogContent>
           <Stack spacing={2} sx={dialogContentTop}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -375,7 +404,6 @@ export default function LessonLearnt() {
                 onChange={(event) => updateForm("project", event.target.value)}
                 fullWidth
                 required
-                size="small"
               />
               <TextField
                 label="Category"
@@ -383,7 +411,6 @@ export default function LessonLearnt() {
                 onChange={(event) => updateForm("category", event.target.value)}
                 fullWidth
                 required
-                size="small"
               />
               <TextField
                 label="Status"
@@ -393,7 +420,6 @@ export default function LessonLearnt() {
                 }
                 fullWidth
                 select
-                size="small"
               >
                 {lessonStatuses.map((statusValue) => (
                   <MenuItem key={statusValue} value={statusValue}>
@@ -437,39 +463,18 @@ export default function LessonLearnt() {
               multiline
               minRows={2}
             />
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ sm: "center" }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                onChange={(event) =>
-                  updateForm("file", event.target.files?.[0] ?? null)
-                }
-              />
-              <Button
-                variant="outlined"
-                startIcon={<UploadFileOutlinedIcon />}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Choose File
-              </Button>
-              <Typography variant="body2" color="text.secondary">
-                {form.file?.name ||
-                  (editingLesson
-                    ? getFileName(editingLesson.file)
-                    : "No file selected")}
-              </Typography>
-            </Stack>
+            <FileUploadField
+              file={form.file}
+              onChange={(file) => updateForm("file", file)}
+              existingFileName={editingLesson?.file ? getFileName(editingLesson.file) : null}
+              buttonLabel="Attach File"
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button
             variant="outlined"
-            onClick={closeDialog}
+            onClick={discard.requestClose}
             disabled={saving}
             startIcon={<CancelOutlinedIcon />}
           >
@@ -490,6 +495,7 @@ export default function LessonLearnt() {
             {saving ? "Saving..." : editingLesson ? "Update" : "Save"}
           </Button>
         </DialogActions>
+        {discard.dialog}
       </Dialog>
       <ConfirmDialog
         open={Boolean(deleteLesson)}

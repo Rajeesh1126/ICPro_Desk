@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -16,6 +16,18 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import UndoIcon from "@mui/icons-material/Undo";
+import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -23,12 +35,13 @@ import {
 import CreateTicketModal from "../../components/tickets/CreateModal";
 import TicketDetailModal from "../../components/tickets/DetailModal";
 import TicketCardView from "../../components/common/CardView";
+import TableLoadingState from "../../components/common/TableLoadingState";
 import type {
-  TicketCollections,
   TicketData,
-  TicketLog,
 } from "../../types/dataTypes";
-import api from "../../api/axios";
+import { useApiQuery } from "../../api/useApiQuery";
+import { buildTicketCollections } from "./ticketCollections";
+import { useSessionState } from "../../utils/useSessionState";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -48,14 +61,6 @@ import {
   toggleButton,
 } from "../../styles/common";
 
-const emptyTickets: TicketCollections = {
-  all: [],
-  assigned: [],
-  created: [],
-  closed: [],
-  rejected: [],
-  recalled: [],
-};
 
 function loggedUser(): number | null {
   const value = localStorage.getItem("user");
@@ -110,77 +115,29 @@ export default function Tickets() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
-  const [view, setView] = useState<"table" | "card">("table");
-  const [tabValue, setTabValue] = useState(0);
-  const [tickets, setTickets] = useState<TicketCollections>(emptyTickets);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [view, setView] = useSessionState<"table" | "card">(
+    "tickets:view",
+    "table",
+    (value): value is "table" | "card" => value === "table" || value === "card",
+  );
+  const [tabValue, setTabValue] = useSessionState(
+    "tickets:tab",
+    0,
+    (value): value is number => typeof value === "number" && value >= 0 && value <= 5,
+  );
+  // List-only tabs are unavailable on the board; remember where the user was.
+  const [tableTabBeforeBoard, setTableTabBeforeBoard] = useState<number | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/tickets/", {
-        params: {
-          is_internal: false,
-        },
-      })
-      .then((response) => {
-        if (!active) return;
-        const source = (
-          Array.isArray(response.data) ? response.data : []
-        ) as TicketData[];
-        const all = source.map((ticket) => {
-          const latestAcceptedLog: TicketLog | null =
-            ticket.current_status === "assigned"
-              ? (ticket.logs?.find((log) => log.status.includes("open")) ??
-                null)
-              : null;
-          return {
-            ...ticket,
-            assigned_to_name: ticket.assigned_to_name || "Unassigned",
-            creator_name: ticket.creator_name || "Unassigned",
-            display_status: ticket.current_status,
-            latestAcceptedLog,
-          };
-        });
-        const inactiveStatuses = ["rejected", "closed", "recall successful"];
-        setTickets({
-          all: all.filter(
-            (ticket) =>
-              ticket.assigned_to === userId || ticket.creator === userId,
-          ),
-          assigned: all.filter(
-            (ticket) =>
-              (!inactiveStatuses.includes(ticket.current_status) &&
-                ticket.assigned_to === userId) ||
-              ticket.latestAcceptedLog?.assigned_to === userId,
-          ),
-          created: all.filter(
-            (ticket) =>
-              ticket.creator === userId &&
-              !inactiveStatuses.includes(ticket.current_status),
-          ),
-          closed: all.filter(
-            (ticket) =>
-              (ticket.assigned_to === userId || ticket.creator === userId) &&
-              ticket.display_status === "closed",
-          ),
-          rejected: all.filter(
-            (ticket) =>
-              ticket.current_status === "rejected" &&
-              (ticket.assigned_to === userId || ticket.creator === userId),
-          ),
-          recalled: all.filter(
-            (ticket) =>
-              ticket.current_status === "recall successful" &&
-              (ticket.assigned_to === userId || ticket.creator === userId),
-          ),
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [userId, refreshKey]);
+  // One cached response feeds every tab, so tab switches are instant and a
+  // return visit renders immediately while refreshing in the background.
+  const ticketsQuery = useApiQuery<TicketData[]>("/tickets/", {
+    is_internal: false,
+  });
+  const tickets = useMemo(
+    () => buildTicketCollections(ticketsQuery.data, userId),
+    [ticketsQuery.data, userId],
+  );
+  const loading = ticketsQuery.isPending;
 
   const openCreate = useCallback(() => {
     setSelectedRow(null);
@@ -204,7 +161,6 @@ export default function Tickets() {
     setDialogOpen(false);
     setEditing(false);
     setSelectedRow(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const columns = useMemo<ColumnData<TicketData>[]>(
@@ -217,23 +173,24 @@ export default function Tickets() {
       },
       {
         label: "Ticket Number",
-        width: 195,
+        // View + edit buttons (2 × 36px) plus the full number, e.g. TM-050926-001.
+        width: 230,
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                color="primary"
+                size="small"
                 onClick={() => openDetails(row)}
               >
-                <VisibilityOutlinedIcon fontSize="small" color="primary" />
+                <VisibilityOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit ticket">
-              <IconButton
+              <span><IconButton
                 aria-label={`Edit ${row.number}`}
+                size="small"
                 onClick={() => openEdit(row)}
-                color="secondary"
                 disabled={
                   row.creator !== userId ||
                   [
@@ -245,9 +202,9 @@ export default function Tickets() {
                 }
               >
                 <EditOutlinedIcon fontSize="small" />
-              </IconButton>
+              </IconButton></span>
             </Tooltip>
-            <Typography variant="body2">{row.number}</Typography>
+            <Typography variant="body2" fontWeight={700}>{row.number}</Typography>
           </Box>
         ),
       },
@@ -276,10 +233,10 @@ export default function Tickets() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Tickets</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>Tickets</Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Track, assign, and complete team tickets from one workspace.
             </Typography>
@@ -308,7 +265,11 @@ export default function Tickets() {
 
                 setView(next);
                 if (next === "card" && tabValue > 2) {
+                  setTableTabBeforeBoard(tabValue);
                   setTabValue(0);
+                } else if (next === "table" && tableTabBeforeBoard !== null) {
+                  setTabValue(tableTabBeforeBoard);
+                  setTableTabBeforeBoard(null);
                 }
               }}
               aria-label="Task view"
@@ -328,34 +289,51 @@ export default function Tickets() {
           </Stack>
         </Box>
 
-        {/* <Paper square elevation={0} sx={ticketsPagePaperSx1}> */}
         <Box sx={tabsContainer}>
           <Tabs
             value={tabValue}
-            onChange={(_, value: number) => setTabValue(value)}
+            onChange={(_, value: number) => {
+              setTabValue(value);
+              setTableTabBeforeBoard(null);
+            }}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab label={`Overview (${tickets.all.length})`} />
-            <Tab label={`Assigned To Me (${tickets.assigned.length})`} />
-            <Tab label={`Assigned By Me (${tickets.created.length})`} />
-            {view !== "card" && (
-              <Tab label={`Rejected (${tickets.rejected.length})`} />
-            )}
-            {view !== "card" && (
-              <Tab label={`Recalled (${tickets.recalled.length})`} />
-            )}
-            {view !== "card" && (
-              <Tab label={`Closed (${tickets.closed.length})`} />
-            )}
+            <Tab icon={tabValue === 0 ? <DashboardIcon /> : <DashboardOutlinedIcon />} iconPosition="start" label={`Overview (${tickets.all.length})`} />
+            <Tab icon={tabValue === 1 ? <AssignmentIndIcon /> : <AssignmentIndOutlinedIcon />} iconPosition="start" label={`Assigned To Me (${tickets.assigned.length})`} />
+            <Tab icon={tabValue === 2 ? <AssignmentIcon /> : <AssignmentOutlinedIcon />} iconPosition="start" label={`Assigned By Me (${tickets.created.length})`} />
+            <Tab
+              icon={tabValue === 3 ? <CancelIcon /> : <CancelOutlinedIcon />}
+              iconPosition="start"
+              label={`Rejected (${tickets.rejected.length})`}
+              disabled={view === "card"}
+            />
+            <Tab
+              icon={tabValue === 4 ? <UndoIcon /> : <UndoOutlinedIcon />}
+              iconPosition="start"
+              label={`Recalled (${tickets.recalled.length})`}
+              disabled={view === "card"}
+            />
+            <Tab
+              icon={tabValue === 5 ? <TaskAltIcon /> : <TaskAltOutlinedIcon />}
+              iconPosition="start"
+              label={`Closed (${tickets.closed.length})`}
+              disabled={view === "card"}
+            />
           </Tabs>
         </Box>
-        {/* </Paper> */}
-
+        {view === "card" && (
+          <Typography variant="caption" color="text.secondary" sx={{ px: { xs: 2, sm: 0 }, mt: -0.5, mb: 0.5 }}>
+            Rejected, Recalled and Closed are list-only. Switch to Table view to see them
+            {tableTabBeforeBoard !== null ? "; your previous tab will be restored." : "."}
+          </Typography>
+        )}
         <Box sx={tablePageContent}>
-          {view === "card" ? (
+          {view === "card" && loading ? (
+            <TableLoadingState variant="cards" label="Loading tickets" />
+          ) : view === "card" ? (
             <TicketCardView
               data={activeRows}
               onCardClick={openDetails}
@@ -374,6 +352,9 @@ export default function Tickets() {
                   : undefined
               }
               tableHead="Tickets"
+              loading={loading}
+              emptyTitle="No tickets in this view"
+              emptyDescription="Tickets you create or are assigned will appear here."
             />
           )}
         </Box>

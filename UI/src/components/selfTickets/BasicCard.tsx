@@ -10,12 +10,15 @@ import {
   Grid,
 } from "@mui/material";
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { SelfTicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
   getSelfTicketAlertMessage,
+  getSelfTicketAlertReason,
   shouldBlinkSelfTicket,
 } from "./highlight";
 import {
@@ -24,15 +27,14 @@ import {
   detailLabelSx,
   detailValueSx,
   secondaryTextSx,
-  // secondaryTextSx,
-  // selfTicketsBasicCardBoxSx1,
-  selfTicketsBasicCardCardContentSx1,
-  selfTicketsBasicCardDividerSx1,
-  selfTicketsBasicCardDynamicDynamicCardSx1,
-  selfTicketsBasicCardDynamicDynamicChipSx1,
-  selfTicketsBasicCardDynamicDynamicTypographySx1,
-  selfTicketsBasicCardTypographySx3,
-  selfTicketsBasicCardTypographySx4,
+  sharedCardContentSx,
+  sharedCardDividerSx,
+  doListCardSx,
+  doListCardPriorityChipSx,
+  doListCardNumberSx,
+  doListCardDateSx,
+  sharedCardTitleSx,
+  getPriorityCardStyles,
 } from "../../styles/common";
 
 interface BasicCardProps {
@@ -49,61 +51,63 @@ export default function BasicCardSelfTicket({
   onOpen,
   onAcknowledgeAlarm,
 }: BasicCardProps) {
+  const theme = useTheme();
   if (!ticket?.number) return null;
 
-  const getPriorityStyles = (priority: string | null) => {
-    switch (priority?.toLowerCase()) {
-      case "high":
-        return { color: "#d32f2f", bg: "#feebea", border: "#fcc7c3" };
-      case "medium":
-        return { color: "#d1a104", bg: "#fff4e5", border: "#ffe2b7" };
-      case "low":
-        return { color: "#2e7d32", bg: "#edf7ed", border: "#c8e6c9" };
-      default:
-        return { color: "#607d8b", bg: "#f5f5f5", border: "#e0e0e0" };
-    }
-  };
-
-  const styles = getPriorityStyles(ticket.priority);
+  const styles = getPriorityCardStyles(theme, ticket.priority);
   const hasAlarm = ticket.alarm === true;
   const highlighted = shouldBlinkSelfTicket(ticket);
   const alertMessage = getSelfTicketAlertMessage(ticket);
+  const alertReason = getSelfTicketAlertReason(ticket);
+  const isOverdue = alertReason === "target-date";
 
   return (
     <Card
       elevation={0}
       onClick={() => onOpen(ticket)}
-      sx={selfTicketsBasicCardDynamicDynamicCardSx1({ highlighted, styles })}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open task ${ticket.number}${alertMessage ? `, ${alertMessage}` : ""}`}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(ticket);
+        }
+      }}
+      sx={doListCardSx({ highlighted, styles })}
     >
-      <CardContent sx={selfTicketsBasicCardCardContentSx1}>
+      <CardContent sx={sharedCardContentSx}>
 
         {alertMessage && (
-          <Stack direction="row" justifyContent="flex-end" mb={0.75}>
+          <Stack
+            direction="row"
+            justifyContent={isOverdue ? "center" : "flex-end"}
+            mb={0.75}
+          >
             <Chip
+              icon={
+                alertReason === "alarm" ? (
+                  <NotificationsActiveOutlinedIcon fontSize="small" />
+                ) : (
+                  <EventBusyOutlinedIcon fontSize="small" />
+                )
+              }
               label={alertMessage}
               size="small"
-              variant="outlined"
+              color={isOverdue ? "error" : undefined}
+              variant={isOverdue ? "filled" : "outlined"}
               sx={{
-                color: styles.color,
-                borderColor: styles.color,
-              }}
-              // sx={{
-              //   ...selfTicketsBasicCardDynamicDynamicChipSx1({ alpha, styles }),
-              //   minWidth: { xs: "auto", sm: 60 },
-              // }}
-            />
-            {/* <Typography
-              variant="caption"
-              sx={{
-                color: styles.color,
-                fontSize: 11,
                 fontWeight: 700,
-                lineHeight: 1.3,
-                textAlign: "right",
+                ...(isOverdue
+                  ? { boxShadow: `0 2px 6px ${alpha(theme.palette.error.main, 0.28)}` }
+                  : {
+                      color: styles.color,
+                      borderColor: styles.color,
+                    }),
+                "& .MuiChip-icon": { color: "inherit" },
               }}
-            >
-              {alertMessage}
-            </Typography> */}
+            />
           </Stack>
         )}
 
@@ -115,7 +119,7 @@ export default function BasicCardSelfTicket({
           mb={1}
         >
           <Typography
-            sx={selfTicketsBasicCardDynamicDynamicTypographySx1({ styles })}
+            sx={doListCardNumberSx({ styles })}
           >
             Task No #{ticket.number}
           </Typography>
@@ -146,7 +150,7 @@ export default function BasicCardSelfTicket({
             ) : (
               ""
             )}
-            <Typography sx={selfTicketsBasicCardTypographySx3}>
+            <Typography sx={doListCardDateSx}>
               {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
             </Typography>
           </Stack>
@@ -154,11 +158,11 @@ export default function BasicCardSelfTicket({
 
         
 
-        <Typography variant="h6" sx={selfTicketsBasicCardTypographySx4}>
+        <Typography variant="h6" sx={sharedCardTitleSx}>
           {ticket.task}
         </Typography>
 
-        <Divider sx={selfTicketsBasicCardDividerSx1} />
+        <Divider sx={sharedCardDividerSx} />
 
         <Grid container spacing={1}>
           <Grid size={{ xs: 6, md: 3.5 }}>
@@ -204,7 +208,7 @@ export default function BasicCardSelfTicket({
               label={ticket.priority || "Normal"}
               size="small"
               sx={{
-                ...selfTicketsBasicCardDynamicDynamicChipSx1({ alpha, styles }),
+                ...doListCardPriorityChipSx({ alpha, styles }),
                 minWidth: { xs: "auto", sm: 60 },
               }}
             />

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   MenuItem,
   Stack,
@@ -14,17 +14,20 @@ import {
   Typography,
 } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import { showNotification } from "../../api/notificationService";
 import { formatDateTime } from "../../components/common/formatDate";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import DialogHeader from "../../components/common/DialogHeader";
+import FileUploadField from "../../components/common/FileUploadField";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -47,7 +50,7 @@ import {
 
 type DocumentType = "FDS" | "SDS" | "Template" | "Other";
 
-type DocumentTemplate = Record<string, unknown> & {
+type DocumentTemplate = {
   id: number;
   document_name: string;
   document_type: DocumentType;
@@ -92,7 +95,6 @@ const resolveFileUrl = (filePath: string) => {
 };
 
 export default function Documents() {
-  const [documents, setDocuments] = useState<DocumentTemplate[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<DocumentFormState>(emptyForm);
   const [editingDocument, setEditingDocument] =
@@ -100,18 +102,13 @@ export default function Documents() {
   const [deleteDocument, setDeleteDocument] =
     useState<DocumentTemplate | null>(null);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadDocuments = useCallback(async () => {
-    const response = await api.get<DocumentTemplate[]>(
-      "/documents/document-templates/",
-    );
-    setDocuments(Array.isArray(response.data) ? response.data : []);
-  }, []);
-
-  useEffect(() => {
-    void loadDocuments();
-  }, [loadDocuments]);
+  // Cached list: returning to this page shows the last rows immediately and
+  // refreshes in the background. Successful saves/deletes refresh it
+  // automatically (see invalidateAfterMutation), so dialogs never reload it.
+  const listQuery = useApiQuery<DocumentTemplate[]>("/documents/document-templates/");
+  const documents = useMemo(() => asArray<DocumentTemplate>(listQuery.data), [listQuery.data]);
+  const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
     setEditingDocument(null);
@@ -119,7 +116,7 @@ export default function Documents() {
     setDialogOpen(true);
   };
 
-  const openReplaceDialog = (document: DocumentTemplate) => {
+  const openEditDialog = (document: DocumentTemplate) => {
     setEditingDocument(document);
     setForm({
       document_name: document.document_name,
@@ -138,10 +135,14 @@ export default function Documents() {
     setForm(emptyForm);
   };
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(dialogOpen, closeDialog);
+
   const updateForm = <K extends keyof DocumentFormState>(
     key: K,
     value: DocumentFormState[K],
   ) => {
+    discard.markDirty();
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -194,7 +195,8 @@ export default function Documents() {
           : "Document uploaded successfully.",
       });
       closeDialog();
-      await loadDocuments();
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setSaving(false);
     }
@@ -212,13 +214,16 @@ export default function Documents() {
   const handleDeleteDocument = async () => {
     if (!deleteDocument) return;
 
-    await api.delete(`/documents/document-templates/${deleteDocument.id}/`);
-    showNotification({
-      type: "success",
-      message: "Document deleted successfully.",
-    });
-    setDeleteDocument(null);
-    await loadDocuments();
+    try {
+      await api.delete(`/documents/document-templates/${deleteDocument.id}/`);
+      showNotification({
+        type: "success",
+        message: "Document deleted successfully.",
+      });
+      setDeleteDocument(null);
+    } catch {
+      // The shared request error dialog explains the failure.
+    }
   };
 
   const columns = useMemo<ColumnData<DocumentTemplate>[]>(
@@ -238,6 +243,7 @@ export default function Documents() {
         label: "Type",
         dataKey: "document_type",
         width: 110,
+        render: (row) => row.document_type?.toUpperCase() || "—",
       },
       {
         label: "Version",
@@ -265,27 +271,30 @@ export default function Documents() {
         width: 115,
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Upload new version">
+            <Tooltip title="Edit document">
               <IconButton
+                aria-label={`Edit ${row.document_name ?? "document"}`}
                 size="small"
-                color="info"
-                onClick={() => openReplaceDialog(row)}
+                color="primary"
+                onClick={() => openEditDialog(row)}
               >
-                <UploadFileOutlinedIcon fontSize="small" />
+                <EditOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Download document">
-              <IconButton
+              <span><IconButton
+                aria-label={`Download ${row.document_name ?? "document"}`}
                 size="small"
                 color="primary"
                 disabled={!row.file}
                 onClick={() => downloadDocument(row)}
               >
                 <DownloadOutlinedIcon />
-              </IconButton>
+              </IconButton></span>
             </Tooltip>
             <Tooltip title="Delete document">
               <IconButton
+                aria-label={`Delete ${row.document_name ?? "document"}`}
                 size="small"
                 onClick={() => setDeleteDocument(row)}
               >
@@ -301,10 +310,10 @@ export default function Documents() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>
+            <Typography variant="h5" component="h1" sx={pageTitle}>
               Documents
             </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
@@ -337,19 +346,19 @@ export default function Documents() {
             rows={documents}
             height="100%"
             tableHead="Document List"
+            loading={loading}
+            emptyTitle="No documents yet"
+            emptyDescription="Upload an FDS, SDS or template to share it with the team."
           />
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="sm">
-        <DialogTitle>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <DescriptionOutlinedIcon color="primary" />
-            <Typography variant="h6">
-              {editingDocument ? "Update Document" : "Upload Document"}
-            </Typography>
-          </Stack>
-        </DialogTitle>
+      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="sm">
+        <DialogHeader
+          title={editingDocument ? "Update Document" : "Upload Document"}
+          icon={<DescriptionOutlinedIcon />}
+          onClose={discard.requestClose}
+        />
         <DialogContent>
           <Stack spacing={2} sx={dialogContentTop}>
             <TextField
@@ -360,7 +369,6 @@ export default function Documents() {
               }
               fullWidth
               required
-              size="small"
             />
             <TextField
               label="Document Type"
@@ -370,7 +378,6 @@ export default function Documents() {
               }
               fullWidth
               select
-              size="small"
             >
               {documentTypes.map((type) => (
                 <MenuItem key={type} value={type}>
@@ -383,7 +390,6 @@ export default function Documents() {
               value={form.version}
               onChange={(event) => updateForm("version", event.target.value)}
               fullWidth
-              size="small"
             />
             <TextField
               label="Description"
@@ -395,39 +401,18 @@ export default function Documents() {
               multiline
               minRows={3}
             />
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ sm: "center" }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                onChange={(event) =>
-                  updateForm("file", event.target.files?.[0] ?? null)
-                }
-              />
-              <Button
-                variant="outlined"
-                startIcon={<UploadOutlinedIcon />}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Choose File
-              </Button>
-              <Typography variant="body2" color="text.secondary">
-                {form.file?.name ||
-                  (editingDocument
-                    ? getFileName(editingDocument.file)
-                    : "No file selected")}
-              </Typography>
-            </Stack>
+            <FileUploadField
+              file={form.file}
+              onChange={(file) => updateForm("file", file)}
+              existingFileName={editingDocument ? getFileName(editingDocument.file) : null}
+              required={!editingDocument}
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button
             variant="outlined"
-            onClick={closeDialog}
+            onClick={discard.requestClose}
             disabled={saving}
             startIcon={<CancelOutlinedIcon />}
           >
@@ -448,6 +433,7 @@ export default function Documents() {
             {saving ? "Saving..." : editingDocument ? "Update" : "Upload"}
           </Button>
         </DialogActions>
+        {discard.dialog}
       </Dialog>
       <ConfirmDialog
         open={Boolean(deleteDocument)}

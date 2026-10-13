@@ -1,58 +1,47 @@
-import { useEffect, useCallback, useMemo, useState } from "react";
+import DateRange from "../../components/common/DateRange";
+import DateRangeSummary from "../../components/common/DateRangeSummary";
+import { useCallback, useMemo, useState } from "react";
+import FilterPopover, { ActiveFilterChips, type ActiveFilter } from "../../components/common/FilterPopover";
 import {
   Box,
-  Button,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   Tab,
   Tabs,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
 } from "../../components/common/TableView";
+import ArticleIcon from "@mui/icons-material/Article";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import type {
   TicketData,
   UserSummary,
   SelfTicketData,
 } from "../../types/dataTypes";
-import * as XLSX from "xlsx";
-import api from "../../api/axios";
+import { loadXlsx, useExportStatus } from "../../utils/useExportStatus";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import TicketDetailModal from "../../components/tickets/DetailModal";
 import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
+import ReportHeaderActions from "../../components/common/ReportHeaderActions";
+import { inlineCenterGapSx } from "../../styles/common";
+import { dateFieldSx } from "../../styles/filters";
 import {
-  buttonLabelCompact,
-  buttonLabelFull,
-  dateFieldSx,
-  dialogContentTop,
-  inlineCenterGapSx,
-  marginBottomSectionSx,
-  pageHeaderControlsDesktop,
-  pageHeaderControlsMobile,
+  pageHeaderActions,
   pageHeaderContent,
-  pageHeaderFilterPanel,
-  pageHeaderFilterToggle,
   pageHeader,
   pageHeaderTitleGroup,
-  pageHeaderTopRow,
   page,
   pageContent,
   pageSubtitle,
@@ -60,7 +49,7 @@ import {
   tablePageContent,
   tabs,
   tabsContainer,
-} from "../../styles/common";
+} from "../../styles/layout";
 
 type Department = { id: number; name: string };
 type Filters = {
@@ -86,6 +75,7 @@ function initialFilters(): Filters {
     creator: "",
   };
 }
+
 
 type FilterFieldsProps = {
   filters: Filters;
@@ -117,12 +107,14 @@ function FilterFields({
 
   return (
     <Grid container spacing={1.5}>
-      <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
+      <Grid size={12}>
+        <DateRangeSummary start={filters.startDate} end={filters.endDate} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <TextField
           fullWidth
           label="From"
           type="date"
-          size="small"
           value={filters.startDate}
           onChange={(event) => update("startDate", event.target.value)}
           sx={dateFieldSx}
@@ -132,12 +124,11 @@ function FilterFields({
           }}
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <TextField
           fullWidth
           label="To"
           type="date"
-          size="small"
           value={filters.endDate}
           onChange={(event) => update("endDate", event.target.value)}
           sx={dateFieldSx}
@@ -278,92 +269,62 @@ function FilterFields({
 }
 
 export default function Reports() {
-  const [tickets, setTickets] = useState<TicketData[]>([]);
-  const [selfTickets, setSelfTickets] = useState<SelfTicketData[]>([]);
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [users, setUsers] = useState<UserSummary[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [groupIds, setGroupIds] = useState<number[]>([]);
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  // The Filters button; the filter panel drops down from it.
+  const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   // const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
   const [selectedSelfTicket, setSelectedSelfTicket] =
     useState<SelfTicketData | null>(null);
   const [dialogTicketOpen, setDialogTicketOpen] = useState(false);
   const [dialogSelfOpen, setDialogSelfOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [reportType, setReportType] = useState<"tickets" | "dolist">("tickets");
-  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const { exporting, runExport } = useExportStatus();
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/users/currentUserGroups/")
-      .then((response) => {
-        if (!active) return;
-        setUsers(
-          (Array.isArray(response.data.userslist)
-            ? response.data.userslist
-            : []) as UserSummary[],
-        );
-        setDepartments(
-          (Array.isArray(response.data.departments)
-            ? response.data.departments
-            : []) as Department[],
-        );
-        setGroupIds(
-          (Array.isArray(response.data.department_ids)
-            ? response.data.department_ids
-            : []) as number[],
-        );
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Filter reference data (shared cache entry with Internal Tickets).
+  const groupsQuery = useApiQuery<{
+    userslist?: UserSummary[];
+    departments?: Department[];
+  }>("/users/currentUserGroups/");
+  const users = useMemo(
+    () => asArray<UserSummary>(groupsQuery.data?.userslist),
+    [groupsQuery.data],
+  );
+  const departments = useMemo(
+    () => asArray<Department>(groupsQuery.data?.departments),
+    [groupsQuery.data],
+  );
 
-  useEffect(() => {
-    let active = true;
-    const endpoint =
-      reportType === "tickets"
-        ? "/tickets/"
-        : "/self-tickets/?include_executive=true";
-    void api
-      .get(endpoint, {
-        params:
-          reportType === "tickets"
-            ? {
-                include_executive: true,
-                is_internal: false,
-              }
-            : undefined,
-      })
-      .then((response) => {
-        if (!active) return;
-        if (reportType === "tickets") {
-          const source = (
-            Array.isArray(response.data) ? response.data : []
-          ) as TicketData[];
-          const mapped = source.map((ticket) => ({
-            ...ticket,
-            assigned_to_name: ticket.assigned_to_name || "Unassigned",
-            creator_name: ticket.creator_name || "Unassigned",
-            display_status: ticket.current_status,
-          }));
-          setTickets(mapped);
-        } else {
-          const source = (
-            Array.isArray(response.data) ? response.data : []
-          ) as SelfTicketData[];
-          setSelfTickets(source);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [groupIds, refreshKey, reportType]);
+  // Each report is cached on its own: switching tabs or coming back shows
+  // the last rows immediately. Filters are applied client-side, so changing
+  // them never refetches.
+  const ticketsQuery = useApiQuery<TicketData[]>(
+    "/tickets/",
+    { include_executive: true, is_internal: false },
+    { enabled: reportType === "tickets" },
+  );
+  const selfTicketsQuery = useApiQuery<SelfTicketData[]>(
+    "/self-tickets/",
+    { include_executive: true },
+    { enabled: reportType === "dolist" },
+  );
+  const tickets = useMemo(
+    () =>
+      asArray<TicketData>(ticketsQuery.data).map((ticket) => ({
+        ...ticket,
+        assigned_to_name: ticket.assigned_to_name || "Unassigned",
+        creator_name: ticket.creator_name || "Unassigned",
+        display_status: ticket.current_status,
+      })),
+    [ticketsQuery.data],
+  );
+  const selfTickets = useMemo(
+    () => asArray<SelfTicketData>(selfTicketsQuery.data),
+    [selfTicketsQuery.data],
+  );
+  const loading =
+    reportType === "tickets" ? ticketsQuery.isPending : selfTicketsQuery.isPending;
 
   const openTicketDetails = useCallback((ticket: TicketData) => {
     setSelectedTicket(ticket);
@@ -379,7 +340,6 @@ export default function Reports() {
     setDialogTicketOpen(false);
     setDialogSelfOpen(false);
     setSelectedTicket(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const ticketColumns = useMemo<ColumnData<TicketData>[]>(
@@ -514,7 +474,6 @@ export default function Reports() {
     };
 
     return selfTickets.filter((ticket) => {
-      console.log(ticket);
       const created = ticket.created_at ? new Date(ticket.created_at) : null;
 
       return (
@@ -532,7 +491,8 @@ export default function Reports() {
     });
   }, [selfTickets, filters]);
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await loadXlsx();
     const rows =
       reportType === "tickets"
         ? filteredTickets.map((ticket) => ({
@@ -569,70 +529,67 @@ export default function Reports() {
     ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Tickets Report");
-    XLSX.writeFile(
-      workbook,
-      `Ticket_Export_${new Date().toISOString().split("T")[0]}.xlsx`,
-    );
+    const fileName = `Ticket_Export_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    return fileName;
   };
 
+  const activeFilters = useMemo<ActiveFilter[]>(() => {
+    const defaults = initialFilters();
+    const userName = (id: string) => {
+      const user = users.find((item) => String(item.id ?? item.users_id) === id);
+      return user ? user.first_name || user.username : id;
+    };
+    const list: ActiveFilter[] = [
+      {
+        key: "dates",
+        label: <DateRange start={filters.startDate} end={filters.endDate} />,
+        onRemove:
+          filters.startDate !== defaults.startDate || filters.endDate !== defaults.endDate
+            ? () => setFilters((current) => ({ ...current, startDate: defaults.startDate, endDate: defaults.endDate }))
+            : undefined,
+      },
+    ];
+    if (filters.status) list.push({ key: "status", label: `Status: ${filters.status}`, onRemove: () => setFilters((c) => ({ ...c, status: "" })) });
+    if (filters.priority) list.push({ key: "priority", label: `Priority: ${filters.priority}`, onRemove: () => setFilters((c) => ({ ...c, priority: "" })) });
+    if (filters.department && reportType === "tickets") {
+      const team = departments.find((item) => String(item.id) === String(filters.department));
+      list.push({ key: "team", label: `Team: ${team?.name ?? filters.department}`, onRemove: () => setFilters((c) => ({ ...c, department: "" })) });
+    }
+    if (filters.creator) {
+      list.push({
+        key: "creator",
+        label: `${reportType === "tickets" ? "Assigned by" : "Created by"}: ${userName(String(filters.creator))}`,
+        onRemove: () => setFilters((c) => ({ ...c, creator: "" })),
+      });
+    }
+    return list;
+  }, [departments, filters, reportType, users]);
+
   const renderReportControls = () => (
-    <>
-      <Button
-        startIcon={<FilterListOutlinedIcon />}
-        variant="outlined"
-        onClick={() => setFilterDialogOpen(true)}
-      >
-        Filters
-      </Button>
-      <Button
-        startIcon={<DownloadOutlinedIcon />}
-        variant="contained"
-        onClick={exportToExcel}
-      >
-        <Box component="span" sx={buttonLabelFull}>Export Excel</Box>
-        <Box component="span" sx={buttonLabelCompact}>Export</Box>
-      </Button>
-    </>
+    <ReportHeaderActions
+      onExport={() => runExport(exportToExcel)}
+      exportDisabled={loading}
+      exporting={exporting}
+      onFilter={() => setFilterOpen(true)}
+      filterButtonRef={setFilterButton}
+    />
   );
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Box sx={pageHeaderTopRow}>
-              <Box sx={pageHeaderTitleGroup}>
-                <Typography variant="h5" sx={pageTitle}>Executive Overview</Typography>
-              </Box>
-              <Tooltip title={mobileControlsOpen ? "Hide controls" : "Show controls"}>
-                <IconButton
-                  aria-label={mobileControlsOpen ? "Hide report controls" : "Show report controls"}
-                  onClick={() => setMobileControlsOpen((open) => !open)}
-                  sx={pageHeaderFilterToggle}
-                >
-                  <FilterListOutlinedIcon />
-                </IconButton>
-              </Tooltip>
+            <Box sx={pageHeaderTitleGroup}>
+              <Typography variant="h5" component="h1" sx={pageTitle}>Executive Overview</Typography>
             </Box>
             <Typography variant="body2" sx={pageSubtitle}>
               Filter performance data and export a focused Tickets / Do-list
               report.
             </Typography>
-            <Box sx={pageHeaderFilterPanel}>
-              <Collapse in={mobileControlsOpen} timeout="auto" unmountOnExit>
-                <Stack spacing={1} sx={pageHeaderControlsMobile}>
-                  {renderReportControls()}
-                </Stack>
-              </Collapse>
-            </Box>
           </Box>
-          <Stack
-            spacing={1}
-            direction={{ xs: "row-reverse", sm: "row" }}
-            sx={pageHeaderControlsDesktop}
-          >
-            {renderReportControls()}
-          </Stack>
+          <Box sx={pageHeaderActions}>{renderReportControls()}</Box>
         </Box>
 
         <Box sx={tabsContainer}>
@@ -644,10 +601,25 @@ export default function Reports() {
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab value="tickets" label={`Tickets (${filteredTickets.length})`} />
-            <Tab value="dolist" label={`Do List (${filteredSelfTickets.length})`} />
+            <Tab
+              value="tickets"
+              icon={reportType === "tickets" ? <ArticleIcon /> : <ArticleOutlinedIcon />}
+              iconPosition="start"
+              label={`Tickets (${filteredTickets.length})`}
+            />
+            <Tab
+              value="dolist"
+              icon={reportType === "dolist" ? <AssignmentTurnedInIcon /> : <AssignmentTurnedInOutlinedIcon />}
+              iconPosition="start"
+              label={`Do List (${filteredSelfTickets.length})`}
+            />
           </Tabs>
         </Box>
+
+        <ActiveFilterChips
+          filters={activeFilters}
+          onClearAll={() => setFilters(initialFilters())}
+        />
 
         <Box sx={tablePageContent}>
           {reportType === "tickets" ? (
@@ -657,6 +629,9 @@ export default function Reports() {
               height="100%"
               tableMinWidth={1600}
               tableHead={`Tickets`}
+              loading={loading}
+              emptyTitle="No tickets match these filters"
+              emptyDescription="Widen the date range or remove a filter."
             />
           ) : (
             <VirtualizedTable
@@ -665,64 +640,34 @@ export default function Reports() {
               height="100%"
               tableMinWidth={900}
               tableHead={`Do-List`}
+              loading={loading}
+              emptyTitle="No tasks match these filters"
+              emptyDescription="Widen the date range or remove a filter."
             />
           )}
         </Box>
       </Box>
 
-      <Dialog
-        open={filterDialogOpen}
-        onClose={() => setFilterDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{
-          sx: {
-            position: "fixed",
-            top: { xs: "auto", sm: 150 },
-            right: { xs: "auto", sm: 50 },
-            m: 0,
-          },
-        }}
+      <FilterPopover
+        open={filterOpen}
+        anchorEl={filterButton}
+        onClose={() => setFilterOpen(false)}
+        title="Report filters"
+        onReset={() => setFilters(initialFilters())}
+        applyLabel={
+          reportType === "tickets"
+            ? `Show ${filteredTickets.length} tickets`
+            : `Show ${filteredSelfTickets.length} tasks`
+        }
       >
-        <DialogTitle>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Typography variant="h6">Report filters</Typography>
-            <IconButton
-              aria-label="Close filters"
-              onClick={() => setFilterDialogOpen(false)}
-            >
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={dialogContentTop}>
-            <FilterFields
-              filters={filters}
-              setFilters={setFilters}
-              departments={departments}
-              users={users}
-              reportType={reportType}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={marginBottomSectionSx}>
-          <Button
-            fullWidth
-            variant="contained"
-            startIcon={<FilterAltOutlinedIcon />}
-            onClick={() => setFilterDialogOpen(false)}
-          >
-            {reportType === "tickets"
-              ? `Show ${filteredTickets.length} Tickets`
-              : `Show ${filteredSelfTickets.length} Tasks`}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <FilterFields
+          filters={filters}
+          setFilters={setFilters}
+          departments={departments}
+          users={users}
+          reportType={reportType}
+        />
+      </FilterPopover>
       {selectedTicket && (
         <TicketDetailModal
           open={dialogTicketOpen}

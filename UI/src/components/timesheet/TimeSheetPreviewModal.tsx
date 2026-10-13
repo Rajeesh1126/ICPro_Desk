@@ -1,3 +1,5 @@
+import { formatHoursMinutes } from "../../utils/hoursMinutes";
+import { INSET_X, INSET_Y } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
   Dialog,
@@ -23,7 +25,7 @@ export interface TimeSheetDay {
   hours: number;
 }
 
-type TimeSheetPreviewRow = Record<string, unknown> & TimeSheetDay;
+type TimeSheetPreviewRow = TimeSheetDay;
 
 interface TimeSheetPreviewModalProps {
   open: boolean;
@@ -66,9 +68,10 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
     });
   };
 
-  const formatHours = (hours: number) => {
-    return hours > 0 ? hours.toFixed(2) : "";
-  };
+  // `hours` arrive as decimal hours; show them in the timesheet's h.mm
+  // notation (1.30 = 1 h 30 m) so the preview matches the grid.
+  const formatHours = (hours: number) =>
+    hours > 0 ? formatHoursMinutes(hours * 3600) : "";
 
   const columns = useMemo<ColumnData<TimeSheetPreviewRow>[]>(
     () => [
@@ -91,7 +94,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
     <TableRow>
       <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
       <TableCell align="right" sx={{ fontWeight: 800 }}>
-        {totalHours.toFixed(2)}
+        {formatHoursMinutes(totalHours * 3600)}
       </TableCell>
     </TableRow>
   );
@@ -111,30 +114,31 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
       {/* Header */}
       <DialogTitle
         sx={{
-          px: 2,
-          py: 1,
+          px: INSET_X,
+          py: INSET_Y,
           fontSize: "20px",
           fontWeight: 600,
-          color: "#555",
-          borderBottom: "1px solid #e0e0e0",
+          color: "text.primary",
+          borderBottom: "1px solid",
+          borderColor: "divider",
         }}
       >
         Total Work Hours
 
-        <IconButton
+        <IconButton aria-label="Close dialog"
           onClick={onClose}
           sx={{
             position: "absolute",
             right: 8,
             top: 6,
-            color: "#777",
+            color: "text.secondary",
           }}
         >
           <CloseOutlinedIcon />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ px: 2, py: 2 }}>
+      <DialogContent>
         <VirtualizedTable
           columns={columns}
           rows={timeSheetDays}
@@ -149,7 +153,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
           <Typography
             sx={{
               fontSize: "16px",
-              color: "#555",
+              color: "text.primary",
               mb: 0.5,
             }}
           >
@@ -163,7 +167,6 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
             value={comments}
             onChange={(e) => setComments(e.target.value)}
             variant="outlined"
-            size="small"
           />
         </Box>
 
@@ -182,9 +185,9 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
             startIcon={submitting ? undefined : <SendOutlinedIcon />}
             sx={{
               textTransform: "none",
-              backgroundColor: "#55b5d3",
+              backgroundColor: "primary.main",
               "&:hover": {
-                backgroundColor: "#45a5c3",
+                backgroundColor: "primary.dark",
               },
             }}
           >

@@ -40,7 +40,7 @@ import {
   teamReportModalTitleSx,
 } from "../../styles/common";
 
-type TeamTicketRow = Record<string, unknown> & {
+type TeamTicketRow = {
   number: string;
   task: string;
   current_status: string;
@@ -49,7 +49,7 @@ type TeamTicketRow = Record<string, unknown> & {
   assigned_to_name?: string;
 };
 
-type TeamDoListRow = Record<string, unknown> & {
+type TeamDoListRow = {
   number: string;
   task: string;
   current_status: string;

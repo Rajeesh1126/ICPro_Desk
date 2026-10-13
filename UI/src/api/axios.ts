@@ -2,6 +2,14 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { showGlobalError } from "./errorDialogService";
 import { formatValidationErrors } from "../utils/errorUtils";
+import { expireSession } from "./session";
+import { invalidateAfterMutation } from "./queryClient";
+
+declare module "axios" {
+    export interface AxiosRequestConfig {
+        suppressGlobalError?: boolean;
+    }
+}
 
 type JwtPayload = {
     exp?: number;
@@ -25,11 +33,7 @@ api.interceptors.request.use(
         const token = localStorage.getItem("accessToken");
         if (token && !isAuthEndpoint(config.url)) {
             if (isTokenExpired(token)) {
-
-                localStorage.clear();
-
-                window.location.replace(import.meta.env.BASE_URL);
-
+                expireSession();
                 return Promise.reject(new Error("Token expired"));
             }
             config.headers.Authorization = `Bearer ${token}`;
@@ -40,26 +44,80 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const method = response.config.method?.toLowerCase();
+        if (
+            method && method !== "get" && method !== "head" &&
+            !isAuthEndpoint(response.config.url)
+        ) {
+            // Data changed on the server: refresh cached lists in the background.
+            invalidateAfterMutation(response.config.url);
+        }
+        return response;
+    },
     (error) => {
         if (isAuthEndpoint(error.config?.url)) {
             return Promise.reject(error);
         }
 
-        // console.log(error.response.data);
-        const status = error.response ? error.response.status : null;
-        if (status === 404) {
-            // retuen the error response data to the calling function for handling validation errors
-            showGlobalError(
-                formatValidationErrors(error.response.data),
-                "Validation Error"
-            );
+        if (error.code === "ERR_CANCELED") {
+            // Request aborted (page left / filters changed): not an error.
+            return Promise.reject(error);
         }
 
-        const isHttpError = typeof status === "number" && status >= 402 && status <= 599;
-        const isConnectionError = !error.response && Boolean(error.request) && error.code !== "ERR_CANCELED";
+        const status: number | null = error.response ? error.response.status : null;
+        const method = String(error.config?.method ?? "get").toLowerCase();
+        const isRead = method === "get" || method === "head";
 
-        if (isHttpError || isConnectionError) {
+        // Forms that render field-level validation opt out of the 400 dialog
+        // only, avoiding duplicate feedback while retaining shared handling
+        // for permission, server, and connection failures.
+        const suppressValidationDialog =
+            status === 400 && error.config?.suppressGlobalError;
+
+        if (status === 401) {
+            expireSession();
+            return Promise.reject(error);
+        }
+
+        // Bad requests carry an API-authored explanation (often a validation
+        // or business-rule message). Show it so users know what to correct.
+        if (status === 400) {
+            if (!suppressValidationDialog) {
+                showGlobalError(
+                    formatValidationErrors(error.response.data),
+                    clientErrorTitle(status),
+                );
+            }
+            return Promise.reject(error);
+        }
+
+        // Other client errors: explain in a dialog and stay on the page, so
+        // nothing the user typed is lost.
+        if (status !== null && status >= 402 && status <= 499) {
+            showGlobalError(
+                formatValidationErrors(error.response.data),
+                clientErrorTitle(status),
+            );
+            return Promise.reject(error);
+        }
+
+        const isServerError = status !== null && status >= 500;
+        const isConnectionError = !error.response && Boolean(error.request);
+
+        // A failed save keeps the user on the form with a message.
+        if ((isServerError || isConnectionError) && !isRead) {
+            showGlobalError(
+                isConnectionError
+                    ? "We could not reach the server. Check your connection and try again; your changes are still here."
+                    : "The server could not complete this action. Please try again in a moment; your changes are still here.",
+                isConnectionError ? "Connection problem" : "Something went wrong",
+            );
+            return Promise.reject(error);
+        }
+
+        // A page that cannot load its data shows the full error page.
+        if (isServerError || isConnectionError) {
             const basePath = import.meta.env.BASE_URL.endsWith("/")
                 ? import.meta.env.BASE_URL
                 : `${import.meta.env.BASE_URL}/`;
@@ -77,6 +135,16 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+function clientErrorTitle(status: number) {
+    if (status === 400) return "Please check your information";
+    if (status === 403) return "Permission denied";
+    if (status === 404) return "Not found";
+    if (status === 409) return "Conflict";
+    if (status === 422) return "Validation error";
+    if (status === 429) return "Too many requests";
+    return "Request could not be completed";
+}
 
 export const isTokenExpired = (token: string): boolean => {
     try {

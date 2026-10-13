@@ -1,28 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import DateRange from "../../components/common/DateRange";
 import {
   Box,
   Button,
+  ButtonBase,
   Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   LinearProgress,
   Paper,
+  Skeleton,
   Stack,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
-import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import AnalysisPieChart from "../../components/dashboard/AnalysisPieChart";
+import FilterPopover from "../../components/common/FilterPopover";
 import TeamReportModal, {
   type TeamReportDetail,
 } from "../../components/dashboard/TeamReportModal";
@@ -31,7 +31,14 @@ import type { TicketData } from "../../types/dataTypes";
 import CollapsibleTableView, {
   type ExpandedColumnData,
 } from "../../components/common/CollapsibleTableView";
-import api from "../../api/axios";
+import { apiQueryKey, fetchApi, useApiQuery } from "../../api/useApiQuery";
+import { queryClient } from "../../api/queryClient";
+import {
+  getPresetRange,
+  TEAM_SUMMARY_URL,
+  teamSummaryParams,
+  type DatePreset,
+} from "./teamSummaryQuery";
 import {
   buttonLabelCompact,
   buttonLabelFull,
@@ -44,7 +51,6 @@ import {
   fillContainer,
   inlineProgress,
   largeMutedIcon,
-  marginBottomSectionSx,
   minWidthZeroSx,
   page,
   pageContent,
@@ -77,7 +83,6 @@ type DepartmentLoad = {
   count: number;
   color?: string;
 };
-type DatePreset = "weekly" | "biweekly" | "monthly" | "custom";
 const datePresets: DatePreset[] = ["weekly", "biweekly", "monthly", "custom"];
 type TicketSummary = {
   total: number;
@@ -95,59 +100,34 @@ const emptySummary: TicketSummary = {
   deptData: [],
 };
 
-const formatDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const getPresetRange = (preset: Exclude<DatePreset, "custom">) => {
-  const today = new Date();
-
-  if (preset === "monthly") {
-    const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    return { startDate: formatDate(start), endDate: formatDate(end) };
-  }
-
-  const start = new Date(today);
-  start.setDate(today.getDate() - today.getDay() + 1);
-  const end = new Date(start);
-  end.setDate(start.getDate() + (preset === "biweekly" ? 13 : 6));
-  return { startDate: formatDate(start), endDate: formatDate(end) };
-};
 
 export default function Dashboard() {
   const [datePreset, setDatePreset] = useState<DatePreset>("weekly");
   const [dateRange, setDateRange] = useState(() => getPresetRange("weekly"));
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  // The Filters button; the filter panel drops down from it.
+  const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
-  const [summary, setSummary] = useState<TicketSummary>(emptySummary);
+  // Cached per date range. A new range shows skeletons until its own numbers
+  // arrive, so figures for the wrong range are never on screen.
+  const summaryQuery = useApiQuery<Partial<TicketSummary>>(
+    TEAM_SUMMARY_URL,
+    teamSummaryParams(dateRange),
+  );
+  const summary = useMemo<TicketSummary>(
+    () => ({ ...emptySummary, ...summaryQuery.data }),
+    [summaryQuery.data],
+  );
+  const summaryLoading = summaryQuery.isPending;
+  const theme = useTheme();
+  // Render the filter controls once, in the layout that matches the viewport,
+  // so hidden duplicates can never receive focus.
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [teamReportOpen, setTeamReportOpen] = useState(false);
   const [teamReportLoading, setTeamReportLoading] = useState(false);
   const [teamReportDetail, setTeamReportDetail] =
     useState<TeamReportDetail | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/summary/", {
-        params: {
-          include_executive: true,
-          is_internal: false,
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate,
-        },
-      })
-      .then((response) => {
-        if (active) setSummary({ ...emptySummary, ...response.data });
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [dateRange.endDate, dateRange.startDate]);
 
   const openTeamReport = useCallback(
     async (department: DepartmentLoad) => {
@@ -156,22 +136,20 @@ export default function Dashboard() {
       setTeamReportDetail(null);
 
       try {
-        const response = await api.get<TeamReportDetail>("/summary/", {
-          params: {
-            include_executive: true,
-            is_internal: false,
-            department_id: department.id,
-            start_date: dateRange.startDate,
-            end_date: dateRange.endDate,
-          },
+        // Cached per team and range: reopening a team report is instant.
+        const params = teamSummaryParams(dateRange, department.id);
+        const detail = await queryClient.fetchQuery({
+          queryKey: apiQueryKey(TEAM_SUMMARY_URL, params),
+          queryFn: ({ signal }) =>
+            fetchApi<TeamReportDetail>(TEAM_SUMMARY_URL, params, signal),
         });
 
-        setTeamReportDetail(response.data);
+        setTeamReportDetail(detail);
       } finally {
         setTeamReportLoading(false);
       }
     },
-    [dateRange.endDate, dateRange.startDate],
+    [dateRange],
   );
 
   const columns = useMemo<ColumnData<TicketData>[]>(
@@ -207,7 +185,6 @@ export default function Dashboard() {
   );
 
   const updateDatePreset = useCallback((next: unknown) => {
-    console.log("updateDatePreset called with:", next);
     if (!datePresets.includes(next as DatePreset)) {
       return;
     }
@@ -216,7 +193,7 @@ export default function Dashboard() {
 
     if (preset === "custom") {
       setDatePreset("custom");
-      setFilterDialogOpen(true);
+      setFilterOpen(true);
       return;
     }
 
@@ -273,19 +250,15 @@ export default function Dashboard() {
               <Box component="span">Monthly</Box>
             </Tooltip>
           </ToggleButton>
-          <ToggleButton value="custom" aria-label="Custom">
-            <Tooltip title="Custom date range" arrow>
-              <Box component="span">Custom</Box>
-            </Tooltip>
-          </ToggleButton>
         </ToggleButtonGroup>
         <Button
           startIcon={<FilterListOutlinedIcon />}
           variant="outlined"
-          onClick={() => setFilterDialogOpen(true)}
+          ref={setFilterButton}
+          onClick={() => setFilterOpen(true)}
         >
           <Box component="span" sx={buttonLabelFull}>
-            Date Filter
+            Custom dates
           </Box>
           <Box component="span" sx={buttonLabelCompact}>
             Dates
@@ -298,15 +271,16 @@ export default function Dashboard() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
             <Box sx={pageHeaderTopRow}>
               <Box sx={pageHeaderTitleGroup}>
-                <Typography variant="h5" sx={pageTitle}>
+                <Typography variant="h5" component="h1" sx={pageTitle}>
                   Team Analysis
                 </Typography>
               </Box>
+              {!isDesktop && (
               <Tooltip
                 title={mobileControlsOpen ? "Hide filters" : "Show filters"}
               >
@@ -322,26 +296,31 @@ export default function Dashboard() {
                   <FilterListOutlinedIcon />
                 </IconButton>
               </Tooltip>
+              )}
             </Box>
             <Typography variant="body2" sx={pageSubtitle}>
-              A live view of due work, team load, and overall ticket status from{" "}
-              {dateRange.startDate} to {dateRange.endDate}.
+              Due work, team load and ticket status for{" "}
+              <DateRange start={dateRange.startDate} end={dateRange.endDate} />
             </Typography>
-            <Box sx={pageHeaderFilterPanel}>
-              <Collapse in={mobileControlsOpen} timeout="auto" unmountOnExit>
-                <Stack spacing={1} sx={pageHeaderControlsMobile}>
-                  {renderDashboardControls()}
-                </Stack>
-              </Collapse>
-            </Box>
+            {!isDesktop && (
+              <Box sx={pageHeaderFilterPanel}>
+                <Collapse in={mobileControlsOpen} timeout="auto" unmountOnExit>
+                  <Stack spacing={1} sx={pageHeaderControlsMobile}>
+                    {renderDashboardControls()}
+                  </Stack>
+                </Collapse>
+              </Box>
+            )}
           </Box>
-          <Stack
-            spacing={1}
-            direction={{ xs: "row-reverse", sm: "row" }}
-            sx={pageHeaderControlsDesktop}
-          >
-            {renderDashboardControls()}
-          </Stack>
+          {isDesktop && (
+            <Stack
+              spacing={1}
+              direction={{ xs: "row-reverse", sm: "row" }}
+              sx={pageHeaderControlsDesktop}
+            >
+              {renderDashboardControls()}
+            </Stack>
+          )}
         </Box>
 
         <Box sx={overviewGrid}>
@@ -359,29 +338,57 @@ export default function Dashboard() {
                 <Box>
                   <Typography fontWeight={800}>Teams workload</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Tickets by team Click on a team to view detailed report
+                    Tickets by team. Select a team to open its detailed report.
                   </Typography>
                 </Box>
               </Stack>
-              <Stack spacing={0} sx={scrollColumn}>
-                {summary.deptData.length ? (
+              <Stack
+                spacing={0}
+                sx={[
+                  scrollColumn,
+                  !summary.deptData.length && {
+                    overflow: "hidden",
+                    pr: 0,
+                    scrollbarGutter: "auto",
+                  },
+                ]}
+              >
+                {summaryLoading ? (
+                  <Stack spacing={1.25} role="status" aria-label="Loading team workload" sx={{ py: 1 }}>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <Box key={index}>
+                        <Skeleton variant="text" width="55%" />
+                        <Skeleton variant="rounded" height={6} />
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : summary.deptData.length ? (
                   summary.deptData.map((department, index) => {
                     const color = department.color || "primary.main";
                     return (
-                      <Box
+                      <ButtonBase
                         key={department.name}
                         onClick={() => void openTeamReport(department)}
+                        aria-label={`${department.name}: ${department.count} tickets. Open team report`}
+                        title={department.name}
                         sx={{
                           ...dividerListRow(
                             index < summary.deptData.length - 1,
                           ),
-                          cursor: "pointer",
-                          // borderRadius: 0.5,
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
                           px: 0.75,
+                          borderRadius: 1,
                           "&:hover": {
                             bgcolor: "action.hover",
                           },
-                          // border: '1px solid red'
+                          "&.Mui-focusVisible": {
+                            outline: "2px solid",
+                            outlineColor: "primary.main",
+                            outlineOffset: -2,
+                            bgcolor: "action.hover",
+                          },
                         }}
                       >
                         <Stack
@@ -439,7 +446,7 @@ export default function Dashboard() {
                             </Typography>
                           </Box>
                         </Stack>
-                      </Box>
+                      </ButtonBase>
                     );
                   })
                 ) : (
@@ -457,11 +464,24 @@ export default function Dashboard() {
           </Box>
           <Box sx={overviewSecondaryGridItem}>
             <Box sx={fillContainer}>
-              <AnalysisPieChart
-                title={`Total ${summary.total}`}
-                data={summary.statuses}
-                height={210}
-              />
+              {summaryLoading ? (
+                <Paper
+                  elevation={0}
+                  role="status"
+                  aria-label="Loading ticket status"
+                  sx={{ ...surfacePanel, height: "100%", display: "grid", placeItems: "center", gap: 1.5 }}
+                >
+                  <Skeleton variant="text" width="40%" />
+                  <Skeleton variant="circular" width={150} height={150} />
+                  <Skeleton variant="text" width="70%" />
+                </Paper>
+              ) : (
+                <AnalysisPieChart
+                  title={`Total ${summary.total}`}
+                  data={summary.statuses}
+                  height={210}
+                />
+              )}
             </Box>
           </Box>
           <Box sx={overviewFullGridItem}>
@@ -470,8 +490,16 @@ export default function Dashboard() {
               expandedColumns={expandedColumns}
               rows={summary.weekly_target_tickets}
               tableHead="Target tickets"
-              tableHeadSub={`Commitments due from ${dateRange.startDate} to ${dateRange.endDate}`}
+              tableHeadSub={
+                <>
+                  Commitments due{" "}
+                  <DateRange start={dateRange.startDate} end={dateRange.endDate} />
+                </>
+              }
               getRowId={(row) => row.id ?? row.number}
+              loading={summaryLoading}
+              emptyTitle="No target tickets in this range"
+              emptyDescription="Change the date range to see other commitments."
             />
           </Box>
         </Box>
@@ -484,42 +512,19 @@ export default function Dashboard() {
         onClose={() => setTeamReportOpen(false)}
       />
 
-      <Dialog
-        open={filterDialogOpen}
-        onClose={() => setFilterDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{
-          sx: {
-            position: "fixed",
-            top: { xs: "auto", sm: 150 },
-            right: { xs: "auto", sm: 50 },
-            m: 0,
-          },
-        }}
+      <FilterPopover
+        open={filterOpen}
+        anchorEl={filterButton}
+        onClose={() => setFilterOpen(false)}
+        title="Date range"
+        onReset={() => updateDatePreset("weekly")}
+        applyLabel="Apply dates"
       >
-        <DialogTitle>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Typography variant="h6">Dashboard filters</Typography>
-            <IconButton
-              aria-label="Close filters"
-              onClick={() => setFilterDialogOpen(false)}
-            >
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
           <Stack spacing={1.5} sx={dialogContentTop}>
             <TextField
               fullWidth
               label="From"
               type="date"
-              size="small"
               value={dateRange.startDate}
               onChange={(event) =>
                 updateDateRange("startDate", event.target.value)
@@ -534,7 +539,6 @@ export default function Dashboard() {
               fullWidth
               label="To"
               type="date"
-              size="small"
               value={dateRange.endDate}
               onChange={(event) =>
                 updateDateRange("endDate", event.target.value)
@@ -546,18 +550,7 @@ export default function Dashboard() {
               }}
             />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={marginBottomSectionSx}>
-          <Button
-            fullWidth
-            variant="contained"
-            startIcon={<FilterAltOutlinedIcon />}
-            onClick={() => setFilterDialogOpen(false)}
-          >
-            Apply Filter
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </FilterPopover>
     </Box>
   );
 }

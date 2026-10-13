@@ -4,6 +4,7 @@ from core.emailContents import ticketCreateEmailBody
 from django.contrib.auth import get_user_model
 from datetime import date
 from users.models import DepartmentManager
+from core.microsoftGraphAPI import send_mail
 
 
 User = get_user_model()

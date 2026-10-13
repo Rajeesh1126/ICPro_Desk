@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { Box, Chip, Paper, Typography } from "@mui/material";
+import { useMemo } from "react";
+import { Box, Chip, Paper, Skeleton, Tooltip, Typography } from "@mui/material";
+import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
+import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
 } from "../components/common/TableView";
-import api from "../api/axios";
+import { asArray, useApiQuery } from "../api/useApiQuery";
 import {
   contentPanel,
   page,
@@ -20,7 +22,6 @@ import {
 } from "../styles/common";
 
 type QuotationBudgetSummary = {
-  [key: string]: unknown;
   quotation_id: number;
   quotation_no: string;
   revision_number: number | null;
@@ -46,26 +47,16 @@ const budgetStatus = (row: QuotationBudgetSummary) =>
   row.actual_hours > row.budget_hours ? "Over Budget" : "Under Budget";
 
 export default function Landing() {
-  const [quotations, setQuotations] = useState<QuotationBudgetSummary[]>([]);
-
-  useEffect(() => {
-    let active = true;
-
-    void api
-      .get<QuotationBudgetSummary[]>("/erp/quotations/budget-summary/")
-      .then((response) => {
-        if (!active) return;
-        setQuotations(Array.isArray(response.data) ? response.data : []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setQuotations([]);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Cached: revisiting Home shows the last summary at once and refreshes it
+  // in the background once it is older than the cache's stale time.
+  const quotationsQuery = useApiQuery<QuotationBudgetSummary[]>(
+    "/erp/quotations/budget-summary/",
+  );
+  const quotations = useMemo(
+    () => asArray<QuotationBudgetSummary>(quotationsQuery.data),
+    [quotationsQuery.data],
+  );
+  const loading = quotationsQuery.isPending;
 
   const summary = useMemo<SummaryMetric[]>(() => {
     const totalBudgetHours = quotations.reduce(
@@ -79,17 +70,13 @@ export default function Landing() {
     const overBudgetCount = quotations.filter(
       (quotation) => quotation.actual_hours > quotation.budget_hours,
     ).length;
+    const totalVarianceHours = totalActualHours - totalBudgetHours;
     const utilization =
       totalBudgetHours > 0
         ? (totalActualHours / totalBudgetHours) * 100
         : 0;
 
     return [
-      {
-        label: "Quotations",
-        value: String(quotations.length),
-        helper: "Latest quotation numbers",
-      },
       {
         label: "Budget Hours",
         value: formatHours(totalBudgetHours),
@@ -99,6 +86,14 @@ export default function Landing() {
         label: "Actual Hours",
         value: formatHours(totalActualHours),
         helper: `${utilization.toFixed(2)}% utilized`,
+      },
+      {
+        label: "Variance (hrs)",
+        value: formatHours(totalVarianceHours),
+        helper:
+          totalVarianceHours > 0
+            ? "Actual hours exceed budget"
+            : "Within the total budget",
       },
       {
         label: "Over Budget",
@@ -163,13 +158,17 @@ export default function Landing() {
         width: 135,
         render: (row) => {
           const status = budgetStatus(row);
+          const over = status === "Over Budget";
+          const overBy = row.actual_hours - row.budget_hours;
 
           return (
             <Chip
               size="small"
-              label={status}
-              color={status === "Over Budget" ? "error" : "success"}
-              variant={status === "Over Budget" ? "filled" : "outlined"}
+              icon={over ? <TrendingUpOutlinedIcon /> : <CheckCircleOutlineOutlinedIcon />}
+              label={over ? `Over by ${formatHours(overBy)} h` : "Within budget"}
+              color={over ? "error" : "success"}
+              variant={over ? "filled" : "outlined"}
+              aria-label={over ? `Over budget by ${formatHours(overBy)} hours` : "Within budget"}
             />
           );
         },
@@ -180,10 +179,13 @@ export default function Landing() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Budget Summary</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>Budget Summary</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Budgeted versus actual hours for the latest quotations.
+            </Typography>
           </Box>
         </Box>
 
@@ -193,16 +195,30 @@ export default function Landing() {
               key={metric.label}
               elevation={0}
               sx={summaryMetricCard}
+              aria-busy={loading}
             >
               <Typography sx={summaryMetricLabel}>
                 {metric.label}
               </Typography>
-              <Typography sx={summaryMetricValue}>
-                {metric.value}
-              </Typography>
-              <Typography sx={summaryMetricHelper}>
-                {metric.helper}
-              </Typography>
+              {loading ? (
+                <>
+                  <Skeleton variant="text" width="45%" height={36} />
+                  <Skeleton variant="text" width="70%" />
+                </>
+              ) : (
+                <>
+                  <Typography sx={summaryMetricValue}>
+                    {metric.value}
+                  </Typography>
+                  {metric.label === "Budget Hours" ? (
+                    <Tooltip title="Budget formula: quotation quantity multiplied by nine standard hours.">
+                      <Typography sx={summaryMetricHelper}>{metric.helper}</Typography>
+                    </Tooltip>
+                  ) : (
+                    <Typography sx={summaryMetricHelper}>{metric.helper}</Typography>
+                  )}
+                </>
+              )}
             </Paper>
           ))}
         </Box>
@@ -212,7 +228,10 @@ export default function Landing() {
             columns={columns}
             rows={quotations}
             height="100%"
-            tableHead="Latest 20 Quotations"
+            tableHead=""
+            loading={loading}
+            emptyTitle="No quotations yet"
+            emptyDescription="Quotations with budgeted hours will appear here."
           />
         </Box>
       </Box>

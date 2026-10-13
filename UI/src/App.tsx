@@ -1,29 +1,35 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import type { ReactNode } from "react";
-import Login from "./pages/Login.tsx";
-import ForgotPassword from "./pages/users/ForgotPassword.tsx";
-import ResetPassword from "./pages/users/ResetPassword.tsx";
-import HomePage from "./pages/HomePage.tsx";
-import Landing from "./pages/Landing.tsx";
-import Dashboard from "./pages/tickets/Dashboard.tsx";
-import Reports from "./pages/tickets/Reports.tsx";
-import TicketDashboard from "./pages/tickets/Tickets.tsx";
-import InternalTickets from "./pages/tickets/InternalTickets.tsx";
-import SelfTickets from "./pages/tickets/SelfTickets.tsx";
-import Users from "./pages/users/Users.tsx"
-import Roles from "./pages/users/Roles.tsx"
-import Documents from "./pages/general/Documents.tsx";
-import Suggestions from "./pages/general/Suggestions.tsx";
-import LessonLearnt from "./pages/general/LessonLearnt.tsx";
-import ProjectConfiguration from "./pages/ProjectConfiguration.tsx";
-import PhaseConfiguration from "./pages/PhaseConfiguration.tsx";
-
-import TimeSheet from "./pages/timesheet/TimeSheet.tsx";
-import TimesheetLogs from "./pages/timesheet/TimesheetLogs.tsx";
-import TimesheetAnalysis from "./pages/timesheet/TimesheetAnalysis.tsx";
-
-import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Suspense, type ReactNode } from "react";
+import PageLoadingSkeleton from "./components/common/PageLoadingSkeleton";
 import { isTokenExpired } from "./api/axios.ts";
+import { buildLoginPath, clearSession } from "./api/session.ts";
+import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
+
+import {
+  Dashboard,
+  Documents,
+  ForgotPassword,
+  HomePage,
+  InternalTickets,
+  Landing,
+  LessonLearnt,
+  Login,
+  PhaseConfiguration,
+  ProjectConfiguration,
+  Reports,
+  ResetPassword,
+  Roles,
+  SelfTickets,
+  Suggestions,
+  Tickets as TicketDashboard,
+  TimeSheet,
+  TimesheetAnalysis,
+  TimesheetLogs,
+  Users,
+} from "./routes/lazyPages";
+function PageSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageLoadingSkeleton />}>{children}</Suspense>;
+}
 
 function getStoredPermissions(): string[] {
   try {
@@ -53,30 +59,37 @@ function PageAccessRoute({
 }
 
 const homeRoutes = [
-  { index: true, element: <Landing /> },
-  { path: "Dashboard", element: <Dashboard />, permission: "access_team_analysis" },
-  { path: "Tickets", element: <TicketDashboard />, permission: "access_tickets" },
-  { path: "InternalTickets", element: <InternalTickets />, permission: "access_tickets" },
-  { path: "SelfTickets", element: <SelfTickets />, permission: "access_self_tickets" },
-  { path: "Reports", element: <Reports />, permission: "access_executive_overview" },
-  { path: "TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
-  { path: "TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
-  { path: "TimesheetAnalysis", element: <TimesheetAnalysis />, permission: "access_timesheet" },
-  { path: "Documents", element: <Documents /> },
-  { path: "Suggestions", element: <Suggestions /> },
-  { path: "LessonLearnt", element: <LessonLearnt /> },
-  { path: "Users", element: <Users />, permission: "access_user_management" },
-  { path: "Roles", element: <Roles />, permission: "access_role_management" },
-  { path: "ProjectConfiguration", element: <ProjectConfiguration />, permission: "access_project_configuration" },
-  { path: "PhaseConfiguration", element: <PhaseConfiguration />, permission: "access_phase_configuration" },
+  { path: "/Home", element: <Landing /> },
+  { path: "/Home/Dashboard", element: <Dashboard />, permission: "access_team_analysis" },
+  { path: "/Home/Tickets", element: <TicketDashboard />, permission: "access_tickets" },
+  { path: "/Home/InternalTickets", element: <InternalTickets />, permission: "access_tickets" },
+  { path: "/Home/SelfTickets", element: <SelfTickets />, permission: "access_self_tickets" },
+  { path: "/Home/Reports", element: <Reports />, permission: "access_executive_overview" },
+  { path: "/Home/TimeSheet", element: <TimeSheet />, permission: "access_timesheet" },
+  { path: "/Home/TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
+  { path: "/Home/TimesheetAnalysis", element: <TimesheetAnalysis />, permission: "access_timesheet" },
+  { path: "/Home/Documents", element: <Documents /> },
+  { path: "/Home/Suggestions", element: <Suggestions /> },
+  { path: "/Home/LessonLearnt", element: <LessonLearnt /> },
+  { path: "/Home/Users", element: <Users />, permission: "access_user_management" },
+  { path: "/Home/Roles", element: <Roles />, permission: "access_role_management" },
+  { path: "/Home/ProjectConfiguration", element: <ProjectConfiguration />, permission: "access_project_configuration" },
+  { path: "/Home/PhaseConfiguration", element: <PhaseConfiguration />, permission: "access_phase_configuration" },
 ];
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const token = localStorage.getItem("accessToken");
 
-  if (!token || isTokenExpired(token)) {
-    localStorage.clear();
-    return <Navigate to="/" replace />;
+  const destination = `${location.pathname}${location.search}${location.hash}`;
+
+  if (!token) {
+    return <Navigate to={buildLoginPath(destination)} replace />;
+  }
+
+  if (isTokenExpired(token)) {
+    clearSession();
+    return <Navigate to={buildLoginPath(destination, true)} replace />;
   }
 
   return children;
@@ -85,28 +98,30 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/Home" element={<ProtectedRoute><HomePage /></ProtectedRoute>}>
-        {homeRoutes.map((route) =>
-          route.index ? (
-            <Route key="home-index" index element={route.element} />
-          ) : (
-            <Route
-              key={route.path}
-              path={route.path}
-              element={
-                <PageAccessRoute permission={route.permission}>
-                  {route.element}
-                </PageAccessRoute>
-              }
-            />
-          ),
-        )}
+      <Route path="/" element={<PageSuspense><Login /></PageSuspense>} />
+      <Route path="/forgot-password" element={<PageSuspense><ForgotPassword /></PageSuspense>} />
+      <Route path="/reset-password" element={<PageSuspense><ResetPassword /></PageSuspense>} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <PageSuspense><HomePage /></PageSuspense>
+          </ProtectedRoute>
+        }
+      >
+        {homeRoutes.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <PageAccessRoute permission={route.permission}>
+                {route.element}
+              </PageAccessRoute>
+            }
+          />
+        ))}
+        <Route path="/error/:code" element={<RoutedErrorPage />} />
+        <Route path="*" element={<ErrorPage code={404} />} />
       </Route>
-      <Route path="/error/:code" element={<RoutedErrorPage />} />
-      <Route path="*" element={<ErrorPage code={404} />} />
     </Routes>
   );
 }

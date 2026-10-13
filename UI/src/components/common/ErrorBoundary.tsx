@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from "react";
 import ErrorPage from "../../pages/ErrorPage";
 
-type Props = { children: ReactNode };
+type Props = { children: ReactNode; fallback?: ReactNode };
 type State = { hasError: boolean };
 
 export default class ErrorBoundary extends Component<Props, State> {
@@ -16,7 +16,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.hasError) return <ErrorPage code="generic" />;
+    if (this.state.hasError) {
+      return this.props.fallback ?? <ErrorPage code="generic" />;
+    }
     return this.props.children;
   }
 }

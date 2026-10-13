@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDiscardGuard } from "../components/common/useDiscardGuard";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -23,6 +23,8 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
 import api from "../api/axios";
+import { asArray, useApiQuery } from "../api/useApiQuery";
+import DialogHeader from "../components/common/DialogHeader";
 import { showNotification } from "../api/notificationService";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import {
@@ -74,7 +76,7 @@ type DialogType = "project" | "milestone" | "task";
 type ConfigTableType = "projects" | "milestones" | "tasks";
 type FormErrors = Record<string, string>;
 
-type ConfigTableRow = Record<string, unknown> & {
+type ConfigTableRow = {
   id: number;
   name: string;
   description?: string;
@@ -106,10 +108,25 @@ const emptyTaskForm = {
 };
 
 export default function ProjectConfiguration() {
-  const [projects, setProjects] = useState<ProjectConfig[]>([]);
-  const [milestones, setMilestones] = useState<MilestoneConfig[]>([]);
-  const [tasks, setTasks] = useState<TaskConfig[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | "">("");
+  // Three independent cached queries: each table renders as soon as its own
+  // data arrives instead of waiting for the slowest request.
+  const projectsQuery = useApiQuery<ProjectConfig[]>("/projects/");
+  const milestonesQuery = useApiQuery<MilestoneConfig[]>("/milestones/");
+  const tasksQuery = useApiQuery<TaskConfig[]>("/tasks/");
+  const projects = useMemo(() => asArray<ProjectConfig>(projectsQuery.data), [projectsQuery.data]);
+  const milestones = useMemo(
+    () => asArray<MilestoneConfig>(milestonesQuery.data),
+    [milestonesQuery.data],
+  );
+  const tasks = useMemo(() => asArray<TaskConfig>(tasksQuery.data), [tasksQuery.data]);
+  const [pickedProjectId, setSelectedProjectId] = useState<number | "">("");
+  // Keep the user's pick while it still exists; otherwise default to the first project.
+  const selectedProjectId: number | "" =
+    pickedProjectId !== "" && projects.some((project) => project.id === pickedProjectId)
+      ? pickedProjectId
+      : projects.length
+        ? projects[0].id
+        : "";
   const [dialogType, setDialogType] = useState<DialogType | null>(null);
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -122,7 +139,6 @@ export default function ProjectConfiguration() {
     id: number;
     label: string;
   } | null>(null);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [expandedConfigTable, setExpandedConfigTable] =
@@ -151,40 +167,8 @@ export default function ProjectConfiguration() {
     [selectedProjectId, tasks],
   );
 
-  const loadConfiguration = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [projectResponse, milestoneResponse, taskResponse] =
-        await Promise.all([
-          api.get<ProjectConfig[]>("/projects/"),
-          api.get<MilestoneConfig[]>("/milestones/"),
-          api.get<TaskConfig[]>("/tasks/"),
-        ]);
-
-      const nextProjects = Array.isArray(projectResponse.data)
-        ? projectResponse.data
-        : [];
-      setProjects(nextProjects);
-      setMilestones(
-        Array.isArray(milestoneResponse.data) ? milestoneResponse.data : [],
-      );
-      setTasks(Array.isArray(taskResponse.data) ? taskResponse.data : []);
-
-      setSelectedProjectId((current) => {
-        if (current && nextProjects.some((project) => project.id === current)) {
-          return current;
-        }
-
-        return nextProjects[0]?.id ?? "";
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadConfiguration();
-  }, [loadConfiguration]);
+  const loading =
+    projectsQuery.isPending || milestonesQuery.isPending || tasksQuery.isPending;
 
   const openProjectDialog = (mode: DialogMode, project?: ProjectConfig) => {
     setDialogType("project");
@@ -239,6 +223,9 @@ export default function ProjectConfiguration() {
     setEditingId(null);
     setFormErrors({});
   };
+
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(dialogType !== null, closeDialog);
 
   const clearFieldError = (field: string) => {
     setFormErrors((current) => {
@@ -387,7 +374,8 @@ export default function ProjectConfiguration() {
         message: "Project configuration saved successfully.",
       });
       closeDialog();
-      await loadConfiguration();
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setSaving(false);
     }
@@ -412,7 +400,8 @@ export default function ProjectConfiguration() {
         message: "Project configuration deleted successfully.",
       });
       setDeleteTarget(null);
-      await loadConfiguration();
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setDeleting(false);
     }
@@ -534,10 +523,10 @@ export default function ProjectConfiguration() {
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={projectConfigurationPageHeaderSx}>
           <Box sx={projectConfigurationPageHeaderContentSx}>
-            <Typography variant="h5" sx={pageTitle}>
+            <Typography variant="h5" component="h1" sx={pageTitle}>
               Project Configuration
             </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
@@ -545,7 +534,7 @@ export default function ProjectConfiguration() {
             </Typography>
           </Box>
           <Stack
-            direction={{ xs: "row-reverse", sm: "row" }}
+            direction="row"
             spacing={1}
             sx={projectConfigurationPageHeaderActionsSx}
           >
@@ -562,7 +551,7 @@ export default function ProjectConfiguration() {
               </Box>
             </Button>
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<AddOutlinedIcon />}
               disabled={!selectedProject}
               onClick={() => openMilestoneDialog("create")}
@@ -575,7 +564,7 @@ export default function ProjectConfiguration() {
               </Box>
             </Button>
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<AddOutlinedIcon />}
               disabled={!selectedProject}
               onClick={() => openTaskDialog("create")}
@@ -622,6 +611,8 @@ export default function ProjectConfiguration() {
           <Stack spacing={1.5} sx={{ height: "100%" }}>
             <VirtualizedTable
               tableHead="Projects"
+              tableHeadSub={`${projects.length} projects`}
+              loading={loading && projects.length === 0}
               height="100%"
               tableMinWidth="100%"
               columns={projectColumns}
@@ -635,6 +626,9 @@ export default function ProjectConfiguration() {
 
             <VirtualizedTable
               tableHead="Milestones"
+              tableHeadSub={selectedProject ? `For project ${selectedProject.code}` : "All projects"}
+              loading={loading && milestones.length === 0}
+              emptyDescription={selectedProject ? `No milestones for ${selectedProject.code} yet.` : undefined}
               height="100%"
               tableMinWidth="100%"
               columns={milestoneColumns}
@@ -648,6 +642,9 @@ export default function ProjectConfiguration() {
 
             <VirtualizedTable
               tableHead="Tasks"
+              tableHeadSub={selectedProject ? `For project ${selectedProject.code}` : "All projects"}
+              loading={loading && tasks.length === 0}
+              emptyDescription={selectedProject ? `No tasks for ${selectedProject.code} yet.` : undefined}
               height="100%"
               tableMinWidth="100%"
               columns={taskColumns}
@@ -663,13 +660,21 @@ export default function ProjectConfiguration() {
 
         <Dialog
           open={dialogType !== null}
-          onClose={closeDialog}
+          onClose={discard.requestClose}
+          onChangeCapture={discard.markDirty}
           fullWidth
           maxWidth="sm"
         >
-          <DialogTitle>
-            {dialogMode === "edit" ? "Edit" : "Create"} {dialogType}
-          </DialogTitle>
+          <DialogHeader
+            title={`${dialogMode === "edit" ? "Edit" : "Create"} ${dialogType ?? ""}`}
+            subtitle={
+              dialogType !== "project" && selectedProject
+                ? `Project ${selectedProject.code}${selectedProject.description ? ` · ${selectedProject.description}` : ""}`
+                : undefined
+            }
+            onClose={discard.requestClose}
+            closeDisabled={saving}
+          />
           <DialogContent>
             {dialogType === "project" && (
               <Stack spacing={2}>
@@ -678,6 +683,7 @@ export default function ProjectConfiguration() {
                   label="Project Code"
                   value={projectForm.code}
                   onChange={(event) => {
+                    discard.markDirty();
                     clearFieldError("code");
                     setProjectForm((current) => ({
                       ...current,
@@ -686,7 +692,6 @@ export default function ProjectConfiguration() {
                   }}
                   error={Boolean(formErrors.code)}
                   helperText={formErrors.code}
-                  size="small"
                   fullWidth
                 />
                 <TextField
@@ -698,7 +703,6 @@ export default function ProjectConfiguration() {
                       description: event.target.value,
                     }))
                   }
-                  size="small"
                   fullWidth
                   multiline
                   minRows={3}
@@ -719,6 +723,7 @@ export default function ProjectConfiguration() {
                     label="Project"
                     value={milestoneForm.project}
                     onChange={(event) => {
+                      discard.markDirty();
                       clearFieldError("project");
                       setMilestoneForm((current) => ({
                         ...current,
@@ -747,6 +752,7 @@ export default function ProjectConfiguration() {
                   label="Milestone Name"
                   value={milestoneForm.name}
                   onChange={(event) => {
+                    discard.markDirty();
                     clearFieldError("name");
                     setMilestoneForm((current) => ({
                       ...current,
@@ -755,7 +761,6 @@ export default function ProjectConfiguration() {
                   }}
                   error={Boolean(formErrors.name)}
                   helperText={formErrors.name}
-                  size="small"
                   fullWidth
                 />
                 <TextField
@@ -768,7 +773,6 @@ export default function ProjectConfiguration() {
                       category: event.target.value,
                     }))
                   }
-                  size="small"
                   fullWidth
                 />
               </Stack>
@@ -787,6 +791,7 @@ export default function ProjectConfiguration() {
                     label="Project"
                     value={taskForm.project}
                     onChange={(event) => {
+                      discard.markDirty();
                       clearFieldError("project");
                       setTaskForm((current) => ({
                         ...current,
@@ -836,6 +841,7 @@ export default function ProjectConfiguration() {
                   label="Task Name"
                   value={taskForm.name}
                   onChange={(event) => {
+                    discard.markDirty();
                     clearFieldError("name");
                     setTaskForm((current) => ({
                       ...current,
@@ -844,7 +850,6 @@ export default function ProjectConfiguration() {
                   }}
                   error={Boolean(formErrors.name)}
                   helperText={formErrors.name}
-                  size="small"
                   fullWidth
                 />
                 <TextField
@@ -857,7 +862,6 @@ export default function ProjectConfiguration() {
                       cost: event.target.value,
                     }))
                   }
-                  size="small"
                   fullWidth
                 />
                 <TextField
@@ -869,7 +873,6 @@ export default function ProjectConfiguration() {
                       description: event.target.value,
                     }))
                   }
-                  size="small"
                   fullWidth
                   multiline
                   minRows={3}
@@ -881,7 +884,7 @@ export default function ProjectConfiguration() {
             <Button
               variant="outlined"
               startIcon={<CancelOutlinedIcon />}
-              onClick={closeDialog}
+              onClick={discard.requestClose}
             >
               Cancel
             </Button>
@@ -894,6 +897,7 @@ export default function ProjectConfiguration() {
               {saving ? "Saving..." : "Save"}
             </Button>
           </DialogActions>
+          {discard.dialog}
         </Dialog>
 
         <ConfirmDialog

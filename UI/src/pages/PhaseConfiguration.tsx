@@ -1,7 +1,6 @@
 import {
   type ReactElement,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -11,11 +10,19 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
@@ -23,6 +30,8 @@ import HandymanOutlinedIcon from "@mui/icons-material/HandymanOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 
 import api from "../api/axios";
+import { asArray, useApiQuery } from "../api/useApiQuery";
+import { queryClient } from "../api/queryClient";
 import { showNotification } from "../api/notificationService";
 import {
   VirtualizedTable,
@@ -67,12 +76,14 @@ type PhaseMapping = {
   cost_category_name?: string | null;
 };
 
-type CostCategoryRow = Record<string, unknown> & {
+type CostCategoryRow = {
   id: number;
   name: string;
   selected: boolean;
   mappedPhases: string;
 };
+
+type MappingFilter = "all" | "selected" | "unmapped";
 
 const phaseOptions = ["Sales", "Execution", "Service"];
 
@@ -83,46 +94,42 @@ const phaseMeta: Record<string, { icon: ReactElement }> = {
 };
 
 export default function PhaseConfiguration() {
-  const [costCategories, setCostCategories] = useState<CostCategory[]>([]);
-  const [phaseMappings, setPhaseMappings] = useState<PhaseMapping[]>([]);
   const [selectedPhase, setSelectedPhase] = useState(phaseOptions[0]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingPhase, setPendingPhase] = useState<string | null>(null);
+  const [mappingFilter, setMappingFilter] = useState<MappingFilter>("all");
+  const theme = useTheme();
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const loadConfiguration = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [categoryResponse, phaseResponse] = await Promise.all([
-        api.get<CostCategory[]>("/erp/cost-categories/"),
-        api.get<PhaseMapping[]>("/phases/"),
-      ]);
+  // Categories and mappings are cached and load independently: the category
+  // table renders as soon as its own data arrives.
+  const categoriesQuery = useApiQuery<CostCategory[]>("/erp/cost-categories/");
+  const mappingsQuery = useApiQuery<PhaseMapping[]>("/phases/");
+  const costCategories = useMemo(
+    () => asArray<CostCategory>(categoriesQuery.data),
+    [categoriesQuery.data],
+  );
+  const phaseMappings = useMemo(
+    () => asArray<PhaseMapping>(mappingsQuery.data),
+    [mappingsQuery.data],
+  );
+  const loading = categoriesQuery.isFetching || mappingsQuery.isFetching;
 
-      setCostCategories(
-        Array.isArray(categoryResponse.data) ? categoryResponse.data : [],
-      );
-      setPhaseMappings(
-        Array.isArray(phaseResponse.data) ? phaseResponse.data : [],
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadConfiguration();
-  }, [loadConfiguration]);
-
-  useEffect(() => {
-    setSelectedCategoryIds(
+  // Ticks are a draft over the saved mappings for the selected phase, so a
+  // background refresh never wipes unsaved changes.
+  const [draft, setDraft] = useState<{ phase: string; ids: number[] } | null>(null);
+  const savedCategoryIds = useMemo(
+    () =>
       phaseMappings
         .filter(
           (mapping) =>
             mapping.phase === selectedPhase && mapping.cost_category !== null,
         )
         .map((mapping) => mapping.cost_category as number),
-    );
-  }, [phaseMappings, selectedPhase]);
+    [phaseMappings, selectedPhase],
+  );
+  const selectedCategoryIds =
+    draft?.phase === selectedPhase ? draft.ids : savedCategoryIds;
 
   const mappedPhaseNamesByCategory = useMemo(() => {
     const next = new Map<number, string[]>();
@@ -165,6 +172,17 @@ export default function PhaseConfiguration() {
     );
   }, [currentPhaseMappings, selectedCategoryIds]);
 
+  const changedMappingCount = useMemo(() => {
+    const savedIds = new Set(
+      currentPhaseMappings.map((mapping) => mapping.cost_category as number),
+    );
+    const selectedIds = new Set(selectedCategoryIds);
+    return (
+      selectedCategoryIds.filter((id) => !savedIds.has(id)).length +
+      [...savedIds].filter((id) => !selectedIds.has(id)).length
+    );
+  }, [currentPhaseMappings, selectedCategoryIds]);
+
   const rows = useMemo<CostCategoryRow[]>(
     () =>
       costCategories.map((category) => ({
@@ -176,18 +194,33 @@ export default function PhaseConfiguration() {
       })),
     [costCategories, mappedPhaseNamesByCategory, selectedCategoryIds],
   );
+  const visibleRows = useMemo(() => {
+    if (mappingFilter === "selected") return rows.filter((row) => row.selected);
+    if (mappingFilter === "unmapped") {
+      return rows.filter((row) => row.mappedPhases === "Unmapped");
+    }
+    return rows;
+  }, [mappingFilter, rows]);
 
-  const toggleCategory = (categoryId: number, checked: boolean) => {
-    setSelectedCategoryIds((current) => {
-      if (checked) {
-        return current.includes(categoryId)
-          ? current
-          : [...current, categoryId];
-      }
-
-      return current.filter((id) => id !== categoryId);
-    });
+  // Switching phases resets the ticked categories, so confirm before losing edits.
+  const requestPhaseChange = (next: string | null) => {
+    if (!next || next === selectedPhase) return;
+    if (hasUnsavedChanges) {
+      setPendingPhase(next);
+      return;
+    }
+    setSelectedPhase(next);
   };
+
+  const toggleCategory = useCallback((categoryId: number, checked: boolean) => {
+    const current = selectedCategoryIds;
+    const ids = checked
+      ? current.includes(categoryId)
+        ? current
+        : [...current, categoryId]
+      : current.filter((id) => id !== categoryId);
+    setDraft({ phase: selectedPhase, ids });
+  }, [selectedCategoryIds, selectedPhase]);
 
   const saveMappings = async () => {
     const currentIds = new Set(
@@ -221,13 +254,18 @@ export default function PhaseConfiguration() {
         type: "success",
         message: "Phase mappings saved successfully.",
       });
-      await loadConfiguration();
+      // Wait for the refreshed mappings before dropping the draft, so the
+      // ticks never flash back to the old state.
+      await queryClient.invalidateQueries({ queryKey: ["/phases/"] });
+      setDraft(null);
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setSaving(false);
     }
   };
 
-  const columns: ColumnData<CostCategoryRow>[] = [
+  const columns = useMemo<ColumnData<CostCategoryRow>[]>(() => [
     {
       label: "Map",
       width: { xs: "14%", sm: 70 },
@@ -274,14 +312,14 @@ export default function PhaseConfiguration() {
         </Stack>
       ),
     },
-  ];
+  ], [selectedPhase, toggleCategory]);
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h4" sx={pageTitle}>
+            <Typography variant="h4" component="h1" sx={pageTitle}>
               Phase Configuration
             </Typography>
             <Typography sx={pageSubtitle}>
@@ -306,12 +344,36 @@ export default function PhaseConfiguration() {
             <Typography sx={helperText}>
               Pick the phase you want to configure.
             </Typography>
+            {isPhone ? (
+              <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+                <InputLabel id="phase-select-label">Phase</InputLabel>
+                <Select
+                  labelId="phase-select-label"
+                  label="Phase"
+                  value={selectedPhase}
+                  onChange={(event) => requestPhaseChange(event.target.value)}
+                >
+                  {phaseOptions.map((phase) => (
+                    <MenuItem key={phase} value={phase}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%" }}>
+                        {phaseMeta[phase]?.icon}
+                        <span>{phase}</span>
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+                          {mappedCountByPhase[phase] ?? 0} mapped
+                        </Typography>
+                      </Stack>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
             <ToggleButtonGroup
               exclusive
               size="small"
               value={selectedPhase}
-              onChange={(_event, value) => value && setSelectedPhase(value)}
-              sx={segmentedControl}
+              onChange={(_event, value) => requestPhaseChange(value)}
+              aria-label="Phase"
+              sx={[segmentedControl, { maxWidth: "100%" }]}
             >
               {phaseOptions.map((phase) => (
                 <ToggleButton key={phase} value={phase}>
@@ -330,6 +392,7 @@ export default function PhaseConfiguration() {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+            )}
           </Box>
 
           <Box sx={tableSection}>
@@ -341,14 +404,39 @@ export default function PhaseConfiguration() {
                 Tick every cost category that belongs to {selectedPhase}. A
                 category can belong to several phases.
               </Typography>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={mappingFilter}
+                onChange={(_event, next: MappingFilter | null) =>
+                  next && setMappingFilter(next)
+                }
+                aria-label="Filter cost categories"
+                sx={{ mt: 1 }}
+              >
+                <ToggleButton value="all">All ({rows.length})</ToggleButton>
+                <ToggleButton value="selected">
+                  Selected ({rows.filter((row) => row.selected).length})
+                </ToggleButton>
+                <ToggleButton value="unmapped">
+                  Unmapped ({rows.filter((row) => row.mappedPhases === "Unmapped").length})
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Box>
             <Box sx={tablePanelFill}>
               <VirtualizedTable
                 tableHead={`Cost categories for ${selectedPhase}`}
                 height="100%"
                 columns={columns}
-                rows={rows}
+                rows={visibleRows}
                 tableMinWidth="100%"
+                loading={loading && costCategories.length === 0}
+                emptyTitle={mappingFilter === "all" ? "No cost categories" : "No matching cost categories"}
+                emptyDescription={
+                  mappingFilter === "all"
+                    ? "Cost categories from the ERP will appear here."
+                    : "Choose another filter to see more cost categories."
+                }
                 onRowClick={(row) => toggleCategory(row.id, !row.selected)}
               />
             </Box>
@@ -385,7 +473,7 @@ export default function PhaseConfiguration() {
                   </Typography>
                   {hasUnsavedChanges && (
                     <Chip
-                      label="Unsaved changes"
+                      label={`${changedMappingCount} unsaved change${changedMappingCount === 1 ? "" : "s"}`}
                       variant="outlined"
                       size="small"
                       sx={warningOutlineChip}
@@ -406,6 +494,21 @@ export default function PhaseConfiguration() {
             </Stack>
           </Box>
         </Box>
+        <ConfirmDialog
+          open={pendingPhase !== null}
+          onClose={() => setPendingPhase(null)}
+          title="Discard unsaved changes?"
+          description={`You changed the categories for ${selectedPhase} but did not save. Switching to ${pendingPhase ?? ""} will discard those changes.`}
+          titleIcon={<WarningAmberOutlinedIcon fontSize="small" />}
+          cancelLabel={`Stay on ${selectedPhase}`}
+          confirmLabel="Discard and switch"
+          confirmColor="warning"
+          tone="warning"
+          onConfirm={() => {
+            if (pendingPhase) setSelectedPhase(pendingPhase);
+            setPendingPhase(null);
+          }}
+        />
       </Box>
     </Box>
   );

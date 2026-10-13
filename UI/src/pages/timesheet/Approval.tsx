@@ -1,19 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import StatusIndicator from "../../components/common/StatusIndicator";
 import {
-    Badge,
     Box,
-    Chip,
     IconButton,
-    Typography,
 } from "@mui/material";
 
 import {
     flexFillPanel,
-    formatStatusLabel,
-    getStatusColor,
     splitPanelContent,
-    tableViewBoxSx1,
-    tableViewTypographySx1,
 } from "../../styles/common";
 
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -24,6 +18,7 @@ import {
 } from "../../components/common/TableView";
 
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import { showNotification } from "../../api/notificationService";
 
 import type {
@@ -38,81 +33,34 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 interface ApprovalProps {
     weekStart: string;
-    refreshKey: number;
 }
 
 const Approval: React.FC<ApprovalProps> = ({
     weekStart,
-    refreshKey,
 }) => {
-    const [unlockRequests, setUnlockRequests] = useState<
-        timesheetStatusData[]
-    >([]);
-
-    const [approvalData, setApprovalData] = useState<ApprovalRow[]>([]);
+    // Both lists are cached per week; switching weeks or leaving the page
+    // cancels in-flight requests. Approving or unlocking refreshes them via
+    // the shared after-mutation invalidation.
+    const approvalsQuery = useApiQuery<ApprovalRow[]>("/approvals/", { weekStart });
+    const unlockQuery = useApiQuery<timesheetStatusData[]>("/timesheet-week-logs/", {
+        weekStart,
+        timesheet_status: "Requested",
+    });
+    const approvalData = useMemo(
+        () => asArray<ApprovalRow>(approvalsQuery.data),
+        [approvalsQuery.data],
+    );
+    const unlockRequests = useMemo(
+        () => asArray<timesheetStatusData>(unlockQuery.data),
+        [unlockQuery.data],
+    );
 
     const [selectedEmployee, setSelectedEmployee] =
         useState<ApprovalRow | null>(null);
 
     const [detailOpen, setDetailOpen] = useState(false);
     const [ratingsOpen, setRatingsOpen] = useState(false);
-
-    useEffect(() => {
-        let active = true;
-
-        void api
-            .get("/approvals/", {
-                params: {
-                    weekStart,
-                },
-            })
-            .then((response) => {
-
-                if (!active) return;
-
-                setApprovalData(response.data);
-            })
-            .catch((error) => {
-                console.error(
-                    "Failed to load approval data",
-                    error
-                );
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [weekStart, refreshKey]);
-
-    const fetchUnlockRequests = useCallback(async () => {
-        try {
-            const response = await api.get("/timesheet-week-logs/", {
-                params: {
-                    weekStart,
-                    timesheet_status: "Requested",
-                },
-            });
-
-            console.log("timesheet-week-logs", response.data);
-
-            setUnlockRequests(response.data);
-        } catch (error) {
-            console.error(
-                "Failed to load timesheet statuses",
-                error
-            );
-        }
-    }, [weekStart]);
-
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            void fetchUnlockRequests();
-        }, 0);
-
-        return () => {
-            window.clearTimeout(timer);
-        };
-    }, [fetchUnlockRequests, refreshKey]);
+    const isLoading = approvalsQuery.isPending;
 
     const handleUnlockStatus = useCallback(async (
         id: number,
@@ -130,14 +78,13 @@ const Approval: React.FC<ApprovalProps> = ({
             if (comments?.trim()) {
                 payload.comments = comments.trim();
             }
-            console.log(payload)
             await api.patch(
                 `/timesheet-week-logs/${id}/`,
                 payload
             );
 
-            // Refresh unlock requests from backend
-            await fetchUnlockRequests();
+            // Wait for the refreshed unlock list so the handled request disappears at once.
+            await unlockQuery.refetch();
 
             showNotification({
                 type: "success",
@@ -150,57 +97,16 @@ const Approval: React.FC<ApprovalProps> = ({
             });
 
             return true;
-        } catch (error) {
-            console.error(
-                "Failed to update unlock request:",
-                error
-            );
-
+        } catch {
             return false;
         }
-    }, [fetchUnlockRequests]);
+    }, [unlockQuery]);
 
     const handleViewEmployee = useCallback((row: ApprovalRow) => {
         setSelectedEmployee(row);
         setDetailOpen(true);
     }, []);
 
-    const getStatusChipColor = useCallback((status: string | undefined) => {
-        if (status === "Rejected" || status === "Not Submitted" || status === "Delayed") {
-            return "error";
-        }
-
-        if (status === "Accepted" || status === "OnTime") {
-            return "success";
-        }
-
-        if (status === "Submitted") {
-            return "primary";
-        }
-
-        return "info";
-    }, []);
-
-    const renderStatusText = useCallback((status: string | undefined) => (
-        <Box sx={tableViewBoxSx1}>
-            <Badge
-                aria-hidden="true"
-                variant="dot"
-                sx={{
-                    "& .MuiBadge-badge": {
-                        backgroundColor: getStatusColor(status),
-                    },
-                }}
-            />
-            <Typography
-                component="span"
-                variant="body2"
-                sx={tableViewTypographySx1}
-            >
-                {formatStatusLabel(status)}
-            </Typography>
-        </Box>
-    ), []);
 
     const columns = useMemo<ColumnData<ApprovalRow>[]>(
         () => [
@@ -222,13 +128,10 @@ const Approval: React.FC<ApprovalProps> = ({
                 render: (row: ApprovalRow) => (
                     <IconButton
                         size="small"
+                        aria-label={`View timesheet for ${row.name ?? "employee"}`}
                         onClick={() =>
                             handleViewEmployee(row)
                         }
-                        sx={{
-                            p: 0,
-                            color: "#38b5d0",
-                        }}
                     >
                         <VisibilityOutlinedIcon
                             sx={{ fontSize: 20 }}
@@ -260,7 +163,7 @@ const Approval: React.FC<ApprovalProps> = ({
                 dataKey: "overview",
                 label: "Overview",
                 width: 130,
-                render: (row: ApprovalRow) => renderStatusText(row.overview),
+                render: (row: ApprovalRow) => <StatusIndicator status={row.overview} />,
             },
 
             // Submission Status
@@ -270,18 +173,7 @@ const Approval: React.FC<ApprovalProps> = ({
                 width: 180,
 
                 render: (row: ApprovalRow) => (
-                    <Chip
-                        size="small"
-                        label={row.submission_status}
-                        color={getStatusChipColor(row.submission_status)}
-                        variant="outlined"
-                        sx={{
-                            height: 24,
-                            borderRadius: 1,
-                            fontSize: 11,
-                            fontWeight: 800,
-                        }}
-                    />
+                    <StatusIndicator status={row.submission_status} />
                 ),
             },
 
@@ -290,12 +182,12 @@ const Approval: React.FC<ApprovalProps> = ({
                 dataKey: "action_status",
                 label: "Action status",
                 width: 180,
-                render: (row: ApprovalRow) => renderStatusText(row.action_status),
+                render: (row: ApprovalRow) => <StatusIndicator status={row.action_status} />,
             },
 
             
         ],
-        [getStatusChipColor, handleViewEmployee, renderStatusText]
+        [handleViewEmployee]
     );
 
     const handleCloseDetail = () => {
@@ -307,7 +199,7 @@ const Approval: React.FC<ApprovalProps> = ({
         <Box sx={splitPanelContent}>
 
             {/* Approval Table */}
-            <Box sx={flexFillPanel}>
+            <Box sx={{ ...flexFillPanel, display: "flex", flexDirection: "column" }}>
                 <Box
                     sx={{
                         display: "flex",
@@ -345,7 +237,9 @@ const Approval: React.FC<ApprovalProps> = ({
                     height="100%"
                     tableMinWidth={980}
                     tableHead="Submitted User List"
-
+                    loading={isLoading}
+                    emptyTitle="No timesheets to approve"
+                    emptyDescription={`No submissions match the week starting ${weekStart}. Choose another week to review earlier or later submissions.`}
                 />
             </Box>
 

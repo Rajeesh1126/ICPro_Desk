@@ -18,6 +18,7 @@ import {
   errorPanelSx,
   errorTitleSx,
 } from "../styles/common";
+import { buildLoginPath, clearSession } from "../api/session";
 
 type ErrorCode = number | "network" | "generic";
 
@@ -26,7 +27,7 @@ type ErrorConfig = {
   title: string;
   message: string;
   icon: React.ReactNode;
-  primary: "dashboard" | "signin" | "retry" | "refresh";
+  primary: "dashboard" | "signin" | "retry" | "refresh" | "home";
   secondary?: "back" | "dashboard" | "home";
 };
 
@@ -62,7 +63,7 @@ const configs: Record<string, ErrorConfig> = {
     message:
       "The page may have been moved, renamed, or is no longer available.",
     icon: <SearchOffOutlinedIcon />,
-    primary: "retry",
+    primary: "home",
     secondary: "back",
   },
   "408": {
@@ -149,7 +150,7 @@ function actionLabel(
   return {
     back: "Go Back",
     dashboard: "Go to Dashboard",
-    home: "Return Home",
+    home: "Go to Home",
     refresh: "Refresh",
     retry: "Retry",
     signin: "Sign In",
@@ -166,12 +167,16 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
   const returnTo =
     requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
       ? requestedReturnTo
-      : "/Dashboard";
+      : "/Home";
 
   const runAction = (action: string) => {
     if (action === "back") navigate(-1);
-    if (action === "dashboard") navigate("/Dashboard");
-    if (action === "home" || action === "signin") navigate("/");
+    if (action === "dashboard") navigate("/Home/Dashboard");
+    if (action === "home") navigate("/Home");
+    if (action === "signin") {
+      clearSession();
+      navigate(buildLoginPath(requestedReturnTo, true));
+    }
     if (action === "retry") navigate(returnTo);
     if (action === "refresh") window.location.reload();
   };

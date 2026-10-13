@@ -1078,6 +1078,7 @@ class ApprovalDetailDataViewSet(viewsets.ViewSet):
                 'id': assigned_task.id,
                 'projectId': project.id if project else None,
                 'project': project.code if project and project.code else str(project or ''),
+                'description': project.description if project else '',
                 'task': task.name if task else (project.description if project else ''),
                 'budgetOwner': _display_name(assigned_task.assign_by),
                 'hours': [

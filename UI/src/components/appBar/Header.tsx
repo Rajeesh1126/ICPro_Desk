@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -33,30 +33,36 @@ import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { alpha, type Theme } from "@mui/material/styles";
 import logo from "../../assets/icpro_logo.svg";
 import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
 import api from "../../api/axios";
+import { sanitizeUserMessage } from "../../utils/errorUtils";
 import { showNotification } from "../../api/notificationService";
 import { useThemeMode } from "../../styles/theme/themeModeContext";
 import {
-  appBarHeaderAvatarSx1,
-  appBarHeaderBoxSx1,
-  appBarHeaderBoxSx2,
-  appBarHeaderBoxSx3,
-  appBarHeaderBoxSx4,
-  appBarHeaderCallbackCallbackSx1,
-  appBarHeaderCallbackCallbackSx2,
-  appBarHeaderCallbackCallbackSx3,
-  appBarHeaderCallbackCallbackSx4,
-  appBarHeaderCallbackCallbackSx5,
-  appBarHeaderCallbackCallbackSx6,
-  appBarHeaderContainerSx1,
-  appBarHeaderDynamicDynamicAppBarSx1,
-  appBarHeaderDynamicDynamicAvatarSx1,
-  appBarHeaderIconButtonSx1,
-  appBarHeaderIconButtonSx2,
+  headerAvatarSx,
+  headerLogoLinkSx,
+  headerLogoImageSx,
+  notificationEmptyStateSx,
+  notificationItemTextSx,
+  notificationMenuHeaderSx,
+  notificationMenuHeaderIconSx,
+  notificationMenuSelfTicketItemSx,
+  notificationMenuSelfTicketIconSx,
+  notificationMenuTicketItemSx,
+  notificationMenuTicketIconSx,
+  headerContainerSx,
+  appBarSx,
+  headerMenuButtonSx,
+  headerProfileButtonSx,
+  headerProfileChevronSx,
+  headerProfileTriggerNameSx,
+  headerProfileTriggerTextSx,
   appBarHeaderProfileBodySx,
   appBarHeaderProfileCardSx,
   appBarHeaderProfileDetailRowSx,
@@ -66,15 +72,17 @@ import {
   appBarHeaderProfileMetaSx,
   appBarHeaderProfileTextSx,
   appBarHeaderProfileValueSx,
-  appBarHeaderToolbarSx1,
-  appBarHeaderTypographySx3,
-  appBarHeaderTypographySx4,
+  headerToolbarSx,
+  profileUsernameSx,
+  profileTruncatedTextSx,
   dialogContentTop,
   marginTopMediumSx,
   marginTopSmallSx,
   pushRightSx,
 } from "../../styles/common";
 import type { NotificationsType } from "../../types/dataTypes";
+import { ELEVATION } from "../../styles/tokens";
+import { clearSession } from "../../api/session";
 
 const emptyNotifications: NotificationsType = {
   selfticketOpenCount: 0,
@@ -98,7 +106,7 @@ const coloredIconButtonSx =
   };
 
 const menuButtonSx = (theme: Theme) => ({
-  ...(appBarHeaderIconButtonSx1 as object),
+  ...(headerMenuButtonSx as object),
   ...coloredIconButtonSx("primary")(theme),
   alignItems: "center",
   alignSelf: "center",
@@ -111,11 +119,6 @@ const menuButtonSx = (theme: Theme) => ({
   },
 });
 
-const accountButtonSx = {
-  ...appBarHeaderIconButtonSx2,
-  "&&": { ml: 2 },
-};
-
 const notificationMenuPaperSx = (theme: Theme) => ({
   width: "min(360px, calc(100vw - 24px))",
   mt: 1.25,
@@ -124,10 +127,7 @@ const notificationMenuPaperSx = (theme: Theme) => ({
   border: "1px solid",
   borderColor: "divider",
   bgcolor: "background.paper",
-  boxShadow:
-    theme.palette.mode === "dark"
-      ? "0 18px 48px rgba(0, 0, 0, 0.42)"
-      : "0 18px 48px rgba(15, 23, 42, 0.14)",
+  boxShadow: theme.palette.mode === "dark" ? ELEVATION.dark.menu : ELEVATION.light.menu,
 });
 
 const profileMenuPaperSx = (theme: Theme) => ({
@@ -139,10 +139,7 @@ const profileMenuPaperSx = (theme: Theme) => ({
   border: "1px solid",
   borderColor: "divider",
   bgcolor: "background.paper",
-  boxShadow:
-    theme.palette.mode === "dark"
-      ? "0 18px 48px rgba(0, 0, 0, 0.42)"
-      : "0 18px 48px rgba(15, 23, 42, 0.14)",
+  boxShadow: theme.palette.mode === "dark" ? ELEVATION.dark.menu : ELEVATION.light.menu,
 });
 
 const menuListSx = { p: 0 };
@@ -162,11 +159,15 @@ type StoredRole = {
 type StoredUser = {
   id?: number;
   username?: string;
+  first_name?: string;
+  last_name?: string;
   full_name?: string;
   email?: string;
+  designation?: string;
+  reporting_to_first_name?: string;
+  reporting_to_last_name?: string;
   is_staff?: boolean;
-  groups?: string[];
-  role?: StoredRole[];
+  role?: string | StoredRole[];
 };
 
 function getStoredUser(): StoredUser {
@@ -182,6 +183,44 @@ function getStoredUser(): StoredUser {
   } catch {
     return {};
   }
+}
+
+/** One labelled line in the profile menu (icon, label, value). */
+function ProfileDetail({
+  icon,
+  color = "primary",
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  color?: "primary" | "secondary" | "info";
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box sx={appBarHeaderProfileDetailRowSx}>
+      <Box sx={appBarHeaderProfileInfoIconSx({ color })}>{icon}</Box>
+      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+        {label}
+      </Typography>
+      <Box sx={appBarHeaderProfileValueSx}>{children}</Box>
+    </Box>
+  );
+}
+
+/** Profile text value with a dash when the corresponding login field is empty. */
+function ProfileValue({ value }: { value?: string | null }) {
+  return (
+    <Typography
+      variant="body2"
+      fontWeight={600}
+      title={value || undefined}
+      sx={profileTruncatedTextSx}
+      color={value ? "text.primary" : "text.secondary"}
+    >
+      {value || "Not set"}
+    </Typography>
+  );
 }
 
 type ResponsiveAppBarProps = {
@@ -219,10 +258,10 @@ function isChangePasswordErrorResponse(
 
 function formatPasswordError(error?: string | string[]) {
   if (Array.isArray(error)) {
-    return error.join(" ");
+    return sanitizeUserMessage(error.join(" "));
   }
 
-  return error;
+  return error ? sanitizeUserMessage(error) : undefined;
 }
 
 export default function ResponsiveAppBar({
@@ -242,26 +281,18 @@ export default function ResponsiveAppBar({
   );
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // useEffect(() => {
-  //   let active = true;
-  //   void api
-  //     .get("/notifications/")
-  //     .then((response) => {
-  //       if (!active) return;
-  //       setNotifications(response.data ?? emptyNotifications);
-  //     })
-  //     .catch(() => undefined);
-  //   return () => {
-  //     active = false;
-  //   };
-  // }, []);
-
   const currentUser = getStoredUser();
+  const firstName = currentUser.first_name || localStorage.getItem("first_name") || "";
+  const lastName = currentUser.last_name || "";
   const loggedUser =
-    localStorage.getItem("first_name") ||
+    [firstName, lastName].filter(Boolean).join(" ") ||
     currentUser.full_name ||
     currentUser.username ||
     "";
+  const avatarInitials = [firstName, lastName]
+    .filter(Boolean)
+    .map((name) => name.charAt(0).toUpperCase())
+    .join("") || loggedUser.charAt(0).toUpperCase();
   const role =
     localStorage.getItem("role") ||
     (Array.isArray(currentUser.role)
@@ -270,9 +301,10 @@ export default function ResponsiveAppBar({
           .filter(Boolean)
           .join(", ")
       : "");
-  const userGroups = Array.isArray(currentUser.groups)
-    ? currentUser.groups
-    : [];
+  const reportingTo = [
+    currentUser.reporting_to_first_name,
+    currentUser.reporting_to_last_name,
+  ].filter(Boolean).join(" ");
 
   const totalNotifications =
     notifications.selfticketOpenCount + notifications.ticketOpenCount;
@@ -285,7 +317,7 @@ export default function ResponsiveAppBar({
   };
 
   const logout = () => {
-    localStorage.clear();
+    clearSession();
     setProfileAnchor(null);
     navigate("/", { replace: true });
   };
@@ -339,7 +371,9 @@ export default function ResponsiveAppBar({
     setChangingPassword(true);
     setPasswordErrors({});
     try {
-      await api.post("/users/change_password/", passwordForm);
+      await api.post("/users/change_password/", passwordForm, {
+        suppressGlobalError: true,
+      });
       showNotification({
         type: "success",
         message: "Password changed successfully. Please login again.",
@@ -356,13 +390,8 @@ export default function ResponsiveAppBar({
           formatPasswordError(errors.detail);
 
         if (generalError) {
-          showNotification({
-            type: "error",
-            message: generalError,
-          });
+          showNotification({ type: "error", message: sanitizeUserMessage(generalError) });
         }
-      } else {
-        throw error;
       }
     } finally {
       setChangingPassword(false);
@@ -374,16 +403,16 @@ export default function ResponsiveAppBar({
       position="sticky"
       color="inherit"
       elevation={0}
-      sx={appBarHeaderDynamicDynamicAppBarSx1}
+      sx={appBarSx}
     >
-      <Container maxWidth={false} sx={appBarHeaderContainerSx1}>
-        <Toolbar disableGutters sx={appBarHeaderToolbarSx1}>
-          <Box component={RouterLink} to="/Home" sx={appBarHeaderBoxSx1}>
+      <Container maxWidth={false} sx={headerContainerSx}>
+        <Toolbar disableGutters sx={headerToolbarSx}>
+          <Box component={RouterLink} to="/Home" sx={headerLogoLinkSx}>
             <Box
               component="img"
               src={logo}
               alt="ICPro"
-              sx={appBarHeaderBoxSx2}
+              sx={headerLogoImageSx}
             />
           </Box>
 
@@ -423,7 +452,7 @@ export default function ResponsiveAppBar({
                 }
                 onClick={toggleMode}
                 sx={coloredIconButtonSx(
-                  mode === "dark" ? "warning" : "secondary",
+                  mode === "dark" ? "warning" : "primary",
                 )}
               >
                 {mode === "dark" ? (
@@ -445,21 +474,38 @@ export default function ResponsiveAppBar({
                 onClick={(event) => setNotificationAnchor(event.currentTarget)}
                 sx={coloredIconButtonSx(totalNotifications ? "error" : "muted")}
               >
-                <Badge badgeContent={totalNotifications} color="error">
+                {totalNotifications > 0 ? (
+                  <Badge badgeContent={totalNotifications} color="error">
+                    <NotificationsOutlinedIcon />
+                  </Badge>
+                ) : (
                   <NotificationsOutlinedIcon />
-                </Badge>
+                )}
               </IconButton>
             </Tooltip>
-            <Tooltip title="Account">
-              <IconButton
+            <Tooltip title="Account settings">
+              <Button
+                id="account-menu-button"
                 aria-label="Account menu"
+                aria-controls={profileAnchor ? "account-menu" : undefined}
+                aria-expanded={profileAnchor ? "true" : undefined}
+                aria-haspopup="menu"
                 onClick={(event) => setProfileAnchor(event.currentTarget)}
-                sx={accountButtonSx}
+                endIcon={<KeyboardArrowDownRoundedIcon sx={headerProfileChevronSx(Boolean(profileAnchor))} />}
+                sx={headerProfileButtonSx(Boolean(profileAnchor))}
               >
-                <Avatar sx={appBarHeaderAvatarSx1}>
-                  {loggedUser?.charAt(0).toUpperCase()}
+                <Avatar sx={headerAvatarSx}>
+                  {avatarInitials}
                 </Avatar>
-              </IconButton>
+                <Stack spacing={0.125} sx={headerProfileTriggerTextSx}>
+                  <Typography variant="body2" sx={headerProfileTriggerNameSx}>
+                    {loggedUser || "Account"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={profileTruncatedTextSx}>
+                    {role || "Account settings"}
+                  </Typography>
+                </Stack>
+              </Button>
             </Tooltip>
           </Stack>
         </Toolbar>
@@ -479,7 +525,7 @@ export default function ResponsiveAppBar({
           list: { sx: menuListSx },
         }}
       >
-        <Box sx={appBarHeaderCallbackCallbackSx1({ alpha })}>
+        <Box sx={notificationMenuHeaderSx({ alpha })}>
           <Stack
             direction="row"
             alignItems="center"
@@ -500,16 +546,20 @@ export default function ResponsiveAppBar({
                   : "You are all caught up"}
               </Typography>
             </Box>
-            <Box sx={appBarHeaderCallbackCallbackSx2({ alpha })}>
-              <Badge badgeContent={totalNotifications} color="error">
+            <Box sx={notificationMenuHeaderIconSx({ alpha })}>
+              {totalNotifications > 0 ? (
+                <Badge badgeContent={totalNotifications} color="error">
+                  <NotificationsOutlinedIcon fontSize="small" />
+                </Badge>
+              ) : (
                 <NotificationsOutlinedIcon fontSize="small" />
-              </Badge>
+              )}
             </Box>
           </Stack>
         </Box>
         <Divider />
         {totalNotifications === 0 ? (
-          <Box sx={appBarHeaderBoxSx3}>
+          <Box sx={notificationEmptyStateSx}>
             <Typography fontWeight={800}>No notifications</Typography>
             <Typography
               variant="body2"
@@ -526,12 +576,12 @@ export default function ResponsiveAppBar({
               component={RouterLink}
               to="/Home/SelfTickets"
               onClick={() => setNotificationAnchor(null)}
-              sx={appBarHeaderCallbackCallbackSx3({ alpha })}
+              sx={notificationMenuSelfTicketItemSx({ alpha })}
             >
-              <Box sx={appBarHeaderCallbackCallbackSx4({ alpha })}>
+              <Box sx={notificationMenuSelfTicketIconSx({ alpha })}>
                 <FormatListBulletedOutlinedIcon fontSize="small" />
               </Box>
-              <Box minWidth={0} sx={appBarHeaderBoxSx4}>
+              <Box minWidth={0} sx={notificationItemTextSx}>
                 <Typography fontWeight={900} lineHeight={1.15}>
                   Do List
                 </Typography>
@@ -549,12 +599,12 @@ export default function ResponsiveAppBar({
               component={RouterLink}
               to="/Home/Tickets"
               onClick={() => setNotificationAnchor(null)}
-              sx={appBarHeaderCallbackCallbackSx5({ alpha })}
+              sx={notificationMenuTicketItemSx({ alpha })}
             >
-              <Box sx={appBarHeaderCallbackCallbackSx6({ alpha })}>
+              <Box sx={notificationMenuTicketIconSx({ alpha })}>
                 <TaskAltOutlinedIcon fontSize="small" />
               </Box>
-              <Box minWidth={0} sx={appBarHeaderBoxSx4}>
+              <Box minWidth={0} sx={notificationItemTextSx}>
                 <Typography fontWeight={900} lineHeight={1.15}>
                   Tickets
                 </Typography>
@@ -572,6 +622,7 @@ export default function ResponsiveAppBar({
       </Menu>
 
       <Menu
+        id="account-menu"
         anchorEl={profileAnchor}
         open={Boolean(profileAnchor)}
         onClose={() => setProfileAnchor(null)}
@@ -584,31 +635,30 @@ export default function ResponsiveAppBar({
           },
           list: {
             sx: menuListSx,
+            "aria-labelledby": "account-menu-button",
           },
         }}
       >
         <Box sx={appBarHeaderProfileBodySx}>
           <Box sx={appBarHeaderProfileCardSx({ alpha })}>
             <Box sx={appBarHeaderProfileHeaderSx}>
-              <Avatar sx={appBarHeaderDynamicDynamicAvatarSx1({ alpha })}>
-                {loggedUser?.charAt(0).toUpperCase()}
+              <Avatar sx={headerAvatarSx}>
+                {avatarInitials}
               </Avatar>
               <Stack spacing={0.5} sx={appBarHeaderProfileTextSx}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={appBarHeaderTypographySx3}
-                >
-                  {currentUser.username || "Signed in"}
+                <Typography variant="subtitle1" fontWeight={800} sx={profileTruncatedTextSx}>
+                  {loggedUser || "Signed in"}
                 </Typography>
-                <Typography fontWeight={800} sx={appBarHeaderTypographySx4}>
-                  {loggedUser?.toUpperCase()}
-                </Typography>
+                {currentUser.username && (
+                  <Typography variant="caption" color="text.secondary" sx={profileUsernameSx}>
+                    @{currentUser.username}
+                  </Typography>
+                )}
                 {currentUser.email && (
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={appBarHeaderTypographySx4}
+                    sx={profileTruncatedTextSx}
                   >
                     {currentUser.email}
                   </Typography>
@@ -620,8 +670,7 @@ export default function ResponsiveAppBar({
               <Box sx={appBarHeaderProfileDetailRowSx}>
                 <Box
                   sx={appBarHeaderProfileInfoIconSx({
-                    alpha,
-                    color: "secondary",
+                    color: "primary",
                   })}
                 >
                   <AdminPanelSettingsOutlinedIcon fontSize="small" />
@@ -637,47 +686,27 @@ export default function ResponsiveAppBar({
                   <Chip
                     label={role || "No roles assigned"}
                     size="small"
-                    color="secondary"
+                    color="primary"
+                    variant="outlined"
                   />
                 </Box>
               </Box>
 
-              <Box sx={appBarHeaderProfileDetailRowSx}>
-                <Box
-                  sx={appBarHeaderProfileInfoIconSx({ alpha, color: "info" })}
-                >
-                  <GroupsOutlinedIcon fontSize="small" />
-                </Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={900}
-                >
-                  Groups
-                </Typography>
-                <Stack
-                  direction="row"
-                  flexWrap="wrap"
-                  gap={0.75}
-                  sx={appBarHeaderProfileValueSx}
-                >
-                  {userGroups.length ? (
-                    userGroups.map((group) => (
-                      <Chip
-                        key={group}
-                        label={group}
-                        size="small"
-                        color="info"
-                        variant="outlined"
-                      />
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No groups assigned
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
+              <ProfileDetail icon={<BadgeOutlinedIcon fontSize="small" />} color="secondary" label="Designation">
+                <ProfileValue value={currentUser.designation} />
+              </ProfileDetail>
+
+              <ProfileDetail
+                icon={<SupervisorAccountOutlinedIcon fontSize="small" />}
+                color="secondary"
+                label="Reporting To"
+              >
+                <ProfileValue value={reportingTo} />
+              </ProfileDetail>
+
+              <ProfileDetail icon={<EmailOutlinedIcon fontSize="small" />} color="info" label="Email">
+                <ProfileValue value={currentUser.email} />
+              </ProfileDetail>
             </Stack>
 
             <Divider />
@@ -734,7 +763,6 @@ export default function ResponsiveAppBar({
               }
               fullWidth
               required
-              size="small"
               autoComplete="current-password"
               error={Boolean(passwordErrors.old_password)}
               helperText={formatPasswordError(passwordErrors.old_password)}
@@ -748,7 +776,6 @@ export default function ResponsiveAppBar({
               }
               fullWidth
               required
-              size="small"
               autoComplete="new-password"
               error={Boolean(passwordErrors.new_password)}
               helperText={formatPasswordError(passwordErrors.new_password)}
@@ -762,7 +789,6 @@ export default function ResponsiveAppBar({
               }
               fullWidth
               required
-              size="small"
               autoComplete="new-password"
               error={Boolean(passwordErrors.confirm_password)}
               helperText={formatPasswordError(passwordErrors.confirm_password)}

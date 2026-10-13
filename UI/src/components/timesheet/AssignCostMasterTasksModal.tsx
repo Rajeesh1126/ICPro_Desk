@@ -1,3 +1,4 @@
+import { INSET_X, INSET_Y } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
   Box,
@@ -217,13 +218,13 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
         >
           Assign Task To Project
           <Tooltip title="Close">
-            <IconButton size="small" onClick={onClose}>
+            <IconButton aria-label="Close dialog" size="small" onClick={onClose}>
               <CloseOutlinedIcon />
             </IconButton>
           </Tooltip>
         </Stack>
       </DialogTitle>
-      <DialogContent sx={{ height: 560, overflow: "auto", p: 2 }}>
+      <DialogContent sx={{ height: 560, overflow: "auto" }}>
         {loading ? (
           <Stack
             alignItems="center"
@@ -268,9 +269,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                     direction="row"
                     alignItems="center"
                     spacing={0.5}
-                    sx={{ px: 1, py: 0.75 }}
+                    sx={{ px: INSET_X, py: INSET_Y }}
                   >
-                    <IconButton
+                    <IconButton aria-label={`${expandedKeys.includes(projectKey) ? "Collapse" : "Expand"} ${project.code}`} aria-expanded={expandedKeys.includes(projectKey)}
                       size="small"
                       onClick={() => toggleExpanded(projectKey)}
                     >
@@ -322,7 +323,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                               alignItems="center"
                               spacing={0.5}
                             >
-                              <IconButton
+                              <IconButton aria-label={`${expandedKeys.includes(phaseKey) ? "Collapse" : "Expand"} ${phase.name}`} aria-expanded={expandedKeys.includes(phaseKey)}
                                 size="small"
                                 onClick={() => toggleExpanded(phaseKey)}
                               >
@@ -371,7 +372,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                         alignItems="center"
                                         spacing={0.5}
                                       >
-                                        <IconButton
+                                        <IconButton aria-label={`${expandedKeys.includes(categoryKey) ? "Collapse" : "Expand"} ${category.name ?? "category"}`} aria-expanded={expandedKeys.includes(categoryKey)}
                                           size="small"
                                           onClick={() =>
                                             toggleExpanded(categoryKey)

@@ -12,7 +12,7 @@ import {
 
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 
-import { alpha } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { TicketData } from "../../types/dataTypes";
 import { formatDate } from "../common/formatDate";
 import {
@@ -22,17 +22,18 @@ import {
   minWidthZeroSx,
   pushRightSx,
   secondaryTextSx,
-  ticketsBasicCardAvatarSx1,
-  ticketsBasicCardBoxSx1,
-  ticketsBasicCardBoxSx2,
-  ticketsBasicCardCardContentSx1,
-  ticketsBasicCardDividerSx1,
-  ticketsBasicCardDynamicDynamicCardSx1,
-  ticketsBasicCardDynamicDynamicChipSx1,
-  ticketsBasicCardDynamicDynamicTypographySx1,
-  ticketsBasicCardTypographySx1,
-  ticketsBasicCardTypographySx2,
-  ticketsBasicCardTypographySx3,
+  ticketCardAssigneeAvatarSx,
+  sharedCardMetaRowSx,
+  ticketCardTargetDateSx,
+  sharedCardContentSx,
+  sharedCardDividerSx,
+  ticketCardSx,
+  ticketCardPriorityChipSx,
+  ticketCardNumberSx,
+  ticketCardDateSx,
+  sharedCardTitleSx,
+  ticketCardDescriptionSx,
+  getPriorityCardStyles,
 } from "../../styles/common";
 
 interface BasicCardProps {
@@ -85,22 +86,10 @@ export default function BasicCardComponent({
   ticket,
   onOpen,
 }: BasicCardProps) {
+  const theme = useTheme();
   if (!ticket?.number) return null;
 
-  const getPriorityStyles = (priority: string | null | undefined) => {
-    switch (priority?.toLowerCase()) {
-      case "high":
-        return { color: "#d32f2f", bg: "#feebea", border: "#fcc7c3" };
-      case "medium":
-        return { color: "#d1a104", bg: "#fff4e5", border: "#ffe2b7" };
-      case "low":
-        return { color: "#2e7d32", bg: "#edf7ed", border: "#c8e6c9" };
-      default:
-        return { color: "#607d8b", bg: "#f5f5f5", border: "#e0e0e0" };
-    }
-  };
-
-  const styles = getPriorityStyles(ticket.priority);
+  const styles = getPriorityCardStyles(theme, ticket.priority);
   const hasAlarm = ticket.alarm === true;
   const highlighted = hasAlarm || isActiveDueTicket(ticket);
   const assignedInitials = ticket.assigned_to_name
@@ -116,9 +105,19 @@ export default function BasicCardComponent({
     <Card
       elevation={0}
       onClick={() => onOpen(ticket)}
-      sx={ticketsBasicCardDynamicDynamicCardSx1({ highlighted, styles })}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ticket ${ticket.number}${ticket.task ? `: ${ticket.task}` : ""}`}
+      onKeyDown={(event: React.KeyboardEvent) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen(ticket);
+            }
+          }}
+      sx={ticketCardSx({ highlighted, styles })}
     >
-      <CardContent sx={ticketsBasicCardCardContentSx1}>
+      <CardContent sx={sharedCardContentSx}>
         <Stack
           direction={{ xs: "row", sm: "row" }}
           justifyContent="space-between"
@@ -127,7 +126,7 @@ export default function BasicCardComponent({
           mb={1}
         >
           <Typography
-            sx={ticketsBasicCardDynamicDynamicTypographySx1({ styles })}
+            sx={ticketCardNumberSx({ styles })}
           >
             Ticket No #{ticket.number}
           </Typography>
@@ -147,30 +146,30 @@ export default function BasicCardComponent({
                 />
               </Tooltip>
             )}
-            <Typography sx={ticketsBasicCardTypographySx1}>
+            <Typography sx={ticketCardDateSx}>
               {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
             </Typography>
           </Stack>
         </Stack>
 
-        <Typography variant="h6" sx={ticketsBasicCardTypographySx2}>
+        <Typography variant="h6" sx={sharedCardTitleSx}>
           {ticket.task}
         </Typography>
 
-        <Typography variant="body2" sx={ticketsBasicCardTypographySx3}>
+        <Typography variant="body2" sx={ticketCardDescriptionSx}>
           {ticket.description}
         </Typography>
 
-        <Divider sx={ticketsBasicCardDividerSx1} />
+        <Divider sx={sharedCardDividerSx} />
 
-        <Box sx={ticketsBasicCardBoxSx1}>
+        <Box sx={sharedCardMetaRowSx}>
           <Stack
             direction="row"
             spacing={1}
             alignItems="center"
             sx={minWidthZeroSx}
           >
-            <Avatar sx={ticketsBasicCardAvatarSx1}>{assignedInitials}</Avatar>
+            <Avatar sx={ticketCardAssigneeAvatarSx}>{assignedInitials}</Avatar>
             <Box>
               <Typography sx={detailLabelSx}>Assigned</Typography>
               <Typography sx={detailValueSx}>
@@ -185,7 +184,7 @@ export default function BasicCardComponent({
             alignItems="center"
             sx={pushRightSx}
           >
-            <Box sx={ticketsBasicCardBoxSx2}>
+            <Box sx={ticketCardTargetDateSx}>
               <Typography sx={detailLabelSx}>Target date</Typography>
               <Typography sx={detailValueSx}>
                 {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
@@ -194,7 +193,7 @@ export default function BasicCardComponent({
             <Chip
               label={ticket.priority || "Normal"}
               size="small"
-              sx={ticketsBasicCardDynamicDynamicChipSx1({ alpha, styles })}
+              sx={ticketCardPriorityChipSx({ alpha, styles })}
             />
           </Stack>
         </Box>

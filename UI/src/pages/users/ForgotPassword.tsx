@@ -1,3 +1,4 @@
+import { useDocumentTitle } from "../../utils/useDocumentTitle";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
@@ -17,19 +18,23 @@ import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
 import api from "../../api/axios";
+import { getErrorStatus, sanitizeUserMessage } from "../../utils/errorUtils";
 import bgImage from "../../assets/taskmanagementloginimage.jpg";
 import logo from "../../assets/icpro_logo.svg";
 import {
-  loginDynamicPageDynamicBoxSx1,
-  loginPageBoxSx1,
-  loginPageButtonSx1,
-  loginPageCardContentSx1,
-  loginPageCardSx1,
-  loginPageCircularProgressSx1,
+  authPageBackgroundSx,
+  authLogoSx,
+  authSubmitButtonSx,
+  authCardContentSx,
+  authCardSx,
+  authSpinnerSx,
   marginBottomSectionSx,
 } from "../../styles/common";
 
+type ForgotPasswordResponse = { message?: string };
+
 export default function ForgotPassword() {
+  useDocumentTitle("Forgot password");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,27 +47,34 @@ export default function ForgotPassword() {
     setError("");
 
     try {
-      const response = await api.post("/users/forgot_password/", {
+      const response = await api.post<ForgotPasswordResponse>("/users/forgot_password/", {
         username,
         email,
       });
-      setMessage(
-        response.data?.message ||
-          "If the account details match, a password reset link has been sent.",
+      setMessage(sanitizeUserMessage(
+        response.data?.message,
+        "If the account details match, a password reset link has been sent.",
+      ));
+    } catch (requestError: unknown) {
+      const status = getErrorStatus(requestError);
+      setError(
+        status === 400
+          ? "Please check your username and email."
+          : status === 429
+            ? "Please wait a moment before trying again."
+            : "Unable to send the reset link. Please try again.",
       );
-    } catch {
-      setError("Unable to send reset link. Check username and email.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box sx={loginDynamicPageDynamicBoxSx1({ bgImage })}>
-      <Card sx={loginPageCardSx1}>
-        <CardContent sx={loginPageCardContentSx1}>
-          <Box component="img" src={logo} alt="ICPro" sx={loginPageBoxSx1} />
-          <Typography variant="h5" align="center">
+    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
+      <Card sx={authCardSx}>
+        <CardContent sx={authCardContentSx}>
+          <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
+          <Typography variant="h5" component="h1" align="center">
             Forgot Password
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 2 }}>
@@ -117,11 +129,11 @@ export default function ForgotPassword() {
               size="large"
               disabled={loading}
               startIcon={loading ? undefined : <ForwardToInboxOutlinedIcon />}
-              sx={loginPageButtonSx1}
+              sx={authSubmitButtonSx}
             >
               {loading ? (
                 <>
-                  <CircularProgress size={20} color="inherit" sx={loginPageCircularProgressSx1} />
+                  <CircularProgress size={20} color="inherit" sx={authSpinnerSx} />
                   Sending...
                 </>
               ) : (

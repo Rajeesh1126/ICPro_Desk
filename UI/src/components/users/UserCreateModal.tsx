@@ -1,29 +1,27 @@
-import { useEffect, useState } from "react";
+import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
   Button,
   Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   Grid,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   TextField,
-  Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../../api/axios";
+import { sanitizeUserMessage } from "../../utils/errorUtils";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
 import type {
   UsersFormData,
   rolesData,
@@ -32,7 +30,7 @@ import type {
 } from "../../types/dataTypes";
 import {
   dateFieldSx,
-  selfTicketsCreateModelFormControlLabelSx1,
+  formSwitchLabelSx,
 } from "../../styles/common";
 import { showNotification } from "../../api/notificationService";
 
@@ -83,9 +81,16 @@ export default function UserCreateModal({
 }: UserCreateModalProps) {
   const [formData, setFormData] = useState<UsersFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<Partial<UsersFormData>>();
-  const [users, setUsers] = useState<UsersData[]>([]);
-  const [roles, setRoles] = useState<rolesData[]>([]);
-  const [groups, setGroups] = useState<groupData[]>([]);
+  // Reference lists are cached and shared with the Users and Roles pages.
+  const usersQuery = useApiQuery<UsersData[]>("/users/", undefined, { enabled: open });
+  const rolesQuery = useApiQuery<rolesData[]>("/roles/", undefined, { enabled: open });
+  const groupsQuery = useApiQuery<groupData[]>("/groups/", undefined, { enabled: open });
+  const users = useMemo(
+    () => asArray<UsersData>(usersQuery.data).filter((user) => user.id !== loggedUser()),
+    [usersQuery.data],
+  );
+  const roles = useMemo(() => asArray<rolesData>(rolesQuery.data), [rolesQuery.data]);
+  const groups = useMemo(() => asArray<groupData>(groupsQuery.data), [groupsQuery.data]);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -115,60 +120,14 @@ export default function UserCreateModal({
     setFormErrorData({});
   }, [Data, open]);
 
-  // users Data
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    void api
-      .get("/users/")
-      .then((response) => {
-        if (!active) return;
-        const source = (
-          Array.isArray(response.data) ? response.data : []
-        ) as UsersData[];
-        setUsers(source.filter((user) => user.id !== loggedUser()));
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [open]);
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
 
-  // role Data
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    void api
-      .get("/roles/")
-      .then((response) => {
-        if (!active) return;
-        setRoles(response.data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [open]);
-
-  // Group Data
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    void api
-      .get("/groups/")
-      .then((response) => {
-        if (!active) return;
-        setGroups(response.data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [open]);
   const update = <K extends keyof UsersFormData>(
     field: K,
     value: UsersFormData[K],
   ) => {
+    discard.markDirty();
     setFormData((current) => ({ ...current, [field]: value }));
   };
 
@@ -201,6 +160,7 @@ export default function UserCreateModal({
       await api[Data ? "patch" : "post"](
         Data ? `/users/${Data.id}/` : "/users/",
         payload,
+        { suppressGlobalError: true },
       );
 
       handleClose();
@@ -214,8 +174,6 @@ export default function UserCreateModal({
     } catch (error: unknown) {
       if (isValidationErrorResponse(error) && error.response?.status === 400) {
         setFormErrorData(error.response.data);
-      } else {
-        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -225,10 +183,10 @@ export default function UserCreateModal({
   const errorText = (field: keyof UsersFormData) => {
     const error = formErrorData?.[field];
     if (Array.isArray(error)) {
-      return error.join(" ");
+      return sanitizeUserMessage(error.join(" "));
     }
     if (typeof error === "string") {
-      return error;
+      return sanitizeUserMessage(error);
     }
     return undefined;
   };
@@ -242,33 +200,17 @@ export default function UserCreateModal({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={loading ? undefined : discard.requestClose}
+      onChangeCapture={discard.markDirty}
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle component="div">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Box>
-            <Typography variant="h6">
-              {Data ? "Edit User" : "Create User"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Configure user account details.
-            </Typography>
-          </Box>
-          <IconButton
-            aria-label="Close"
-            onClick={handleClose}
-            disabled={loading}
-          >
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+      <DialogHeader
+        title={Data ? "Edit User" : "Create User"}
+        subtitle="Configure user account details."
+        onClose={discard.requestClose}
+        closeDisabled={loading}
+      />
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid size={{ xs: 6, sm: 6 }}>
@@ -425,7 +367,7 @@ export default function UserCreateModal({
                   }}
                 />
               }
-              sx={selfTicketsCreateModelFormControlLabelSx1}
+              sx={formSwitchLabelSx}
             />
           </Grid>
 
@@ -467,7 +409,7 @@ export default function UserCreateModal({
                   }
                 />
               }
-              sx={selfTicketsCreateModelFormControlLabelSx1}
+              sx={formSwitchLabelSx}
             />
           </Grid>
 
@@ -489,10 +431,11 @@ export default function UserCreateModal({
         </Grid>
       </DialogContent>
       <DialogActions>
+        <RequiredFieldsNote />
         <Button
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
-          onClick={handleClose}
+          onClick={discard.requestClose}
           disabled={loading}
         >
           Cancel
@@ -506,6 +449,7 @@ export default function UserCreateModal({
           {loading ? "Saving…" : Data ? "Update" : "Submit"}
         </Button>
       </DialogActions>
+      {discard.dialog}
     </Dialog>
   );
 }

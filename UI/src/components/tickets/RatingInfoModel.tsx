@@ -1,6 +1,6 @@
 import { Box, Dialog, DialogContent, DialogTitle, Grid, IconButton, Paper, Stack, Typography } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import { marginTopMediumSx, ticketsRatingInfoModelDynamicDynamicPaperSx1, ticketsRatingInfoModelPaperSx1, ticketsRatingInfoModelRatingDialogPaperSx, ticketsRatingInfoModelTypographySx2 } from "../../styles/common";
+import { marginTopMediumSx, ratingTileSx, ratingGuidePanelSx, ticketsRatingInfoModelRatingDialogPaperSx, ratingGuideTextSx } from "../../styles/common";
 
 const ratingData = [
   { score: 1, title: "Poor", description: "Did not meet objectives or consistently demonstrate core values." },
@@ -30,23 +30,23 @@ export default function RatingModal({ open, handleClose }: RatingModalProps) {
         <Grid container spacing={2}>
           {ratingData.map((item) => (
             <Grid key={item.score} size={{ xs: 12, sm: 6, lg: 2.4 }}>
-              <Paper variant="outlined" sx={ticketsRatingInfoModelDynamicDynamicPaperSx1({ item })}>
+              <Paper variant="outlined" sx={ratingTileSx({ item })}>
                 <Typography variant="h5" color="primary.main">{item.score}</Typography>
                 <Typography fontWeight={800} sx={marginTopMediumSx}>{item.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={ticketsRatingInfoModelTypographySx2}>{item.description}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={ratingGuideTextSx}>{item.description}</Typography>
               </Paper>
             </Grid>
           ))}
         </Grid>
-        <Grid container spacing={2} sx={ticketsRatingInfoModelTypographySx2}>
+        <Grid container spacing={2} sx={ratingGuideTextSx}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper variant="outlined" sx={ticketsRatingInfoModelPaperSx1}>
+            <Paper variant="outlined" sx={ratingGuidePanelSx}>
               <Typography fontWeight={800} gutterBottom>Parameters</Typography>
               <Typography variant="body2" color="text.secondary">Punctuality, quality, time management, completion against plan, and opportunities for improvement.</Typography>
             </Paper>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper variant="outlined" sx={ticketsRatingInfoModelPaperSx1}>
+            <Paper variant="outlined" sx={ratingGuidePanelSx}>
               <Typography fontWeight={800} gutterBottom>Core values</Typography>
               <Typography variant="body2" color="text.secondary">Innovation, teamwork, commitment, integrity, customer satisfaction, and responsibility.</Typography>
             </Paper>

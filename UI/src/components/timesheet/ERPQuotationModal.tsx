@@ -1,3 +1,4 @@
+import { INSET_X, INSET_Y } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
     Box,
@@ -166,7 +167,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                 },
             }}
         >
-            <DialogTitle sx={{ px: 3, py: 2 }}>
+            <DialogTitle>
                 <Stack
                     direction="row"
                     alignItems="center"
@@ -196,7 +197,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                             />
                         )}
                         <Tooltip title="Close">
-                            <IconButton size="small" onClick={handleClose}>
+                            <IconButton aria-label="Close dialog" size="small" onClick={handleClose}>
                                 <CloseOutlinedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
@@ -211,8 +212,8 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                     flexDirection: "column",
                     gap: 2,
                     overflow: "hidden",
-                    px: 3,
-                    py: 2,
+                    px: INSET_X,
+                    py: INSET_Y,
                 }}
             >
                 <Box

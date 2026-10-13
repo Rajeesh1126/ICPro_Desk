@@ -37,10 +37,8 @@ export function getSelfTicketAlertReason(
 export function getSelfTicketAlertMessage(ticket: SelfTicketData) {
   const reason = getSelfTicketAlertReason(ticket);
 
-  if (reason === "alarm") return "Alerting because reminder alarm is active.";
-  if (reason === "target-date") {
-    return "Alerting because target date over-due.";
-  }
+  if (reason === "alarm") return "Reminder active";
+  if (reason === "target-date") return "Overdue";
 
   return null;
 }

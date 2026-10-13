@@ -1,3 +1,4 @@
+import { useDiscardGuard } from "../common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -5,23 +6,19 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   Grid,
-  IconButton,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import api from "../../api/axios";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import { sanitizeUserMessage } from "../../utils/errorUtils";
+import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import type { rolesData } from "../../types/dataTypes";
-import {
-  marginTopSmallSx,
-} from "../../styles/common";
 import { showNotification } from "../../api/notificationService";
 
 type RoleModelProps = {
@@ -67,19 +64,20 @@ export default function RoleModel({
     setFormErrorData({});
   }, [Data, open]);
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
+
   const update = <K extends keyof RoleFormData>(
     field: K,
     value: RoleFormData[K],
-  ) => setFormData((current) => ({ ...current, [field]: value }));
+  ) => {
+    discard.markDirty();
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
 
   const submit = async () => {
     setLoading(true);
     try {
-      console.log("Role data:", {
-        id: Data?.id,
-        name: formData.name,
-        description: formData.description,
-      });
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== "id") {
@@ -89,7 +87,10 @@ export default function RoleModel({
       await api[Data ? "patch" : "post"](
         Data ? `/roles/${Data.id}/` : "/roles/",
         payload,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        {
+          suppressGlobalError: true,
+          headers: { "Content-Type": "multipart/form-data" },
+        },
       );
       handleClose();
       showNotification({
@@ -112,8 +113,6 @@ export default function RoleModel({
         setFormErrorData(
           error.response.data as Partial<Record<keyof RoleFormData, string>>,
         );
-      } else {
-        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -123,42 +122,21 @@ export default function RoleModel({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={loading ? undefined : discard.requestClose}
+      onChangeCapture={discard.markDirty}
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle component="div">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          gap={1.5}
-        >
-          <Box minWidth={0}>
-            <Typography variant="h6">
-              {editing ? "Edit Role" : "Create Role"}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={marginTopSmallSx}
-            >
-              {editing
-                ? "Update role details and permissions."
-                : "Create a new role and configure its permissions."}
-            </Typography>
-          </Box>
-
-          <IconButton
-            aria-label="Close"
-            onClick={handleClose}
-            disabled={loading}
-          >
-            {" "}
-            <CloseOutlinedIcon />{" "}
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+      <DialogHeader
+        title={editing ? "Edit Role" : "Create Role"}
+        subtitle={
+          editing
+            ? "Update role details and permissions."
+            : "Create a new role and configure its permissions."
+        }
+        onClose={discard.requestClose}
+        closeDisabled={loading}
+      />
 
       <DialogContent>
         <Stack spacing={2.25}>
@@ -177,7 +155,7 @@ export default function RoleModel({
                   value={formData.name}
                   onChange={(event) => update("name", event.target.value)}
                   error={!!formErrorData.name}
-                  helperText={formErrorData.name}
+                  helperText={formErrorData.name ? sanitizeUserMessage(formErrorData.name) : undefined}
                   disabled={loading}
                 />
               </Grid>
@@ -194,48 +172,23 @@ export default function RoleModel({
                     update("description", event.target.value)
                   }
                   error={!!formErrorData.description}
-                  helperText={formErrorData.description}
+                  helperText={formErrorData.description ? sanitizeUserMessage(formErrorData.description) : undefined}
                   disabled={loading}
                 />
               </Grid>
             </Grid>
           </Box>
           <Divider />
-
-          {/*<Box>
-                        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                            Permissions
-                        </Typography>
-
-                        <Typography variant="body2" color="text.secondary">
-                            Permission selection can be added here
-                            once the permission API/data structure is
-                            available.
-                        </Typography>
-                    </Box> */}
         </Stack>
       </DialogContent>
 
       <DialogActions>
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={0.75}
-          sx={{ flex: 1 }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Fields marked with{" "}
-            <Box component="span" sx={{ fontWeight: 700 }}>
-              *
-            </Box>{" "}
-            are required.
-          </Typography>
-        </Stack>
+        <RequiredFieldsNote />
 
         <Button
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
-          onClick={handleClose}
+          onClick={discard.requestClose}
           disabled={loading}
         >
           Cancel
@@ -251,6 +204,7 @@ export default function RoleModel({
           {loading ? "Saving..." : editing ? "Update" : "Submit"}
         </Button>
       </DialogActions>
+      {discard.dialog}
     </Dialog>
   );
 }

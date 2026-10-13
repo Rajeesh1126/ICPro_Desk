@@ -1,24 +1,7 @@
-//---------------DateTime Imports----------------------
-import dayjs from "dayjs";
- 
-// --------function to convert datetime date--------------
-export const formatDate = (date?: string | number | Date) => {
-  if (!date) return dayjs().format("DD-MM-YYYY HH:mm:ss");
- 
-  return dayjs(date, [
-    "YYYY-MM-DDTHH:mm",
-    "YYYY-MM-DDTHH:mm:ss",
-    "YYYY-MM-DD HH:mm:ss"
-  ]).format("DD-MM-YYYY");
-};
-
-// --------function to convert datetime--------------
-export const formatDateTime = (date?: string | number | Date) => {
-  if (!date) return dayjs().format("DD-MM-YYYY HH:mm:ss");
- 
-  return dayjs(date, [
-    "YYYY-MM-DDTHH:mm",
-    "YYYY-MM-DDTHH:mm:ss",
-    "YYYY-MM-DD HH:mm:ss"
-  ]).format("DD-MM-YYYY HH:mm:ss");
-};
+/**
+ * Date display helpers used across tables, cards and dialogs.
+ * They delegate to `utils/dateRange` so the whole app shows one format:
+ * "8 Oct 2026" and "8 Oct 2026, 14:22". Empty or invalid values render
+ * as "—" (never as the current date).
+ */
+export { formatDate, formatDateTime } from "../../utils/dateRange";

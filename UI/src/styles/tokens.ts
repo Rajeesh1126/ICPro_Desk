@@ -14,13 +14,34 @@ import type { PaletteMode } from "@mui/material";
 
 export const RADIUS = {
   none: 0,
-  xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
   full: "50%",
+} as const;
+
+/* -------------------------------------------------------------------------- */
+/* Spacing — one content inset for the whole app                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Standard content padding (theme spacing units: 1 = 8px).
+ * Horizontal 8px on phones / 12px from `sm`; vertical 4px / 8px.
+ * Use it for every container surface: page headers, panels, table toolbars
+ * and cells, cards, dialog header/body/footer, menus. Compact controls
+ * (chips, buttons, icon buttons, checkboxes) keep their own sizing.
+ */
+export const INSET_X = { xs: 1, sm: 1.5 } as const;
+export const INSET_Y = { xs: 0.5, sm: 1 } as const;
+export const insetSx = { px: INSET_X, py: INSET_Y } as const;
+
+/** Same inset in CSS pixels, for theme style overrides. */
+export const INSET_PX = {
+  xs: { x: 8, y: 4 },
+  sm: { x: 12, y: 8 },
 } as const;
 
 /** Radius as a CSS length string (e.g. `RADIUS_PX.md` -> "14px"). */
@@ -33,69 +54,6 @@ export const RADIUS_PX = {
   xl: `${RADIUS.xl}px`,
   pill: `${RADIUS.pill}px`,
   full: RADIUS.full,
-} as const;
-
-/* -------------------------------------------------------------------------- */
-/* Spacing (4px base scale)                                                    */
-/* -------------------------------------------------------------------------- */
-
-export const SPACING = {
-  none: 0,
-  xxs: 2,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
-} as const;
-
-/* -------------------------------------------------------------------------- */
-/* Border (hairline widths + translucent border tints)                         */
-/* -------------------------------------------------------------------------- */
-
-export const BORDER = {
-  hairline: 1,
-  thin: 1,
-  medium: 2,
-} as const;
-
-/* -------------------------------------------------------------------------- */
-/* Blur (backdrop-filter strengths)                                            */
-/* -------------------------------------------------------------------------- */
-
-export const BLUR = {
-  sm: 8,
-  md: 14,
-  lg: 24,
-} as const;
-
-/* -------------------------------------------------------------------------- */
-/* Transition (durations + easing)                                             */
-/* -------------------------------------------------------------------------- */
-
-export const TRANSITION = {
-  duration: {
-    shortest: 120,
-    shorter: 150,
-    short: 200,
-    standard: 250,
-  },
-  easing: {
-    standard: "cubic-bezier(0.4, 0, 0.2, 1)",
-    emphasized: "cubic-bezier(0.2, 0, 0, 1)",
-  },
-} as const;
-
-/* -------------------------------------------------------------------------- */
-/* Z-index (mirrors MUI defaults; kept here so styles never hardcode numbers)  */
-/* -------------------------------------------------------------------------- */
-
-export const Z_INDEX = {
-  drawer: 1200,
-  appBar: 1201,
-  modal: 1300,
-  tooltip: 1500,
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -153,12 +111,6 @@ export const ELEVATION = {
   },
 } as const;
 
-/** Translucent app-bar background (frosted header), light + dark. */
-export const APPBAR_BG: Record<PaletteMode, string> = {
-  light: "rgba(255, 255, 255, 0.96)",
-  dark: "rgba(24, 34, 49, 0.94)",
-};
-
 /** Login hero overlay gradient (layered over the background image). */
 export const HERO_OVERLAY =
   "linear-gradient(120deg, rgba(4, 39, 58, 0.78), rgba(20, 108, 148, 0.4))";
@@ -166,6 +118,22 @@ export const HERO_OVERLAY =
 /* -------------------------------------------------------------------------- */
 /* Colours — existing palette values, extracted verbatim                       */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Colour roles (60 : 30 : 10). The app is primary-led; pick colours by role,
+ * not by component.
+ *
+ * 60% Neutral   surface, surfaceRaised, border, textPrimary/Secondary.
+ *               Page and card backgrounds, body text, table cells, dividers,
+ *               and row-level actions (view/edit/download use the default
+ *               icon colour so they stay quieter than the record identifier).
+ * 30% Primary   accent* (palette.primary). Primary buttons, links, focus
+ *               rings, selected navigation/tabs/toggles, page-level icons.
+ * 10% Signal    One layer at a time: status (success/warning/danger/info and
+ *               STATUS_COLORS) for state, or secondary for rare emphasis
+ *               such as chart series and badges. Never use secondary for
+ *               selection, and always pair a status colour with text or an icon.
+ */
 
 interface ColorSet {
   /** App background. */
@@ -245,7 +213,9 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
   },
   dark: {
     surface: "#101722",
-    surfaceRaised: "#182231",
+    // A neutral raised surface keeps cards, the sidebar, and the app bar
+    // distinct without making the dark UI read as an accent-colour wash.
+    surfaceRaised: "#161D28",
     border: "rgba(174, 190, 208, 0.22)",
     textPrimary: "#EEF5FB",
     textSecondary: "#AAB8C8",
@@ -274,8 +244,10 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
     infoDark: "#2492B2",
     infoLight: "#6FCEE6",
     infoContrast: "#04141B",
-    actionHover: "rgba(65, 168, 185, 0.12)",
-    actionSelected: "rgba(65, 168, 185, 0.2)",
+    // Keep interaction feedback evident without washing dark surfaces in the
+    // accent colour.
+    actionHover: "rgba(65, 168, 185, 0.05)",
+    actionSelected: "rgba(65, 168, 185, 0.1)",
     actionDisabled: "#4E5A69",
     actionDisabledBackground: "rgba(170, 184, 200, 0.14)",
   },

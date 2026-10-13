@@ -39,9 +39,9 @@ import {
   getModalPalette,
   getPriorityPalette,
   modalFormIconSx,
-  selfTicketsDetailModelAvatarSx1,
-  selfTicketsDetailModelBoxSx1,
-  selfTicketsDetailModelButtonSx1,
+  doListDetailOwnerAvatarSx,
+  doListDetailOwnerRowSx,
+  doListDetailTabButtonSx,
   selfTicketsDetailModelDialogActionsSx,
   selfTicketsDetailModelDialogContentSx,
   selfTicketsDetailModelDialogPaperSx,
@@ -50,24 +50,24 @@ import {
   selfTicketsDetailModelCommentWrapperSx,
   selfTicketsDetailModelFooterButtonsSx,
   selfTicketsDetailModelFooterStackSx,
-  selfTicketsDetailModelDynamicDynamicBoxSx2,
-  selfTicketsDetailModelDynamicDynamicChipSx1,
-  selfTicketsDetailModelDynamicDynamiccommentBoxSx,
-  selfTicketsDetailModelDynamicDynamicStackSx1,
-  selfTicketsDetailModelDynamicDynamicTypographySx4,
-  selfTicketsDetailModelDynamicDynamicTypographySx5,
-  selfTicketsDetailModelIconButtonSx1,
+  doListDetailFieldSx,
+  doListDetailPriorityChipSx,
+  doListDetailCommentListSx,
+  doListDetailStatusPanelSx,
+  doListDetailFieldLabelSx,
+  doListDetailFieldValueSx,
+  doListDetailCloseButtonSx,
   selfTicketsDetailModelNoteBoxSx,
-  selfTicketsDetailModelTypographySx1,
-  selfTicketsDetailModelTypographySx2,
-  selfTicketsDetailModelTypographySx3,
-  selfTicketsDetailModelTypographySx6,
-  ticketsDetailModalCallbackCallbackSx4,
-  ticketsDetailModalDynamicDynamicBoxSx1,
-  ticketsDetailModalDynamicDynamicBoxSx2,
-  ticketsDetailModalDynamicDynamicTypographySx2,
-  ticketsDetailModalTypographySx2,
-  ticketsDetailModalTypographySx3,
+  doListDetailEyebrowSx,
+  doListDetailNumberSx,
+  doListDetailOwnerLabelSx,
+  doListCommentAuthorSx,
+  ticketDetailActivitySectionSx,
+  ticketDetailSummaryBannerSx,
+  ticketDetailDescriptionSx,
+  ticketDetailSummaryLabelSx,
+  detailSubjectSx,
+  detailDescriptionTextSx,
 } from "../../styles/common";
 import { formatDateTime } from "../common/formatDate";
 import { showNotification } from "../../api/notificationService";
@@ -120,7 +120,7 @@ export default function TicketDetailModal({
       if (payload?.comments) {
         requestBody.comments = payload.comments;
       }
-      const response = await api.patch(
+      const response = await api.patch<SelfTicketData>(
         `/self-tickets/${task.id}/?do_List=true`,
         requestBody,
       );
@@ -139,8 +139,7 @@ export default function TicketDetailModal({
       }
 
       return true;
-    } catch (error) {
-      console.error("Error closing Task:", error);
+    } catch {
       return false;
     }
   };
@@ -175,43 +174,43 @@ export default function TicketDetailModal({
                 <AssignmentOutlinedIcon fontSize="small" />
               </Box>
               <Box>
-                <Typography sx={selfTicketsDetailModelTypographySx1}>
+                <Typography sx={doListDetailEyebrowSx}>
                   Self task
                 </Typography>
                 <Typography
                   variant="h6"
                   fontWeight={900}
-                  sx={selfTicketsDetailModelTypographySx2}
+                  sx={doListDetailNumberSx}
                 >
                   {task.number}
                 </Typography>
                 <Chip
                   label={`${task.priority?.toUpperCase()} PRIORITY`}
                   size="small"
-                  sx={selfTicketsDetailModelDynamicDynamicChipSx1({ pStyle })}
+                  sx={doListDetailPriorityChipSx({ pStyle })}
                 />
               </Box>
             </Stack>
 
-            <Box sx={selfTicketsDetailModelBoxSx1}>
+            <Box sx={doListDetailOwnerRowSx}>
               {task.creator !== userId ? (
                 <Stack
                   direction="row"
                   spacing={1}
                   alignItems="center"
-                  sx={selfTicketsDetailModelDynamicDynamicStackSx1({
+                  sx={doListDetailStatusPanelSx({
                     alpha,
                     isDark,
                     theme,
                   })}
                 >
-                  <Avatar sx={selfTicketsDetailModelAvatarSx1}>
+                  <Avatar sx={doListDetailOwnerAvatarSx}>
                     {task.creator_name
                       ? task.creator_name.charAt(0).toUpperCase()
                       : "U"}
                   </Avatar>
                   <Box>
-                    <Typography sx={selfTicketsDetailModelTypographySx3}>
+                    <Typography sx={doListDetailOwnerLabelSx}>
                       Owner
                     </Typography>
                     <Typography sx={detailValueSx}>
@@ -222,10 +221,10 @@ export default function TicketDetailModal({
               ) : (
                 ""
               )}
-              <IconButton
+              <IconButton aria-label="Close dialog"
                 onClick={onClose}
                 size="small"
-                sx={selfTicketsDetailModelIconButtonSx1}
+                sx={doListDetailCloseButtonSx}
               >
                 <CloseOutlinedIcon fontSize="small" />
               </IconButton>
@@ -237,9 +236,9 @@ export default function TicketDetailModal({
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: task.logs?.length > 0 ? 8 : 12 }}>
               <Paper variant="outlined" sx={formSectionSx}>
-                <Box sx={ticketsDetailModalDynamicDynamicBoxSx1({ theme })}>
+                <Box sx={ticketDetailSummaryBannerSx({ theme })}>
                   <Typography
-                    sx={ticketsDetailModalDynamicDynamicTypographySx2({
+                    sx={ticketDetailSummaryLabelSx({
                       alpha,
                       detailLabelSx,
                       theme,
@@ -247,17 +246,17 @@ export default function TicketDetailModal({
                   >
                     Subject
                   </Typography>
-                  <Typography sx={ticketsDetailModalTypographySx2}>
+                  <Typography sx={detailSubjectSx}>
                     {task.task}
                   </Typography>
                 </Box>
                 <Typography sx={detailLabelSx}>Description</Typography>
                 <Box
-                  sx={ticketsDetailModalDynamicDynamicBoxSx2({ modalPalette })}
+                  sx={ticketDetailDescriptionSx({ modalPalette })}
                 >
                   <Typography
                     variant="body2"
-                    sx={ticketsDetailModalTypographySx3}
+                    sx={detailDescriptionTextSx}
                   >
                     {data.description}
                   </Typography>
@@ -301,21 +300,21 @@ export default function TicketDetailModal({
                   ].map(({ label, value, capitalize }) => (
                     <Grid key={label} size={{ xs: 6, sm: 6, md: 4 }}>
                       <Box
-                        sx={selfTicketsDetailModelDynamicDynamicBoxSx2({
+                        sx={doListDetailFieldSx({
                           alpha,
                           isDark,
                           theme,
                         })}
                       >
                         <Typography
-                          sx={selfTicketsDetailModelDynamicDynamicTypographySx4(
+                          sx={doListDetailFieldLabelSx(
                             { detailLabelSx },
                           )}
                         >
                           {label}
                         </Typography>
                         <Typography
-                          sx={selfTicketsDetailModelDynamicDynamicTypographySx5(
+                          sx={doListDetailFieldValueSx(
                             { capitalize, detailValueSx },
                           )}
                         >
@@ -332,7 +331,7 @@ export default function TicketDetailModal({
               <Grid size={{ xs: 12, md: 4 }}>
                 <Paper
                   variant="outlined"
-                  sx={ticketsDetailModalCallbackCallbackSx4({ formSectionSx })}
+                  sx={ticketDetailActivitySectionSx({ formSectionSx })}
                 >
                   <Typography
                     variant="h6"
@@ -343,7 +342,7 @@ export default function TicketDetailModal({
                   </Typography>
 
                   <Box
-                    sx={selfTicketsDetailModelDynamicDynamiccommentBoxSx({
+                    sx={doListDetailCommentListSx({
                       alpha,
                       isDark,
                       theme,
@@ -353,15 +352,12 @@ export default function TicketDetailModal({
                       <Box
                         key={log.id}
                         sx={selfTicketsDetailModelCommentWrapperSx({
-                          alpha,
-                          isDark,
-                          theme,
                           isCurrentUser: log.creator === userId,
                         })}
                       >
                         <Typography
                           variant="caption"
-                          sx={selfTicketsDetailModelTypographySx6}
+                          sx={doListCommentAuthorSx}
                         >
                           {log.creator_name || "User"}
                           <Box component="span" sx={{ mx: 0.75 }}>
@@ -485,7 +481,7 @@ export default function TicketDetailModal({
                 color="warning"
                 disabled={task.current_status === "closed"}
                 startIcon={<ChatBubbleOutlineOutlinedIcon />}
-                sx={selfTicketsDetailModelButtonSx1}
+                sx={doListDetailTabButtonSx}
               >
                 Comments
               </Button>
@@ -495,7 +491,7 @@ export default function TicketDetailModal({
                 color="warning"
                 disabled={["closed", "cancelled"].includes(task.current_status)}
                 startIcon={<EventRepeatOutlinedIcon />}
-                sx={selfTicketsDetailModelButtonSx1}
+                sx={doListDetailTabButtonSx}
               >
                 Revise Target Date
               </Button>

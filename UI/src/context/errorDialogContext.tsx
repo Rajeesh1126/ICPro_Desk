@@ -31,15 +31,12 @@ export const ErrorDialogProvider = ({
     const [message, setMessage] = useState("");
 
     const showError = (message: string, title = "Error") => {
-        // console.log("showError()", message);
         setTitle(title);
         setMessage(message);
         setOpen(true);
     };
 
-    // useEffect belongs INSIDE the component
     useEffect(() => {
-        // console.log("Registering error handler");
         registerErrorHandler(showError);
     }, []);
 

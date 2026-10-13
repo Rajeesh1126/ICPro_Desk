@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -22,6 +22,10 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
 import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import GroupsIcon from "@mui/icons-material/Groups";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -29,13 +33,18 @@ import {
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import CreateSelfTicketModel from "../../components/selfTickets/CreateModel";
 import TicketCardView from "../../components/common/CardView";
-import { shouldBlinkSelfTicket } from "../../components/selfTickets/highlight";
+import TableLoadingState from "../../components/common/TableLoadingState";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
+import { formatDate } from "../../components/common/formatDate";
+import { shouldBlinkSelfTicket, getSelfTicketAlertReason } from "../../components/selfTickets/highlight";
 import type {
   SelfTicketCollections,
   SelfTicketData,
   ReportingEmployees,
 } from "../../types/dataTypes";
 import api from "../../api/axios";
+import { asArray, useApiQuery } from "../../api/useApiQuery";
+import { useSessionState } from "../../utils/useSessionState";
 import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
 import {
   buttonLabelCompact,
@@ -57,11 +66,6 @@ import {
   toggleButton,
 } from "../../styles/common";
 
-const emptyCollections: SelfTicketCollections = {
-  all: [],
-  self: [],
-  others: [],
-};
 
 function loggedUser(): number | null {
   const value = localStorage.getItem("user");
@@ -73,57 +77,44 @@ function loggedUser(): number | null {
 export default function SelfTickets() {
   const userId = useMemo(() => loggedUser(), []);
   const [selectedUser, setSelectedUser] = useState("");
-  const [view, setView] = useState<"table" | "card">("card");
+  const [view, setView] = useSessionState<"table" | "card">(
+    "do-list:view",
+    "card",
+    (value): value is "table" | "card" => value === "table" || value === "card",
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<SelfTicketData | null>(null);
-  const [tabValue, setTabValue] = useState(0);
-  const [users, setUsers] = useState<ReportingEmployees[]>([]);
-  const [tickets, setTickets] =
-    useState<SelfTicketCollections>(emptyCollections);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [tabValue, setTabValue] = useSessionState(
+    "do-list:tab",
+    0,
+    (value): value is number => value === 0 || value === 1,
+  );
   const [acknowledgeTarget, setAcknowledgeTarget] =
     useState<SelfTicketData | null>(null);
   const [acknowledging, setAcknowledging] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/self-tickets/?do_List=true")
-      .then((response) => {
-        if (!active) return;
-        const all = (
-          Array.isArray(response.data) ? response.data : []
-        ) as SelfTicketData[];
-        setTickets({
-          self: all.filter((ticket) => ticket.creator === userId),
-          others: all.filter((ticket) => ticket.creator !== userId),
-          all,
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
+  // Cached Do List: both tabs come from one response, and a return visit
+  // renders immediately while refreshing in the background.
+  const ticketsQuery = useApiQuery<SelfTicketData[]>("/self-tickets/", {
+    do_List: true,
+  });
+  const tickets = useMemo<SelfTicketCollections>(() => {
+    const all = asArray<SelfTicketData>(ticketsQuery.data);
+    return {
+      self: all.filter((ticket) => ticket.creator === userId),
+      others: all.filter((ticket) => ticket.creator !== userId),
+      all,
     };
-  }, [userId, refreshKey]);
+  }, [ticketsQuery.data, userId]);
+  const loading = ticketsQuery.isPending;
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .get("/teams/")
-      .then((response) => {
-        // console.log(" response data Teams....",response.data)
-        if (!active) return;
-        const data = (
-          Array.isArray(response.data) ? response.data : []
-        ) as ReportingEmployees[];
-        setUsers(data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [userId]);
+  // Team list is reference data shared with Timesheet Logs (same cache entry).
+  const teamsQuery = useApiQuery<ReportingEmployees[]>("/teams/");
+  const users = useMemo(
+    () => asArray<ReportingEmployees>(teamsQuery.data),
+    [teamsQuery.data],
+  );
 
   const openCreate = useCallback(() => {
     setSelectedRow(null);
@@ -147,7 +138,6 @@ export default function SelfTickets() {
     setDialogOpen(false);
     setEditing(false);
     setSelectedRow(null);
-    setRefreshKey((key) => key + 1);
   }, []);
 
   const requestAcknowledgeAlarm = useCallback((ticket: SelfTicketData) => {
@@ -167,7 +157,8 @@ export default function SelfTickets() {
     try {
       await api.post(`/self-tickets/${ticket.id}/acknowledge-alarm/`);
       setAcknowledgeTarget(null);
-      setRefreshKey((key) => key + 1);
+    } catch {
+      // The shared request error dialog explains the failure.
     } finally {
       setAcknowledging(false);
     }
@@ -183,32 +174,33 @@ export default function SelfTickets() {
       },
       {
         label: "Task Number",
-        width: 230,
+        // This cell contains three action icons and the task number. Reserve
+        // enough fixed-table width for an active reminder bell as well.
+        width: 280,
         render: (row) => (
-          <Box sx={inlineCenterGapSx}>
+          <Box sx={{ ...inlineCenterGapSx, flexWrap: "nowrap" }}>
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
                 size="small"
                 onClick={() => openDetails(row)}
               >
-                <VisibilityOutlinedIcon fontSize="small" color="primary" />
+                <VisibilityOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit task">
-              <IconButton
+              <span><IconButton
                 aria-label={`Edit ${row.number}`}
                 size="small"
-                color="secondary"
                 onClick={() => openEdit(row)}
                 disabled={
                   row.creator !== userId || row.current_status !== "open"
                 }
               >
                 <EditOutlinedIcon fontSize="small" />
-              </IconButton>
+              </IconButton></span>
             </Tooltip>
-            <Typography variant="body2">{row.number}</Typography>
+            <Typography variant="body2" fontWeight={700}>{row.number}</Typography>
             {row.alarm && (
               <Tooltip title="Acknowledge reminder">
                 <IconButton
@@ -227,7 +219,30 @@ export default function SelfTickets() {
       { label: "Subject", dataKey: "task", width: 350  },
       { label: "Owner", dataKey: "creator_name" },
       { label: "Status", dataKey: "current_status" },
-      { label: "Due Date", dataKey: "target_date" },
+      {
+        label: "Due Date",
+        dataKey: "target_date",
+        render: (row) => {
+          const overdue = getSelfTicketAlertReason(row) === "target-date";
+          return (
+            <Box sx={inlineCenterGapSx}>
+              <Typography variant="body2">
+                {row.target_date ? formatDate(row.target_date) : "N/A"}
+              </Typography>
+              {overdue && (
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, color: "error.main", fontWeight: 700 }}
+                >
+                  <EventBusyOutlinedIcon sx={{ fontSize: 14 }} aria-hidden="true" />
+                  Overdue
+                </Typography>
+              )}
+            </Box>
+          );
+        },
+      },
       { label: "Type", dataKey: "type" },
       { label: "Priority", dataKey: "priority" },
       { label: "Est Hrs", dataKey: "est_hours" },
@@ -236,9 +251,12 @@ export default function SelfTickets() {
         width: 120,
         render: (row) =>
           row.alarm ? (
-            <Typography color="warning.main" fontWeight={700} fontSize={13}>
-              Active
-            </Typography>
+            <Box sx={inlineCenterGapSx}>
+              <NotificationsActiveOutlinedIcon color="warning" fontSize="small" aria-hidden="true" />
+              <Typography color="warning.main" fontWeight={700} fontSize={13}>
+                Active
+              </Typography>
+            </Box>
           ) : (
             <Box sx={inlineCenterGapSx}>
               <NotificationsOffOutlinedIcon color="disabled" fontSize="small" />
@@ -256,18 +274,26 @@ export default function SelfTickets() {
 
   const filteredRows = useMemo(
     () =>
-      activeRows.filter(
+      [...activeRows.filter(
         (ticket) => !selectedUser || ticket.creator === Number(selectedUser),
-      ),
+      )].sort((left, right) => {
+        const urgency = (ticket: SelfTicketData) => {
+          const reason = getSelfTicketAlertReason(ticket);
+          if (reason === "target-date") return 0;
+          if (reason === "alarm") return 1;
+          return 2;
+        };
+        return urgency(left) - urgency(right);
+      }),
     [activeRows, selectedUser],
   );
 
   return (
     <Box sx={page}>
-      <Box component="main" sx={pageContent}>
+      <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" sx={pageTitle}>Do List</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>Do List</Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Organize personal actions, reminders, and follow-ups.
             </Typography>
@@ -278,7 +304,7 @@ export default function SelfTickets() {
             sx={pageHeaderActions}
           >
             {tabValue !== 0 && (
-              <FormControl sx={filterField}>
+              <FormControl size="small" sx={[filterField, { flex: { xs: "1 1 140px", sm: "0 0 auto" }, minWidth: { xs: 0, sm: 210 } }]}>
                 <InputLabel>Employee</InputLabel>
                 <Select
                   value={selectedUser}
@@ -345,13 +371,23 @@ export default function SelfTickets() {
             allowScrollButtonsMobile
             sx={tabs}
           >
-            <Tab label={`My Do List (${tickets.self.length})`} />
-            <Tab label={`My Teams Do List (${tickets.others.length})`} />
+            <Tab
+              icon={tabValue === 0 ? <AssignmentTurnedInIcon /> : <AssignmentTurnedInOutlinedIcon />}
+              iconPosition="start"
+              label={`My Do List (${tickets.self.length})`}
+            />
+            <Tab
+              icon={tabValue === 1 ? <GroupsIcon /> : <GroupsOutlinedIcon />}
+              iconPosition="start"
+              label={`My Teams Do List (${tickets.others.length})`}
+            />
           </Tabs>
         </Box>
 
         <Box sx={tablePageContent}>
-          {view === "card" ? (
+          {view === "card" && loading ? (
+            <TableLoadingState variant="cards" label="Loading tasks" />
+          ) : view === "card" ? (
             <TicketCardView
               data={filteredRows}
               onCardClick={openDetails}
@@ -372,6 +408,9 @@ export default function SelfTickets() {
                   : undefined
               }
               tableHead="Tasks"
+              loading={loading}
+              emptyTitle="No tasks in this view"
+              emptyDescription="Add a task or reminder to start your Do List."
             />
           )}
         </Box>

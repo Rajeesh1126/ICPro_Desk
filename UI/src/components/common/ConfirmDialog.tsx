@@ -12,6 +12,7 @@ import type { ButtonProps } from "@mui/material/Button";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import {
   confirmDialogContentSx,
+  confirmDialogActionsSx,
   confirmDialogHeaderSx,
   confirmDialogPaperSx,
   confirmDialogRootSx,
@@ -30,6 +31,7 @@ export type ConfirmDialogProps = {
   children?: ReactNode;
   titleIcon?: ReactNode;
   titleAdornment?: ReactNode;
+  cancelLabel?: string;
   confirmLabel: string;
   confirmColor?: ButtonProps["color"];
   confirmIcon?: ReactNode;
@@ -46,6 +48,7 @@ export default function ConfirmDialog({
   children,
   titleIcon,
   titleAdornment,
+  cancelLabel = "Cancel",
   confirmLabel,
   confirmColor = "primary",
   confirmIcon,
@@ -84,13 +87,13 @@ export default function ConfirmDialog({
         )}
         {children}
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={confirmDialogActionsSx}>
         <Button
           onClick={onClose}
           variant="outlined"
           startIcon={<CancelOutlinedIcon />}
         >
-          Cancel
+          {cancelLabel}
         </Button>
         <Button
           onClick={onConfirm}

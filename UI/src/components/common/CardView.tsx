@@ -15,16 +15,16 @@ import BasicCardComponent from "../tickets/BasicCard";
 import BasicCardSelfTicket from "../selfTickets/BasicCard";
 import { shouldBlinkSelfTicket } from "../selfTickets/highlight";
 import {
-  cardViewBoxSx1,
+  boardColumnListSx,
   cardViewCollapseSx,
   cardViewExpandIcon,
-  cardViewBoxSx2,
-  cardViewBoxSx3,
-  cardViewDynamicDynamicBoxSx1,
-  cardViewDynamicDynamicActionRequiredSx1,
-  cardViewDynamicDynamicChipSx1,
-  cardViewDynamicDynamicStackSx1,
-  cardViewTypographySx1,
+  boardColumnsSx,
+  boardColumnsSelfSx,
+  boardColumnSx,
+  boardColumnActionRequiredChipSx,
+  boardColumnCountChipSx,
+  boardColumnHeaderSx,
+  boardColumnEmptyTextSx,
   getStatusColor,
 } from "../../styles/common";
 
@@ -71,7 +71,7 @@ function TicketColumn({
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      sx={cardViewDynamicDynamicStackSx1({ accent })}
+      sx={boardColumnHeaderSx({ accent })}
     >
       <Typography fontWeight={800}>{title}</Typography>
       <Stack direction="row" spacing={0.75} alignItems="center">
@@ -79,20 +79,20 @@ function TicketColumn({
           <Chip
             label="Action Required"
             size="small"
-            sx={cardViewDynamicDynamicActionRequiredSx1({ accent, alpha })}
+            sx={boardColumnActionRequiredChipSx({ accent, alpha })}
           />
         )}
         <Chip
           label={count}
           size="small"
-          sx={cardViewDynamicDynamicChipSx1({ accent, alpha })}
+          sx={boardColumnCountChipSx({ accent, alpha })}
         />
         {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}
       </Stack>
     </Stack>
   );
   return (
-    <Box sx={cardViewDynamicDynamicBoxSx1({ alpha }, expanded)}>
+    <Box sx={boardColumnSx({ alpha }, expanded)}>
       {isSmallScreen ? (
         <ButtonBase
           id={headerId}
@@ -121,13 +121,13 @@ function TicketColumn({
             id={panelId}
             role="region"
             aria-labelledby={headerId}
-            sx={cardViewBoxSx1(cardType)}
+            sx={boardColumnListSx(cardType)}
           >
             {children}
           </Box>
         </Collapse>
       ) : (
-        <Box sx={cardViewBoxSx1(cardType)}>{children}</Box>
+        <Box sx={boardColumnListSx(cardType)}>{children}</Box>
       )}
     </Box>
   );
@@ -139,7 +139,7 @@ function EmptyColumn() {
       align="center"
       color="text.secondary"
       variant="body2"
-      sx={cardViewTypographySx1}
+      sx={boardColumnEmptyTextSx}
     >
       No tickets in this stage
     </Typography>
@@ -192,7 +192,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
       },
     ];
     return (
-      <Box sx={cardViewBoxSx2}>
+      <Box sx={boardColumnsSx}>
         {columns.map((column) => (
           <TicketColumn
             key={column.title}
@@ -238,7 +238,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
     },
   ];
   return (
-    <Box sx={cardViewBoxSx3}>
+    <Box sx={boardColumnsSelfSx}>
       {columns.map((column) => (
         <TicketColumn
           key={column.title}

@@ -1,3 +1,4 @@
+import { insetSx } from "../../styles/tokens";
 import React, { useState } from "react";
 import {
   Box,
@@ -158,7 +159,7 @@ export default function RatingsDistribution({
           <Grid container spacing={1.2}>
             {ratings.map((rating) => (
               <Grid size={{ xs: 12, sm: 6, lg: 2.4 }} key={rating.title}>
-                <Paper variant="outlined" sx={{ height: "100%", p: 2, textAlign: "center" }}>
+                <Paper variant="outlined" sx={{ height: "100%", ...insetSx, textAlign: "center" }}>
                   <Box
                     sx={{
                       display: "flex",
@@ -184,13 +185,13 @@ export default function RatingsDistribution({
 
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper variant="outlined" sx={{ p: 2, height: "100%" }}>
+              <Paper variant="outlined" sx={{ ...insetSx, height: "100%" }}>
                 <Typography fontWeight={800} gutterBottom>Parameters</Typography>
                 {bulletText(parameters)}
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper variant="outlined" sx={{ p: 2, height: "100%" }}>
+              <Paper variant="outlined" sx={{ ...insetSx, height: "100%" }}>
                 <Typography fontWeight={800} gutterBottom>Core values</Typography>
                 {bulletText(coreValues)}
               </Paper>

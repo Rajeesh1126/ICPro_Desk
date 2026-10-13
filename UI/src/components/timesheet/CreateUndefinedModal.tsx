@@ -1,3 +1,4 @@
+import { useDiscardGuard } from "../common/useDiscardGuard";
 import React, { useState } from "react";
 import {
   Dialog,
@@ -101,6 +102,9 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
     onClose();
   };
 
+  // Ask before discarding typed input (backdrop, Escape, X, Cancel).
+  const discard = useDiscardGuard(open, handleClose);
+
   const clearError = (field: keyof FormErrors) => {
     setFormErrorData((current) => ({ ...current, [field]: undefined }));
   };
@@ -108,7 +112,8 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={discard.requestClose}
+      onChangeCapture={discard.markDirty}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -128,17 +133,18 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
           padding: "0 16px",
           fontSize: "20px",
           fontWeight: 600,
-          color: "#555",
-          borderBottom: "1px solid #ddd",
+          color: "text.primary",
+          borderBottom: "1px solid",
+          borderColor: "divider",
         }}
       >
         Undefined Jobs
 
-        <IconButton
-          onClick={handleClose}
+        <IconButton aria-label="Close dialog"
+          onClick={discard.requestClose}
           size="small"
           sx={{
-            color: "#777",
+            color: "text.secondary",
           }}
         >
           <CloseOutlinedIcon />
@@ -170,7 +176,6 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
             }}
             error={!!formErrorData.description}
             helperText={formErrorData.description}
-            size="small"
           />
 
           {/* Customer Name */}
@@ -185,7 +190,6 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
             }}
             error={!!formErrorData.customerName}
             helperText={formErrorData.customerName}
-            size="small"
           />
 
           {/* Job Number */}
@@ -200,13 +204,12 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
             }}
             error={!!formErrorData.jobNumber}
             helperText={formErrorData.jobNumber}
-            size="small"
           />
 
           {/* Note */}
           <Typography
             sx={{
-              color: "#f44336",
+              color: "error.main",
               fontSize: "13px",
               marginTop: "-5px",
             }}
@@ -230,10 +233,10 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
               startIcon={submitting ? undefined : <SendOutlinedIcon />}
               sx={{
                 textTransform: "none",
-                backgroundColor: "#55b3d2",
+                backgroundColor: "primary.main",
                 fontSize: "15px",
                 "&:hover": {
-                  backgroundColor: "#46a8c8",
+                  backgroundColor: "primary.dark",
                 },
               }}
             >
@@ -242,6 +245,7 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
           </Box>
         </Box>
       </DialogContent>
+      {discard.dialog}
     </Dialog>
   );
 };
