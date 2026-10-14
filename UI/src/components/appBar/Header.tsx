@@ -685,7 +685,6 @@ export default function ResponsiveAppBar({
                 <Box sx={appBarHeaderProfileValueSx}>
                   <Chip
                     label={role || "No roles assigned"}
-                    size="small"
                     color="primary"
                     variant="outlined"
                   />

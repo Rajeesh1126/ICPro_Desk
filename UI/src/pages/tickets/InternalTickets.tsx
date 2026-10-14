@@ -195,7 +195,6 @@ export default function InternalTickets() {
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
                 onClick={() => openDetails(row)}
               >
                 <VisibilityOutlinedIcon fontSize="small" />
@@ -204,7 +203,6 @@ export default function InternalTickets() {
             <Tooltip title="Edit ticket">
               <span><IconButton
                 aria-label={`Edit ${row.number}`}
-                size="small"
                 onClick={() => openEdit(row)}
                 disabled={
                   row.creator !== userId ||
@@ -286,7 +284,6 @@ export default function InternalTickets() {
             <ToggleButtonGroup
               exclusive
               value={view}
-              size="small"
               onChange={(_, next: "table" | "card" | null) => {
                 if (!next) return;
                 setView(next);
@@ -315,13 +312,16 @@ export default function InternalTickets() {
           </Stack>
         </Box>
 
-        {tabValue === 0 && createAccessChecked && !canOpenCreate && (
-          <Alert severity="info" variant="outlined" sx={{ mx: { xs: 1.5, sm: 0 }, mb: 1 }}>
-            New internal tickets need a department you manage and at least one immediate
-            reportee. Ask an administrator to update your team setup.
-          </Alert>
-        )}
+        
         <Box sx={tabsContainer}>
+
+          {tabValue === 0 && createAccessChecked && !canOpenCreate && (
+            <Alert severity="info" variant="outlined" sx={{ px: 1, py: 0, mb: 1 }}>
+              New internal tickets need a department you manage and at least one immediate
+              reportee. Ask an administrator to update your team setup.
+            </Alert>
+          )}
+
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => {

@@ -19,7 +19,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
-import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 import api from "../../api/axios";
@@ -28,9 +28,7 @@ import FileUploadField from "../../components/common/FileUploadField";
 import { showNotification } from "../../api/notificationService";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import DialogHeader from "../../components/common/DialogHeader";
-import {
-  type ColumnData,
-} from "../../components/common/TableView";
+import { type ColumnData } from "../../components/common/TableView";
 import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
 import {
   buttonLabelCompact,
@@ -47,6 +45,7 @@ import {
   deleteIconSx,
 } from "../../styles/common";
 import { formatDateTime } from "../../components/common/formatDate";
+import { getStoredPermissions } from "../../utils/permissions";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
@@ -103,12 +102,17 @@ const getFileName = (filePath: string | null) => {
 const resolveFileUrl = (filePath: string) => {
   if (/^https?:\/\//i.test(filePath)) return filePath;
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL || window.location.origin;
   const baseUrl = new URL(apiBaseUrl, window.location.origin).origin;
   return new URL(filePath, baseUrl).toString();
 };
 
 export default function LessonLearnt() {
+  const permissions = getStoredPermissions();
+  const canAddLesson = permissions.has("add_lessonlearnt");
+  const canChangeLesson = permissions.has("change_lessonlearnt");
+  const canDeleteLesson = permissions.has("delete_lessonlearnt");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(
     null,
@@ -123,7 +127,10 @@ export default function LessonLearnt() {
   // refreshes in the background. Successful saves/deletes refresh it
   // automatically (see invalidateAfterMutation), so dialogs never reload it.
   const listQuery = useApiQuery<LessonLearntRow[]>("/documents/lesson-learnt/");
-  const lessons = useMemo(() => asArray<LessonLearntRow>(listQuery.data), [listQuery.data]);
+  const lessons = useMemo(
+    () => asArray<LessonLearntRow>(listQuery.data),
+    [listQuery.data],
+  );
   const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
@@ -253,7 +260,7 @@ export default function LessonLearnt() {
       {
         label: "Project",
         dataKey: "project",
-        width: 180,
+        width: 280,
       },
       {
         label: "Category",
@@ -263,7 +270,7 @@ export default function LessonLearnt() {
       {
         label: "Event",
         dataKey: "event",
-        width: 300,
+        width: "auto",
       },
       {
         label: "Actions Taken",
@@ -295,41 +302,44 @@ export default function LessonLearnt() {
         label: "Actions",
         width: 120,
         render: (row) => (
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Edit lesson">
-              <IconButton
-                aria-label="Edit lesson"
-                size="small"
-                color="primary"
-                onClick={() => openEditDialog(row)}
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={0}>
+            {canChangeLesson && (
+              <Tooltip title="Edit lesson">
+                <IconButton
+                  aria-label="Edit lesson"
+                  color="primary"
+                  onClick={() => openEditDialog(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="Download attachment">
-              <span><IconButton
-                aria-label="Download lesson attachment"
-                size="small"
-                disabled={!row.file}
-                onClick={() => downloadFile(row)}
-              >
-                <DownloadOutlinedIcon fontSize="small" />
-              </IconButton></span>
+              <span>
+                <IconButton
+                  aria-label="Download lesson attachment"
+                  disabled={!row.file}
+                  onClick={() => downloadFile(row)}
+                >
+                  <DownloadOutlinedIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete lesson">
-              <IconButton
-                aria-label="Delete lesson"
-                size="small"
-                onClick={() => setDeleteLesson(row)}
-              >
-                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canDeleteLesson && (
+              <Tooltip title="Delete lesson">
+                <IconButton
+                  aria-label="Delete lesson"
+                  onClick={() => setDeleteLesson(row)}
+                >
+                  <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       },
     ],
-    [],
+    [canChangeLesson, canDeleteLesson],
   );
   const primaryColumns = useMemo(
     () =>
@@ -355,21 +365,29 @@ export default function LessonLearnt() {
       <Box sx={pageContent}>
         <Box sx={pageHeader}>
           <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>Lessons Learned</Typography>
+            <Typography variant="h5" component="h1" sx={pageTitle}>
+              Lessons Learned
+            </Typography>
             <Typography variant="body2" sx={pageSubtitle}>
               Capture project execution learning and shared experience.
             </Typography>
           </Box>
-          <Box sx={pageHeaderActions}>
-            <Button
-              variant="contained"
-              startIcon={<AddOutlinedIcon />}
-              onClick={openCreateDialog}
-            >
-              <Box component="span" sx={buttonLabelFull}>Add Lesson</Box>
-              <Box component="span" sx={buttonLabelCompact}>Add</Box>
-            </Button>
-          </Box>
+          {canAddLesson && (
+            <Box sx={pageHeaderActions}>
+              <Button
+                variant="contained"
+                startIcon={<AddOutlinedIcon />}
+                onClick={openCreateDialog}
+              >
+                <Box component="span" sx={buttonLabelFull}>
+                  Add Lesson
+                </Box>
+                <Box component="span" sx={buttonLabelCompact}>
+                  Add
+                </Box>
+              </Button>
+            </Box>
+          )}
         </Box>
 
         <Box sx={contentPanel}>
@@ -381,7 +399,7 @@ export default function LessonLearnt() {
             getRowId={(row) => row.id}
             height="100%"
             tableMinWidth={900}
-            tableHead="Lessons Learned"
+            tableHead=""
             loading={loading}
             emptyTitle="No lessons recorded yet"
             emptyDescription="Add a lesson to share what the team learned on a project."
@@ -389,7 +407,13 @@ export default function LessonLearnt() {
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="md">
+      <Dialog
+        open={dialogOpen}
+        onClose={discard.requestClose}
+        onChangeCapture={discard.markDirty}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogHeader
           title={editingLesson ? "Update Lesson" : "Add Lesson"}
           icon={<PsychologyAltOutlinedIcon />}
@@ -466,7 +490,9 @@ export default function LessonLearnt() {
             <FileUploadField
               file={form.file}
               onChange={(file) => updateForm("file", file)}
-              existingFileName={editingLesson?.file ? getFileName(editingLesson.file) : null}
+              existingFileName={
+                editingLesson?.file ? getFileName(editingLesson.file) : null
+              }
               buttonLabel="Attach File"
             />
           </Stack>
@@ -488,11 +514,11 @@ export default function LessonLearnt() {
               saving ? undefined : editingLesson ? (
                 <UpdateOutlinedIcon />
               ) : (
-                <SaveOutlinedIcon />
+                <SendOutlinedIcon />
               )
             }
           >
-            {saving ? "Saving..." : editingLesson ? "Update" : "Save"}
+            {saving ? "Saving..." : editingLesson ? "Update" : "Submit"}
           </Button>
         </DialogActions>
         {discard.dialog}

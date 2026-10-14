@@ -47,7 +47,6 @@ export function ApprovalDetailHeader({ employee, onClose }: { employee: Approval
       </Typography>
 
       <IconButton
-        size="small"
         aria-label="Close dialog"
         onClick={onClose}
         sx={(theme) => ({

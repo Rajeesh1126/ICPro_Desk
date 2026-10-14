@@ -138,7 +138,6 @@ function ExpandToggle({
 }) {
   return (
     <IconButton
-      size="small"
       aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
       aria-expanded={expanded}
       onClick={onToggle}
@@ -303,7 +302,7 @@ function TaskRow({
       </TableCell>
 
       <TableCell sx={{ ...cellSx(theme, columnWidths.budgetOwner), p: 0.6 }}>
-        <FormControl size="small" fullWidth>
+        <FormControl fullWidth>
           <Select
             value={task.assign_by ?? ""}
             disabled={others || props.budgetOwnerDisabled}
@@ -370,7 +369,6 @@ function TaskRow({
       >
         {!others && (
           <Checkbox
-            size="small"
             checked={props.selectedAssignedTaskIds.includes(task.assign_id)}
             onChange={(event) =>
               props.onAssignedTaskSelectionChange(
@@ -438,7 +436,7 @@ function MilestoneRows({
           align="center"
           sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
         >
-          {formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
+          {!expanded && formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
         </TableCell>
 
         <TableCell align="center" sx={cellSx(theme, columnWidths.select)} />
@@ -525,15 +523,13 @@ function ProjectRows({
           align="center"
           sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
         >
-          {formatHoursMinutes(getProjectTotal(project, props.weekDays))}
+          {!expanded && formatHoursMinutes(getProjectTotal(project, props.weekDays))}
         </TableCell>
 
         <TableCell align="center" sx={cellSx(theme, columnWidths.select)}>
           <Checkbox
-            size="small"
             checked={allSelected}
             indeterminate={someSelected}
-            disabled={isOthersProject(project) || selectableIds.length === 0}
             onChange={(event) =>
               selectableIds.forEach((taskId) =>
                 props.onAssignedTaskSelectionChange(
@@ -542,6 +538,9 @@ function ProjectRows({
                 ),
               )
             }
+            sx={{
+              display: isOthersProject(project) || selectableIds.length === 0 ? "none" : "inline-flex",
+            }}
             inputProps={{
               "aria-label": `Select all tasks for ${project.description || project.code}`,
             }}

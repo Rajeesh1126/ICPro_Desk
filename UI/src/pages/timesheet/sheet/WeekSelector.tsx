@@ -30,7 +30,7 @@ export default function WeekSelector({
 }: WeekSelectorProps) {
   return (
     <Paper elevation={0} sx={weekSelectorPanel(compact)}>
-      <IconButton aria-label="Previous week" onClick={onPrevious} size="small" sx={squareIconButton}>
+      <IconButton aria-label="Previous week" onClick={onPrevious} sx={squareIconButton}>
         <ChevronLeftOutlinedIcon />
       </IconButton>
 
@@ -41,7 +41,7 @@ export default function WeekSelector({
         justifyContent="center"
         sx={centeredTextGroup}
       >
-        <Chip label={`Week ${weekNumber}`} size="small" color="primary" variant="outlined" sx={compactWeekChip} />
+        <Chip label={`Week ${weekNumber}`} color="primary" variant="outlined" sx={compactWeekChip} />
         <DateRange
           start={weekStart}
           end={weekEnd}
@@ -51,7 +51,7 @@ export default function WeekSelector({
         />
       </Stack>
 
-      <IconButton aria-label="Next week" onClick={onNext} size="small" sx={squareIconButton}>
+      <IconButton aria-label="Next week" onClick={onNext} sx={squareIconButton}>
         <ChevronRightOutlinedIcon />
       </IconButton>
     </Paper>

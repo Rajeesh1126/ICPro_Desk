@@ -25,6 +25,7 @@ import api from "../../api/axios";
 import { asArray, useApiQuery } from "../../api/useApiQuery";
 import { showNotification } from "../../api/notificationService";
 import { formatDateTime } from "../../components/common/formatDate";
+import { getStoredPermissions } from "../../utils/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import DialogHeader from "../../components/common/DialogHeader";
 import {
@@ -85,6 +86,10 @@ const suggestionStatuses: SuggestionStatus[] = [
 ];
 
 export default function Suggestions() {
+  const permissions = getStoredPermissions();
+  const canAddSuggestion = permissions.has("add_systemsuggestion");
+  const canChangeSuggestion = permissions.has("change_systemsuggestion");
+  const canDeleteSuggestion = permissions.has("delete_systemsuggestion");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSuggestion, setEditingSuggestion] =
     useState<SystemSuggestion | null>(null);
@@ -227,33 +232,35 @@ export default function Suggestions() {
       },
       {
         label: "Actions",
-        width: 85,
+        width: 90,
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Edit suggestion">
-              <IconButton
-                aria-label="Edit suggestion"
-                size="small"
-                color="primary"
-                onClick={() => openEditDialog(row)}
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete suggestion">
-              <IconButton
-                aria-label="Delete suggestion"
-                size="small"
-                onClick={() => setDeleteSuggestion(row)}
-              >
-                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canChangeSuggestion && (
+              <Tooltip title="Edit suggestion">
+                <IconButton
+                  aria-label="Edit suggestion"
+                  color="primary"
+                  onClick={() => openEditDialog(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {canDeleteSuggestion && (
+              <Tooltip title="Delete suggestion">
+                <IconButton
+                  aria-label="Delete suggestion"
+                  onClick={() => setDeleteSuggestion(row)}
+                >
+                  <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       },
     ],
-    [],
+    [canChangeSuggestion, canDeleteSuggestion],
   );
 
   return (
@@ -266,16 +273,18 @@ export default function Suggestions() {
               Capture ICProDesk feedback and improvement suggestions.
             </Typography>
           </Box>
-          <Box sx={pageHeaderActions}>
-            <Button
-              variant="contained"
-              startIcon={<AddCommentOutlinedIcon />}
-              onClick={openCreateDialog}
-            >
-              <Box component="span" sx={buttonLabelFull}>Add Suggestion</Box>
-              <Box component="span" sx={buttonLabelCompact}>Add</Box>
-            </Button>
-          </Box>
+          {canAddSuggestion && (
+            <Box sx={pageHeaderActions}>
+              <Button
+                variant="contained"
+                startIcon={<AddCommentOutlinedIcon />}
+                onClick={openCreateDialog}
+              >
+                <Box component="span" sx={buttonLabelFull}>Add Suggestion</Box>
+                <Box component="span" sx={buttonLabelCompact}>Add</Box>
+              </Button>
+            </Box>
+          )}
         </Box>
 
         <Box sx={contentPanel}>
@@ -284,7 +293,7 @@ export default function Suggestions() {
             rows={suggestions}
             height="100%"
             tableMinWidth={1220}
-            tableHead="Suggestion List"
+            tableHead=""
             loading={loading}
             emptyTitle="No suggestions yet"
             emptyDescription="Share an idea or feedback to help improve ICProDesk."

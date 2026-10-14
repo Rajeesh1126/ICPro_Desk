@@ -123,7 +123,6 @@ export default function RatingsDistribution({
         <IconButton
           aria-label="Open rating information"
           onClick={() => setInternalOpen(true)}
-          size="small"
         >
           <InfoOutlinedIcon />
         </IconButton>

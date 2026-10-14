@@ -87,31 +87,32 @@ WSGI_APPLICATION = 'icprodesk.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': os.getenv('DB_NAME', 'ICPro_Desk'),
-#         'USER': os.getenv('DB_USER', 'root'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
-#         'HOST': os.getenv('DB_HOST', '15.207.178.193'),
-#         # 'USER': os.getenv('DB_USER', 'erp_prod'),
-#         # 'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
-#         # 'HOST': os.getenv('DB_HOST', 'localhost'),
-
-#         'PORT': int(os.getenv('DB_PORT', '3306')),
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         },
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'ICPro_Desk'),
+        # 'USER': os.getenv('DB_USER', 'root'),
+        # 'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
+        # 'HOST': os.getenv('DB_HOST', '15.207.178.193'),
+        
+        'USER': os.getenv('DB_USER', 'erp_prod'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+
+        'PORT': int(os.getenv('DB_PORT', '3306')),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
+}
 
 
 # Password validation
@@ -193,7 +194,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=300),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(hours=1),
 }
 
@@ -207,7 +208,7 @@ FRONTEND_RESET_PASSWORD_URL = os.getenv(
 
 TIMESHEET_EXCLUDED_ROLE_NAMES = [
     role.strip()
-    for role in os.getenv('TIMESHEET_EXCLUDED_ROLE_NAMES', 'CEO,HR,Consultant').split(',')
+    for role in os.getenv('TIMESHEET_EXCLUDED_ROLE_NAMES', 'SuperAdmin,President & CEO,Consultant,External Employee').split(',')
     if role.strip()
 ]
 
@@ -230,7 +231,7 @@ MS_GRAPH_CLIENT_SECRET = os.getenv('MS_GRAPH_CLIENT_SECRET', 'LRk8Q~RSmqiSjQo5vI
 MS_GRAPH_SENDER_EMAIL = os.getenv('MS_GRAPH_SENDER_EMAIL', 'wwp@icpro.in')
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Time Sheet Management API',
+    'TITLE': 'ICPro Desk Management API',
     'VERSION': '1.0.0',
 
     'SECURITY': [

@@ -292,7 +292,6 @@ export default function PhaseConfiguration() {
           {row.mappedPhases === "Unmapped" ? (
             <Chip
               label="Unmapped"
-              size="small"
               variant="outlined"
               sx={dashedMutedChip}
             />
@@ -303,7 +302,6 @@ export default function PhaseConfiguration() {
                 <Chip
                   key={phase}
                   label={phase}
-                  size="small"
                   variant={phase === selectedPhase ? "filled" : "outlined"}
                   sx={mappedTagChip(phase === selectedPhase)}
                 />
@@ -331,7 +329,6 @@ export default function PhaseConfiguration() {
             <Chip
               icon={<CategoryOutlinedIcon />}
               label={`${phaseMappings.length} total mappings`}
-              size="small"
               variant="outlined"
               sx={metaChip}
             />
@@ -345,7 +342,7 @@ export default function PhaseConfiguration() {
               Pick the phase you want to configure.
             </Typography>
             {isPhone ? (
-              <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+              <FormControl fullWidth sx={{ mt: 1 }}>
                 <InputLabel id="phase-select-label">Phase</InputLabel>
                 <Select
                   labelId="phase-select-label"
@@ -369,7 +366,6 @@ export default function PhaseConfiguration() {
             ) : (
             <ToggleButtonGroup
               exclusive
-              size="small"
               value={selectedPhase}
               onChange={(_event, value) => requestPhaseChange(value)}
               aria-label="Phase"
@@ -386,7 +382,6 @@ export default function PhaseConfiguration() {
                   {phase}
                   <Chip
                     label={mappedCountByPhase[phase] ?? 0}
-                    size="small"
                     sx={countChip(selectedPhase === phase)}
                   />
                 </ToggleButton>
@@ -406,7 +401,6 @@ export default function PhaseConfiguration() {
               </Typography>
               <ToggleButtonGroup
                 exclusive
-                size="small"
                 value={mappingFilter}
                 onChange={(_event, next: MappingFilter | null) =>
                   next && setMappingFilter(next)
@@ -475,7 +469,6 @@ export default function PhaseConfiguration() {
                     <Chip
                       label={`${changedMappingCount} unsaved change${changedMappingCount === 1 ? "" : "s"}`}
                       variant="outlined"
-                      size="small"
                       sx={warningOutlineChip}
                     />
                   )}

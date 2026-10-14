@@ -3,7 +3,8 @@ import { MenuItem, Select } from "@mui/material";
 import type { ColumnData } from "../../common/TableView";
 import type { TaskRow } from "../../../types/dataTypes";
 import {
-  isDecided,
+  canDecideTask,
+  canRejectTask,
   isOthersProject,
   RATING_OPTIONS,
   type ApprovalAction,
@@ -39,6 +40,10 @@ export function useApprovalColumns({
         row.rowType === "project" ? null : render(row);
 
     const busyAction = (row: TaskRow) => (updating?.rowId === row.id ? updating.action : null);
+    const acceptDisabled = (row: TaskRow) =>
+      !canDecideTask(row) || busyAction(row) !== null;
+    const rejectDisabled = (row: TaskRow) =>
+      !canRejectTask(row) || busyAction(row) !== null;
 
     return [
       {
@@ -60,11 +65,10 @@ export function useApprovalColumns({
         render: taskOnly((row) =>
           isOthersProject(row.project) ? null : (
             <Select
-              size="small"
               value={row.rating || ""}
               displayEmpty
               inputProps={{ "aria-label": `Rating for ${row.task}` }}
-              disabled={busyAction(row) !== null || isDecided(row)}
+              disabled={!canRejectTask(row) || busyAction(row) !== null}
               onChange={(event) => onRatingChange(row.id, String(event.target.value))}
               sx={{ width: 118, height: 32, fontSize: 12, "& .MuiSelect-select": { py: 0.5, px: 1 } }}
             >
@@ -85,7 +89,7 @@ export function useApprovalColumns({
           <ActionButton
             action="Accepted"
             busy={busyAction(row) === "Accepted"}
-            disabled={isDecided(row) || busyAction(row) !== null}
+            disabled={acceptDisabled(row)}
             onClick={() => onAccept(row)}
           />
         )),
@@ -97,7 +101,7 @@ export function useApprovalColumns({
           <ActionButton
             action="Rejected"
             busy={busyAction(row) === "Rejected"}
-            disabled={isDecided(row) || busyAction(row) !== null}
+            disabled={rejectDisabled(row)}
             onClick={() => onReject(row)}
           />
         )),

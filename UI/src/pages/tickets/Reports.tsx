@@ -139,7 +139,7 @@ function FilterFields({
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-        <FormControl fullWidth size="small">
+        <FormControl fullWidth>
           <InputLabel shrink>Status</InputLabel>
           <Select
             value={filters.status}
@@ -170,7 +170,7 @@ function FilterFields({
       </Grid>
       {reportType === "tickets" ? (
         <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth>
             <InputLabel shrink>Assigned By</InputLabel>
             <Select
               value={filters.creator}
@@ -197,7 +197,7 @@ function FilterFields({
       )}
       {reportType === "dolist" ? (
         <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth>
             <InputLabel shrink>Created By</InputLabel>
             <Select
               value={filters.creator}
@@ -224,7 +224,7 @@ function FilterFields({
       )}
       {reportType === "tickets" ? (
         <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth>
             <InputLabel shrink>Teams</InputLabel>
             <Select
               value={filters.department}
@@ -247,7 +247,7 @@ function FilterFields({
         ""
       )}
       <Grid size={{ xs: 12, sm: 12, lg: 12 }}>
-        <FormControl fullWidth size="small">
+        <FormControl fullWidth>
           <InputLabel shrink>Priority</InputLabel>
           <Select
             value={filters.priority}
@@ -358,7 +358,6 @@ export default function Reports() {
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
                 onClick={() => openTicketDetails(row)}
               >
                 <VisibilityOutlinedIcon fontSize="small" color="primary" />
@@ -415,7 +414,6 @@ export default function Reports() {
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
                 onClick={() => openSelfTicketDetails(row)}
               >
                 <VisibilityOutlinedIcon fontSize="small" color="primary" />

@@ -93,7 +93,7 @@ export default function StatusLegend({
           <InfoOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} aria-hidden="true" />
           <Typography
             variant="caption"
-            sx={{ fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: "text.secondary" }}
+            sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "text.secondary" }}
           >
             Status key
           </Typography>
@@ -147,7 +147,7 @@ export default function StatusLegend({
                           placeItems: "center",
                           borderRadius: 999,
                           fontSize: 11,
-                          fontWeight: 800,
+                          fontWeight: 700,
                           color: "text.primary",
                           bgcolor: alpha(tone, isDark ? 0.24 : 0.16),
                         }}

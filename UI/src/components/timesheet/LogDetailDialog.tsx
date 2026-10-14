@@ -76,7 +76,6 @@ export function LogDetailItem({
         ))}
       </Box>
       <Chip
-        size="small"
         icon={chip.icon as React.ReactElement}
         label={status}
         color={chip.color}

@@ -142,7 +142,6 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
 
         <IconButton aria-label="Close dialog"
           onClick={discard.requestClose}
-          size="small"
           sx={{
             color: "text.secondary",
           }}

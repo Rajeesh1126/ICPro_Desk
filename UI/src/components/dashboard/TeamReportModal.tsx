@@ -92,7 +92,6 @@ function SummaryChips({
         <Chip
           key={key}
           label={`${formatStatusLabel(key)}: ${data[key] ?? 0}`}
-          size="small"
           variant="outlined"
           sx={teamReportModalSummaryChipSx(getStatusColor(key))}
         />
@@ -170,8 +169,8 @@ export default function TeamReportModal({
                 <Typography sx={teamReportModalSubtitleSx}>
                   Manager: {detail?.department.manager || "Not assigned"}
                 </Typography>
-                <Chip label={`${ticketTotal} tickets`} size="small" variant="outlined" />
-                <Chip label={`${dolistTotal} tasks`} size="small" variant="outlined" />
+                <Chip label={`${ticketTotal} tickets`} variant="outlined" />
+                <Chip label={`${dolistTotal} tasks`} variant="outlined" />
               </Stack>
             </Box>
           </Stack>

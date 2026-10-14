@@ -32,11 +32,7 @@ import {
   STATUS_COLORS,
   SURFACE_TINT,
 } from "./tokens";
-import {
-  pageHeader,
-  pageHeaderActions,
-  pageHeaderContent,
-} from "./layout";
+import { pageHeader, pageHeaderActions, pageHeaderContent } from "./layout";
 
 export {
   buttonLabelCompact,
@@ -554,7 +550,7 @@ export const stepLabel = {
   color: "primary.main",
   display: "block",
   fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 700,
   letterSpacing: 0,
   lineHeight: 1.3,
   textTransform: "uppercase",
@@ -697,7 +693,7 @@ export const countChip =
       ? theme.palette.primary.contrastText
       : theme.palette.text.secondary,
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: 700,
     "& .MuiChip-label": { px: 0.75 },
   });
 
@@ -742,12 +738,12 @@ export const mappedTagChip =
       ? theme.palette.primary.contrastText
       : theme.palette.warning.main,
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: 700,
     "& .MuiChip-label": { px: 1 },
   });
 
 export const strongInlineText = {
-  fontWeight: 800,
+  fontWeight: 700,
   color: "text.primary",
 } satisfies SxProps<Theme>;
 
@@ -755,7 +751,7 @@ export const warningOutlineChip = {
   height: 22,
   borderColor: "warning.main",
   color: "warning.main",
-  fontWeight: 800,
+  fontWeight: 700,
 } satisfies SxProps<Theme>;
 
 export type TableRowStatus = "error" | "warning" | "success";
@@ -887,7 +883,7 @@ export const headerActionBadge = {
   alignSelf: { xs: "start", md: "center" },
   justifySelf: "end",
   "& .MuiBadge-badge": {
-    fontWeight: 800,
+    fontWeight: 700,
     right: 6,
     top: 5,
   },
@@ -895,9 +891,7 @@ export const headerActionBadge = {
 
 export const compactHeaderButton = {
   minWidth: 0,
-  height: { xs: 34, sm: 36 },
-  px: { xs: 1.25, sm: 2 },
-  fontWeight: 800,
+  fontWeight: 700,
   fontSize: { xs: 12, sm: 13 },
   textTransform: "none",
 } satisfies SxProps<Theme>;
@@ -948,7 +942,7 @@ export const actionMenuItem =
       "& .MuiListItemText-primary": {
         color: theme.palette.text.primary,
         fontSize: "0.875rem",
-        fontWeight: 800,
+        fontWeight: 700,
         lineHeight: 1.25,
       },
       "& .MuiListItemText-secondary": {
@@ -970,7 +964,7 @@ export const actionMenuSection = {
   pb: 0.35,
   color: "text.secondary",
   fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 700,
   letterSpacing: 0,
   textTransform: "uppercase",
 } satisfies SxProps<Theme>;
@@ -1069,7 +1063,7 @@ export const sidebarSection = (height: number) => (theme: Theme) => ({
   pb: 0.25,
   color: theme.palette.text.secondary,
   fontSize: "0.6875rem",
-  fontWeight: 800,
+  fontWeight: 700,
   letterSpacing: 0.8,
   lineHeight: 1,
   textTransform: "uppercase",
@@ -1135,12 +1129,17 @@ export const sidebarItem =
           : alpha(theme.palette.text.primary, isDark ? 0.07 : 0.05),
       },
       "&:hover .MuiListItemIcon-root": {
-        color: selected ? sidebarSelectedColor(theme) : theme.palette.primary.main,
+        color: selected
+          ? sidebarSelectedColor(theme)
+          : theme.palette.primary.main,
       },
       "&.Mui-focusVisible": {
         outline: `2px solid ${theme.palette.primary.main}`,
         outlineOffset: -2,
-        backgroundColor: alpha(theme.palette.text.primary, isDark ? 0.07 : 0.05),
+        backgroundColor: alpha(
+          theme.palette.text.primary,
+          isDark ? 0.07 : 0.05,
+        ),
       },
       "&.Mui-selected, &.Mui-selected:hover": {
         color: sidebarSelectedColor(theme),
@@ -1148,10 +1147,16 @@ export const sidebarItem =
       ...(selected && {
         backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.2 : 0.12),
         "&.Mui-selected": {
-          backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.2 : 0.12),
+          backgroundColor: alpha(
+            theme.palette.primary.main,
+            isDark ? 0.2 : 0.12,
+          ),
         },
         "&.Mui-selected:hover": {
-          backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.26 : 0.16),
+          backgroundColor: alpha(
+            theme.palette.primary.main,
+            isDark ? 0.26 : 0.16,
+          ),
         },
       }),
     };
@@ -1163,7 +1168,9 @@ export const sidebarIcon =
     justifyContent: "center",
     // 52px keeps icons centred in the 64px collapsed rail.
     minWidth: 52,
-    color: selected ? sidebarSelectedColor(theme) : theme.palette.text.secondary,
+    color: selected
+      ? sidebarSelectedColor(theme)
+      : theme.palette.text.secondary,
     transition: theme.transitions.create("color", {
       duration: theme.transitions.duration.shortest,
     }),
@@ -1214,6 +1221,8 @@ export const appShellBody = {
 } satisfies SxProps<Theme>;
 
 export const appMain = {
+  // Match the app's standard button corner radius around routed page content.
+  borderRadius: RADIUS_PX.md,
   display: "flex",
   flexDirection: "column",
   flex: 1,
@@ -1371,7 +1380,13 @@ export function formatStatusLabel(status: unknown) {
   const normalizedStatus = String(status ?? "")
     .replace(/^modified-/i, "")
     .trim()
-    .replace(/-/g, " ");
+    // Status slugs use hyphens as word separators, but deadline statuses
+    // contain ISO dates (for example, "Due by 2026-10-19").
+    .replace(/-/g, (hyphen, index, value) =>
+      /\d/.test(value[index - 1] ?? "") && /\d/.test(value[index + 1] ?? "")
+        ? hyphen
+        : " ",
+    );
 
   return normalizedStatus;
 }
@@ -1709,11 +1724,12 @@ export const headerMenuButtonSx: SxProps<Theme> = {
   display: "inline-flex",
   mr: 0.5,
 };
-export const headerProfileButtonSx = (open = false): SxProps<Theme> =>
+export const headerProfileButtonSx =
+  (open = false): SxProps<Theme> =>
   (theme) => ({
     minWidth: 0,
     ml: { xs: 0.5, sm: 1.25 },
-    px: { xs: 0.25, sm: 0.5 },
+    px: 0.25,
     py: 0.25,
     borderRadius: 99,
     color: "text.primary",
@@ -1721,13 +1737,19 @@ export const headerProfileButtonSx = (open = false): SxProps<Theme> =>
     border: "1px solid",
     borderColor: open ? "primary.main" : "transparent",
     bgcolor: open
-      ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.2 : 0.1)
+      ? alpha(
+          theme.palette.primary.main,
+          theme.palette.mode === "dark" ? 0.2 : 0.1,
+        )
       : "transparent",
     transition: theme.transitions.create(["background-color", "border-color"], {
       duration: theme.transitions.duration.shortest,
     }),
     "&:hover": {
-      bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.28 : 0.14),
+      bgcolor: alpha(
+        theme.palette.primary.main,
+        theme.palette.mode === "dark" ? 0.28 : 0.14,
+      ),
     },
   });
 
@@ -1747,7 +1769,8 @@ export const headerProfileTriggerNameSx: SxProps<Theme> = {
   maxWidth: "100%",
 };
 
-export const headerProfileChevronSx = (open: boolean): SxProps<Theme> =>
+export const headerProfileChevronSx =
+  (open: boolean): SxProps<Theme> =>
   (theme) => ({
     fontSize: 20,
     transform: open ? "rotate(180deg)" : "rotate(0deg)",
@@ -1773,7 +1796,7 @@ export const notificationItemTextSx: SxProps<Theme> = { flex: 1 };
 
 export const profileUsernameSx: SxProps<Theme> = {
   display: "block",
-  fontWeight: 800,
+  fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: 0,
 };
@@ -1829,7 +1852,11 @@ export const appBarHeaderProfileDetailRowSx: SxProps<Theme> = {
 };
 
 export const appBarHeaderProfileInfoIconSx =
-  ({ color = "primary" }: { color?: "primary" | "secondary" | "info" }): SxProps<Theme> =>
+  ({
+    color = "primary",
+  }: {
+    color?: "primary" | "secondary" | "info";
+  }): SxProps<Theme> =>
   (theme) => {
     const paletteColor =
       color === "info"
@@ -2021,7 +2048,9 @@ export const boardColumnsSelfSx: SxProps<Theme> = {
 // components/dashboard/AnalysisPieChart.dynamic.styles.ts
 export const pieChartPanelSx = ({
   borderedSurfaceSx,
-}: { borderedSurfaceSx: StaticStyleObject }): SxProps<Theme> => ({
+}: {
+  borderedSurfaceSx: StaticStyleObject;
+}): SxProps<Theme> => ({
   ...borderedSurfaceSx,
   ...insetSx,
   height: "100%",
@@ -2032,7 +2061,9 @@ export const pieChartPanelSx = ({
 
 export const pieChartCanvasSx = ({
   height,
-}: { height: number | string }): SxProps<Theme> => ({
+}: {
+  height: number | string;
+}): SxProps<Theme> => ({
   height,
   width: "100%",
   minWidth: 0,
@@ -2066,8 +2097,10 @@ export const pieChartEmptyStateSx: SxProps<Theme> = {
   color: "text.secondary",
 };
 
-export const pieChartEmptyIconSx: SxProps<Theme> =
-  { fontSize: 46, opacity: 0.35 };
+export const pieChartEmptyIconSx: SxProps<Theme> = {
+  fontSize: 46,
+  opacity: 0.35,
+};
 
 const alarmBellBlink = keyframes`
   0%, 100% { opacity: 1; }
@@ -2094,7 +2127,10 @@ const alarmBorderBlink = (color: string) => keyframes`
 export const doListCardSx = ({
   highlighted,
   styles,
-}: { highlighted: boolean; styles: PriorityVisual }): SxProps<Theme> => ({
+}: {
+  highlighted: boolean;
+  styles: PriorityVisual;
+}): SxProps<Theme> => ({
   animation: highlighted
     ? `${alarmBorderBlink(styles.color)} 1.4s ease-in-out infinite`
     : "none",
@@ -2130,7 +2166,9 @@ export const doListCardSx = ({
 
 export const doListCardNumberSx = ({
   styles,
-}: { styles: PriorityVisual }): SxProps<Theme> => ({
+}: {
+  styles: PriorityVisual;
+}): SxProps<Theme> => ({
   fontSize: 11,
   fontWeight: 900,
   color: styles.color,
@@ -2194,11 +2232,10 @@ export const sharedCardMetaRowSx: SxProps<Theme> = {
 };
 
 // components/selfTickets/CreateModel.dynamic.styles.ts
-export const doListFormTooltipPopperSx =
-  (): SxProps<Theme> => ({
-    zIndex: (theme) => theme.zIndex.tooltip,
-    pointerEvents: "none",
-  });
+export const doListFormTooltipPopperSx = (): SxProps<Theme> => ({
+  zIndex: (theme) => theme.zIndex.tooltip,
+  pointerEvents: "none",
+});
 
 // components/selfTickets/CreateModel.styles.ts
 export const doListFormTitleSx: SxProps<Theme> = {
@@ -2316,7 +2353,9 @@ export const requiredMarkSx: SxProps<Theme> = {
 // components/selfTickets/DetailModel.dynamic.styles.ts
 export const doListDetailPriorityChipSx = ({
   pStyle,
-}: { pStyle: PriorityPalette }): SxProps<Theme> => ({
+}: {
+  pStyle: PriorityPalette;
+}): SxProps<Theme> => ({
   mt: 0.6,
   bgcolor: pStyle.bg,
   color: pStyle.text,
@@ -2398,18 +2437,25 @@ export const doListDetailFieldSx = ({
 
 export const doListDetailFieldLabelSx = ({
   detailLabelSx,
-}: { detailLabelSx: StaticStyleObject }): SxProps<Theme> => ({ ...detailLabelSx, mb: 0.45 });
+}: {
+  detailLabelSx: StaticStyleObject;
+}): SxProps<Theme> => ({ ...detailLabelSx, mb: 0.45 });
 
 export const doListDetailFieldValueSx = ({
   capitalize,
   detailValueSx,
-}: { capitalize?: boolean; detailValueSx: StaticStyleObject }): SxProps<Theme> => ({
+}: {
+  capitalize?: boolean;
+  detailValueSx: StaticStyleObject;
+}): SxProps<Theme> => ({
   ...detailValueSx,
   textTransform: capitalize ? "capitalize" : "none",
 });
 export const selfTicketsDetailModelCommentWrapperSx = ({
   isCurrentUser,
-}: { isCurrentUser: boolean }): SxProps<Theme> => ({
+}: {
+  isCurrentUser: boolean;
+}): SxProps<Theme> => ({
   alignSelf: isCurrentUser ? "flex-end" : "flex-start",
   maxWidth: "90%",
 });
@@ -2423,7 +2469,11 @@ export const selfTicketsDetailModelCommentPaperSx = ({
   isDark,
   theme,
   isCurrentUser,
-}: AlphaStyleArgs & { isDark: boolean; theme: Theme; isCurrentUser: boolean }): SxProps<Theme> => ({
+}: AlphaStyleArgs & {
+  isDark: boolean;
+  theme: Theme;
+  isCurrentUser: boolean;
+}): SxProps<Theme> => ({
   ...insetSx,
   borderRadius: RADIUS_PX.sm,
   border: "1px solid",
@@ -2515,7 +2565,7 @@ export const selfTicketsDetailModelFooterButtonsSx: SxProps<Theme> = {
   },
 };
 export const doListDetailTabButtonSx: SxProps<Theme> = {
-  fontWeight: 800,
+  fontWeight: 700,
   textTransform: "none",
 };
 export const doListCommentAuthorSx: SxProps<Theme> = {
@@ -2524,7 +2574,10 @@ export const doListCommentAuthorSx: SxProps<Theme> = {
 
 // components/TableView.callback.styles.ts
 export const tableBodyRowSx =
-  ({ alternatingRowSx, onRowClick }: {
+  ({
+    alternatingRowSx,
+    onRowClick,
+  }: {
     alternatingRowSx: ThemeStyleCallback;
     onRowClick?: unknown;
   }): SxProps<Theme> =>
@@ -2678,7 +2731,9 @@ export const tableStatusDotSx = <T extends object>({
 
 export const tablePanelSx = ({
   height,
-}: { height?: number | string }): SxProps<Theme> => ({
+}: {
+  height?: number | string;
+}): SxProps<Theme> => ({
   height: height ?? "100%",
   flex: height === "100%" ? "1 1 auto" : "0 0 auto",
   width: "100%",
@@ -2789,7 +2844,11 @@ export const tableBodyAreaSx: SxProps<Theme> = {
   flexDirection: "column",
 };
 
-export const tableVirtuosoStyle: CSSProperties = { height: "100%" };
+export const tableVirtuosoStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: 0,
+  border: 0,
+};
 
 export const tableEmptyOverlaySx: SxProps<Theme> = {
   position: "absolute",
@@ -2803,7 +2862,10 @@ export const tableEmptyOverlaySx: SxProps<Theme> = {
 export const ticketCardSx = ({
   highlighted,
   styles,
-}: { highlighted: boolean; styles: PriorityVisual }): SxProps<Theme> => ({
+}: {
+  highlighted: boolean;
+  styles: PriorityVisual;
+}): SxProps<Theme> => ({
   animation: highlighted
     ? `${alarmBorderBlink(styles.color)} 1.4s ease-in-out infinite`
     : "none",
@@ -2839,7 +2901,9 @@ export const ticketCardSx = ({
 
 export const ticketCardNumberSx = ({
   styles,
-}: { styles: PriorityVisual }): SxProps<Theme> => ({
+}: {
+  styles: PriorityVisual;
+}): SxProps<Theme> => ({
   fontSize: 11,
   fontWeight: 900,
   color: styles.color,
@@ -2851,7 +2915,7 @@ export const ticketCardPriorityChipSx = ({
   styles,
 }: AlphaStyleArgs & { styles: PriorityVisual }): SxProps<Theme> => ({
   height: 20,
-  fontWeight: 800,
+  fontWeight: 700,
   fontSize: 9,
   bgcolor: (theme) =>
     theme.palette.mode === "dark" ? alpha(styles.color, 0.16) : styles.bg,
@@ -2962,7 +3026,9 @@ export const ticketDetailActivitySectionSx =
 // components/tickets/DetailModal.dynamic.styles.ts
 export const ticketDetailPriorityChipSx = ({
   pStyle,
-}: { pStyle: PriorityPalette }): SxProps<Theme> => ({
+}: {
+  pStyle: PriorityPalette;
+}): SxProps<Theme> => ({
   bgcolor: pStyle.bg,
   color: pStyle.text,
   fontSize: 10,
@@ -2974,7 +3040,9 @@ export const ticketDetailPriorityChipSx = ({
 
 export const ticketDetailStatusPanelSx = ({
   modalPalette,
-}: { modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   // minWidth: { xs: 220, sm: 356 },
   px: INSET_X,
   py: INSET_Y,
@@ -2985,11 +3053,15 @@ export const ticketDetailStatusPanelSx = ({
 
 export const ticketDetailStatusValueSx = ({
   detailValueSx,
-}: { detailValueSx: StaticStyleObject }): SxProps<Theme> => ({ ...detailValueSx, mt: 0.25 });
+}: {
+  detailValueSx: StaticStyleObject;
+}): SxProps<Theme> => ({ ...detailValueSx, mt: 0.25 });
 
 export const ticketDetailSummaryBannerSx = ({
   theme,
-}: { theme: Theme }): SxProps<Theme> => ({
+}: {
+  theme: Theme;
+}): SxProps<Theme> => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
   color: "primary.contrastText",
   borderRadius: RADIUS_PX.sm,
@@ -3004,14 +3076,19 @@ export const ticketDetailSummaryLabelSx = ({
   alpha,
   detailLabelSx,
   theme,
-}: AlphaStyleArgs & { detailLabelSx: StaticStyleObject; theme: Theme }): SxProps<Theme> => ({
+}: AlphaStyleArgs & {
+  detailLabelSx: StaticStyleObject;
+  theme: Theme;
+}): SxProps<Theme> => ({
   ...detailLabelSx,
   color: alpha(theme.palette.primary.contrastText, 0.86),
 });
 
 export const ticketDetailDescriptionSx = ({
   modalPalette,
-}: { modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   mt: 0.8,
   mb: 1.8,
   ...insetSx,
@@ -3025,7 +3102,9 @@ export const ticketDetailDescriptionSx = ({
 
 export const ticketDetailFieldSx = ({
   modalPalette,
-}: { modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   ...insetSx,
   border: `1px solid ${modalPalette.border}`,
   borderRadius: RADIUS_PX.sm,
@@ -3034,11 +3113,15 @@ export const ticketDetailFieldSx = ({
 
 export const ticketDetailFieldValueSx = ({
   detailValueSx,
-}: { detailValueSx: StaticStyleObject }): SxProps<Theme> => ({ ...detailValueSx, mt: 0.45 });
+}: {
+  detailValueSx: StaticStyleObject;
+}): SxProps<Theme> => ({ ...detailValueSx, mt: 0.45 });
 
 export const ticketDetailPanelHeaderSx = ({
   modalPalette,
-}: { modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   px: INSET_X,
   py: INSET_Y,
   display: "flex",
@@ -3049,7 +3132,9 @@ export const ticketDetailPanelHeaderSx = ({
 
 export const ticketTimelineRailSx = ({
   modalPalette,
-}: { modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   position: "absolute",
   left: 7,
   top: 0,
@@ -3061,7 +3146,10 @@ export const ticketTimelineRailSx = ({
 export const ticketTimelineDotSx = ({
   getStatusColor,
   log,
-}: { getStatusColor: (status: unknown) => string; log: { status?: unknown } }): SxProps<Theme> => ({
+}: {
+  getStatusColor: (status: unknown) => string;
+  log: { status?: unknown };
+}): SxProps<Theme> => ({
   position: "absolute",
   left: -5,
   top: 6,
@@ -3077,7 +3165,10 @@ export const ticketTimelineDotSx = ({
 export const ticketTimelineEntrySx = ({
   index,
   modalPalette,
-}: { index: number; modalPalette: ModalPalette }): SxProps<Theme> => ({
+}: {
+  index: number;
+  modalPalette: ModalPalette;
+}): SxProps<Theme> => ({
   ...insetSx,
   bgcolor: index === 0 ? modalPalette.panel : "background.paper",
   borderRadius: RADIUS_PX.lg,
@@ -3099,7 +3190,7 @@ export const ticketTimelineStatusChipSx = ({
   bgcolor: alpha(getStatusColor(log.status), isDark ? 0.18 : 0.1),
   color: getStatusColor(log.status),
   fontSize: 10,
-  fontWeight: 800,
+  fontWeight: 700,
 });
 
 // components/tickets/DetailModal.styles.ts
@@ -3167,7 +3258,7 @@ export const ticketActivityTitleSx: SxProps<Theme> = {
 export const ticketActivityCountChipSx: SxProps<Theme> = {
   height: 20,
   fontSize: 10,
-  fontWeight: 800,
+  fontWeight: 700,
   borderRadius: RADIUS_PX.sm,
   bgcolor: "action.hover",
 };
@@ -3209,7 +3300,9 @@ export const ratingSelectedLabelSx: SxProps<Theme> = {
 // components/tickets/RatingInfoModel.dynamic.styles.ts
 export const ratingTileSx = ({
   item,
-}: { item: { score: number } }): SxProps<Theme> => ({
+}: {
+  item: { score: number };
+}): SxProps<Theme> => ({
   ...insetSx,
   height: "100%",
   textAlign: "center",
@@ -3256,7 +3349,7 @@ export const errorIconSx = {
 export const errorCodeSx = {
   color: "text.secondary",
   fontSize: "0.75rem",
-  fontWeight: 800,
+  fontWeight: 700,
   lineHeight: 1.5,
 };
 
@@ -3283,7 +3376,9 @@ export const errorActionsSx = {
 // pages/Login.dynamic.styles.ts
 export const authPageBackgroundSx = ({
   bgImage,
-}: { bgImage: string }): SxProps<Theme> => ({
+}: {
+  bgImage: string;
+}): SxProps<Theme> => ({
   minHeight: "100dvh",
   width: "100%",
   display: "grid",
@@ -3312,7 +3407,9 @@ export const authCardContentSx: SxProps<Theme> = {
 export const authThemeToggleSx =
   (isDark: boolean): SxProps<Theme> =>
   (theme) => {
-    const color = isDark ? theme.palette.warning.main : theme.palette.primary.main;
+    const color = isDark
+      ? theme.palette.warning.main
+      : theme.palette.primary.main;
 
     return {
       position: "absolute",
@@ -3515,7 +3612,7 @@ export const teamReportModalTitleMetaSx: SxProps<Theme> = {
     height: 22,
     borderRadius: RADIUS_PX.xs,
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: 700,
   },
 };
 
@@ -3584,7 +3681,7 @@ export const teamReportModalSummaryChipSx =
     borderColor: alpha(color, 0.42),
     color,
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: 700,
     "& .MuiChip-label": {
       px: 1,
     },
@@ -3594,151 +3691,4 @@ export const teamReportModalTableWrapSx: SxProps<Theme> = {
   mt: 1.25,
   height: { xs: 300, sm: 300 },
   minWidth: 0,
-};
-
-/* ================= RIGHT UNLOCK REQUESTS ================= */
-export const unlockRequestStyles: {
-  container: SxProps<Theme>;
-  header: SxProps<Theme>;
-  headerTitle: SxProps<Theme>;
-  requestList: SxProps<Theme>;
-  card: SxProps<Theme>;
-  cardHeader: SxProps<Theme>;
-  cardHeaderText: SxProps<Theme>;
-  cardContent: SxProps<Theme>;
-  reason: SxProps<Theme>;
-  buttonContainer: SxProps<Theme>;
-  acceptButton: SxProps<Theme>;
-  rejectButton: SxProps<Theme>;
-  emptyState: SxProps<Theme>;
-  emptyText: SxProps<Theme>;
-} = {
-  container: {
-    width: { xs: "100%", lg: 300 },
-    height: { xs: 260, lg: "100%" },
-    flexShrink: 0,
-    minHeight: 0,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    backgroundColor: "background.paper",
-    border: "1px solid",
-    borderColor: "divider",
-    borderRadius: RADIUS_PX.lg,
-  },
-
-  header: {
-    height: 37,
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    px: 1,
-    backgroundColor: "background.paper",
-    borderBottom: "1px solid",
-    borderColor: "divider",
-  },
-
-  headerTitle: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "text.primary",
-  },
-
-  requestList: {
-    flex: 1,
-    minHeight: 0,
-    overflowY: "auto",
-    p: 0.5,
-
-    "&::-webkit-scrollbar": {
-      width: 7,
-    },
-
-    "&::-webkit-scrollbar-track": {
-      backgroundColor: "background.paper",
-    },
-
-    "&::-webkit-scrollbar-thumb": {
-      backgroundColor: "action.disabled",
-      borderRadius: RADIUS_PX.pill,
-    },
-
-    "&::-webkit-scrollbar-thumb:hover": {
-      backgroundColor: "action.active",
-    },
-  },
-
-  card: {
-    mb: 0.75,
-    borderRadius: RADIUS_PX.xs,
-    overflow: "hidden",
-    backgroundColor: "background.default",
-    border: "1px solid",
-    borderColor: "divider",
-  },
-
-  cardHeader: {
-    px: 1,
-    py: 0.65,
-    backgroundColor: "primary.main",
-  },
-
-  cardHeaderText: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "primary.contrastText",
-  },
-
-  cardContent: {
-    p: 1,
-
-    "&:last-child": {
-      pb: 1,
-    },
-  },
-
-  reason: {
-    fontSize: 12,
-    color: "text.primary",
-    mb: 1,
-  },
-
-  buttonContainer: {
-    display: "flex",
-    gap: 1,
-  },
-
-  acceptButton: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "success.contrastText",
-    backgroundColor: "success.main",
-
-    "&:hover": {
-      backgroundColor: "success.dark",
-    },
-  },
-
-  rejectButton: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "error.contrastText",
-    backgroundColor: "error.main",
-
-    "&:hover": {
-      backgroundColor: "error.dark",
-    },
-  },
-
-  emptyState: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    height: 100,
-  },
-
-  emptyText: {
-    fontSize: 12,
-    color: "text.secondary",
-  },
 };

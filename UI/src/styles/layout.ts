@@ -172,12 +172,12 @@ export const tabsContainer: SxProps<Theme> = {
 
 export const tabs: SxProps<Theme> = {
   width: "100%",
-  minHeight: 48,
+  minHeight: 38,
   "& .MuiTabs-flexContainer": {
     minWidth: "max-content",
   },
   "& .MuiTab-root": {
-    minHeight: 40,
+    minHeight: 38,
     minWidth: { xs: "auto", sm: 100 },
     px: INSET_X,
     fontSize: { xs: 12, sm: "0.875rem" },

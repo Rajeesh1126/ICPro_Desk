@@ -73,7 +73,6 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
         width: 56,
         render: (row) => (
           <Checkbox
-            size="small"
             checked={selectedTicketIds.includes(row.id)}
             onChange={(event) => toggleTicket(row.id, event.target.checked)}
             inputProps={{
@@ -97,7 +96,7 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           Assigned Tickets
           <Tooltip title="Close">
-            <IconButton aria-label="Close dialog" size="small" onClick={closeModal}>
+            <IconButton aria-label="Close dialog" onClick={closeModal}>
               <CloseOutlinedIcon />
             </IconButton>
           </Tooltip>

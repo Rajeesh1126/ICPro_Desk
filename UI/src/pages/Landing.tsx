@@ -163,7 +163,6 @@ export default function Landing() {
 
           return (
             <Chip
-              size="small"
               icon={over ? <TrendingUpOutlinedIcon /> : <CheckCircleOutlineOutlinedIcon />}
               label={over ? `Over by ${formatHours(overBy)} h` : "Within budget"}
               color={over ? "error" : "success"}

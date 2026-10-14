@@ -93,7 +93,7 @@ export default function AnalysisPieChart({
               formatter: () => String(total),
               color: theme.palette.text.primary,
               fontSize: 25,
-              fontWeight: 800,
+              fontWeight: 700,
             },
             labelLine: { show: false },
             data: chartData,

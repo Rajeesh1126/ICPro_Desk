@@ -117,7 +117,7 @@ export default function TicketActionDialogs({
           confirmIcon={<TaskAltOutlinedIcon />}
           confirmDisabled={!rating}
           titleAdornment={
-            <IconButton size="small" onClick={() => setRatingGuideOpen(true)} aria-label="Open rating guide">
+            <IconButton onClick={() => setRatingGuideOpen(true)} aria-label="Open rating guide">
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
           }
@@ -194,7 +194,7 @@ export default function TicketActionDialogs({
           tone="secondary"
         >
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth size="small">
+            <FormControl fullWidth>
               <InputLabel>Assign To</InputLabel>
               <Select label="Assign To" value={reassignTo} onChange={(event) => setReassignTo(event.target.value)}>
                 {users.map((user) => (

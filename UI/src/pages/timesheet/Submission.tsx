@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Skeleton, Stack, useMediaQuery, useTheme } from "@mui/material";
 import api from "../../api/axios";
 import { asArray, useApiQuery } from "../../api/useApiQuery";
@@ -21,12 +21,11 @@ import {
   FULL_DAY_LABELS,
   getEditableDates,
   getEstimatedWeekHours,
-  getExceededDays,
+  getDailyHoursValidation,
   getTaskTotal,
   getWeekDayTotals,
   getWeekLockState,
   getWeeklyHoursValidation,
-  isEntryChange,
   isOthersProject,
   setTaskBudgetOwner,
   setTaskEntry,
@@ -35,7 +34,6 @@ import {
   type SaveDraftResponse,
   type TaskRef,
   type TimesheetSubmitEntry,
-  type WeeklyHoursValidation,
   type WeeklyTimesheetLog,
 } from "./submission/timesheetMath";
 
@@ -44,7 +42,6 @@ export type {
   BudgetOwnerValidation,
   DailyHoursValidation,
   TimesheetSubmitEntry,
-  WeeklyHoursValidation,
 };
 
 type SubmissionProps = {
@@ -56,7 +53,6 @@ type SubmissionProps = {
   onSubmitEntriesChange?: (entries: TimesheetSubmitEntry[]) => void;
   onBudgetOwnerValidationChange?: (validation: BudgetOwnerValidation) => void;
   onDailyHoursValidationChange?: (validation: DailyHoursValidation) => void;
-  onWeeklyHoursValidationChange?: (validation: WeeklyHoursValidation) => void;
   onUnsavedHourChangesChange?: (hasChanges: boolean) => void;
   weeklyStatus: WeeklyTimesheetLog;
   /** True while the selected week's status is loading. */
@@ -65,6 +61,27 @@ type SubmissionProps = {
 
 const toggleId = (list: number[], id: number) =>
   list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+
+/** Compares entered hours only; an absent entry and a zero-hour entry are equivalent. */
+const hasChangedHours = (
+  current: SubmissionProject[],
+  baseline: SubmissionProject[],
+  weekDays: ReturnType<typeof createWeekDays>,
+) => {
+  const toHoursByEntry = (projects: SubmissionProject[]) =>
+    new Map(
+      buildSubmitEntries(projects, weekDays)
+        .filter((entry) => entry.hours > 0)
+        .map((entry) => [`${entry.assignId}:${entry.date}`, entry.hours]),
+    );
+  const currentEntries = toHoursByEntry(current);
+  const baselineEntries = toHoursByEntry(baseline);
+
+  return (
+    currentEntries.size !== baselineEntries.size ||
+    [...currentEntries].some(([key, hours]) => baselineEntries.get(key) !== hours)
+  );
+};
 
 /**
  * Time Sheet submission tab: owns the week's data, the unsaved draft and the
@@ -80,7 +97,6 @@ function Submission({
   onSubmitEntriesChange,
   onBudgetOwnerValidationChange,
   onDailyHoursValidationChange,
-  onWeeklyHoursValidationChange,
   onUnsavedHourChangesChange,
   weeklyStatus,
   weeklyStatusLoading = false,
@@ -139,6 +155,24 @@ function Submission({
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const hasUnsavedHourChanges = unsavedKey === draftKey;
   const setHasUnsavedHourChanges = (value: boolean) => setUnsavedKey(value ? draftKey : null);
+  const hoursBaseline = useRef<{ key: string; projects: SubmissionProject[] } | null>(null);
+  const baselineSource = useRef<unknown>(undefined);
+
+  // A newly loaded response becomes the comparison baseline. Do not replace
+  // it while the user is editing, or a background refresh could erase the
+  // unsaved-change indicator.
+  useEffect(() => {
+    if (
+      entriesQuery.data === undefined ||
+      hasUnsavedHourChanges ||
+      (hoursBaseline.current?.key === draftKey && baselineSource.current === entriesQuery.data)
+    ) {
+      return;
+    }
+
+    hoursBaseline.current = { key: draftKey, projects: serverProjects };
+    baselineSource.current = entriesQuery.data;
+  }, [draftKey, entriesQuery.data, hasUnsavedHourChanges, serverProjects]);
 
   const isCurrentDraft = (candidate: typeof draft): candidate is NonNullable<typeof draft> =>
     Boolean(
@@ -175,8 +209,8 @@ function Submission({
     [estimatedWeekHours, weekTotal],
   );
   const dailyHoursValidation = useMemo(
-    () => getExceededDays(weekDayTotals, weekDays),
-    [weekDayTotals, weekDays],
+    () => getDailyHoursValidation(weekDayTotals, weekDays, estimatedWeekHours),
+    [estimatedWeekHours, weekDayTotals, weekDays],
   );
   const submitEntries = useMemo(() => buildSubmitEntries(projects, weekDays), [projects, weekDays]);
   const missingBudgetOwnerTaskNames = useMemo(
@@ -218,18 +252,19 @@ function Submission({
     onDailyHoursValidationChange?.(dailyHoursValidation);
   }, [dailyHoursValidation, onDailyHoursValidationChange]);
 
-  useEffect(() => {
-    onWeeklyHoursValidationChange?.(weeklyHoursValidation);
-  }, [weeklyHoursValidation, onWeeklyHoursValidationChange]);
-
   // ---- Actions --------------------------------------------------------------------
   const updateHours = (ref: TaskRef, date: string, rawValue: string) => {
     const value = rawValue.replace(":", ".");
     // Same rules HoursInput explains to the user (h.mm, minutes 00–59, ≤ 14 h).
     if (hoursInputError(value)) return;
     const stored = value === "" ? 0 : value;
-    if (isEntryChange(projects, ref, date, stored)) setHasUnsavedHourChanges(true);
-    setProjects((current) => setTaskEntry(current, ref, date, stored));
+    const nextProjects = setTaskEntry(projects, ref, date, stored);
+    const baseline =
+      hoursBaseline.current?.key === draftKey
+        ? hoursBaseline.current.projects
+        : serverProjects;
+    setHasUnsavedHourChanges(hasChangedHours(nextProjects, baseline, weekDays));
+    setProjects(() => nextProjects);
   };
 
   const updateBudgetOwner = async (ref: TaskRef, owner: string) => {
@@ -273,7 +308,12 @@ function Submission({
       const response = await api.post<SaveDraftResponse>("/timesheet-entries/save-draft/", {
         entries: submitEntries,
       });
-      setProjects((current) => applySavedDraft(current, response.data ?? {}));
+      setProjects((current) => {
+        const savedProjects = applySavedDraft(current, response.data ?? {});
+        hoursBaseline.current = { key: draftKey, projects: savedProjects };
+        baselineSource.current = entriesQuery.data;
+        return savedProjects;
+      });
       showNotification({ type: "success", message: "Timesheet draft saved successfully." });
       setLastSavedAt(new Date());
       setHasUnsavedHourChanges(false);

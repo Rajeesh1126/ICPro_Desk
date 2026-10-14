@@ -213,9 +213,6 @@ export function createAppTheme(mode: PaletteMode) {
           size: "small",
         },
         styleOverrides: {
-          root: {
-            border: `1px solid ${palette.divider}`,
-          },
           grouped: {
             color: isDark ? palette.primary.dark : palette.primary.light,
 
@@ -439,7 +436,10 @@ export function createAppTheme(mode: PaletteMode) {
         defaultProps: { arrow: true },
       },
       MuiChip: {
-        styleOverrides: { root: { fontWeight: 700 } },
+        defaultProps: {
+          size: "small",
+        },
+        styleOverrides: { root: { fontSize: 12, fontWeight: 700 } },
       },
       MuiAlert: {
         styleOverrides: { root: { borderRadius: RADIUS.sm } },

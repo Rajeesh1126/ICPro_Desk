@@ -192,7 +192,7 @@ export default function MobileDayEntry({
                     sx={{ width: 140, flexShrink: 0 }}
                   />
                   {!others && (
-                    <FormControl size="small" fullWidth>
+                    <FormControl fullWidth>
                       <InputLabel id={`owner-${task.assign_id}`}>Budget owner</InputLabel>
                       <Select
                         labelId={`owner-${task.assign_id}`}
@@ -222,7 +222,6 @@ export default function MobileDayEntry({
                       sx={{ mr: 0 }}
                       control={
                         <Checkbox
-                          size="small"
                           checked={selectedAssignedTaskIds.includes(task.assign_id)}
                           onChange={(event) => onAssignedTaskSelectionChange(task.assign_id, event.target.checked)}
                         />

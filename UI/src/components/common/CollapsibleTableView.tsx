@@ -32,11 +32,11 @@ import { useTheme, type Theme } from "@mui/material/styles";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import EmptyTableState from "./EmptyTableState";
 import { formatIfDate } from "../../utils/dateRange";
 import TableLoadingState from "./TableLoadingState";
 import type { ColumnData } from "./TableView";
+import { getColumnSearchText } from "./tableSearch";
 import {
   detailLabelSx,
   detailValueSx,
@@ -176,7 +176,6 @@ function CollapsibleRow<T extends object>({
       >
         <TableCell sx={expandCellSx(expandColumnWidth)}>
           <IconButton
-            size="small"
             aria-label={open ? "Collapse row" : "Expand row"}
             sx={{ width: 28, height: 28 }}
             aria-expanded={open}
@@ -283,14 +282,10 @@ export function CollapsibleTableView<T extends object>({
     const query = searchText.trim().toLowerCase();
     const searchableColumns = [...columns, ...(expandedColumns ?? [])];
     return query
-      ? rows.filter((row) =>
-          searchableColumns.some((column) => {
-            if (!column.dataKey) return false;
-            const value = row[column.dataKey];
-            return `${formatValue(value)} ${String(value ?? "")}`
-              .toLowerCase()
-              .includes(query);
-          }),
+      ? rows.filter((row, index) =>
+          searchableColumns.some((column) =>
+            getColumnSearchText(column, row, index).toLowerCase().includes(query),
+          ),
         )
       : rows;
   }, [columns, expandedColumns, rows, searchText]);
@@ -318,7 +313,6 @@ export function CollapsibleTableView<T extends object>({
     <Paper elevation={0} sx={tablePanelSx({ height })}>
       <Box sx={tableHeaderBarSx}>
         <Box sx={tableViewTitleGroupSx}>
-          <TableChartOutlinedIcon color="action" fontSize="small" />
           <Stack spacing={0.5}>
             <Typography variant="subtitle1" fontWeight={700}>
               {tableHead}
@@ -483,10 +477,19 @@ export function CollapsibleTableView<T extends object>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length + 1}
-                  align="center"
-                  sx={{ py: 4 }}
+                    align="center"
+                    sx={{ p: 0, height: 220 }}
                 >
-                    {emptyState}
+                    <Box
+                      sx={{
+                        minHeight: 220,
+                        display: "grid",
+                        placeItems: "center",
+                        textAlign: "center",
+                      }}
+                    >
+                      {emptyState}
+                    </Box>
                   </TableCell>
                 </TableRow>
               )}

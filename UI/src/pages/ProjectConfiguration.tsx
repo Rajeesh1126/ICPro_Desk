@@ -20,7 +20,8 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import api from "../api/axios";
 import { asArray, useApiQuery } from "../api/useApiQuery";
@@ -36,7 +37,6 @@ import {
   buttonLabelFull,
   deleteIconSx,
   editIconSx,
-  inlineCenterGapSx,
   page,
   pageContent,
   pageSubtitle,
@@ -47,6 +47,7 @@ import {
   scrollableContent,
   wideFilterField,
 } from "../styles/common";
+import { getStoredPermissions } from "../utils/permissions";
 
 type ProjectConfig = {
   id: number;
@@ -108,6 +109,16 @@ const emptyTaskForm = {
 };
 
 export default function ProjectConfiguration() {
+  const permissions = getStoredPermissions();
+  const canAddProject = permissions.has("add_project");
+  const canChangeProject = permissions.has("change_project");
+  const canDeleteProject = permissions.has("delete_project");
+  const canAddMilestone = permissions.has("add_milestone");
+  const canChangeMilestone = permissions.has("change_milestone");
+  const canDeleteMilestone = permissions.has("delete_milestone");
+  const canAddTask = permissions.has("add_task");
+  const canChangeTask = permissions.has("change_task");
+  const canDeleteTask = permissions.has("delete_task");
   // Three independent cached queries: each table renders as soon as its own
   // data arrives instead of waiting for the slowest request.
   const projectsQuery = useApiQuery<ProjectConfig[]>("/projects/");
@@ -411,53 +422,48 @@ export default function ProjectConfiguration() {
     (milestone) => milestone.project === Number(taskForm.project),
   );
 
-  const actionColumn: ColumnData<ConfigTableRow> = {
+  const actionColumn = (
+    canChange: boolean,
+    canDelete: boolean,
+  ): ColumnData<ConfigTableRow> => ({
     label: "Actions",
-    width: 75,
+    width: 85,
     render: (row) => (
-      <Box
-        sx={{
-          ...inlineCenterGapSx,
-          gap: 0.25,
-          justifyContent: "flex-end",
-          minWidth: 0,
-          "& .MuiIconButton-root": {
-            p: 0.5,
-          },
-        }}
-      >
-        <Tooltip title="Edit">
-          <IconButton
-            size="small"
-            aria-label={`Edit ${row.name}`}
-            onClick={row.onEdit}
-          >
-            <EditOutlinedIcon fontSize="small" sx={editIconSx} />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Delete">
-          <IconButton
-            size="small"
-            aria-label={`Delete ${row.name}`}
-            onClick={row.onDelete}
-          >
-            <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <Stack direction="row" spacing={0}>
+        {canChange && (
+          <Tooltip title="Edit">
+            <IconButton
+              aria-label={`Edit ${row.name}`}
+              onClick={row.onEdit}
+            >
+              <EditOutlinedIcon fontSize="small" sx={editIconSx} />
+            </IconButton>
+          </Tooltip>
+        )}
+        {canDelete && (
+          <Tooltip title="Delete">
+            <IconButton
+              aria-label={`Delete ${row.name}`}
+              onClick={row.onDelete}
+            >
+              <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
     ),
-  };
+  });
 
   const projectColumns: ColumnData<ConfigTableRow>[] = [
     { label: "Code", dataKey: "name", width: "auto" },
     { label: "Description", dataKey: "description", width: "auto" },
-    actionColumn,
+    actionColumn(canChangeProject, canDeleteProject),
   ];
 
   const milestoneColumns: ColumnData<ConfigTableRow>[] = [
     { label: "Name", dataKey: "name", width: "auto" },
     { label: "Category", dataKey: "category", width: "auto" },
-    actionColumn,
+    actionColumn(canChangeMilestone, canDeleteMilestone),
   ];
 
   const taskColumns: ColumnData<ConfigTableRow>[] = [
@@ -470,7 +476,7 @@ export default function ProjectConfiguration() {
       numeric: true,
     },
     { label: "Description", dataKey: "description", width: "auto" },
-    actionColumn,
+    actionColumn(canChangeTask, canDeleteTask),
   ];
 
   const projectRows = projects.map((project) => ({
@@ -538,44 +544,50 @@ export default function ProjectConfiguration() {
             spacing={1}
             sx={projectConfigurationPageHeaderActionsSx}
           >
-            <Button
-              variant="contained"
-              startIcon={<AddOutlinedIcon />}
-              onClick={() => openProjectDialog("create")}
-            >
-              <Box component="span" sx={buttonLabelFull}>
-                New Project
-              </Box>
-              <Box component="span" sx={buttonLabelCompact}>
-                Project
-              </Box>
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<AddOutlinedIcon />}
-              disabled={!selectedProject}
-              onClick={() => openMilestoneDialog("create")}
-            >
-              <Box component="span" sx={buttonLabelFull}>
-                New Milestone
-              </Box>
-              <Box component="span" sx={buttonLabelCompact}>
-                Milestone
-              </Box>
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<AddOutlinedIcon />}
-              disabled={!selectedProject}
-              onClick={() => openTaskDialog("create")}
-            >
-              <Box component="span" sx={buttonLabelFull}>
-                New Task
-              </Box>
-              <Box component="span" sx={buttonLabelCompact}>
-                Task
-              </Box>
-            </Button>
+            {canAddProject && (
+              <Button
+                variant="contained"
+                startIcon={<AddOutlinedIcon />}
+                onClick={() => openProjectDialog("create")}
+              >
+                <Box component="span" sx={buttonLabelFull}>
+                  New Project
+                </Box>
+                <Box component="span" sx={buttonLabelCompact}>
+                  Project
+                </Box>
+              </Button>
+            )}
+            {canAddMilestone && (
+              <Button
+                variant="outlined"
+                startIcon={<AddOutlinedIcon />}
+                disabled={!selectedProject}
+                onClick={() => openMilestoneDialog("create")}
+              >
+                <Box component="span" sx={buttonLabelFull}>
+                  New Milestone
+                </Box>
+                <Box component="span" sx={buttonLabelCompact}>
+                  Milestone
+                </Box>
+              </Button>
+            )}
+            {canAddTask && (
+              <Button
+                variant="outlined"
+                startIcon={<AddOutlinedIcon />}
+                disabled={!selectedProject}
+                onClick={() => openTaskDialog("create")}
+              >
+                <Box component="span" sx={buttonLabelFull}>
+                  New Task
+                </Box>
+                <Box component="span" sx={buttonLabelCompact}>
+                  Task
+                </Box>
+              </Button>
+            )}
           </Stack>
         </Box>
 
@@ -714,7 +726,6 @@ export default function ProjectConfiguration() {
               <Stack spacing={2}>
                 <FormControl
                   required
-                  size="small"
                   fullWidth
                   error={Boolean(formErrors.project)}
                 >
@@ -782,7 +793,6 @@ export default function ProjectConfiguration() {
               <Stack spacing={2}>
                 <FormControl
                   required
-                  size="small"
                   fullWidth
                   error={Boolean(formErrors.project)}
                 >
@@ -816,7 +826,7 @@ export default function ProjectConfiguration() {
                     </Typography>
                   )}
                 </FormControl>
-                <FormControl size="small" fullWidth>
+                <FormControl fullWidth>
                   <InputLabel>Milestone</InputLabel>
                   <Select
                     label="Milestone"
@@ -890,11 +900,11 @@ export default function ProjectConfiguration() {
             </Button>
             <Button
               variant="contained"
-              startIcon={<SaveOutlinedIcon />}
+              startIcon={dialogMode === "edit" ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
               onClick={() => void saveDialog()}
               disabled={saving || !isDialogFormValid()}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : dialogMode === "edit" ? "Update" : "Submit"}
             </Button>
           </DialogActions>
           {discard.dialog}

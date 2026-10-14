@@ -27,10 +27,10 @@ import type { TableComponents } from "react-virtuoso";
 import { TableSortLabel } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import EmptyTableState from "./EmptyTableState";
 import { formatIfDate } from "../../utils/dateRange";
+import { getColumnSearchText } from "./tableSearch";
 import TableLoadingState from "./TableLoadingState";
 import {
   alternatingRowSx,
@@ -49,7 +49,6 @@ import {
   tableBodyCellForColumnSx,
   tableStatusDotSx,
   tablePanelSx,
-  tableTitleIconSx,
   tableScrollContainerSx,
   tableViewTableWithMinWidth,
   tableVirtuosoStyle,
@@ -72,6 +71,8 @@ export interface ColumnData<T> {
   numeric?: boolean;
   dataKey?: keyof T;
   render?: (row: T, index: number) => React.ReactNode;
+  /** Optional plain-text value used by the table-wide search. */
+  searchValue?: (row: T, index: number) => unknown;
 }
 
 interface VirtualizedTableProps<T> {
@@ -216,14 +217,9 @@ export function VirtualizedTable<T extends object>({
     if (searchText.trim() !== "") {
       const lower = searchText.toLowerCase();
 
-      filtered = rows.filter((row) =>
+      filtered = rows.filter((row, index) =>
         columns.some((column) => {
-          if (!column.dataKey) return false;
-
-          const value = row[column.dataKey];
-          if (value == null) return false;
-
-          return `${String(value)} ${String(formatIfDate(value))}`
+          return getColumnSearchText(column, row, index)
             .toLowerCase()
             .includes(lower);
         }),
@@ -556,7 +552,6 @@ export function VirtualizedTable<T extends object>({
         <Box sx={tableViewTitleGroupSx}>
           {collapsible && (
             <IconButton
-              size="small"
               aria-label={isTableExpanded ? "Collapse table" : "Expand table"}
               aria-expanded={isTableExpanded}
               onClick={(event) => {
@@ -572,14 +567,6 @@ export function VirtualizedTable<T extends object>({
               )}
             </IconButton>
           )}
-          {tableTitle && (
-            <TableChartOutlinedIcon
-              color="action"
-              fontSize="small"
-              sx={tableTitleIconSx}
-            />
-          )}
-
           <Stack spacing={0.5} sx={tableViewTitleStackSx}>
             <Typography variant="subtitle1" fontWeight={700} sx={tableTitleSx}>
               {tableTitle}

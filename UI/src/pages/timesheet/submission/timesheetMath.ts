@@ -48,6 +48,7 @@ export type BudgetOwnerValidation = {
 
 export type DailyHoursValidation = {
   exceededDays: string[];
+  missingRequiredDays: string[];
 };
 
 export type WeeklyHoursValidation = {
@@ -117,9 +118,9 @@ export const getEstimatedWeekHours = (weekStart: string) => {
   for (let index = 0; index < 7; index++) {
     const date = addDays(startDate, index);
     const saturdayOccurrence = Math.ceil(date.getDate() / 7);
-    if (date.getDay() === 6 && [2, 4].includes(saturdayOccurrence)) return 1;
+    if (date.getDay() === 6 && [2, 4].includes(saturdayOccurrence)) return 45;
   }
-  return 1 ; // 1st, 3rd, 5th Saturday of the month is 9 hours and 6 days of 9 hours
+  return 54;
 };
 
 /** Dates a not-yet-submitted week may be edited on: yesterday, today, tomorrow. */
@@ -226,18 +227,25 @@ export function getWeeklyHoursValidation(
   return { estimatedHours, actualHours, isSatisfied: actualHours >= estimatedHours };
 }
 
-/** Days over the 14-hour cap, as "Mon-05 (15 h)". */
-export function getExceededDays(
+/** Per-day limits and the days that are mandatory for the selected week. */
+export function getDailyHoursValidation(
   weekDayTotals: { date: string; hours: number }[],
   weekDays: WeekDay[],
+  estimatedHours: number,
 ): DailyHoursValidation {
+  const requiredDayCount = estimatedHours === 45 ? 5 : estimatedHours === 54 ? 6 : 0;
+  const dayTotals = weekDayTotals.map((dayTotal, index) => ({
+    label: weekDays[index]?.label ?? dayTotal.date,
+    hours: dayTotal.hours,
+  }));
+
   return {
-    exceededDays: weekDayTotals
-      .map((dayTotal, index) => ({
-        label: weekDays[index]?.label ?? dayTotal.date,
-        hours: dayTotal.hours,
-      }))
+    exceededDays: dayTotals
       .filter((dayTotal) => dayTotal.hours > MAX_DAILY_SECONDS)
+      .map((dayTotal) => `${dayTotal.label} (${describeHoursMinutes(dayTotal.hours)})`),
+    missingRequiredDays: dayTotals
+      .slice(0, requiredDayCount)
+      .filter((dayTotal) => dayTotal.hours < 3600 || dayTotal.hours > MAX_DAILY_SECONDS)
       .map((dayTotal) => `${dayTotal.label} (${describeHoursMinutes(dayTotal.hours)})`),
   };
 }
@@ -271,6 +279,9 @@ export const budgetOwnerMessage = (taskNames: string[], action: string) =>
 
 export const dailyLimitMessage = (exceededDays: string[], action: string) =>
   `Daily total cannot exceed 14 hours before ${action}: ${summariseList(exceededDays)}.`;
+
+export const requiredDayHoursMessage = (days: string[], action: string) =>
+  `Enter 1 to 14 hours for each required day before ${action}: ${summariseList(days)}.`;
 
 // ---------------------------------------------------------------------------
 // Entries sent to the API

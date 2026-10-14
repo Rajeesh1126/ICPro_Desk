@@ -301,8 +301,8 @@ export interface ApiTaskRow {
 
     project: string;
 
-    description?: string ;
-    
+    description?: string;
+
     task: string;
 
     budgetOwner: string;
@@ -327,7 +327,7 @@ export interface TaskRow {
 
     project: string;
 
-    description?: string ;
+    description?: string;
 
     task: string;
 

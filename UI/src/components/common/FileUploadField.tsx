@@ -55,16 +55,14 @@ export default function FileUploadField({
     onChange(selected);
   };
 
-  const replacementNote = existingFileName
-    ? `Current file: ${existingFileName}. A new file replaces it when you save; leave empty to keep it.`
+  const fileGuidance = existingFileName
+    ? {
+        label: "Current file",
+        value: `${existingFileName}. A new file replaces it when you save; leave empty to keep it.`,
+      }
     : required
-      ? "A file is required."
-      : "Attaching a file is optional.";
-  const selectedFileLabel = file
-    ? `${file.name} (${formatSize(file.size)})`
-    : existingFileName
-      ? `Current file: ${existingFileName}`
-      : "No file selected";
+      ? { label: "File requirement", value: "A file is required." }
+      : { label: "File requirement", value: "Attaching a file is optional." };
 
   return (
     <Box>
@@ -86,12 +84,25 @@ export default function FileUploadField({
           {buttonLabel}
         </Button>
         <Typography variant="body2" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-          {selectedFileLabel}
+          {file ? `${file.name} (${formatSize(file.size)})` : "No new file selected"}
         </Typography>
       </Stack>
-      <Typography id={helpId} variant="caption" color="text.secondary" component="p" sx={{ mt: 0.75 }}>
-        Accepted: {acceptLabel}. Maximum {maxSizeMb} MB. {replacementNote}
-      </Typography>
+      <Stack
+        id={helpId}
+        component="ul"
+        spacing={0.25}
+        sx={{ mt: 0.75, mb: 0, pl: 2.5, color: "text.secondary" }}
+      >
+        <Typography component="li" variant="caption">
+          <Box component="span" sx={{ fontWeight: 700 }}>Accepted formats:</Box> {acceptLabel}
+        </Typography>
+        <Typography component="li" variant="caption">
+          <Box component="span" sx={{ fontWeight: 700 }}>Maximum size:</Box> {maxSizeMb} MB
+        </Typography>
+        <Typography component="li" variant="caption">
+          <Box component="span" sx={{ fontWeight: 700 }}>{fileGuidance.label}:</Box> {fileGuidance.value}
+        </Typography>
+      </Stack>
       {error && (
         <Typography role="alert" variant="caption" color="error" component="p" sx={{ mt: 0.5 }}>
           {error}

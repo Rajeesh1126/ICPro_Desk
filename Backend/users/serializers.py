@@ -25,7 +25,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if role:
             # Get the permission assisiated with modal role and applabel user
             permissions = list(
-                role.permissions.values_list("codename", flat=True).filter(content_type__app_label='users', content_type__model='role')
+                role.permissions.values_list("codename", flat=True)#.filter(content_type__app_label__in =['users','documents'], content_type__model__in=['role','documenttemplate'])
             )
         return {
             "refresh": data["refresh"],

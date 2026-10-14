@@ -51,8 +51,14 @@ import {
 } from "../../components/common/TableView";
 import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
 import { showNotification } from "../../api/notificationService";
+import { getStoredPermissions } from "../../utils/permissions";
 
 export default function Users() {
+  const permissions = getStoredPermissions();
+  const canAddUser = permissions.has("add_user");
+  const canChangeUser = permissions.has("change_user");
+  const canAddDepartmentManager = permissions.has("add_departmentmanager");
+  const canChangeDepartmentManager = permissions.has("change_departmentmanager");
   const [savingGroupId, setSavingGroupId] = useState<number | null>(null);
   const [userStatusFilter, setUserStatusFilter] = useState<
     "all" | "active" | "inactive"
@@ -191,15 +197,16 @@ export default function Users() {
         width: 100,
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
-            <Tooltip title="Edit task">
-              <IconButton
-                aria-label={`Edit ${row.id}`}
-                size="small"
-                onClick={() => openEdit(row)}
-              >
-                <EditOutlinedIcon fontSize="small" sx={editIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canChangeUser && (
+              <Tooltip title="Edit user">
+                <IconButton
+                  aria-label={`Edit ${row.id}`}
+                  onClick={() => openEdit(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" sx={editIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
             <Typography variant="body2">{row.username}</Typography>
           </Box>
         ),
@@ -213,7 +220,7 @@ export default function Users() {
       { label: "Reporting To", dataKey: "reporting_to" },
       { label: "Location", dataKey: "location" },
     ],
-    [openEdit],
+    [canChangeUser, openEdit],
   );
 
   const columnsGroup = useMemo<ColumnData<groupData>[]>(
@@ -229,15 +236,16 @@ export default function Users() {
         width: "auto",
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
-            <Tooltip title="Edit team">
-              <IconButton
-                aria-label={`Edit ${row.name || row.id}`}
-                size="small"
-                onClick={() => openEditGroup(row)}
-              >
-                <EditOutlinedIcon fontSize="small" sx={editIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canChangeDepartmentManager && (
+              <Tooltip title="Edit team">
+                <IconButton
+                  aria-label={`Edit ${row.name || row.id}`}
+                  onClick={() => openEditGroup(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" sx={editIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
             <Typography variant="body2">{row.name}</Typography>
           </Box>
         ),
@@ -247,10 +255,9 @@ export default function Users() {
         width: "auto",
         render: (row) => (
           <Select
-            size="small"
             fullWidth
             displayEmpty
-            disabled={savingGroupId === row.id}
+            disabled={!canChangeDepartmentManager || savingGroupId === row.id}
             value={row.manager?.id === undefined ? "" : String(row.manager.id)}
             onChange={(event) =>
               void updateGroupManager(
@@ -273,12 +280,12 @@ export default function Users() {
         ),
       },
     ],
-    [openEditGroup, savingGroupId, updateGroupManager, users],
+    [canChangeDepartmentManager, openEditGroup, savingGroupId, updateGroupManager, users],
   );
   const primaryUserColumns = useMemo(
     () =>
       columns.filter((column) =>
-        ["#", "Employee ID", "First Name", "Email", "Role"].includes(
+        ["#", "Employee ID", "First Name", "Last Name", "Email", "Role"].includes(
           column.label,
         ),
       ),
@@ -288,7 +295,6 @@ export default function Users() {
     () =>
       columns.filter((column) =>
         [
-          "Last Name",
           "Execution Teams",
           "Designation",
           "Reporting To",
@@ -333,21 +339,23 @@ export default function Users() {
                     <ToggleButton value="active">Active</ToggleButton>
                     <ToggleButton value="inactive">In-Active</ToggleButton>
                   </ToggleButtonGroup>
-                  <Button
-                    startIcon={<AddOutlinedIcon />}
-                    variant="contained"
-                    onClick={openCreate}
-                  >
-                    <Box component="span" sx={buttonLabelFull}>
-                      New User
-                    </Box>
-                    <Box component="span" sx={buttonLabelCompact}>
-                      New
-                    </Box>
-                  </Button>
+                  {canAddUser && (
+                    <Button
+                      startIcon={<AddOutlinedIcon />}
+                      variant="contained"
+                      onClick={openCreate}
+                    >
+                      <Box component="span" sx={buttonLabelFull}>
+                        New User
+                      </Box>
+                      <Box component="span" sx={buttonLabelCompact}>
+                        New
+                      </Box>
+                    </Button>
+                  )}
                 </>
               ) : null}
-              {tabValue === 1 ? (
+              {tabValue === 1 && canAddDepartmentManager ? (
                 <Button
                   startIcon={<AddOutlinedIcon />}
                   variant="contained"

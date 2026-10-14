@@ -192,7 +192,6 @@ export default function BasicCardComponent({
             </Box>
             <Chip
               label={ticket.priority || "Normal"}
-              size="small"
               sx={ticketCardPriorityChipSx({ alpha, styles })}
             />
           </Stack>

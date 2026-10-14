@@ -30,7 +30,6 @@ export default function HoursInput({
   onChange,
   ariaLabel,
   sx,
-  size = "small",
 }: HoursInputProps) {
   const [focused, setFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,17 +76,31 @@ export default function HoursInput({
         }}
         onChange={(event) => handleChange(event.target.value)}
         type="text"
-        size={size}
         slotProps={{
           htmlInput: {
             inputMode: "decimal",
             placeholder: "0.00",
             "aria-label": ariaLabel,
             "aria-invalid": Boolean(error),
-            "aria-description": seconds ? describeHoursMinutes(seconds) : undefined,
+            "aria-description": seconds
+              ? describeHoursMinutes(seconds)
+              : undefined,
           },
         }}
-        sx={sx}
+        sx={{
+          ...sx,
+          ...(shown && {
+            "& .MuiInputBase-input": {
+              fontWeight: 700,
+              color: "primary.main",
+            },
+            "& .MuiInputBase-input.Mui-disabled": {
+              color: "primary.main",
+              WebkitTextFillColor: "currentColor",
+              opacity: 1,
+            },
+          }),
+        }}
       />
     </Tooltip>
   );

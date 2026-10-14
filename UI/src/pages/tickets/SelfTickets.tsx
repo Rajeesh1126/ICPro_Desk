@@ -182,7 +182,6 @@ export default function SelfTickets() {
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
                 onClick={() => openDetails(row)}
               >
                 <VisibilityOutlinedIcon fontSize="small" />
@@ -191,7 +190,6 @@ export default function SelfTickets() {
             <Tooltip title="Edit task">
               <span><IconButton
                 aria-label={`Edit ${row.number}`}
-                size="small"
                 onClick={() => openEdit(row)}
                 disabled={
                   row.creator !== userId || row.current_status !== "open"
@@ -205,7 +203,6 @@ export default function SelfTickets() {
               <Tooltip title="Acknowledge reminder">
                 <IconButton
                   aria-label={`Acknowledge reminder ${row.number}`}
-                  size="small"
                   color="warning"
                   onClick={() => requestAcknowledgeAlarm(row)}
                 >
@@ -304,7 +301,7 @@ export default function SelfTickets() {
             sx={pageHeaderActions}
           >
             {tabValue !== 0 && (
-              <FormControl size="small" sx={[filterField, { flex: { xs: "1 1 140px", sm: "0 0 auto" }, minWidth: { xs: 0, sm: 210 } }]}>
+              <FormControl sx={[filterField, { flex: { xs: "1 1 140px", sm: "0 0 auto" }, minWidth: { xs: 0, sm: 210 } }]}>
                 <InputLabel>Employee</InputLabel>
                 <Select
                   value={selectedUser}
@@ -337,7 +334,6 @@ export default function SelfTickets() {
             <ToggleButtonGroup
               exclusive
               value={view}
-              size="small"
               onChange={(_, next: "table" | "card" | null) =>
                 next && setView(next)
               }

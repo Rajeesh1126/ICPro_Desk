@@ -609,7 +609,7 @@ export default function TimesheetAnalysis() {
                 htmlInput: { min: filters.startDate || undefined },
               }}
             />
-            <FormControl fullWidth size="small">
+            <FormControl fullWidth>
               <InputLabel id="timesheet-analysis-employee-label">
                 Employee
               </InputLabel>
@@ -627,7 +627,7 @@ export default function TimesheetAnalysis() {
                 ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth size="small">
+            <FormControl fullWidth>
               <InputLabel id="timesheet-analysis-project-label">
                 Project
               </InputLabel>
@@ -645,7 +645,7 @@ export default function TimesheetAnalysis() {
                 ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth size="small">
+            <FormControl fullWidth>
               <InputLabel id="timesheet-analysis-task-label">Task</InputLabel>
               <Select
                 labelId="timesheet-analysis-task-label"

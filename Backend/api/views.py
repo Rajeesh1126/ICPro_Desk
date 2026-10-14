@@ -106,7 +106,7 @@ def _week_status(week_start):
     due_date = week_start + timedelta(days=7)
 
     if today <= due_date:
-        return f'Due by {due_date.strftime("%d-%m-%Y")}'
+        return f'Due by {due_date.strftime("%Y-%m-%d")}'
 
     return 'Delayed'
 
@@ -520,7 +520,6 @@ class TimesheetWeekLogViewSet(viewsets.ModelViewSet):
                 (year, week)
                 for week in sorted(
                     {week for week in _parse_int_list(week_filter) if 1 <= week <= max_week},
-                    reverse=True,
                 )
             ]
         elif requested_year:
@@ -528,6 +527,8 @@ class TimesheetWeekLogViewSet(viewsets.ModelViewSet):
             year_week_pairs = [(year, week) for week in range(1, max_week + 1)]
         else:
             year_week_pairs = _last_four_iso_weeks()
+
+        year_week_pairs = sorted(year_week_pairs)
 
         if not year_week_pairs:
             return Response(
@@ -674,7 +675,6 @@ class TimesheetWeekLogViewSet(viewsets.ModelViewSet):
                 (year, week)
                 for week in sorted(
                     {week for week in _parse_int_list(week_filter) if 1 <= week <= max_week},
-                    reverse=True,
                 )
             ]
         elif requested_year:
@@ -682,6 +682,8 @@ class TimesheetWeekLogViewSet(viewsets.ModelViewSet):
             year_week_pairs = [(year, week) for week in range(1, max_week + 1)]
         else:
             year_week_pairs = _last_four_iso_weeks()
+
+        year_week_pairs = sorted(year_week_pairs)
 
         if not year_week_pairs:
             return Response(

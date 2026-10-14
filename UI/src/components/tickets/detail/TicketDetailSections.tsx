@@ -70,7 +70,6 @@ export function TicketDetailHeader({ ticket, onClose }: { ticket: TicketData; on
           <Typography sx={ticketDetailNumberSx}>{ticket.number}</Typography>
           <Chip
             label={`${ticket.priority?.toUpperCase()} PRIORITY`}
-            size="small"
             sx={ticketDetailPriorityChipSx({ pStyle })}
           />
         </Box>
@@ -159,7 +158,7 @@ export function TicketActivityTimeline({ logs }: { logs?: TicketLog[] }) {
     <Paper variant="outlined" sx={ticketDetailActivitySectionSx({ formSectionSx })}>
       <Box sx={ticketDetailPanelHeaderSx({ modalPalette })}>
         <Typography sx={ticketActivityTitleSx}>Activity logs</Typography>
-        <Chip label="Latest First" size="small" sx={ticketActivityCountChipSx} />
+        <Chip label="Latest First" sx={ticketActivityCountChipSx} />
       </Box>
       <Box sx={ticketTimelineScrollSx}>
         <Box sx={ticketTimelineRailSx({ modalPalette })} />
@@ -170,7 +169,6 @@ export function TicketActivityTimeline({ logs }: { logs?: TicketLog[] }) {
               <Box sx={ticketTimelineEntrySx({ index, modalPalette })}>
                 <Chip
                   label={formatStatusLabel(log.status).toUpperCase()}
-                  size="small"
                   sx={ticketTimelineStatusChipSx({ alpha, getStatusColor, isDark, log })}
                 />
                 <Typography variant="body2" sx={ticketTimelineRemarksSx}>

@@ -186,7 +186,6 @@ export default function TicketDetailModal({
                 </Typography>
                 <Chip
                   label={`${task.priority?.toUpperCase()} PRIORITY`}
-                  size="small"
                   sx={doListDetailPriorityChipSx({ pStyle })}
                 />
               </Box>
@@ -223,7 +222,6 @@ export default function TicketDetailModal({
               )}
               <IconButton aria-label="Close dialog"
                 onClick={onClose}
-                size="small"
                 sx={doListDetailCloseButtonSx}
               >
                 <CloseOutlinedIcon fontSize="small" />

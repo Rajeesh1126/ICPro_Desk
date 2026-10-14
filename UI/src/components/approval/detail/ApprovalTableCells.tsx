@@ -1,5 +1,4 @@
-import { Box, Button, IconButton, TableCell, TableRow, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { Box, Button, Chip, IconButton, TableCell, TableRow, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDownOutlined";
 import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
@@ -29,7 +28,6 @@ export function JobCell({
   return (
     <Box sx={{ display: "flex", alignItems: "center" }}>
       <IconButton
-        size="small"
         aria-label={`${expanded ? "Collapse" : "Expand"} ${row.project}`}
         aria-expanded={expanded}
         onClick={() => onToggle(row.projectId)}
@@ -87,26 +85,22 @@ export function HourCell({ value }: { value: string }) {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const accepted = status === "Accepted";
+  const statusColor = (() => {
+    switch (status.trim().toLowerCase()) {
+      case "submitted":
+        return "primary";
+      case "accepted":
+        return "success";
+      case "rejected":
+        return "error";
+      case "draft":
+      default:
+        return "secondary";
+    }
+  })();
+
   return (
-    <Box
-      sx={(theme) => ({
-        display: "inline-flex",
-        alignItems: "center",
-        minHeight: 26,
-        px: 1,
-        borderRadius: 1,
-        bgcolor: alpha(
-          accepted ? theme.palette.success.main : theme.palette.error.main,
-          theme.palette.mode === "dark" ? 0.18 : 0.1,
-        ),
-        color: accepted ? "success.main" : "error.main",
-        fontSize: 12,
-        fontWeight: 700,
-      })}
-    >
-      {status}
-    </Box>
+    <Chip label={status} color={statusColor} variant="outlined" />
   );
 }
 

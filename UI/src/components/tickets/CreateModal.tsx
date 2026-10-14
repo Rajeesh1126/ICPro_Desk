@@ -555,7 +555,6 @@ export default function CreateTicketModal({
                     </Typography>
 
                     <IconButton aria-label={`Remove attachment ${attachment.name}`}
-                      size="small"
                       color="error"
                       sx={attachmentRemoveButtonSx}
                       onClick={() => {

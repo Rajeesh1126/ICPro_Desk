@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  Divider,
   Grid,
   Stack,
   TextField,
@@ -178,7 +177,6 @@ export default function RoleModel({
               </Grid>
             </Grid>
           </Box>
-          <Divider />
         </Stack>
       </DialogContent>
 

@@ -1,7 +1,15 @@
-import { Box, Button, Chip, Skeleton, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Skeleton,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { INSET_X, INSET_Y } from "../../../styles/tokens";
+import { formatDateTime } from "../../../utils/dateRange";
 import { describeHoursMinutes } from "../../../utils/hoursMinutes";
 import type { WeeklyTimesheetLog } from "./timesheetMath";
 
@@ -55,29 +63,36 @@ export default function SubmissionActionBar({
         py: INSET_Y,
         px: INSET_X,
         borderTop: "1px solid",
-        borderColor: hasUnsavedChanges ? theme.palette.warning.main : theme.palette.divider,
+        borderColor: hasUnsavedChanges
+          ? theme.palette.warning.main
+          : theme.palette.divider,
         backgroundColor: hasUnsavedChanges
           ? alpha(theme.palette.warning.main, isDark ? 0.14 : 0.08)
           : theme.palette.background.paper,
         boxShadow: hasUnsavedChanges
           ? `0 -6px 18px ${alpha(theme.palette.warning.main, isDark ? 0.12 : 0.14)}`
           : "none",
-        transition: theme.transitions.create(["background-color", "border-color", "box-shadow"], {
-          duration: theme.transitions.duration.shorter,
-        }),
+        transition: theme.transitions.create(
+          ["background-color", "border-color", "box-shadow"],
+          {
+            duration: theme.transitions.duration.shorter,
+          },
+        ),
       }}
     >
       <Box sx={{ minWidth: { xs: "100%", md: 360 }, flex: 1 }}>
-        <Typography 
+        <Typography
           sx={{
+            display: "none",
             fontSize: 13,
-            fontWeight: 800,
-            color: targetMet ? theme.palette.success.main : theme.palette.warning.main,
-            visibility: "hidden" ,
+            fontWeight: 700,
+            color: targetMet
+              ? theme.palette.success.main
+              : theme.palette.warning.main,
           }}
         >
-          Estimated: {describeHoursMinutes(estimatedWeekHours * 3600)} · Entered:{" "}
-          {describeHoursMinutes(weekTotal)}
+          Estimated: {describeHoursMinutes(estimatedWeekHours * 3600)} ·
+          Entered: {describeHoursMinutes(weekTotal)}
         </Typography>
         <Typography
           variant="caption"
@@ -89,11 +104,20 @@ export default function SubmissionActionBar({
             fontWeight: hasUnsavedChanges ? 800 : 400,
           }}
         >
-          {hasUnsavedChanges
-            ? "Daily hours changed. Click Save Draft before closing or switching work."
-            : lastSavedAt
-              ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Auto-save is not available.`
-              : "Save as draft or submit before closing. Auto-save is not available."}
+          {hasUnsavedChanges ? (
+            "Daily hours changed. Click Save Draft before closing or switching work."
+          ) : lastSavedAt ? (
+            `Draft saved at ${formatDateTime(lastSavedAt)}. Auto-save is not available.`
+          ) : (
+            <>
+              <Box component="span" sx={{ fontWeight: 700 }}>
+                Attention:
+              </Box>{" "}
+              Auto-save is currently unavailable. To prevent data loss, please
+              ensure you save as a draft or submit your progress before exiting
+              the page.
+            </>
+          )}
         </Typography>
       </Box>
 
@@ -107,33 +131,29 @@ export default function SubmissionActionBar({
           flexWrap: "wrap",
         }}
       >
-        {weeklyStatusLoading && !hasUnsavedChanges ? (
-          <Skeleton
-            variant="rounded"
-            width={150}
-            height={24}
-            sx={{ borderRadius: 5 }}
-            aria-label="Loading week status"
-          />
-        ) : (
-          <Chip
-            size="small"
-            label={
-              hasUnsavedChanges
-                ? "Unsaved hours"
-                : `Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`
-            }
-            color={
-              hasUnsavedChanges ? "warning" : isRejected ? "error" : isSubmitted ? "success" : "default"
-            }
-            variant={hasUnsavedChanges || isSubmitted || isRejected ? "filled" : "outlined"}
-            sx={{
-              borderRadius: 5,
-              fontWeight: 700,
-              "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
-            }}
-          />
-        )}
+        {!hasUnsavedChanges &&
+          (weeklyStatusLoading ? (
+            <Skeleton
+              variant="rounded"
+              width={150}
+              height={24}
+              sx={{ borderRadius: 5 }}
+              aria-label="Loading week status"
+            />
+          ) : (
+            <Chip
+              label={`Status: ${weeklyStatus.timesheet_status || "Not Submitted"}`}
+              color={isRejected ? "error" : isSubmitted ? "success" : "default"}
+              variant="outlined"
+              sx={{
+                fontWeight: 700,
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                },
+              }}
+            />
+          ))}
         <Button
           variant="contained"
           startIcon={<SaveOutlinedIcon />}
@@ -142,7 +162,9 @@ export default function SubmissionActionBar({
           sx={{
             bgcolor: hasUnsavedChanges ? "warning.main" : undefined,
             color: hasUnsavedChanges ? "warning.contrastText" : undefined,
-            "&:hover": { bgcolor: hasUnsavedChanges ? "warning.dark" : undefined },
+            "&:hover": {
+              bgcolor: hasUnsavedChanges ? "warning.dark" : undefined,
+            },
           }}
         >
           {saving ? "Saving..." : "Save Draft"}

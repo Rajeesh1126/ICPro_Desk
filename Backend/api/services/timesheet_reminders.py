@@ -91,9 +91,9 @@ def send_daily_timesheet_reminders(today=None, force=False):
             f'Timesheet reminder - {format_date(missed_date, "d-m-Y")}',
             (
                 f'<p>Hello {escape(_display_name(user))},</p>'
-                f'<p>You have not filled your timesheet for {format_date(missed_date, "d-m-Y")}.</p>'
+                f'<p>You have not filled your timesheet for {format_date(missed_date, "d-M-Y")}.</p>'
                 '<p>Please update and submit your timesheet as soon as possible.</p>'
-                '<p>Regards,<br>ICPro Desk</p>'
+                '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
             ),
             [user.email],
         )
@@ -119,7 +119,7 @@ def send_weekly_timesheet_submission_reminders(today=None, force=False):
                 '<p>This is a reminder to submit your weekly timesheet for '
                 f'{format_date(week_start, "d-m-Y")} to {format_date(week_end, "d-m-Y")}.</p>'
                 '<p>Please submit it before the end of the day.</p>'
-                '<p>Regards,<br>ICPro Desk</p>'
+                '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
             ),
             [user.email],
         )

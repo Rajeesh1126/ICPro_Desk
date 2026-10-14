@@ -78,13 +78,11 @@ function TicketColumn({
         {hasAlarm && (
           <Chip
             label="Action Required"
-            size="small"
             sx={boardColumnActionRequiredChipSx({ accent, alpha })}
           />
         )}
         <Chip
           label={count}
-          size="small"
           sx={boardColumnCountChipSx({ accent, alpha })}
         />
         {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}

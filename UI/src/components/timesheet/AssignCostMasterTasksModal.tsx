@@ -218,7 +218,10 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
         >
           Assign Task To Project
           <Tooltip title="Close">
-            <IconButton aria-label="Close dialog" size="small" onClick={onClose}>
+            <IconButton
+              aria-label="Close dialog"
+              onClick={onClose}
+            >
               <CloseOutlinedIcon />
             </IconButton>
           </Tooltip>
@@ -271,8 +274,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                     spacing={0.5}
                     sx={{ px: INSET_X, py: INSET_Y }}
                   >
-                    <IconButton aria-label={`${expandedKeys.includes(projectKey) ? "Collapse" : "Expand"} ${project.code}`} aria-expanded={expandedKeys.includes(projectKey)}
-                      size="small"
+                    <IconButton
+                      aria-label={`${expandedKeys.includes(projectKey) ? "Collapse" : "Expand"} ${project.code}`}
+                      aria-expanded={expandedKeys.includes(projectKey)}
                       onClick={() => toggleExpanded(projectKey)}
                     >
                       {expandedKeys.includes(projectKey) ? (
@@ -282,7 +286,6 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                       )}
                     </IconButton>
                     <Checkbox
-                      size="small"
                       checked={projectState.checked}
                       indeterminate={projectState.indeterminate}
                       onChange={(event) =>
@@ -323,8 +326,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                               alignItems="center"
                               spacing={0.5}
                             >
-                              <IconButton aria-label={`${expandedKeys.includes(phaseKey) ? "Collapse" : "Expand"} ${phase.name}`} aria-expanded={expandedKeys.includes(phaseKey)}
-                                size="small"
+                              <IconButton
+                                aria-label={`${expandedKeys.includes(phaseKey) ? "Collapse" : "Expand"} ${phase.name}`}
+                                aria-expanded={expandedKeys.includes(phaseKey)}
                                 onClick={() => toggleExpanded(phaseKey)}
                               >
                                 {expandedKeys.includes(phaseKey) ? (
@@ -334,7 +338,6 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                 )}
                               </IconButton>
                               <Checkbox
-                                size="small"
                                 checked={phaseState.checked}
                                 indeterminate={phaseState.indeterminate}
                                 onChange={(event) =>
@@ -372,8 +375,11 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                         alignItems="center"
                                         spacing={0.5}
                                       >
-                                        <IconButton aria-label={`${expandedKeys.includes(categoryKey) ? "Collapse" : "Expand"} ${category.name ?? "category"}`} aria-expanded={expandedKeys.includes(categoryKey)}
-                                          size="small"
+                                        <IconButton
+                                          aria-label={`${expandedKeys.includes(categoryKey) ? "Collapse" : "Expand"} ${category.name ?? "category"}`}
+                                          aria-expanded={expandedKeys.includes(
+                                            categoryKey,
+                                          )}
                                           onClick={() =>
                                             toggleExpanded(categoryKey)
                                           }
@@ -387,7 +393,6 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                           )}
                                         </IconButton>
                                         <Checkbox
-                                          size="small"
                                           checked={categoryState.checked}
                                           indeterminate={
                                             categoryState.indeterminate
@@ -422,7 +427,6 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                               spacing={0.5}
                                             >
                                               <Checkbox
-                                                size="small"
                                                 checked={(
                                                   selectedByProject[
                                                     project.id

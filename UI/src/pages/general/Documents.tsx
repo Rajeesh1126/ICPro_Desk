@@ -14,17 +14,19 @@ import {
   Typography,
 } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 
 import api from "../../api/axios";
 import { asArray, useApiQuery } from "../../api/useApiQuery";
 import { showNotification } from "../../api/notificationService";
 import { formatDateTime } from "../../components/common/formatDate";
+import { getStoredPermissions } from "../../utils/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import DialogHeader from "../../components/common/DialogHeader";
 import FileUploadField from "../../components/common/FileUploadField";
@@ -89,25 +91,37 @@ const resolveFileUrl = (filePath: string) => {
   if (!filePath) return "";
   if (/^https?:\/\//i.test(filePath)) return filePath;
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL || window.location.origin;
   const baseUrl = new URL(apiBaseUrl, window.location.origin).origin;
   return new URL(filePath, baseUrl).toString();
 };
 
 export default function Documents() {
+  const permissions = getStoredPermissions();
+  const canAddDocument = permissions.has("add_documenttemplate");
+  const canChangeDocument = permissions.has("change_documenttemplate");
+  const canDeleteDocument = permissions.has("delete_documenttemplate");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<DocumentFormState>(emptyForm);
   const [editingDocument, setEditingDocument] =
     useState<DocumentTemplate | null>(null);
-  const [deleteDocument, setDeleteDocument] =
-    useState<DocumentTemplate | null>(null);
+  const [deleteDocument, setDeleteDocument] = useState<DocumentTemplate | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
+
 
   // Cached list: returning to this page shows the last rows immediately and
   // refreshes in the background. Successful saves/deletes refresh it
   // automatically (see invalidateAfterMutation), so dialogs never reload it.
-  const listQuery = useApiQuery<DocumentTemplate[]>("/documents/document-templates/");
-  const documents = useMemo(() => asArray<DocumentTemplate>(listQuery.data), [listQuery.data]);
+  const listQuery = useApiQuery<DocumentTemplate[]>(
+    "/documents/document-templates/",
+  );
+  const documents = useMemo(
+    () => asArray<DocumentTemplate>(listQuery.data),
+    [listQuery.data],
+  );
   const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
@@ -116,7 +130,7 @@ export default function Documents() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (document: DocumentTemplate) => {
+  const openReplaceDialog = (document: DocumentTemplate) => {
     setEditingDocument(document);
     setForm({
       document_name: document.document_name,
@@ -237,7 +251,7 @@ export default function Documents() {
       {
         label: "Document Name",
         dataKey: "document_name",
-        width: 240,
+        width: 'auto',
       },
       {
         label: "Type",
@@ -268,44 +282,47 @@ export default function Documents() {
       },
       {
         label: "Actions",
-        width: 115,
+        width: 120,
         render: (row) => (
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Edit document">
-              <IconButton
-                aria-label={`Edit ${row.document_name ?? "document"}`}
-                size="small"
-                color="primary"
-                onClick={() => openEditDialog(row)}
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={0}>
+            {canChangeDocument && (
+              <Tooltip title="Edit document">
+                <IconButton
+                  aria-label={`Upload new version of ${row.document_name ?? "document"}`}
+                  color="primary"
+                  onClick={() => openReplaceDialog(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="Download document">
-              <span><IconButton
-                aria-label={`Download ${row.document_name ?? "document"}`}
-                size="small"
-                color="primary"
-                disabled={!row.file}
-                onClick={() => downloadDocument(row)}
-              >
-                <DownloadOutlinedIcon />
-              </IconButton></span>
+              <span>
+                <IconButton
+                  aria-label={`Download ${row.document_name ?? "document"}`}
+                  color="primary"
+                  disabled={!row.file}
+                  onClick={() => downloadDocument(row)}
+                >
+                  <DownloadOutlinedIcon />
+                </IconButton>
+              </span>
             </Tooltip>
-            <Tooltip title="Delete document">
-              <IconButton
-                aria-label={`Delete ${row.document_name ?? "document"}`}
-                size="small"
-                onClick={() => setDeleteDocument(row)}
-              >
-                <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canDeleteDocument && (
+              <Tooltip title="Delete document">
+                <IconButton
+                  aria-label={`Delete ${row.document_name ?? "document"}`}
+                  onClick={() => setDeleteDocument(row)}
+                >
+                  <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       },
     ],
-    [],
+    [canChangeDocument, canDeleteDocument],
   );
 
   return (
@@ -320,24 +337,26 @@ export default function Documents() {
               Manage FDS, SDS and reusable document templates.
             </Typography>
           </Box>
-          <Stack
-            direction={{ xs: "row-reverse", sm: "row" }}
-            spacing={1}
-            sx={[pageHeaderActions, responsiveRightActions]}
-          >
-            <Button
-              variant="contained"
-              startIcon={<UploadOutlinedIcon />}
-              onClick={openCreateDialog}
+          {canAddDocument && (
+            <Stack
+              direction={{ xs: "row-reverse", sm: "row" }}
+              spacing={1}
+              sx={[pageHeaderActions, responsiveRightActions]}
             >
-              <Box component="span" sx={buttonLabelFull}>
-                Upload Document
-              </Box>
-              <Box component="span" sx={buttonLabelCompact}>
-                Upload
-              </Box>
-            </Button>
-          </Stack>
+              <Button
+                variant="contained"
+                startIcon={<UploadOutlinedIcon />}
+                onClick={openCreateDialog}
+              >
+                <Box component="span" sx={buttonLabelFull}>
+                  Upload Document
+                </Box>
+                <Box component="span" sx={buttonLabelCompact}>
+                  Upload
+                </Box>
+              </Button>
+            </Stack>
+          )}
         </Box>
 
         <Box sx={contentPanel}>
@@ -345,7 +364,7 @@ export default function Documents() {
             columns={columns}
             rows={documents}
             height="100%"
-            tableHead="Document List"
+            tableHead=""
             loading={loading}
             emptyTitle="No documents yet"
             emptyDescription="Upload an FDS, SDS or template to share it with the team."
@@ -353,7 +372,13 @@ export default function Documents() {
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="sm">
+      <Dialog
+        open={dialogOpen}
+        onClose={discard.requestClose}
+        onChangeCapture={discard.markDirty}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogHeader
           title={editingDocument ? "Update Document" : "Upload Document"}
           icon={<DescriptionOutlinedIcon />}
@@ -404,7 +429,9 @@ export default function Documents() {
             <FileUploadField
               file={form.file}
               onChange={(file) => updateForm("file", file)}
-              existingFileName={editingDocument ? getFileName(editingDocument.file) : null}
+              existingFileName={
+                editingDocument ? getFileName(editingDocument.file) : null
+              }
               required={!editingDocument}
             />
           </Stack>
@@ -426,15 +453,16 @@ export default function Documents() {
               saving ? undefined : editingDocument ? (
                 <UpdateOutlinedIcon />
               ) : (
-                <UploadOutlinedIcon />
+                <SendOutlinedIcon />
               )
             }
           >
-            {saving ? "Saving..." : editingDocument ? "Update" : "Upload"}
+            {saving ? "Saving..." : editingDocument ? "Update" : "Submit"}
           </Button>
         </DialogActions>
         {discard.dialog}
       </Dialog>
+
       <ConfirmDialog
         open={Boolean(deleteDocument)}
         onClose={() => setDeleteDocument(null)}

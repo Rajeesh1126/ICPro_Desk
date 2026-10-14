@@ -51,7 +51,7 @@ export function formatEntryValue(value: number | string | undefined | null) {
   return seconds ? formatHoursMinutes(seconds) : "";
 }
 
-/** Daily cap enforced by the timesheet. */
+/** A day can contain up to 14 hours across all timesheet entries. */
 export const MAX_DAILY_SECONDS = 14 * 3600;
 
 /**

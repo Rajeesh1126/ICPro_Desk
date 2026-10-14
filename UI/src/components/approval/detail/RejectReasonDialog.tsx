@@ -40,10 +40,13 @@ export default function RejectReasonDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onCancel} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Rejection Reason</DialogTitle>
+      <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Reject submission?</DialogTitle>
 
       <DialogContent>
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1.5 }}>{taskName}</Typography>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 0.5 }}>{taskName}</Typography>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1.5 }}>
+          This action cannot be undone. Please provide a rejection reason to confirm.
+        </Typography>
         <TextField
           autoFocus
           fullWidth
@@ -72,7 +75,7 @@ export default function RejectReasonDialog({
           disabled={busy}
           startIcon={busy ? undefined : <SendOutlinedIcon />}
         >
-          {busy ? "Submitting..." : "Submit"}
+          {busy ? "Rejecting..." : "Reject"}
         </Button>
       </DialogActions>
     </Dialog>

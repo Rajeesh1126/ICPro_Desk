@@ -63,11 +63,11 @@ def send_timesheet_submission_notification(employee, week_start, saved_entries):
     _send_after_commit(
         f'Timesheet submitted - {_display_name(employee)}',
         (
-            f'<p>Hello,</p>'
+            f'<p>Hi {escape(_display_name(employee))},</p>'
             f'<p>{escape(_display_name(employee))} submitted a timesheet for '
             f'{_week_range_text(week_start)}.</p>'
             '<p>Please review the submitted entries.</p>'
-            '<p>Regards,<br>ICPro Desk</p>'
+            '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
         ),
         approver_emails,
     )
@@ -79,12 +79,12 @@ def send_unlock_request_notification(employee, week_start, reason):
     _send_after_commit(
         f'Timesheet unlock requested - {_display_name(employee)}',
         (
-            f'<p>Hello {escape(_display_name(reporting_manager))},</p>'
+            f'<p>Hi {escape(_display_name(reporting_manager))},</p>'
             f'<p>{escape(_display_name(employee))} requested unlock for the timesheet week '
             f'{_week_range_text(week_start)}.</p>'
             f'<p><strong>Reason:</strong> {escape(reason or "")}</p>'
             '<p>Please review the unlock request.</p>'
-            '<p>Regards,<br>ICPro Desk</p>'
+            '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
         ),
         [_user_email(reporting_manager)],
     )
@@ -105,11 +105,11 @@ def send_unlock_decision_notification(timesheet_status, action_by=None):
     _send_after_commit(
         f'Timesheet unlock {decision} - Week {timesheet_status.weeknumber}',
         (
-            f'<p>Hello {escape(_display_name(employee))},</p>'
+            f'<p>Hi {escape(_display_name(employee))},</p>'
             f'<p>Your timesheet unlock request for {_week_range_text(week_start)} was '
             f'{decision}{action_by_text}.</p>'
             f'<p><strong>Comments:</strong> {escape(timesheet_status.comments or "")}</p>'
-            '<p>Regards,<br>ICPro Desk</p>'
+            '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
         ),
         [_user_email(employee)],
     )
@@ -122,7 +122,7 @@ def send_timesheet_rejection_notification(employee, approver, assigned_task, wee
     _send_after_commit(
         f'Timesheet task rejected - Week {week_start.isocalendar()[1]}',
         (
-            f'<p>Hello {escape(_display_name(employee))},</p>'
+            f'<p>Hi {escape(_display_name(employee))},</p>'
             f'<p>Your timesheet entry was rejected by {escape(_display_name(approver))}.</p>'
             '<ul>'
             f'<li><strong>Week:</strong> {_week_range_text(week_start)}</li>'
@@ -131,7 +131,7 @@ def send_timesheet_rejection_notification(employee, approver, assigned_task, wee
             f'<li><strong>Comments:</strong> {escape(comments or "")}</li>'
             '</ul>'
             '<p>Please update and resubmit the timesheet entry.</p>'
-            '<p>Regards,<br>ICPro Desk</p>'
+            '<p>Regards,<br>ICPro Solutions Pvt. Ltd.</p>'
         ),
         [_user_email(employee)],
     )

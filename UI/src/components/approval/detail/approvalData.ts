@@ -128,7 +128,23 @@ export const toggleId = (ids: number[], id: number) =>
   ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id];
 
 /** A row is decided once accepted or rejected; its controls lock. */
-export const isDecided = (row: TaskRow) => row.status === "Accepted" || row.status === "Rejected";
+export const isDecided = (row: TaskRow) =>
+  ["accepted", "rejected"].includes(row.status.trim().toLowerCase());
+
+/** Accepting is only available for submitted rows with a valid rating. */
+export const canDecideTask = (row: TaskRow) => {
+  const rating = Number(row.rating);
+  return (
+    row.status.trim().toLowerCase() === "submitted" &&
+    Number.isFinite(rating) &&
+    rating >= 1 &&
+    rating <= 5
+  );
+};
+
+/** Rejection is available for submitted rows, regardless of rating. */
+export const canRejectTask = (row: TaskRow) =>
+  row.status.trim().toLowerCase() === "submitted";
 
 /**
  * The rating to send with an action, or the warning to show instead.
@@ -138,10 +154,17 @@ export function getActionRating(
   row: TaskRow,
   action: ApprovalAction,
 ): { rating: number } | { error: string } {
-  if (action === "Rejected" || isOthersProject(row.project)) return { rating: 0 };
-  if (!row.rating || row.rating === "0") return { error: "Please select a rating before approving." };
+  if (row.status.trim().toLowerCase() !== "submitted") {
+    return { error: "Only submitted entries can be accepted or rejected." };
+  }
+  if (action === "Rejected") return { rating: 0 };
+  if (!row.rating || row.rating === "0") {
+    return { error: "Please select a rating before accepting." };
+  }
   const rating = Number(row.rating);
-  if (Number.isNaN(rating) || rating < 1 || rating > 5) return { error: "Please select a valid rating." };
+  if (Number.isNaN(rating) || rating < 1 || rating > 5) {
+    return { error: "Please select a valid rating before accepting." };
+  }
   return { rating };
 }
 

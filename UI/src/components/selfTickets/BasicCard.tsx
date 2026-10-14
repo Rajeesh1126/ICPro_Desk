@@ -94,7 +94,6 @@ export default function BasicCardSelfTicket({
                 )
               }
               label={alertMessage}
-              size="small"
               color={isOverdue ? "error" : undefined}
               variant={isOverdue ? "filled" : "outlined"}
               sx={{
@@ -206,7 +205,6 @@ export default function BasicCardSelfTicket({
           >
             <Chip
               label={ticket.priority || "Normal"}
-              size="small"
               sx={{
                 ...doListCardPriorityChipSx({ alpha, styles }),
                 minWidth: { xs: "auto", sm: 60 },

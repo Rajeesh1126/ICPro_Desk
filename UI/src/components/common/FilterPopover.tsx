@@ -145,7 +145,6 @@ export function ActiveFilterChips({
       {filters.map((filter) => (
         <Chip
           key={filter.key}
-          size="small"
           variant="outlined"
           label={filter.label}
           icon={filter.icon}
@@ -153,7 +152,7 @@ export function ActiveFilterChips({
         />
       ))}
       {onClearAll && filters.length > 1 && (
-        <Button size="small" onClick={onClearAll}>
+        <Button onClick={onClearAll}>
           Clear all
         </Button>
       )}

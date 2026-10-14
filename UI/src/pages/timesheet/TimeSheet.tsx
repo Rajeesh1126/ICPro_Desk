@@ -27,20 +27,20 @@ import Submission, {
   type BudgetOwnerValidation,
   type DailyHoursValidation,
   type TimesheetSubmitEntry,
-  type WeeklyHoursValidation,
 } from "./Submission";
 import type { WeeklyTimesheetLog } from "./submission/timesheetMath";
 import {
+  getPreviewBlocker,
   getSubmitBlocker,
   getTimesheetActionState,
   LOCKED_ACTION_MESSAGE,
-  weeklyTargetMessage,
 } from "./sheet/timesheetStatus";
 import { useUnsavedNavigationGuard } from "./sheet/useUnsavedNavigationGuard";
 import WeekSelector from "./sheet/WeekSelector";
 import TimesheetActionsMenu, { type AddWorkKind, type WeekTaskKind } from "./sheet/TimesheetActionsMenu";
 import AddWorkDialogs from "./sheet/AddWorkDialogs";
 import WeekTaskDialogs from "./sheet/WeekTaskDialogs";
+import { getStoredPermissions } from "../../utils/permissions";
 
 dayjs.extend(isoWeek);
 
@@ -61,14 +61,12 @@ function TabPanel({ children, value, index }: { children?: React.ReactNode; inde
 const showLocked = (message = LOCKED_ACTION_MESSAGE) =>
   showNotification({ type: "warning", message });
 
-/** Which tabs this page offers (by permission code). */
-const PERMITTED_TABS = ["view_submission", "view_approval"];
-
 /**
  * Time Sheet page: week selection, tabs (Submission / Approval), the Actions
  * menu and submit. Grid, dialogs and rules live in ./submission and ./sheet.
  */
 function TimeSheet() {
+  const permissions = getStoredPermissions();
   const [tabIndex, setTabIndex] = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<Dayjs>(dayjs());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -107,11 +105,7 @@ function TimeSheet() {
   });
   const [dailyHoursValidation, setDailyHoursValidation] = useState<DailyHoursValidation>({
     exceededDays: [],
-  });
-  const [weeklyHoursValidation, setWeeklyHoursValidation] = useState<WeeklyHoursValidation>({
-    estimatedHours: 54,
-    actualHours: 0,
-    isSatisfied: false,
+    missingRequiredDays: [],
   });
   const [hasUnsavedHourChanges, setHasUnsavedHourChanges] = useState(false);
   const [selectedAssignedTaskIds, setSelectedAssignedTaskIds] = useState<number[]>([]);
@@ -155,8 +149,9 @@ function TimeSheet() {
     if (previewSubmitDisabled) {
       return showLocked("This time sheet cannot be previewed or submitted again.");
     }
-    if (!weeklyHoursValidation.isSatisfied) {
-      return showNotification({ type: "error", message: weeklyTargetMessage(weeklyHoursValidation) });
+    const blocker = getPreviewBlocker(dailyHoursValidation);
+    if (blocker) {
+      return showNotification({ type: "error", message: blocker });
     }
     setPreviewOpen(true);
   };
@@ -169,7 +164,6 @@ function TimeSheet() {
     }
     const blocker = getSubmitBlocker({
       daily: dailyHoursValidation,
-      weekly: weeklyHoursValidation,
       budgetOwner: budgetOwnerValidation,
     });
     if (blocker) {
@@ -209,7 +203,6 @@ function TimeSheet() {
           onSubmitEntriesChange={setSubmitEntries}
           onBudgetOwnerValidationChange={setBudgetOwnerValidation}
           onDailyHoursValidationChange={setDailyHoursValidation}
-          onWeeklyHoursValidationChange={setWeeklyHoursValidation}
           onUnsavedHourChangesChange={setHasUnsavedHourChanges}
           weeklyStatus={weeklyStatus}
           weeklyStatusLoading={weeklyStatusLoading}
@@ -217,12 +210,16 @@ function TimeSheet() {
       ),
     },
     {
-      permission: "view_approval",
+      // permission: "view_approval",
       label: "Approval",
       component: <Approval weekStart={weekStartKey} />,
     },
   ];
-  const availableTabs = tabConfig.filter((tab) => PERMITTED_TABS.includes(tab.permission));
+  // Approval is available to every user who can open this page. Submission is
+  // the only tab controlled by a dedicated permission.
+  const availableTabs = tabConfig.filter(
+    (tab) => tab.permission !== "view_submission" || permissions.has("view_submission"),
+  );
   const isApprovalTab = availableTabs[tabIndex]?.permission === "view_approval";
 
   useEffect(() => {
@@ -265,7 +262,7 @@ function TimeSheet() {
       </Box>
 
       <Box sx={tabsContainer}>
-        {availableTabs.length > 0 && (
+        {availableTabs.length > 1 && (
           <Tabs
             value={tabIndex}
             onChange={(_event, next: number) => guard.requestNavigation(() => setTabIndex(next))}

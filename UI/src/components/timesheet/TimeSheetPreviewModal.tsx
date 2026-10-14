@@ -93,7 +93,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
   const renderFooter = () => (
     <TableRow>
       <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
-      <TableCell align="right" sx={{ fontWeight: 800 }}>
+      <TableCell align="right" sx={{ fontWeight: 700 }}>
         {formatHoursMinutes(totalHours * 3600)}
       </TableCell>
     </TableRow>

@@ -180,7 +180,6 @@ export default function Tickets() {
             <Tooltip title="View details">
               <IconButton
                 aria-label={`View ${row.number}`}
-                size="small"
                 onClick={() => openDetails(row)}
               >
                 <VisibilityOutlinedIcon fontSize="small" />
@@ -189,7 +188,6 @@ export default function Tickets() {
             <Tooltip title="Edit ticket">
               <span><IconButton
                 aria-label={`Edit ${row.number}`}
-                size="small"
                 onClick={() => openEdit(row)}
                 disabled={
                   row.creator !== userId ||
@@ -259,7 +257,6 @@ export default function Tickets() {
             <ToggleButtonGroup
               exclusive
               value={view}
-              size="small"
               onChange={(_, next: "table" | "card" | null) => {
                 if (!next) return;
 

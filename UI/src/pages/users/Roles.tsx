@@ -52,6 +52,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showNotification } from "../../api/notificationService";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import { getStoredPermissions } from "../../utils/permissions";
 
 const formatPermissionLabel = (permission: permissionData) => {
   const label = permission.name || permission.codename;
@@ -63,6 +64,10 @@ const formatPermissionLabel = (permission: permissionData) => {
 };
 
 export default function Roles() {
+  const storedPermissions = getStoredPermissions();
+  const canAddRole = storedPermissions.has("add_role");
+  const canChangeRole = storedPermissions.has("change_role");
+  const canDeleteRole = storedPermissions.has("delete_role");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<rolesData | null>(null);
@@ -77,7 +82,10 @@ export default function Roles() {
   // draft, so a background refresh never overwrites unsaved changes.
   const rolesQuery = useApiQuery<rolesData[]>("/roles/");
   const permissionsQuery = useApiQuery<permissionData[]>("/permissions/");
-  const savedRoles = useMemo(() => asArray<rolesData>(rolesQuery.data), [rolesQuery.data]);
+  const savedRoles = useMemo(
+    () => asArray<rolesData>(rolesQuery.data),
+    [rolesQuery.data],
+  );
   const permissions = useMemo(
     () => asArray<permissionData>(permissionsQuery.data),
     [permissionsQuery.data],
@@ -257,29 +265,33 @@ export default function Roles() {
         width: { xs: 80, sm: 80 },
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
-            <Tooltip title="Edit role">
-              <IconButton
-                aria-label={`Edit ${row.id}`}
-                onClick={() => openEdit(row)}
-              >
-                <EditOutlinedIcon sx={editIconSx} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete role">
-              <IconButton
-                aria-label={`Delete ${row.id}`}
-                onClick={() => openDelete(row)}
-              >
-                <DeleteOutlinedIcon sx={deleteIconSx} />
-              </IconButton>
-            </Tooltip>
+            {canChangeRole && (
+              <Tooltip title="Edit role">
+                <IconButton
+                  aria-label={`Edit ${row.id}`}
+                  onClick={() => openEdit(row)}
+                >
+                  <EditOutlinedIcon sx={editIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {canDeleteRole && (
+              <Tooltip title="Delete role">
+                <IconButton
+                  aria-label={`Delete ${row.id}`}
+                  onClick={() => openDelete(row)}
+                >
+                  <DeleteOutlinedIcon sx={deleteIconSx} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         ),
       },
-      { label: "Name", dataKey: "name", width: 'auto' },
-      { label: "Description", dataKey: "description", width: 'auto' },
+      { label: "Name", dataKey: "name", width: "auto" },
+      { label: "Description", dataKey: "description", width: "auto" },
     ],
-    [openEdit, openDelete],
+    [canChangeRole, canDeleteRole, openEdit, openDelete],
   );
 
   const permissionColumns = useMemo<ColumnData<rolesData>[]>(() => {
@@ -301,7 +313,6 @@ export default function Roles() {
           <FormControlLabel
             control={
               <Checkbox
-                size="small"
                 slotProps={{
                   input: {
                     "aria-label": `Grant all ${permissionQuery ? "filtered " : ""}permissions to ${row.name}`,
@@ -315,9 +326,16 @@ export default function Roles() {
               />
             }
             label={
-              <Box component="span" sx={{ display: "flex", flexDirection: "column" }}>
+              <Box
+                component="span"
+                sx={{ display: "flex", flexDirection: "column" }}
+              >
                 <span>{row.name}</span>
-                <Typography component="span" variant="caption" color="text.secondary">
+                <Typography
+                  component="span"
+                  variant="caption"
+                  color="text.secondary"
+                >
                   {
                     permissions.filter((permission) =>
                       row.permissions.includes(permission.id),
@@ -338,7 +356,6 @@ export default function Roles() {
 
         render: (row) => (
           <Checkbox
-            size="small"
             slotProps={{
               input: {
                 "aria-label": `${formatPermissionLabel(permission)} for ${row.name}`,
@@ -373,10 +390,16 @@ export default function Roles() {
       onClick={handleSave}
       disabled={saving || changedRoles.length === 0}
     >
-      {saving ? "Saving..." : (
+      {saving ? (
+        "Saving..."
+      ) : (
         <>
-          <Box component="span" sx={buttonLabelFull}>Save Changes</Box>
-          <Box component="span" sx={buttonLabelCompact}>Save</Box>
+          <Box component="span" sx={buttonLabelFull}>
+            Save Changes
+          </Box>
+          <Box component="span" sx={buttonLabelCompact}>
+            Save
+          </Box>
         </>
       )}
     </Button>
@@ -402,18 +425,24 @@ export default function Roles() {
             sx={pageHeaderActions}
           >
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              {tabValue === 0 && (
+              {tabValue === 0 && canAddRole && (
                 <Button
                   startIcon={<AddOutlinedIcon />}
                   variant="contained"
                   onClick={openCreate}
                 >
-                  <Box component="span" sx={buttonLabelFull}>New Role</Box>
-                  <Box component="span" sx={buttonLabelCompact}>New</Box>
+                  <Box component="span" sx={buttonLabelFull}>
+                    New Role
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    New
+                  </Box>
                 </Button>
               )}
               {tabValue === 1 && (
-                <Box sx={{ display: { xs: "none", sm: "block" } }}>{saveButton}</Box>
+                <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                  {saveButton}
+                </Box>
               )}
             </Stack>
           </Stack>
@@ -429,7 +458,13 @@ export default function Roles() {
             sx={tabs}
           >
             <Tab
-              icon={tabValue === 0 ? <AdminPanelSettingsIcon /> : <AdminPanelSettingsOutlinedIcon />}
+              icon={
+                tabValue === 0 ? (
+                  <AdminPanelSettingsIcon />
+                ) : (
+                  <AdminPanelSettingsOutlinedIcon />
+                )
+              }
               iconPosition="start"
               label="Roles"
             />
@@ -481,42 +516,46 @@ export default function Roles() {
         )}
         {tabValue === 1 && (
           <>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ sm: "center" }}
-              sx={{ px: { xs: 1.5, sm: 0 }, mb: 1 }}
-            >
-              <TextField
-                placeholder="Filter permissions"
-                value={permissionQuery}
-                onChange={(event) => setPermissionQuery(event.target.value)}
-                sx={{ width: { xs: "100%", sm: 280 } }}
-                slotProps={{
-                  htmlInput: { "aria-label": "Filter permissions by name" },
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchOutlinedIcon fontSize="small" color="action" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-              <Typography variant="body2" color="text.secondary" role="status">
-                Showing {visiblePermissions.length} of {permissions.length} permissions.
-                Permissions are granted directly to each role.
-              </Typography>
-              {changedRoles.length > 0 && (
-                <Chip
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  label={`Unsaved changes in ${changedRoles.length} role${changedRoles.length === 1 ? "" : "s"}`}
-                />
-              )}
-            </Stack>
             <Box sx={tablePageContent}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                alignItems={{ sm: "center" }}
+                sx={{ px: { xs: 1.5, sm: 0 }, mb: 1 }}
+              >
+                <TextField
+                  placeholder="Filter permissions"
+                  value={permissionQuery}
+                  onChange={(event) => setPermissionQuery(event.target.value)}
+                  sx={{ width: { xs: "100%", sm: 280 } }}
+                  slotProps={{
+                    htmlInput: { "aria-label": "Filter permissions by name" },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchOutlinedIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  role="status"
+                >
+                  Showing {visiblePermissions.length} of {permissions.length}{" "}
+                  permissions. Permissions are granted directly to each role.
+                </Typography>
+                {changedRoles.length > 0 && (
+                  <Chip
+                    color="warning"
+                    variant="outlined"
+                    label={`Unsaved changes in ${changedRoles.length} role${changedRoles.length === 1 ? "" : "s"}`}
+                  />
+                )}
+              </Stack>
+
               <VirtualizedTable
                 columns={permissionColumns}
                 rows={roles}

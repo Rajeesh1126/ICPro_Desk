@@ -45,7 +45,6 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
     submitting = false,
     onSelect,
 }) => {
-    const [search, setSearch] = useState<string>("");
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Reset transient state when the dialog closes, adjusting during render
@@ -54,32 +53,9 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
     if (wasOpen !== open) {
         setWasOpen(open);
         if (!open) {
-            setSearch("");
             setSelectedIds([]);
         }
     }
-
-    const filteredQuotations = useMemo(() => {
-        const value = search.trim().toLowerCase();
-
-        if (!value) {
-            return quotations;
-        }
-
-        return quotations.filter((quotation) =>
-            [
-                quotation.quotation_no,
-                quotation.revision_number,
-                quotation.sale_type,
-                quotation.status,
-                quotation.customer_name,
-                quotation.custom_project_name,
-                quotation.system_name,
-            ]
-                .filter((item) => item !== null && item !== undefined)
-                .some((item) => String(item).toLowerCase().includes(value))
-        );
-    }, [quotations, search]);
 
     const handleSelectRow = (id: number) => {
         setSelectedIds((current) =>
@@ -90,7 +66,6 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
     };
 
     const handleClose = () => {
-        setSearch("");
         setSelectedIds([]);
         onClose();
     };
@@ -114,7 +89,6 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                     <Checkbox
                         checked={selectedIds.includes(quotation.id)}
                         onChange={() => handleSelectRow(quotation.id)}
-                        size="small"
                     />
                 ),
             },
@@ -131,6 +105,11 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
             {
                 label: "Name",
                 width: 250,
+                searchValue: (quotation) =>
+                    quotation.custom_project_name ||
+                    quotation.system_name ||
+                    quotation.project__name ||
+                    "",
                 render: (quotation): React.ReactNode => {
                     const projectName =
                         quotation.custom_project_name ||
@@ -189,7 +168,6 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                     <Stack direction="row" alignItems="center" spacing={1}>
                         {selectedIds.length > 0 && (
                             <Chip
-                                size="small"
                                 color="primary"
                                 variant="outlined"
                                 label={`${selectedIds.length} selected`}
@@ -197,7 +175,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                             />
                         )}
                         <Tooltip title="Close">
-                            <IconButton aria-label="Close dialog" size="small" onClick={handleClose}>
+                            <IconButton aria-label="Close dialog" onClick={handleClose}>
                                 <CloseOutlinedIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
@@ -224,7 +202,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                 >
                     <VirtualizedTable
                         columns={columns}
-                        rows={filteredQuotations}
+                        rows={quotations}
                         height="100%"
                         tableHead="ERP Quotations"
                     />

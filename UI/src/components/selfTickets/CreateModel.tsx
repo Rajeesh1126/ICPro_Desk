@@ -458,7 +458,6 @@ export default function CreateSelfTicketModel({
                       </Box>
                     </Box>
                   }
-                  size="small"
                   sx={reminderExampleChipSx}
                 />
               ))}
