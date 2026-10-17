@@ -56,6 +56,7 @@ type AnalysisRow = {
   date: string;
   employee_name: string;
   project: string;
+  description: string;
   task: string;
   hours: number;
   status: string;
@@ -362,7 +363,8 @@ export default function TimesheetAnalysis() {
       { label: "Date", dataKey: "date", width: 120 },
       { label: "Employee", dataKey: "employee_name", width: 180 },
       { label: "Project", dataKey: "project", width: 180 },
-      { label: "Task", dataKey: "task", width: "auto" },
+      { label: "Description", dataKey: "description", width: 240 },
+      { label: "Task", dataKey: "task", width: 240 },
       { label: "Hours", dataKey: "hours", width: 90, numeric: true },
       { label: "Status", dataKey: "status", width: 130 },
       {

@@ -24,8 +24,8 @@ export default function CommonSnackbar({
                 onClose();
             }}
             anchorOrigin={{
-                vertical: "top",
-                horizontal: "right",
+                vertical: "bottom",
+                horizontal: "left",
             }}
         >
             <Alert

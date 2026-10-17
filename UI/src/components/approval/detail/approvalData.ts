@@ -131,14 +131,17 @@ export const toggleId = (ids: number[], id: number) =>
 export const isDecided = (row: TaskRow) =>
   ["accepted", "rejected"].includes(row.status.trim().toLowerCase());
 
-/** Accepting is only available for submitted rows with a valid rating. */
+/**
+ * Accepting is available for submitted rows with a valid rating. The Others
+ * job intentionally has no rating control, so it can be accepted with the
+ * existing zero-rating payload.
+ */
 export const canDecideTask = (row: TaskRow) => {
   const rating = Number(row.rating);
   return (
     row.status.trim().toLowerCase() === "submitted" &&
-    Number.isFinite(rating) &&
-    rating >= 1 &&
-    rating <= 5
+    (isOthersProject(row.project) ||
+      (Number.isFinite(rating) && rating >= 1 && rating <= 5))
   );
 };
 
@@ -148,7 +151,8 @@ export const canRejectTask = (row: TaskRow) =>
 
 /**
  * The rating to send with an action, or the warning to show instead.
- * Rejections and the "Others" job send 0; acceptances need a rating 1–5.
+ * Rejections and the "Others" job send 0; all other acceptances need a
+ * rating from 1–5.
  */
 export function getActionRating(
   row: TaskRow,
@@ -158,6 +162,7 @@ export function getActionRating(
     return { error: "Only submitted entries can be accepted or rejected." };
   }
   if (action === "Rejected") return { rating: 0 };
+  if (isOthersProject(row.project)) return { rating: 0 };
   if (!row.rating || row.rating === "0") {
     return { error: "Please select a rating before accepting." };
   }

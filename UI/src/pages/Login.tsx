@@ -37,13 +37,11 @@ import {
 import {
   authPageBackgroundSx,
   authLogoSx,
-  authIconBadgeSx,
   authSubmitButtonSx,
   authThemeToggleSx,
   authCardContentSx,
   authCardSx,
   authSpinnerSx,
-  authSubtitleSx,
   authFootnoteSx,
   marginBottomSectionSx,
 } from "../styles/common";
@@ -152,20 +150,20 @@ export default function Login() {
             </IconButton>
           </Tooltip>
           <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
-          <Box sx={authIconBadgeSx}>
+          {/* <Box sx={authIconBadgeSx}>
             <LockOutlinedIcon />
-          </Box>
-          <Typography variant="h5" component="h1" align="center">
+          </Box> */}
+          {/* <Typography variant="h5" component="h1" align="center" sx={authSubtitleSx}>
             Welcome back
-          </Typography>
-          <Typography
+          </Typography> */}
+          {/* <Typography
             variant="body2"
             align="center"
             color="text.secondary"
             sx={authSubtitleSx}
           >
             Use your Timesheet App credentials to continue.
-          </Typography>
+          </Typography> */}
 
           {sessionExpired && !error && (
             <Alert severity="warning" sx={marginBottomSectionSx}>

@@ -198,6 +198,10 @@ function GridHeader({ weekDays }: { weekDays: WeekDay[] }) {
             textAlign: "center",
             width: columnWidths.total,
             minWidth: columnWidths.total,
+            position: "sticky",
+            bottom: 0,
+            zIndex: 1,
+            backgroundColor: (theme) => theme.palette.background.paper,
           }}
         >
           Total
@@ -230,6 +234,11 @@ function GridFooter({
     ...(bold && { fontWeight: 700 }),
     bgcolor: "background.default",
     borderTop: `1px solid ${theme.palette.divider}`,
+    // Sticky table sections are unreliable and force a costly table reflow
+    // while nested rows expand. Pin the individual cells instead.
+    position: "sticky",
+    bottom: 0,
+    zIndex: 4,
   });
   return (
     <TableFooter>
@@ -242,6 +251,12 @@ function GridFooter({
             fontWeight: 700,
             bgcolor: "background.default",
             borderTop: `1px solid ${theme.palette.divider}`,
+            bottom: 0,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            // This cell is sticky on both axes, so it must layer above the
+            // remaining footer cells and the pinned body column.
+            zIndex: 5,
           }}
           className="timesheet-jobs-cell"
         >
@@ -305,7 +320,8 @@ function TaskRow({
         <FormControl fullWidth>
           <Select
             value={task.assign_by ?? ""}
-            disabled={others || props.budgetOwnerDisabled}
+            // disabled={others || props.budgetOwnerDisabled}
+            disabled={props.budgetOwnerDisabled}
             onChange={(event) =>
               props.onBudgetOwnerChange(ref, event.target.value)
             }
@@ -436,7 +452,8 @@ function MilestoneRows({
           align="center"
           sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
         >
-          {!expanded && formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
+          {!expanded &&
+            formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
         </TableCell>
 
         <TableCell align="center" sx={cellSx(theme, columnWidths.select)} />
@@ -523,7 +540,8 @@ function ProjectRows({
           align="center"
           sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
         >
-          {!expanded && formatHoursMinutes(getProjectTotal(project, props.weekDays))}
+          {!expanded &&
+            formatHoursMinutes(getProjectTotal(project, props.weekDays))}
         </TableCell>
 
         <TableCell align="center" sx={cellSx(theme, columnWidths.select)}>
@@ -539,7 +557,10 @@ function ProjectRows({
               )
             }
             sx={{
-              display: isOthersProject(project) || selectableIds.length === 0 ? "none" : "inline-flex",
+              display:
+                isOthersProject(project) || selectableIds.length === 0
+                  ? "none"
+                  : "inline-flex",
             }}
             inputProps={{
               "aria-label": `Select all tasks for ${project.description || project.code}`,
@@ -596,11 +617,12 @@ export default function SubmissionGrid(props: SubmissionGridProps) {
         color="text.secondary"
         sx={{ display: { xs: "none", sm: "block" }, px: 1, pb: 0.75 }}
       >
-        Enter hours and minutes, for example <strong>1:30</strong> for 1 hour 30 minutes.
-        You can also enter <strong>1.30</strong>.
+        Enter hours and minutes, for example <strong>1:30</strong> for 1 hour 30
+        minutes. You can also enter <strong>1.30</strong>.
         <Box component="span" sx={{ display: { sm: "inline", lg: "none" } }}>
           {" "}
-          Scroll sideways to see every day and action; the Jobs column stays pinned.
+          Scroll sideways to see every day and action; the Jobs column stays
+          pinned.
         </Box>
       </Typography>
 

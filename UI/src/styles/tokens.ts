@@ -61,8 +61,7 @@ export const RADIUS_PX = {
 /* -------------------------------------------------------------------------- */
 
 export const TYPOGRAPHY = {
-  fontFamily:
-    'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily: 'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   weight: {
     regular: 400,
     medium: 500,
@@ -212,14 +211,14 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
     actionDisabledBackground: "rgba(100, 116, 139, 0.14)",
   },
   dark: {
-    surface: "#101722",
+    surface: "#131518",
     // A neutral raised surface keeps cards, the sidebar, and the app bar
     // distinct without making the dark UI read as an accent-colour wash.
-    surfaceRaised: "#161D28",
-    border: "rgba(174, 190, 208, 0.22)",
-    textPrimary: "#EEF5FB",
-    textSecondary: "#AAB8C8",
-    textDisabled: "#63707F",
+    surfaceRaised: "#1A1C20",
+    border: "rgba(196, 200, 206, 0.18)",
+    textPrimary: "#ECEEF1",
+    textSecondary: "#A9AFB7",
+    textDisabled: "#676C73",
     accent: "#41A8B9",
     accentDark: "#2D8DB8",
     accentLight: "#A5DFF4",
@@ -246,10 +245,10 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
     infoContrast: "#04141B",
     // Keep interaction feedback evident without washing dark surfaces in the
     // accent colour.
-    actionHover: "rgba(65, 168, 185, 0.05)",
-    actionSelected: "rgba(65, 168, 185, 0.1)",
-    actionDisabled: "#4E5A69",
-    actionDisabledBackground: "rgba(170, 184, 200, 0.14)",
+    actionHover: "rgba(236, 238, 241, 0.05)",
+    actionSelected: "rgba(65, 168, 185, 0.08)",
+    actionDisabled: "#51565D",
+    actionDisabledBackground: "rgba(190, 195, 202, 0.12)",
   },
 };
 

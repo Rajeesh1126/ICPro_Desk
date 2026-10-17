@@ -37,6 +37,14 @@ import {
   type WeeklyTimesheetLog,
 } from "./submission/timesheetMath";
 
+const FilterBase = [
+  "Super Admin",
+  "Employee",
+  "External Employee",
+  "Trainee Employee",
+  "External Deputation",
+];
+
 // Types the Time Sheet page consumes.
 export type {
   BudgetOwnerValidation,
@@ -125,10 +133,15 @@ function Submission({
 
   // Shared, cached user list; only active users can be budget owners.
   const usersQuery = useApiQuery<UsersData[]>("/users/");
+  
   const budgetOwnerOptions = useMemo<BudgetOwnerOption[]>(
     () =>
       asArray<UsersData>(usersQuery.data)
-        .filter((user) => user.is_active)
+        .filter(
+          (user) =>
+            user.is_active &&
+            !FilterBase.includes(user.role ?? ""),
+        )
         .map((owner) => ({
           value: owner.username,
           label:

@@ -220,7 +220,7 @@ export function createAppTheme(mode: PaletteMode) {
               color: isDark ? palette.primary.light : palette.primary.dark,
               backgroundColor: alpha(
                 isDark ? palette.primary.light : palette.primary.dark,
-                isDark ? 0.14 : 0.08,
+                isDark ? 0.084 : 0.08,
               ),
             },
 
@@ -228,7 +228,7 @@ export function createAppTheme(mode: PaletteMode) {
               color: isDark ? palette.primary.light : palette.primary.dark,
               backgroundColor: alpha(
                 isDark ? palette.primary.light : palette.primary.dark,
-                isDark ? 0.18 : 0.12,
+                isDark ? 0.108 : 0.12,
               ),
             },
 
@@ -236,7 +236,7 @@ export function createAppTheme(mode: PaletteMode) {
               color: isDark ? palette.primary.dark : palette.primary.light,
               backgroundColor: alpha(
                 isDark ? palette.primary.dark : palette.primary.light,
-                isDark ? 0.24 : 0.16,
+                isDark ? 0.144 : 0.16,
               ),
             },
           },
@@ -391,8 +391,8 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             overflow: "auto",
-            border: `1px solid ${palette.divider}`,
-            borderRadius: RADIUS.md,
+            // border: `1px solid ${palette.divider}`,
+            // borderRadius: RADIUS.md,
             backgroundColor: palette.background.paper,
             boxShadow: "none",
           },

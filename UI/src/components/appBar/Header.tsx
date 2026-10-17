@@ -1,13 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
-  AppBar,
   Avatar,
   Badge,
   Box,
   Button,
   Chip,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,7 +16,6 @@ import {
   MenuItem,
   Stack,
   TextField,
-  Toolbar,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -38,16 +35,14 @@ import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccount
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { alpha, type Theme } from "@mui/material/styles";
-import logo from "../../assets/icpro_logo.svg";
 import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
+import logo from "../../assets/icpro_logo.svg";
 import api from "../../api/axios";
 import { sanitizeUserMessage } from "../../utils/errorUtils";
 import { showNotification } from "../../api/notificationService";
 import { useThemeMode } from "../../styles/theme/themeModeContext";
 import {
   headerAvatarSx,
-  headerLogoLinkSx,
-  headerLogoImageSx,
   notificationEmptyStateSx,
   notificationItemTextSx,
   notificationMenuHeaderSx,
@@ -56,8 +51,6 @@ import {
   notificationMenuSelfTicketIconSx,
   notificationMenuTicketItemSx,
   notificationMenuTicketIconSx,
-  headerContainerSx,
-  appBarSx,
   headerMenuButtonSx,
   headerProfileButtonSx,
   headerProfileChevronSx,
@@ -72,7 +65,6 @@ import {
   appBarHeaderProfileMetaSx,
   appBarHeaderProfileTextSx,
   appBarHeaderProfileValueSx,
-  headerToolbarSx,
   profileUsernameSx,
   profileTruncatedTextSx,
   dialogContentTop,
@@ -113,7 +105,8 @@ const menuButtonSx = (theme: Theme) => ({
   height: 40,
   justifyContent: "center",
   p: 0,
-  width: 32,
+  width: 40,
+  display: "inline-flex",
   "&:hover": {
     bgcolor: "transparent",
   },
@@ -399,23 +392,18 @@ export default function ResponsiveAppBar({
   };
 
   return (
-    <AppBar
-      position="sticky"
-      color="inherit"
-      elevation={0}
-      sx={appBarSx}
-    >
-      <Container maxWidth={false} sx={headerContainerSx}>
-        <Toolbar disableGutters sx={headerToolbarSx}>
-          <Box component={RouterLink} to="/Home" sx={headerLogoLinkSx}>
-            <Box
-              component="img"
-              src={logo}
-              alt="ICPro"
-              sx={headerLogoImageSx}
-            />
-          </Box>
-
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          minHeight: { xs: 58, sm: 64 },
+          flexShrink: 0,
+          px: { xs: 0.75, sm: 1, lg: 1 },
+          gap: { xs: 0.25, sm: 0.75 },
+          bgcolor: "background.paper",
+        }}
+      >
           <IconButton
             aria-label="Open navigation"
             onClick={onMenuClick}
@@ -423,6 +411,24 @@ export default function ResponsiveAppBar({
           >
             <MenuOutlinedIcon />
           </IconButton>
+
+          <Box
+            component={RouterLink}
+            to="/Home"
+            aria-label="ICPro home"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              component="img"
+              src={logo}
+              alt="ICPro"
+              sx={{ width: { xs: 64, sm: 84, md: 96 }, height: 32, objectFit: "contain" }}
+            />
+          </Box>
 
           <Stack
             direction="row"
@@ -434,7 +440,7 @@ export default function ResponsiveAppBar({
               <IconButton
                 aria-label="Download process flow"
                 onClick={downloadProcessFlow}
-                sx={coloredIconButtonSx("info")}
+                sx={{ ...coloredIconButtonSx("info"), display: { xs: "none", sm: "inline-flex" } }}
               >
                 <InfoOutlinedIcon />
               </IconButton>
@@ -472,7 +478,10 @@ export default function ResponsiveAppBar({
               <IconButton
                 aria-label="Notifications"
                 onClick={(event) => setNotificationAnchor(event.currentTarget)}
-                sx={coloredIconButtonSx(totalNotifications ? "error" : "muted")}
+                sx={{
+                  ...coloredIconButtonSx(totalNotifications ? "error" : "muted"),
+                  display: { xs: "none", sm: "inline-flex" },
+                }}
               >
                 {totalNotifications > 0 ? (
                   <Badge badgeContent={totalNotifications} color="error">
@@ -508,8 +517,7 @@ export default function ResponsiveAppBar({
               </Button>
             </Tooltip>
           </Stack>
-        </Toolbar>
-      </Container>
+      </Box>
 
       <Menu
         anchorEl={notificationAnchor}
@@ -813,6 +821,6 @@ export default function ResponsiveAppBar({
           </Button>
         </DialogActions>
       </Dialog>
-    </AppBar>
+    </>
   );
 }

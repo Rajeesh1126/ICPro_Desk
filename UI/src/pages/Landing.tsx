@@ -113,7 +113,7 @@ export default function Landing() {
       {
         label: "Subject",
         dataKey: "covering_letter_subject",
-        width: 250,
+        width: 'auto',
       },
       {
         label: "Customer",
@@ -128,14 +128,14 @@ export default function Landing() {
       {
         label: "Budget Hrs",
         dataKey: "budget_hours",
-        width: 100,
+        width: 130,
         numeric: true,
         render: (row) => formatHours(row.budget_hours),
       },
       {
         label: "Actual Hrs",
         dataKey: "actual_hours",
-        width: 100,
+        width: 130,
         numeric: true,
         render: (row) => formatHours(row.actual_hours),
       },
@@ -155,7 +155,7 @@ export default function Landing() {
       },
       {
         label: "Budget Status",
-        width: 135,
+        width: 145,
         render: (row) => {
           const status = budgetStatus(row);
           const over = status === "Over Budget";

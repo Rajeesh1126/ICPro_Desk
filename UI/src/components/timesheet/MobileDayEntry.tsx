@@ -114,7 +114,7 @@ export default function MobileDayEntry({
                   border: 1,
                   borderColor: selected ? "primary.main" : "divider",
                   bgcolor: selected
-                    ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.2 : 0.1)
+                    ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.1)
                     : "background.paper",
                   color: selected ? "primary.main" : "text.primary",
                   "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main" },

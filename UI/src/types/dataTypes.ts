@@ -6,7 +6,7 @@ export interface UsersData {
   first_name?: string;
   last_name?: string;
   is_active?: boolean;
-  role?: string;
+  role?: string | null;
   role_permissions?: string[];
   department: string[];
   groups?: string[];

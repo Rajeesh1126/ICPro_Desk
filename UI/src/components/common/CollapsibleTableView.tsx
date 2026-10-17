@@ -124,7 +124,8 @@ const headerCellSx =
 
 function formatValue(value: unknown): string {
   if (value == null || value === "") return "—";
-  if (Array.isArray(value)) return value.length ? value.map(formatValue).join(", ") : "—";
+  if (Array.isArray(value))
+    return value.length ? value.map(formatValue).join(", ") : "—";
   if (typeof value === "object") {
     return "name" in value ? String(value.name) : JSON.stringify(value);
   }
@@ -164,12 +165,12 @@ function CollapsibleRow<T extends object>({
         onKeyDown={
           onRowClick
             ? (event: React.KeyboardEvent) => {
-            if (event.target !== event.currentTarget) return;
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onRowClick(row);
-            }
-          }
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onRowClick(row);
+                }
+              }
             : undefined
         }
         sx={{ cursor: onRowClick ? "pointer" : "default" }}
@@ -276,7 +277,10 @@ export function CollapsibleTableView<T extends object>({
 }: CollapsibleTableViewProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const resolvedMobileColumns = mobileColumns ?? [...columns, ...(expandedColumns ?? [])];
+  const resolvedMobileColumns = mobileColumns ?? [
+    ...columns,
+    ...(expandedColumns ?? []),
+  ];
   const [searchText, setSearchText] = useState("");
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -284,7 +288,9 @@ export function CollapsibleTableView<T extends object>({
     return query
       ? rows.filter((row, index) =>
           searchableColumns.some((column) =>
-            getColumnSearchText(column, row, index).toLowerCase().includes(query),
+            getColumnSearchText(column, row, index)
+              .toLowerCase()
+              .includes(query),
           ),
         )
       : rows;
@@ -368,12 +374,19 @@ export function CollapsibleTableView<T extends object>({
                 variant="outlined"
                 onClick={() => onRowClick?.(row)}
                 onKeyDown={(event) => {
-                  if (onRowClick && (event.key === "Enter" || event.key === " ")) {
+                  if (
+                    onRowClick &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
                     event.preventDefault();
                     onRowClick(row);
                   }
                 }}
-                sx={{ ...insetSx, borderLeft: "3px solid", borderLeftColor: "primary.main" }}
+                sx={{
+                  ...insetSx,
+                  borderLeft: "3px solid",
+                  borderLeftColor: "primary.main",
+                }}
               >
                 <Box
                   sx={{
@@ -385,7 +398,11 @@ export function CollapsibleTableView<T extends object>({
                 >
                   {resolvedMobileColumns.map((column) => (
                     <Fragment key={column.label}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={700}
+                      >
                         {column.label}
                       </Typography>
                       <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
@@ -403,100 +420,108 @@ export function CollapsibleTableView<T extends object>({
               </Paper>
             ))
           ) : (
-            <Box sx={{ display: "grid", flex: 1, minHeight: 220, placeItems: "center", textAlign: "center" }}>
+            <Box
+              sx={{
+                display: "grid",
+                flex: 1,
+                minHeight: 220,
+                placeItems: "center",
+                textAlign: "center",
+              }}
+            >
               {emptyState}
             </Box>
           )}
         </Box>
       ) : (
-      <Box sx={tableBodyAreaSx}>
-        <TableContainer
-          sx={{
-            overflow: "auto",
-            minHeight: 0,
-            height: "100%",
-            width: "100%",
-            scrollbarGutter: "stable",
-          }}
-        >
-          <Table
-            stickyHeader
-            aria-label={tableHead}
-            sx={tableViewTableWithMinWidth(resolvedTableMinWidth)}
+        <Box sx={tableBodyAreaSx}>
+          <TableContainer
+            sx={{
+              overflow: "auto",
+              minHeight: 0,
+              height: "100%",
+              width: "100%",
+              scrollbarGutter: "stable",
+            }}
           >
-            <colgroup>
-              <col
-                style={{
-                  width: expandColumnWidth,
-                  minWidth: expandColumnWidth,
-                  maxWidth: expandColumnWidth,
-                }}
-              />
-              {columns.map((column) => (
+            <Table
+              stickyHeader
+              aria-label={tableHead}
+              sx={tableViewTableWithMinWidth(resolvedTableMinWidth)}
+            >
+              <colgroup>
                 <col
-                  key={column.label}
-                  style={
-                    typeof column.width === "number"
-                      ? { width: column.width }
-                      : undefined
-                  }
+                  style={{
+                    width: expandColumnWidth,
+                    minWidth: expandColumnWidth,
+                    maxWidth: expandColumnWidth,
+                  }}
                 />
-              ))}
-            </colgroup>
-            <TableHead sx={tableHeadSx}>
-              <TableRow>
-                <TableCell
-                  sx={[tableHeaderCellSx, expandCellSx(expandColumnWidth)]}
-                  aria-label="Expand row"
-                />
-                {columns.map((column, columnIndex) => (
-                  <TableCell
+                {columns.map((column) => (
+                  <col
                     key={column.label}
-                    align="left"
-                    sx={headerCellSx(column, columnIndex)}
-                  >
-                    {column.label}
-                  </TableCell>
+                    style={
+                      typeof column.width === "number"
+                        ? { width: column.width }
+                        : undefined
+                    }
+                  />
                 ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredRows.map((row, index) => (
-                <CollapsibleRow
-                  key={getRowId(row)}
-                  row={row}
-                  index={index}
-                  columns={columns}
-                  expandedColumns={expandedColumns}
-                  expandColumnWidth={expandColumnWidth}
-                  renderRowDetails={renderRowDetails}
-                  onRowClick={onRowClick}
-                />
-              ))}
-              {filteredRows.length === 0 && (
+              </colgroup>
+              <TableHead sx={tableHeadSx}>
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length + 1}
-                    align="center"
-                    sx={{ p: 0, height: 220 }}
-                >
-                    <Box
-                      sx={{
-                        minHeight: 220,
-                        display: "grid",
-                        placeItems: "center",
-                        textAlign: "center",
-                      }}
+                    sx={[tableHeaderCellSx, expandCellSx(expandColumnWidth)]}
+                    aria-label="Expand row"
+                  />
+                  {columns.map((column, columnIndex) => (
+                    <TableCell
+                      key={column.label}
+                      align="left"
+                      sx={headerCellSx(column, columnIndex)}
                     >
-                      {emptyState}
-                    </Box>
-                  </TableCell>
+                      {column.label}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+              </TableHead>
+              <TableBody>
+                {filteredRows.map((row, index) => (
+                  <CollapsibleRow
+                    key={getRowId(row)}
+                    row={row}
+                    index={index}
+                    columns={columns}
+                    expandedColumns={expandedColumns}
+                    expandColumnWidth={expandColumnWidth}
+                    renderRowDetails={renderRowDetails}
+                    onRowClick={onRowClick}
+                  />
+                ))}
+                {filteredRows.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length + 1}
+                      align="center"
+                      sx={{ p: 0, height: 220 }}
+                    >
+                      <Box
+                        sx={{
+                          minHeight: 220,
+                          display: "grid",
+                          placeItems: "center",
+                          textAlign: "center",
+                        }}
+                      >
+                        {emptyState}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       )}
     </Paper>
   );

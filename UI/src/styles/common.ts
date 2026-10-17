@@ -99,8 +99,8 @@ export const getModalPalette = (theme: Theme) => {
 
   return {
     border: theme.palette.divider,
-    panel: alpha(theme.palette.primary.main, isDark ? 0.04 : 0.045),
-    headerPanel: alpha(theme.palette.primary.main, isDark ? 0.055 : 0.04),
+    panel: alpha(theme.palette.primary.main, isDark ? 0.024 : 0.045),
+    headerPanel: alpha(theme.palette.primary.main, isDark ? 0.033 : 0.04),
     chipPanel: isDark
       ? alpha(theme.palette.text.primary, 0.04)
       : theme.palette.background.paper,
@@ -236,7 +236,7 @@ export const attachmentItemSx = (theme: Theme) => ({
   "&:hover": {
     bgcolor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.16 : 0.07,
+      theme.palette.mode === "dark" ? 0.096 : 0.07,
     ),
     borderColor: theme.palette.primary.main,
   },
@@ -246,7 +246,7 @@ export const attachmentIconSx = (theme: Theme) => ({
   alignItems: "center",
   bgcolor: alpha(
     theme.palette.primary.main,
-    theme.palette.mode === "dark" ? 0.2 : 0.1,
+    theme.palette.mode === "dark" ? 0.12 : 0.1,
   ),
   borderRadius: RADIUS_PX.sm,
   color: "primary.main",
@@ -607,7 +607,7 @@ export const segmentedControl = (theme: Theme) => ({
     "&:hover": {
       bgcolor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.18 : 0.08,
+        theme.palette.mode === "dark" ? 0.108 : 0.08,
       ),
       borderColor: "primary.main",
     },
@@ -615,13 +615,13 @@ export const segmentedControl = (theme: Theme) => ({
       color: "primary.main",
       bgcolor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.22 : 0.12,
+        theme.palette.mode === "dark" ? 0.132 : 0.12,
       ),
       borderColor: "primary.main",
       "&:hover": {
         bgcolor: alpha(
           theme.palette.primary.main,
-          theme.palette.mode === "dark" ? 0.28 : 0.16,
+          theme.palette.mode === "dark" ? 0.168 : 0.16,
         ),
       },
       "& .MuiSvgIcon-root": {
@@ -1045,7 +1045,7 @@ export const listItemReset = {
  *
  * Contrast first: labels use the theme's strong text colour (≈9:1 on the
  * panel in both modes) instead of a translucent tint; icons are quieter so the
- * words lead. The selected item is a tinted pill with an accent bar and
+ * words lead. The selected item is a tinted pill (a circle in the collapsed rail) with
  * dark-on-tint (light mode) / light-on-tint (dark mode) text. Hover never
  * moves the item, and keyboard focus is always visible.
  */
@@ -1103,29 +1103,16 @@ export const sidebarItem =
       mb: 0,
       px: 0,
       py: 0,
-      borderRadius: RADIUS_PX.md,
+      // Gmail-style pill; the collapsed rail turns it into a circle.
+      borderRadius: RADIUS_PX.pill,
       overflow: "hidden",
       color: theme.palette.text.primary,
       transition: theme.transitions.create(["background-color", "color"], {
         duration: theme.transitions.duration.shortest,
       }),
-      // Accent bar for the current page (drawn inside, so nothing shifts).
-      "&::before": {
-        content: '""',
-        position: "absolute",
-        left: 0,
-        top: 6,
-        bottom: 6,
-        width: 3,
-        borderRadius: 3,
-        bgcolor: selected ? sidebarSelectedColor(theme) : "transparent",
-        transition: theme.transitions.create("background-color", {
-          duration: theme.transitions.duration.shortest,
-        }),
-      },
       "&:hover": {
         backgroundColor: selected
-          ? alpha(theme.palette.primary.main, isDark ? 0.26 : 0.16)
+          ? alpha(theme.palette.primary.main, isDark ? 0.156 : 0.16)
           : alpha(theme.palette.text.primary, isDark ? 0.07 : 0.05),
       },
       "&:hover .MuiListItemIcon-root": {
@@ -1145,17 +1132,17 @@ export const sidebarItem =
         color: sidebarSelectedColor(theme),
       },
       ...(selected && {
-        backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.2 : 0.12),
+        backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.12 : 0.12),
         "&.Mui-selected": {
           backgroundColor: alpha(
             theme.palette.primary.main,
-            isDark ? 0.2 : 0.12,
+            isDark ? 0.12 : 0.12,
           ),
         },
         "&.Mui-selected:hover": {
           backgroundColor: alpha(
             theme.palette.primary.main,
-            isDark ? 0.26 : 0.16,
+            isDark ? 0.156 : 0.16,
           ),
         },
       }),
@@ -1221,8 +1208,6 @@ export const appShellBody = {
 } satisfies SxProps<Theme>;
 
 export const appMain = {
-  // Match the app's standard button corner radius around routed page content.
-  borderRadius: RADIUS_PX.md,
   display: "flex",
   flexDirection: "column",
   flex: 1,
@@ -1239,11 +1224,58 @@ export const sidebarNav =
     display: { xs: "none", md: "block" },
     width: open ? width : collapsedWidth,
     flexShrink: 0,
-    overflow: "visible",
     position: "relative",
     transformOrigin: "left center",
     transition: theme.transitions.create(["width"], {
       duration: theme.transitions.duration.shorter,
+    }),
+    ...(!open && {
+      "@media (hover: hover) and (pointer: fine)": {
+        // Expanding the flex item makes the main workspace reflow instead of
+        // allowing the navigation to cover page content.
+        "&:hover": {
+          width,
+        },
+        "&:hover .sidebar-panel": {
+          width,
+          boxShadow:
+            theme.palette.mode === "dark"
+              ? ELEVATION.dark.sidebar
+              : ELEVATION.light.sidebar,
+        },
+        "&:hover .MuiListItemButton-root": {
+          justifyContent: "flex-start",
+          width: "100%",
+          height: "auto",
+          minHeight: 36,
+          mx: 0,
+          borderRadius: RADIUS_PX.pill,
+        },
+        "&:hover .MuiListItemIcon-root": {
+          minWidth: 52,
+        },
+        "&:hover .MuiListItemText-root": {
+          clipPath: "inset(0 0 0 0)",
+          opacity: 1,
+          transform: "translateX(0)",
+          transitionDelay: "40ms",
+        },
+        "&:hover .sidebar-section-label": {
+          alignItems: "center",
+          clipPath: "inset(0 0 0 0)",
+          display: "flex",
+          height: 22,
+          opacity: 1,
+          overflow: "visible",
+          px: 1.25,
+          pb: 0.5,
+          transform: "translateX(0)",
+          transitionDelay: "40ms",
+        },
+        "&:hover .sidebar-section-divider": {
+          opacity: 0,
+        },
+      },
     }),
   });
 
@@ -1255,11 +1287,13 @@ export const sidebarPanel =
     sectionHeight: number,
   ) =>
   (theme: Theme) => ({
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
     width: open ? width : collapsedWidth,
-    height: "100%",
     overflowX: "hidden",
     overflowY: "auto",
-    borderRight: `1px solid ${theme.palette.divider}`,
     bgcolor: "background.paper",
     transformOrigin: "left center",
     willChange: "width",
@@ -1275,18 +1309,22 @@ export const sidebarPanel =
       duration: theme.transitions.duration.shorter,
     }),
     ...(!open && {
-      position: "absolute",
-      inset: 0,
-      right: "auto",
-      zIndex: theme.zIndex.drawer,
+      // Collapsed rail: each item is a borderless circle around its icon.
       "& .MuiListItemButton-root": {
         justifyContent: "center",
-        mx: 0,
+        mx: "auto",
         px: 0,
-        width: "100%",
+        width: 40,
+        height: 40,
+        minHeight: 40,
+        borderRadius: RADIUS.full,
+        transition: theme.transitions.create(
+          ["width", "border-radius", "background-color", "color"],
+          { duration: theme.transitions.duration.shorter },
+        ),
       },
       "& .MuiListItemIcon-root": {
-        minWidth: 52,
+        minWidth: 40,
         p: 0,
       },
       "& .MuiListItemText-root": {
@@ -1316,37 +1354,6 @@ export const sidebarPanel =
       "& .sidebar-section-divider": {
         opacity: 1,
       },
-      "&:hover": {
-        width,
-        boxShadow:
-          theme.palette.mode === "dark"
-            ? ELEVATION.dark.sidebar
-            : ELEVATION.light.sidebar,
-      },
-      "&:hover .MuiListItemButton-root": {
-        justifyContent: "flex-start",
-      },
-      "&:hover .MuiListItemText-root": {
-        clipPath: "inset(0 0 0 0)",
-        opacity: 1,
-        transform: "translateX(0)",
-        transitionDelay: "40ms",
-      },
-      "&:hover .sidebar-section-label": {
-        alignItems: "center",
-        clipPath: "inset(0 0 0 0)",
-        display: "flex",
-        height: sectionHeight,
-        opacity: 1,
-        overflow: "visible",
-        px: 1.25,
-        pb: 0.5,
-        transform: "translateX(0)",
-        transitionDelay: "40ms",
-      },
-      "&:hover .sidebar-section-divider": {
-        opacity: 0,
-      },
     }),
   });
 
@@ -1359,6 +1366,8 @@ export const mobileDrawer = {
     overflowY: "auto",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "thin",
+    borderRight: "1px solid",
+    borderColor: "divider",
   },
 } satisfies SxProps<Theme>;
 const statusColors: Record<string, string> = STATUS_COLORS;
@@ -1425,6 +1434,7 @@ export const tableHeadSx = (theme: Theme) => ({
     position: "sticky",
     top: 0,
     zIndex: 21,
+    letterSpacing: 0.5,
   },
 });
 
@@ -1527,21 +1537,21 @@ export const tableRow = (clickable?: boolean) => (theme: Theme) => ({
   "&:hover .MuiTableCell-body": {
     backgroundColor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.06 : 0.045,
+      theme.palette.mode === "dark" ? 0.036 : 0.045,
     ),
   },
   "&.Mui-selected .MuiTableCell-body, &[aria-selected='true'] .MuiTableCell-body":
     {
       backgroundColor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.1 : 0.095,
+        theme.palette.mode === "dark" ? 0.06 : 0.095,
       ),
     },
   "&.Mui-selected:hover .MuiTableCell-body, &[aria-selected='true']:hover .MuiTableCell-body":
     {
       backgroundColor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.14 : 0.13,
+        theme.palette.mode === "dark" ? 0.084 : 0.13,
       ),
     },
   "&.Mui-error .MuiTableCell-body, &[data-status='error'] .MuiTableCell-body": {
@@ -1617,7 +1627,7 @@ export const notificationMenuHeaderIconSx =
     placeItems: "center",
     bgcolor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.18 : 0.1,
+      theme.palette.mode === "dark" ? 0.108 : 0.1,
     ),
     color: "primary.main",
     flexShrink: 0,
@@ -1635,7 +1645,7 @@ export const notificationMenuSelfTicketItemSx =
     "&:hover": {
       bgcolor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.16 : 0.08,
+        theme.palette.mode === "dark" ? 0.096 : 0.08,
       ),
     },
   });
@@ -1650,7 +1660,7 @@ export const notificationMenuSelfTicketIconSx =
     placeItems: "center",
     bgcolor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.18 : 0.1,
+      theme.palette.mode === "dark" ? 0.108 : 0.1,
     ),
     color: "primary.main",
     flexShrink: 0,
@@ -1668,7 +1678,7 @@ export const notificationMenuTicketItemSx =
     "&:hover": {
       bgcolor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.16 : 0.08,
+        theme.palette.mode === "dark" ? 0.096 : 0.08,
       ),
     },
   });
@@ -1683,7 +1693,7 @@ export const notificationMenuTicketIconSx =
     placeItems: "center",
     bgcolor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.18 : 0.1,
+      theme.palette.mode === "dark" ? 0.108 : 0.1,
     ),
     color: "primary.main",
     flexShrink: 0,
@@ -1739,7 +1749,7 @@ export const headerProfileButtonSx =
     bgcolor: open
       ? alpha(
           theme.palette.primary.main,
-          theme.palette.mode === "dark" ? 0.2 : 0.1,
+          theme.palette.mode === "dark" ? 0.12 : 0.1,
         )
       : "transparent",
     transition: theme.transitions.create(["background-color", "border-color"], {
@@ -1748,7 +1758,7 @@ export const headerProfileButtonSx =
     "&:hover": {
       bgcolor: alpha(
         theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.28 : 0.14,
+        theme.palette.mode === "dark" ? 0.168 : 0.14,
       ),
     },
   });
@@ -1907,7 +1917,7 @@ export const boardColumnSx = (
   bgcolor: (theme) =>
     alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.08 : 0.06,
+      theme.palette.mode === "dark" ? 0.048 : 0.06,
     ),
   display: "flex",
   flexDirection: "column",
@@ -2377,7 +2387,7 @@ export const doListDetailStatusPanelSx = ({
   border: "1px solid",
   borderColor: "divider",
   borderRadius: RADIUS_PX.lg,
-  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.1 : 0.04),
+  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.06 : 0.04),
 });
 export const doListDetailCommentListSx = ({
   alpha,
@@ -2391,7 +2401,7 @@ export const doListDetailCommentListSx = ({
   gap: 1.5,
   ...insetSx,
   height: 360,
-  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.08 : 0.045),
+  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.048 : 0.045),
 });
 
 export const selfTicketsDetailModelNoteBoxSx = ({
@@ -2405,9 +2415,9 @@ export const selfTicketsDetailModelNoteBoxSx = ({
   borderRadius: RADIUS_PX.xs,
   px: { xs: 0.75, sm: 0.5 },
   py: { xs: 0.55, sm: 0 },
-  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.12 : 0.05),
+  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.072 : 0.05),
   border: "1px solid",
-  borderColor: alpha(theme.palette.primary.main, isDark ? 0.3 : 0.2),
+  borderColor: alpha(theme.palette.primary.main, isDark ? 0.18 : 0.2),
   borderLeft: `4px solid ${theme.palette.primary.main}`,
   flex: { xs: "0 0 auto", sm: 1 },
   minWidth: 0,
@@ -3429,7 +3439,7 @@ export const authLogoSx: SxProps<Theme> = {
   height: 52,
   objectFit: "contain",
   mx: "auto",
-  mb: 2,
+  mb: 5,
 };
 
 export const authIconBadgeSx: SxProps<Theme> = {
@@ -3583,7 +3593,7 @@ export const teamReportModalTitleIconSx: SxProps<Theme> = (theme) => ({
   borderRadius: RADIUS_PX.md,
   bgcolor: alpha(
     theme.palette.primary.main,
-    theme.palette.mode === "dark" ? 0.2 : 0.12,
+    theme.palette.mode === "dark" ? 0.12 : 0.12,
   ),
   color: "primary.main",
 });

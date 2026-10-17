@@ -10,7 +10,6 @@ import {
   Box,
   Divider,
   Drawer,
-  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
@@ -18,7 +17,6 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import ArticleIcon from "@mui/icons-material/Article";
@@ -77,8 +75,9 @@ import {
 } from "../styles/common";
 
 const sidebarWidth = 265;
-const sidebarCollapsedWidth = 64;
+const sidebarCollapsedWidth = 76;
 const sidebarSectionHeight = 22;
+const sidebarOpenKey = "sidebarExpanded";
 
 type SidebarPage = {
   label: string;
@@ -261,7 +260,21 @@ export default function HomePage() {
   useSessionExpiryWatch();
   const location = useLocation();
   const isSidebarLayout = useMediaQuery((theme) => theme.breakpoints.up("md"));
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  // Like Gmail, the expanded/collapsed choice survives reloads.
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem(sidebarOpenKey) !== "false";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(sidebarOpenKey, String(desktopSidebarOpen));
+    } catch {
+      // Storage unavailable (private mode); the default still works.
+    }
+  }, [desktopSidebarOpen]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [permissions] = useState<string[]>(getStoredPermissions);
 
@@ -395,6 +408,7 @@ export default function HomePage() {
           aria-label="Primary navigation"
         >
           <Box
+            className="sidebar-panel"
             sx={sidebarPanel(
               desktopSidebarOpen,
               sidebarWidth,
@@ -412,47 +426,28 @@ export default function HomePage() {
           ModalProps={{ keepMounted: true }}
           sx={mobileDrawer}
         >
-          <Box
-            sx={{
-              display: "flex",
-              minHeight: 52,
-              alignItems: "center",
-              justifyContent: "space-between",
-              px: 1.5,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography fontWeight={700}>Navigation</Typography>
-            <IconButton
-              aria-label="Close navigation"
-              onClick={() => setMobileSidebarOpen(false)}
-            >
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Box>
           {sidebar}
         </Drawer>
         <Box
-          component="main"
-          id="main-content"
-          tabIndex={-1}
-          sx={{ ...appMain, position: "relative", "&:focus": { outline: "none" } }}
-        >
-          {/*
-            The Suspense boundary stays mounted across navigations. Because
-            React Router navigates inside a transition, the current page stays
-            on screen while the next page's code loads; the skeleton only
-            appears on the very first load.
-          */}
-          <Suspense fallback={<PageLoadingSkeleton />}>
-            <ErrorBoundary
-              key={location.pathname}
-              fallback={<ErrorPage code="generic" />}
-            >
-              <Outlet />
-            </ErrorBoundary>
-          </Suspense>
+            component="main"
+            id="main-content"
+            tabIndex={-1}
+            sx={{ ...appMain, position: "relative", "&:focus": { outline: "none" } }}
+          >
+            {/*
+              The Suspense boundary stays mounted across navigations. Because
+              React Router navigates inside a transition, the current page stays
+              on screen while the next page's code loads; the skeleton only
+              appears on the very first load.
+            */}
+            <Suspense fallback={<PageLoadingSkeleton />}>
+              <ErrorBoundary
+                key={location.pathname}
+                fallback={<ErrorPage code="generic" />}
+              >
+                <Outlet />
+              </ErrorBoundary>
+            </Suspense>
         </Box>
       </Box>
     </Box>

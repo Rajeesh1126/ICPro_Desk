@@ -7,7 +7,7 @@
  */
 import { type SxProps } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
-import { INSET_X, INSET_Y, insetSx, RADIUS_PX } from "./tokens";
+import { INSET_X, insetSx, RADIUS_PX } from "./tokens";
 
 export const page = {
   bgcolor: "background.default",
@@ -29,19 +29,18 @@ export const pageContent: SxProps<Theme> = {
 };
 
 export const pageHeader = {
-  alignItems: { xs: "stretch", sm: "flex-start" },
+  // The page title and its supporting text sit together above page actions.
+  alignItems: { xs: "stretch", sm: "center" },
   display: "flex",
   width: "100%",
   flexDirection: { xs: "column", sm: "row" },
   flexWrap: "nowrap",
-  gap: { xs: 1, sm: 1.5 },
+  gap: { xs: 1.25, sm: 2 },
   justifyContent: "space-between",
-  px: INSET_X,
-  py: INSET_Y,
-  mb: { xs: 1.5, sm: 2, md: 2.5 },
-  borderBottom: "1px solid",
-  borderColor: "divider",
-  backgroundColor: "background.default",
+  px: { xs: 1.25, sm: 1.5, md: 2 },
+  py: { xs: 1.25, sm: 1.5 },
+  mb: { xs: 1.25, sm: 1.5, md: 2 },
+  // backgroundColor: "background.paper",
 } satisfies SxProps<Theme>;
 
 export const pageHeaderTopRow = {
@@ -56,6 +55,11 @@ export const pageHeaderTopRow = {
 export const pageHeaderContent = {
   flex: 1,
   minWidth: 0,
+  "& > .MuiTypography-root:not(h1)": {
+    maxWidth: 880,
+    fontSize: { xs: "0.8125rem", sm: "0.875rem", md: "0.9375rem" },
+    lineHeight: 1.55,
+  },
 } satisfies SxProps<Theme>;
 
 export const pageHeaderTitleGroup = {
@@ -72,20 +76,20 @@ export const pageTitle = {
 
 export const pageSubtitle = {
   color: "text.secondary",
-  fontSize: { xs: "0.7125rem", sm: "0.875rem" },
-  fontWeight: 400,
-  lineHeight: 1.5,
-  mt: 0.5,
+  fontSize: { xs: "0.8125rem", sm: "0.875rem", md: "0.9375rem" },
+  fontWeight: 500,
+  lineHeight: 1.55,
+  mt: 0,
 } satisfies SxProps<Theme>;
 
 export const pageHeaderActions = {
-  alignItems: { xs: "flex-end", sm: "center" },
+  alignItems: "center",
   display: "flex",
   flexShrink: 0,
   flexWrap: "wrap",
   gap: 1,
   justifyContent: "flex-start",
-  width: "auto",
+  width: { xs: "100%", sm: "auto" },
   "& .MuiButton-root": {
     whiteSpace: "nowrap",
   },
@@ -114,7 +118,7 @@ export const pageHeaderFilterToggle = ((theme: Theme) => ({
   color: "primary.main",
   bgcolor: alpha(
     theme.palette.primary.main,
-    theme.palette.mode === "dark" ? 0.18 : 0.09,
+    theme.palette.mode === "dark" ? 0.108 : 0.09,
   ),
   boxShadow:
     theme.palette.mode === "dark"
@@ -127,7 +131,7 @@ export const pageHeaderFilterToggle = ((theme: Theme) => ({
   "&:hover": {
     bgcolor: alpha(
       theme.palette.primary.main,
-      theme.palette.mode === "dark" ? 0.28 : 0.15,
+      theme.palette.mode === "dark" ? 0.168 : 0.15,
     ),
     borderColor: theme.palette.primary.main,
   },
@@ -167,7 +171,13 @@ export const buttonLabelCompact = {
 export const tabsContainer: SxProps<Theme> = {
   mx: { xs: 1, sm: 2 },
   maxWidth: { xs: "calc(100% - 16px)", sm: "calc(100% - 32px)" },
-  overflow: "hidden",
+  // Long tab labels remain reachable on compact screens instead of being
+  // clipped at the page edge. The Tabs component keeps its normal desktop
+  // presentation while this wrapper provides an intentional horizontal lane.
+  overflowX: "auto",
+  overflowY: "hidden",
+  scrollbarWidth: "thin",
+  WebkitOverflowScrolling: "touch",
 };
 
 export const tabs: SxProps<Theme> = {

@@ -220,7 +220,9 @@ function TimeSheet() {
   const availableTabs = tabConfig.filter(
     (tab) => tab.permission !== "view_submission" || permissions.has("view_submission"),
   );
-  const isApprovalTab = availableTabs[tabIndex]?.permission === "view_approval";
+  const selectedTab = availableTabs[tabIndex];
+  const isSubmissionTab = selectedTab?.label === "Submission";
+  const isApprovalTab = selectedTab?.label === "Approval";
 
   useEffect(() => {
     if (availableTabs.length && tabIndex >= availableTabs.length) setTabIndex(0);
@@ -247,7 +249,7 @@ function TimeSheet() {
             onPrevious={previousWeek}
             onNext={nextWeek}
           />
-          {!isApprovalTab && (
+          {isSubmissionTab && (
             <TimesheetActionsMenu
               selectedCount={selectedAssignedTaskIds.length}
               actionsDisabled={actionsDisabled}

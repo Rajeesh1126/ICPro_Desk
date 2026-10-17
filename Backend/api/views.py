@@ -331,6 +331,7 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
 
             employee_name = _display_name(employee)
             project_name = project.code if project and project.code else 'Unassigned Project'
+            description = project.description if project and project.description else ''
             task_name = task.name if task else 'Unassigned Task'
             hours = _seconds_to_decimal_hours(submission.hours)
 
@@ -341,6 +342,7 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
                 'employee_name': employee_name,
                 'project_id': project.id if project else None,
                 'project': project_name,
+                'description': description,
                 'task_id': task.id if task else None,
                 'task': task_name,
                 'hours': hours,
@@ -384,6 +386,7 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
                         'project': project,
                         'employee': employee,
                         'hours': round(hours, 2),
+                        'description': description,
                     }
                     for (project, employee), hours in project_employee_totals.items()
                 ],
