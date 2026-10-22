@@ -76,6 +76,19 @@ def _display_name(user):
     return full_name or user.username
 
 
+def _reporting_hierarchy_user_ids(user):
+    visible_ids = {user.pk}
+    manager_ids = visible_ids.copy()
+    while manager_ids:
+        reportee_ids = set(
+            User.objects.filter(profile__reporting_to_id__in=manager_ids)
+            .values_list('pk', flat=True)
+        ) - visible_ids
+        visible_ids.update(reportee_ids)
+        manager_ids = reportee_ids
+    return visible_ids
+
+
 def _seconds_to_time_value(seconds):
     total_seconds = int(seconds or 0)
     if total_seconds <= 0:
@@ -285,12 +298,10 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
             .order_by('-date', 'assignId__assign_to__first_name')
         )
 
-        if not (request.user.is_staff or request.user.is_superuser):
+        if not request.user.is_superuser:
             base_submissions = base_submissions.filter(
-                Q(assignId__assign_to=request.user)
-                | Q(assignId__assign_by=request.user)
-                | Q(assignId__assign_to__profile__reporting_to=request.user)
-            ).distinct()
+                assignId__assign_to_id__in=_reporting_hierarchy_user_ids(request.user)
+            )
 
         filter_options_source = list(base_submissions)
         submissions = base_submissions
@@ -1000,9 +1011,9 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
         for employee_id, employee_data in employees.items():
             statuses = employee_data.pop('statuses')
             timesheet_status = timesheet_week_logs.get(employee_id)
-
+            
             if timesheet_status:
-                overview = timesheet_status.timesheet_status or 'Submitted'
+                overview = timesheet_status.timesheet_status or 'Not Submitted'
             elif all(item == 'Accepted' for item in statuses):
                 overview = 'Accepted'
             elif any(item == 'Rejected' for item in statuses):

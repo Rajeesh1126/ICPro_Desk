@@ -240,26 +240,26 @@ function TimesheetBarChart({
         dataZoom:
           labels.length > 10
             ? [
-                {
-                  type: "inside",
-                  xAxisIndex: 0,
-                  filterMode: "none",
+              {
+                type: "inside",
+                xAxisIndex: 0,
+                filterMode: "none",
+              },
+              {
+                type: "slider",
+                xAxisIndex: 0,
+                height: 18,
+                bottom: 18,
+                borderColor: theme.palette.divider,
+                fillerColor: theme.palette.action.selected,
+                handleStyle: {
+                  color: theme.palette.primary.main,
                 },
-                {
-                  type: "slider",
-                  xAxisIndex: 0,
-                  height: 18,
-                  bottom: 18,
-                  borderColor: theme.palette.divider,
-                  fillerColor: theme.palette.action.selected,
-                  handleStyle: {
-                    color: theme.palette.primary.main,
-                  },
-                  textStyle: {
-                    color: theme.palette.text.secondary,
-                  },
+                textStyle: {
+                  color: theme.palette.text.secondary,
                 },
-              ]
+              },
+            ]
             : [],
         series: series.map((item) => ({
           name: item.label,
@@ -319,6 +319,16 @@ export default function TimesheetAnalysis() {
   const { exporting, runExport } = useExportStatus();
   // Debounced and cached per filter combination.
   const debouncedFilters = useDebouncedValue(filters);
+
+  const RATING_LABELS: Record<number, string> = {
+    1: "Poor",
+    2: "Average",
+    3: "Good",
+    4: "Very Good",
+    5: "Excellent",
+  };
+
+  const formatRating = (rate: number) => RATING_LABELS[rate] ?? "Not rated";
   const analysisQuery = useApiQuery<AnalysisResponse>(
     "/timesheet-analysis/",
     {
@@ -372,7 +382,7 @@ export default function TimesheetAnalysis() {
         dataKey: "rate",
         width: 100,
         numeric: true,
-        render: (row) => (row.rate > 0 ? row.rate : "Not rated"),
+        render: (row) => formatRating(row.rate),
       },
       { label: "Approver", dataKey: "approver_name", width: 180 },
     ],
@@ -532,24 +542,24 @@ export default function TimesheetAnalysis() {
             },
             ...(filters.employeeId
               ? [{
-                  key: "employee",
-                  label: `Employee: ${analysis.filter_options.employees.find((item) => String(item.id) === filters.employeeId)?.name ?? filters.employeeId}`,
-                  onRemove: () => setFilters((current) => ({ ...current, employeeId: "" })),
-                }]
+                key: "employee",
+                label: `Employee: ${analysis.filter_options.employees.find((item) => String(item.id) === filters.employeeId)?.name ?? filters.employeeId}`,
+                onRemove: () => setFilters((current) => ({ ...current, employeeId: "" })),
+              }]
               : []),
             ...(filters.projectId
               ? [{
-                  key: "project",
-                  label: `Project: ${analysis.filter_options.projects.find((item) => String(item.id) === filters.projectId)?.name ?? filters.projectId}`,
-                  onRemove: () => setFilters((current) => ({ ...current, projectId: "" })),
-                }]
+                key: "project",
+                label: `Project: ${analysis.filter_options.projects.find((item) => String(item.id) === filters.projectId)?.name ?? filters.projectId}`,
+                onRemove: () => setFilters((current) => ({ ...current, projectId: "" })),
+              }]
               : []),
             ...(filters.taskId
               ? [{
-                  key: "task",
-                  label: `Task: ${analysis.filter_options.tasks.find((item) => String(item.id) === filters.taskId)?.name ?? filters.taskId}`,
-                  onRemove: () => setFilters((current) => ({ ...current, taskId: "" })),
-                }]
+                key: "task",
+                label: `Task: ${analysis.filter_options.tasks.find((item) => String(item.id) === filters.taskId)?.name ?? filters.taskId}`,
+                onRemove: () => setFilters((current) => ({ ...current, taskId: "" })),
+              }]
               : []),
           ]}
         />
@@ -583,86 +593,86 @@ export default function TimesheetAnalysis() {
         applyLabel="Show results"
       >
         <Stack spacing={1.5}>
-            <DateRangeSummary
-              start={filters.startDate}
-              end={filters.endDate}
-            />
-            <TextField
-              fullWidth
-              label="From"
-              type="date"
-              value={filters.startDate}
-              onChange={(event) => updateDate("startDate", event.target.value)}
-              sx={dateFieldSx}
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { max: filters.endDate || undefined },
-              }}
-            />
-            <TextField
-              fullWidth
-              label="To"
-              type="date"
-              value={filters.endDate}
-              onChange={(event) => updateDate("endDate", event.target.value)}
-              sx={dateFieldSx}
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { min: filters.startDate || undefined },
-              }}
-            />
-            <FormControl fullWidth>
-              <InputLabel id="timesheet-analysis-employee-label">
-                Employee
-              </InputLabel>
-              <Select
-                labelId="timesheet-analysis-employee-label"
-                label="Employee"
-                value={filters.employeeId}
-                onChange={(event) => updateSelectFilter("employeeId", event)}
-              >
-                <MenuItem value="">All Employees</MenuItem>
-                {analysis.filter_options.employees.map((employee) => (
-                  <MenuItem key={employee.id} value={String(employee.id)}>
-                    {employee.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel id="timesheet-analysis-project-label">
-                Project
-              </InputLabel>
-              <Select
-                labelId="timesheet-analysis-project-label"
-                label="Project"
-                value={filters.projectId}
-                onChange={(event) => updateSelectFilter("projectId", event)}
-              >
-                <MenuItem value="">All Projects</MenuItem>
-                {analysis.filter_options.projects.map((project) => (
-                  <MenuItem key={project.id} value={String(project.id)}>
-                    {project.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel id="timesheet-analysis-task-label">Task</InputLabel>
-              <Select
-                labelId="timesheet-analysis-task-label"
-                label="Task"
-                value={filters.taskId}
-                onChange={(event) => updateSelectFilter("taskId", event)}
-              >
-                <MenuItem value="">All Tasks</MenuItem>
-                {analysis.filter_options.tasks.map((task) => (
-                  <MenuItem key={task.id} value={String(task.id)}>
-                    {task.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <DateRangeSummary
+            start={filters.startDate}
+            end={filters.endDate}
+          />
+          <TextField
+            fullWidth
+            label="From"
+            type="date"
+            value={filters.startDate}
+            onChange={(event) => updateDate("startDate", event.target.value)}
+            sx={dateFieldSx}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { max: filters.endDate || undefined },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="To"
+            type="date"
+            value={filters.endDate}
+            onChange={(event) => updateDate("endDate", event.target.value)}
+            sx={dateFieldSx}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { min: filters.startDate || undefined },
+            }}
+          />
+          <FormControl fullWidth>
+            <InputLabel id="timesheet-analysis-employee-label">
+              Employee
+            </InputLabel>
+            <Select
+              labelId="timesheet-analysis-employee-label"
+              label="Employee"
+              value={filters.employeeId}
+              onChange={(event) => updateSelectFilter("employeeId", event)}
+            >
+              <MenuItem value="">All Employees</MenuItem>
+              {analysis.filter_options.employees.map((employee) => (
+                <MenuItem key={employee.id} value={String(employee.id)}>
+                  {employee.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel id="timesheet-analysis-project-label">
+              Project
+            </InputLabel>
+            <Select
+              labelId="timesheet-analysis-project-label"
+              label="Project"
+              value={filters.projectId}
+              onChange={(event) => updateSelectFilter("projectId", event)}
+            >
+              <MenuItem value="">All Projects</MenuItem>
+              {analysis.filter_options.projects.map((project) => (
+                <MenuItem key={project.id} value={String(project.id)}>
+                  {project.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel id="timesheet-analysis-task-label">Task</InputLabel>
+            <Select
+              labelId="timesheet-analysis-task-label"
+              label="Task"
+              value={filters.taskId}
+              onChange={(event) => updateSelectFilter("taskId", event)}
+            >
+              <MenuItem value="">All Tasks</MenuItem>
+              {analysis.filter_options.tasks.map((task) => (
+                <MenuItem key={task.id} value={String(task.id)}>
+                  {task.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
       </FilterPopover>
     </Box>

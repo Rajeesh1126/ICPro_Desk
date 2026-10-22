@@ -16,7 +16,7 @@ class Role(models.Model):
             ('access_self_tickets', 'Can access Do List page'),
             ('access_tickets', 'Can access Tickets page'),
             ('access_timesheet', 'Can access Timesheet page'),
-            ('access_all_timesheet_logs', 'Can view all employee timesheet logs'),
+            ('access_timesheet_analysis', 'Can access Timesheet Analysis page'),
 
             ('access_document_template', 'Can access Document Template page'),
             ('access_lesson_learnt', 'Can access Lesson Learnt page'),

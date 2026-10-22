@@ -157,7 +157,7 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/TimesheetAnalysis",
     icon: <QueryStatsOutlinedIcon />,
     activeIcon: <QueryStatsIcon />,
-    codeName: "access_timesheet_log",
+    codeName: "access_timesheet_analysis",
   },
   {
     label: "Users Management",

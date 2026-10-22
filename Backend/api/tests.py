@@ -2,7 +2,7 @@ from datetime import date, datetime
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -18,6 +18,96 @@ from .services.timesheet_reminders import (
 from .views import _sync_timesheet_status
 
 User = get_user_model()
+
+
+class TimesheetAnalysisHierarchyTests(APITestCase):
+    def setUp(self):
+        role = Role.objects.create(name='Analysis employee')
+        role.permissions.add(Permission.objects.get(
+            content_type__app_label='api', codename='view_submission',
+        ))
+        self.people = {}
+        manager = None
+        for name in ['murali', 'anoop', 'rajeesh', 'libina']:
+            user = User.objects.create_user(username=name)
+            UserProfile.objects.create(user=user, reporting_to=manager, role=role)
+            self.people[name] = user
+            manager = user
+
+        outsider = User.objects.create_user(username='outsider')
+        UserProfile.objects.create(user=outsider, role=role)
+        self.people['outsider'] = outsider
+        project = Project.objects.create(code='hierarchy', quotation_id=902)
+        milestone = Milestone.objects.create(project=project, name='Hierarchy')
+        task = Task.objects.create(project=project, milestone=milestone, name='Hierarchy task')
+        for user in self.people.values():
+            assignment = AssignedTask.objects.create(
+                assign_to=user,
+                assign_by=self.people['libina'],
+                project_obj=project,
+                milestone_obj=milestone,
+                task_obj=task,
+            )
+            Submission.objects.create(
+                assignId=assignment, date=timezone.localdate(), hours=3600,
+            )
+
+    def assert_visible_people(self, username, expected_names, query=''):
+        self.client.force_authenticate(user=self.people[username])
+        response = self.client.get('/api/timesheet-analysis/' + query)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        expected_ids = {self.people[name].pk for name in expected_names}
+        self.assertEqual({row['employee_id'] for row in response.data['rows']}, expected_ids)
+        self.assertEqual(
+            {item['id'] for item in response.data['filter_options']['employees']},
+            expected_ids,
+        )
+        self.assertEqual(
+            {item['employee'] for item in response.data['project_employee']}, set(expected_names),
+        )
+        self.assertEqual(
+            {item['employee'] for item in response.data['task_employee']}, set(expected_names),
+        )
+
+    def test_each_level_sees_self_and_all_descendants(self):
+        for username, expected in [
+            ('murali', ['murali', 'anoop', 'rajeesh', 'libina']),
+            ('anoop', ['anoop', 'rajeesh', 'libina']),
+            ('rajeesh', ['rajeesh', 'libina']),
+            ('libina', ['libina']),
+        ]:
+            with self.subTest(username=username):
+                self.assert_visible_people(username, expected)
+
+    def test_staff_account_still_follows_hierarchy(self):
+        self.people['rajeesh'].is_staff = True
+        self.people['rajeesh'].save(update_fields=['is_staff'])
+        self.assert_visible_people('rajeesh', ['rajeesh', 'libina'])
+
+    def test_superuser_sees_everyone(self):
+        self.people['libina'].is_superuser = True
+        self.people['libina'].save(update_fields=['is_superuser'])
+        self.assert_visible_people('libina', self.people)
+
+    def test_employee_filter_cannot_reveal_outside_hierarchy(self):
+        self.client.force_authenticate(user=self.people['libina'])
+        response = self.client.get('/api/timesheet-analysis/', {
+            'employee_id': self.people['outsider'].pk,
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['rows'], [])
+        self.assertEqual(response.data['project_employee'], [])
+        self.assertEqual(response.data['task_employee'], [])
+        self.assertEqual(
+            [item['id'] for item in response.data['filter_options']['employees']],
+            [self.people['libina'].pk],
+        )
+
+    def test_reporting_cycle_terminates(self):
+        UserProfile.objects.filter(user=self.people['murali']).update(
+            reporting_to=self.people['libina'],
+        )
+        self.assert_visible_people('murali', ['murali', 'anoop', 'rajeesh', 'libina'])
 
 
 class TimesheetReminderTests(APITestCase):
