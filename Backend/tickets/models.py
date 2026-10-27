@@ -137,16 +137,6 @@ class Self_Ticket(models.Model):
     def __str__(self):
         return f"{self.number} - {self.task}"
 
-    # class Meta:
-    #     default_permissions = ()
-    #     # customise the permissions for the Notice model
-    #     permissions = [
-    #         ('view_self_tickets', 'Handle Self Ticket'),
-    #         ('add_self_ticket', 'Handle Create Self Ticket'),
-    #         ('change_self_ticket', 'Handle Change Self Ticket'),
-    #         ('delete_self_ticket', 'Handle Delete Self Ticket'),
-    #         ('view_managementoverview', 'Handle Management Overview'),
-    #         ('view_report', 'Handle Ticket Report')]
 
 class Self_Ticket_Log(models.Model):
     self_ticket = models.ForeignKey(Self_Ticket, on_delete=models.CASCADE, related_name='selfLogs')

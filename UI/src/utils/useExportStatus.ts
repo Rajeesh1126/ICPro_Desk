@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { showNotification } from "../api/notificationService";
+import { showNotification } from "@/api/notificationService";
 
 /**
  * The spreadsheet library is large, so it is fetched only when a user actually

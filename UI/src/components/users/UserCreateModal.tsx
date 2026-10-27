@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useMemo, useState } from "react";
 import {
   Button,
@@ -14,25 +14,25 @@ import {
   Select,
   TextField,
 } from "@mui/material";
-import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 
-import api from "../../api/axios";
-import { sanitizeUserMessage } from "../../utils/errorUtils";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
+import api from "@/api/axios";
+import { sanitizeUserMessage } from "@/utils/errorUtils";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
 import type {
   UsersFormData,
   rolesData,
   UsersData,
   groupData,
-} from "../../types/dataTypes";
+} from "@/types/dataTypes";
 import {
   dateFieldSx,
   formSwitchLabelSx,
-} from "../../styles/common";
-import { showNotification } from "../../api/notificationService";
+  topSpacingSx,
+} from "@/styles/common";
+import { showNotification } from "@/api/notificationService";
 
 type UserCreateModalProps = {
   open: boolean;
@@ -212,7 +212,7 @@ export default function UserCreateModal({
         closeDisabled={loading}
       />
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid container spacing={2} sx={topSpacingSx}>
           <Grid size={{ xs: 6, sm: 6 }}>
             <TextField
               label="First Name"
@@ -433,16 +433,8 @@ export default function UserCreateModal({
       <DialogActions>
         <RequiredFieldsNote />
         <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={discard.requestClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button
           variant="contained"
-          startIcon={Data ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+          startIcon={Data ? <SaveOutlinedIcon /> : <CheckOutlinedIcon />}
           onClick={() => void submit()}
           disabled={loading || invalid}
         >

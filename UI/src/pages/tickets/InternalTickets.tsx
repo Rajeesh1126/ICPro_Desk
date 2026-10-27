@@ -1,22 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
+import { isOverdueTicket } from "@/utils/ticketDue";
 import {
   Box,
   Button,
-  IconButton,
-  Stack,
   Tab,
   Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
-  Alert,
 } from "@mui/material";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
-import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
@@ -29,39 +21,50 @@ import UndoIcon from "@mui/icons-material/Undo";
 import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
+import { VirtualizedTable } from "@/components/common/TableView";
 import {
-  VirtualizedTable,
-  type ColumnData,
-} from "../../components/common/TableView";
-import CreateTicketModal from "../../components/tickets/CreateModal";
-import TicketDetailModal from "../../components/tickets/DetailModal";
-import TicketCardView from "../../components/common/CardView";
-import TableLoadingState from "../../components/common/TableLoadingState";
+  DEFAULT_HIDDEN_TICKET_COLUMNS,
+  OPTIONAL_TICKET_COLUMNS,
+  useTicketTableColumns,
+} from "@/components/tickets/ticketTableColumns";
+import CreateTicketModal from "@/components/tickets/CreateModal";
+import TicketDetailModal from "@/components/tickets/DetailModal";
+import TicketCardView from "@/components/common/CardView";
+import {
+  ColumnPicker,
+  TicketCalendar,
+  type PageView,
+} from "@/components/common/TicketPageParts";
+
+const WORK_LET_VIEWS: readonly PageView[] = ["table", "card", "calendar"];
+import PageNotice from "@/components/common/PageNotice";
+import TableLoadingState from "@/components/common/TableLoadingState";
 import type {
   groupData,
   TicketData,
   UserSummary,
-} from "../../types/dataTypes";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { buildTicketCollections } from "./ticketCollections";
+} from "@/types/dataTypes";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { buildTicketCollections } from "@/pages/tickets/ticketCollections";
+import { useSessionState, WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
 import {
   buttonLabelCompact,
   buttonLabelFull,
-  inlineCenterGapSx,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   priorityAlarmRowHighlight,
   priorityDueRowHighlight,
   tabs,
   tabsContainer,
   tablePageContent,
-  toggleButton,
-} from "../../styles/common";
+  viewEnterSx,
+  workLetEmptyIconSx,
+  workLetEmptySx,
+  workLetEmptyTextSx,
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
+import { viewToggleAction } from "@/components/common/headerActions";
 
 type CurrentUserGroupsResponse = {
   departments?: groupData[];
@@ -78,53 +81,17 @@ function loggedUser(): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
-function parseTicketDueDay(value: string | null | undefined) {
-  if (!value) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
-  }
-
-  const normalizedValue = value.replace(" ", "T");
-  const dueDate = new Date(normalizedValue);
-  const timestamp = dueDate.getTime();
-  dueDate.setHours(0, 0, 0, 0);
-
-  return Number.isNaN(timestamp) ? null : dueDate.getTime();
-}
-
-function isOpenOrInProgressDueTicket(ticket: TicketData) {
-  const dueDay = parseTicketDueDay(ticket.target_date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const status = ticket.current_status?.toLowerCase() ?? "";
-  const activeStatuses = [
-    "open",
-    "revised",
-    "reopened",
-    "in progress",
-    "assigned",
-    "not-satisfied",
-    "accepted",
-    "recall requested",
-    "date revision",
-    "pending",
-  ];
-
-  return (
-    dueDay !== null &&
-    dueDay <= today.getTime() &&
-    activeStatuses.includes(status)
-  );
-}
-
 export default function InternalTickets() {
   const userId = useMemo(() => loggedUser(), []);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createTargetDate, setCreateTargetDate] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
-  const [view, setView] = useState<"table" | "card">("table");
+  const [view, setView] = useSessionState<PageView>(
+    WORK_ITEM_VIEW_SESSION_KEY,
+    "card",
+    (value): value is PageView => WORK_LET_VIEWS.includes(value as PageView),
+  );
   const [tabValue, setTabValue] = useState(0);
   // List-only tabs are unavailable on the board; remember where the user was.
   const [tableTabBeforeBoard, setTableTabBeforeBoard] = useState<number | null>(null);
@@ -155,6 +122,14 @@ export default function InternalTickets() {
   const loading = ticketsQuery.isPending;
 
   const openCreate = useCallback(() => {
+    setCreateTargetDate(null);
+    setSelectedRow(null);
+    setEditing(false);
+    setDialogOpen(true);
+  }, []);
+
+  const openCreateForDate = useCallback((targetDate: string) => {
+    setCreateTargetDate(targetDate);
     setSelectedRow(null);
     setEditing(false);
     setDialogOpen(true);
@@ -174,67 +149,29 @@ export default function InternalTickets() {
 
   const closeDialog = useCallback(() => {
     setDialogOpen(false);
+    setCreateTargetDate(null);
     setEditing(false);
     setSelectedRow(null);
   }, []);
 
-  const columns = useMemo<ColumnData<TicketData>[]>(
-    () => [
-      {
-        label: "#",
-        width: 20,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
-        label: "Ticket Number",
-        // View + edit buttons (2 × 36px) plus the full number, e.g. TM-050926-001.
-        width: 230,
-        render: (row) => (
-          <Box sx={inlineCenterGapSx}>
-            <Tooltip title="View details">
-              <IconButton
-                aria-label={`View ${row.number}`}
-                onClick={() => openDetails(row)}
-              >
-                <VisibilityOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Edit ticket">
-              <span><IconButton
-                aria-label={`Edit ${row.number}`}
-                onClick={() => openEdit(row)}
-                disabled={
-                  row.creator !== userId ||
-                  [
-                    "closed",
-                    "recall successful",
-                    "recall requested",
-                    "completed",
-                  ].includes(row.current_status)
-                }
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton></span>
-            </Tooltip>
-            <Typography variant="body2" fontWeight={700}>{row.number}</Typography>
-          </Box>
-        ),
-      },
-      { label: "Subject", dataKey: "task", width: 350 },
-      { label: "Status", dataKey: "current_status" },
-      { label: "Assigned By", dataKey: "creator_name" },
-      { label: "Assigned To", dataKey: "assigned_to_name" },
-      { label: "Team", dataKey: "department_name" },
-      { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours" },
-      { label: "Target Completion", dataKey: "target_date" },
-      { label: "Actual Completion", dataKey: "actual_end_date" },
-    ],
-    [userId, openDetails, openEdit],
+  const columns = useTicketTableColumns({
+    userId,
+    onView: openDetails,
+    onEdit: openEdit,
+    withTeam: true,
+    withActualHours: false,
+  });
+  const [hiddenColumnsValue, setHiddenColumnsValue] = useSessionState(
+    "work-let:hidden-columns",
+    DEFAULT_HIDDEN_TICKET_COLUMNS,
+    (value): value is string => typeof value === "string",
+  );
+  const hiddenColumns = useMemo(
+    () => hiddenColumnsValue.split(",").filter(Boolean),
+    [hiddenColumnsValue],
   );
 
-  const activeRows =
+  const rowsForTab =
     [
       tickets.all,
       tickets.assigned,
@@ -243,85 +180,56 @@ export default function InternalTickets() {
       tickets.recalled,
       tickets.closed,
     ][tabValue] ?? tickets.all;
+  const activeRows = rowsForTab;
   const canOpenCreate = canCreateInternalTicket && reportees.length > 0 && departments.length > 0;
+  const changeView = (next: PageView) => {
+    setView(next);
+    if (next === "card" && tabValue > 2) {
+      setTableTabBeforeBoard(tabValue);
+      setTabValue(0);
+    } else if (next !== "card" && tableTabBeforeBoard !== null) {
+      setTabValue(tableTabBeforeBoard);
+      setTableTabBeforeBoard(null);
+    }
+  };
 
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>Internal Tickets</Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Raise and track internal tickets for your immediate reportees.
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: "row", sm: "row" }}
-            spacing={1}
-            sx={pageHeaderActions}
-          >
-            {tabValue === 0 && (
-              <Tooltip
-                title={
-                  canOpenCreate
-                    ? "Create internal ticket"
-                    : "Internal tickets require a managed department and immediate reportees"
-                }
-              >
-                <span>
-                  <Button
-                    startIcon={<AddOutlinedIcon />}
-                    variant="contained"
-                    onClick={openCreate}
-                    disabled={!canOpenCreate}
-                  >
-                    <Box component="span" sx={buttonLabelFull}>New Internal Ticket</Box>
-                    <Box component="span" sx={buttonLabelCompact}>New</Box>
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
-            <ToggleButtonGroup
-              exclusive
-              value={view}
-              onChange={(_, next: "table" | "card" | null) => {
-                if (!next) return;
-                setView(next);
-                if (next === "card" && tabValue > 2) {
-                  setTableTabBeforeBoard(tabValue);
-                  setTabValue(0);
-                } else if (next === "table" && tableTabBeforeBoard !== null) {
-                  setTabValue(tableTabBeforeBoard);
-                  setTableTabBeforeBoard(null);
-                }
-              }}
-              aria-label="Task view"
-              sx={toggleButton}
-            >
-              <Tooltip title="Table view" arrow>
-                <ToggleButton value="table" aria-label="Table view">
-                  <TableRowsOutlinedIcon fontSize="small" />
-                </ToggleButton>
-              </Tooltip>
-              <Tooltip title="Board view" arrow>
-                <ToggleButton value="card" aria-label="Board view">
-                  <ViewKanbanOutlinedIcon fontSize="small" />
-                </ToggleButton>
-              </Tooltip>
-            </ToggleButtonGroup>
-          </Stack>
-        </Box>
+        <PageHeader
+          title="Work Let"
+          subtitle="Your team's internal tickets: raise them for immediate reportees and track them to completion."
+          actions={[
+            tabValue === 0 && {
+              key: "new",
+              priority: "high",
+              node: (
+                <Tooltip
+                  title={
+                    canOpenCreate
+                      ? "Create internal ticket"
+                      : "Internal tickets require a managed department and immediate reportees"
+                  }
+                >
+                  <span>
+                    <Button
+                      startIcon={<AddOutlinedIcon />}
+                      variant="contained"
+                      onClick={openCreate}
+                      disabled={!canOpenCreate}
+                    >
+                      <Box component="span" sx={buttonLabelFull}>New Internal Ticket</Box>
+                      <Box component="span" sx={buttonLabelCompact}>New Ticket</Box>
+                    </Button>
+                  </span>
+                </Tooltip>
+              ),
+            },
+            viewToggleAction<PageView>(WORK_LET_VIEWS, view, changeView),
+          ]}
+        />
 
-        
         <Box sx={tabsContainer}>
-
-          {tabValue === 0 && createAccessChecked && !canOpenCreate && (
-            <Alert severity="info" variant="outlined" sx={{ px: 1, py: 0, mb: 1 }}>
-              New internal tickets need a department you manage and at least one immediate
-              reportee. Ask an administrator to update your team setup.
-            </Alert>
-          )}
-
           <Tabs
             value={tabValue}
             onChange={(_, value: number) => {
@@ -356,15 +264,41 @@ export default function InternalTickets() {
             />
           </Tabs>
         </Box>
-        {view === "card" && (
-          <Typography variant="caption" color="text.secondary" sx={{ px: { xs: 2, sm: 0 }, mt: -0.5, mb: 0.5 }}>
-            Rejected, Recalled and Closed are list-only. Switch to Table view to see them
-            {tableTabBeforeBoard !== null ? "; your previous tab will be restored." : "."}
-          </Typography>
+        {tabValue === 0 && tickets.all.length > 0 && createAccessChecked && !canOpenCreate && (
+          <PageNotice>
+            New internal tickets need a department you manage and at least one
+            immediate reportee. Ask an administrator to update your team setup.
+          </PageNotice>
         )}
 
-        <Box sx={tablePageContent}>
-          {view === "card" && loading ? (
+
+        <Box key={view} sx={[tablePageContent, viewEnterSx]}>
+          {view === "calendar" ? (
+            <TicketCalendar
+              tickets={activeRows}
+              loading={loading}
+              error={ticketsQuery.isError}
+              onOpen={openDetails}
+              onCreate={canOpenCreate ? openCreateForDate : undefined}
+            />
+          ) : tabValue === 0 && !loading && !ticketsQuery.isError && tickets.all.length === 0 ? (
+            <Box role="status" sx={workLetEmptySx}>
+              <InboxOutlinedIcon sx={workLetEmptyIconSx} />
+              <Typography component="h2" variant="h6">No internal tickets yet</Typography>
+              <Typography color="text.secondary" variant="body2" sx={workLetEmptyTextSx}>
+                Internal tickets track work assigned to your immediate reportees. {createAccessChecked
+                  ? canOpenCreate
+                    ? "Create one to start tracking team work here."
+                    : "To create one, you need a managed department and at least one immediate reportee. Ask an administrator to update your team setup."
+                  : "Checking your team access…"}
+              </Typography>
+              {createAccessChecked && canOpenCreate && (
+                <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
+                  Create internal ticket
+                </Button>
+              )}
+            </Box>
+          ) : view === "card" && loading ? (
             <TableLoadingState variant="cards" label="Loading tickets" />
           ) : view === "card" ? (
             <TicketCardView
@@ -379,15 +313,25 @@ export default function InternalTickets() {
               height="100%"
               getRowSx={(row) =>
                 row.alarm === true
-                  ? priorityAlarmRowHighlight(row.priority)
-                  : isOpenOrInProgressDueTicket(row)
-                  ? priorityDueRowHighlight(row.priority)
+                  ? priorityAlarmRowHighlight()
+                  : isOverdueTicket(row)
+                  ? priorityDueRowHighlight()
                   : undefined
               }
-              tableHead="Internal Tickets"
+              tableHead="Internal tickets"
               loading={loading}
               emptyTitle="No tickets in this view"
               emptyDescription="Tickets you create or are assigned will appear here."
+              hideSearch
+              fitContent
+              hiddenColumns={hiddenColumns}
+              headerAction={
+                <ColumnPicker
+                  options={OPTIONAL_TICKET_COLUMNS.filter((label) => label !== "Act Hrs")}
+                  hidden={hiddenColumns}
+                  onChange={(next) => setHiddenColumnsValue(next.join(","))}
+                />
+              }
             />
           )}
         </Box>
@@ -398,6 +342,7 @@ export default function InternalTickets() {
           open={dialogOpen}
           handleClose={closeDialog}
           Data={null}
+          initialTargetDate={createTargetDate}
           internalMode
           departmentsOverride={departments}
           assignableUsers={reportees}

@@ -9,24 +9,30 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { alpha, useTheme } from "@mui/material/styles";
-import type { SelfTicketData, TicketData } from "../../types/dataTypes";
-import BasicCardComponent from "../tickets/BasicCard";
-import BasicCardSelfTicket from "../selfTickets/BasicCard";
-import { shouldBlinkSelfTicket } from "../selfTickets/highlight";
+import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
+import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import { useTheme } from "@mui/material/styles";
+import type { SelfTicketData, TicketData } from "@/types/dataTypes";
+import BasicCardComponent from "@/components/tickets/BasicCard";
+import BasicCardSelfTicket from "@/components/selfTickets/BasicCard";
+import { shouldBlinkSelfTicket } from "@/components/selfTickets/highlight";
+import { TICKET_BOARD_GROUPS } from "@/pages/tickets/ticketCollections";
 import {
   boardColumnListSx,
   cardViewCollapseSx,
   cardViewExpandIcon,
+  cardViewHeaderButtonSx,
   boardColumnsSx,
   boardColumnsSelfSx,
   boardColumnSx,
   boardColumnActionRequiredChipSx,
+  boardColumnBulletSx,
   boardColumnCountChipSx,
   boardColumnHeaderSx,
-  boardColumnEmptyTextSx,
+  boardColumnEmptySx,
+  boardColumnTitleSx,
   getStatusColor,
-} from "../../styles/common";
+} from "@/styles/common";
 
 type TicketCardViewProps =
   | {
@@ -61,7 +67,6 @@ function TicketColumn({
   isSmallScreen,
   expanded,
   hasAlarm,
-  cardType,
   onExpand,
 }: ColumnProps) {
   const panelId = React.useId();
@@ -71,42 +76,35 @@ function TicketColumn({
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      sx={boardColumnHeaderSx({ accent })}
+      sx={boardColumnHeaderSx}
     >
-      <Typography fontWeight={800}>{title}</Typography>
+      {/* Inside the phone accordion button a heading is invalid; use a span. */}
+      <Typography component={isSmallScreen ? "span" : "h3"} sx={boardColumnTitleSx}>
+        <Box component="span" sx={boardColumnBulletSx({ accent })} />
+        {title}
+        <Chip label={count} size="small" sx={boardColumnCountChipSx} />
+      </Typography>
       <Stack direction="row" spacing={0.75} alignItems="center">
         {hasAlarm && (
           <Chip
+            icon={<ErrorOutlineOutlinedIcon aria-hidden="true" />}
             label="Action Required"
-            sx={boardColumnActionRequiredChipSx({ accent, alpha })}
+            sx={boardColumnActionRequiredChipSx}
           />
         )}
-        <Chip
-          label={count}
-          sx={boardColumnCountChipSx({ accent, alpha })}
-        />
         {isSmallScreen && <ExpandMoreIcon sx={cardViewExpandIcon(expanded)} />}
       </Stack>
     </Stack>
   );
   return (
-    <Box sx={boardColumnSx({ alpha }, expanded)}>
+    <Box sx={boardColumnSx(expanded)}>
       {isSmallScreen ? (
         <ButtonBase
           id={headerId}
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onExpand}
-          sx={{
-            display: "block",
-            width: "100%",
-            textAlign: "left",
-            "&.Mui-focusVisible": {
-              outline: "2px solid",
-              outlineColor: accent,
-              outlineOffset: -2,
-            },
-          }}
+          sx={cardViewHeaderButtonSx(accent)}
         >
           {header}
         </ButtonBase>
@@ -114,33 +112,37 @@ function TicketColumn({
         header
       )}
       {isSmallScreen ? (
-        <Collapse in={expanded} sx={cardViewCollapseSx}>
+        <Collapse in={expanded} timeout={200} sx={cardViewCollapseSx}>
           <Box
             id={panelId}
             role="region"
             aria-labelledby={headerId}
-            sx={boardColumnListSx(cardType)}
+            sx={boardColumnListSx}
           >
             {children}
           </Box>
         </Collapse>
       ) : (
-        <Box sx={boardColumnListSx(cardType)}>{children}</Box>
+        <Box sx={boardColumnListSx}>{children}</Box>
       )}
     </Box>
   );
 }
 
-function EmptyColumn() {
+/** What an empty stage means, so a sparse board reads as intentional. */
+const EMPTY_STAGE_TEXT: Record<string, string> = {
+  Open: "Nothing waiting to be picked up.",
+  "In progress": "Nothing is in progress right now.",
+  Completed: "Completed tickets show here until they're rated and closed.",
+  Closed: "Closed tasks show here.",
+};
+
+function EmptyColumn({ title }: { title: string }) {
   return (
-    <Typography
-      align="center"
-      color="text.secondary"
-      variant="body2"
-      sx={boardColumnEmptyTextSx}
-    >
-      No tickets in this stage
-    </Typography>
+    <Box sx={boardColumnEmptySx}>
+      <InboxOutlinedIcon />
+      {EMPTY_STAGE_TEXT[title] ?? "Nothing in this stage."}
+    </Box>
   );
 }
 
@@ -160,35 +162,13 @@ export default function TicketCardView(props: TicketCardViewProps) {
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("lg"));
   const [expandedStatus, setExpandedStatus] = React.useState("Open");
   if (props.cardType === "Ticket") {
-    const columns = [
-      {
-        title: "Open",
-        accent: getStatusColor("open"),
-        rows: props.data.filter((ticket) =>
-          ["open", "revised", "reopened"].includes(ticket.current_status),
-        ),
-      },
-      {
-        title: "In progress",
-        accent: getStatusColor("assigned"),
-        rows: props.data.filter((ticket) =>
-          [
-            "assigned",
-            "not-satisfied",
-            "accepted",
-            "in progress",
-            "recall requested",
-          ].includes(ticket.current_status),
-        ),
-      },
-      {
-        title: "Completed",
-        accent: getStatusColor("completed"),
-        rows: props.data.filter(
-          (ticket) => ticket.current_status === "completed",
-        ),
-      },
-    ];
+    const columns = TICKET_BOARD_GROUPS.map((group) => ({
+      title: group.title,
+      accent: getStatusColor(group.accentStatus),
+      rows: props.data.filter((ticket) =>
+        (group.statuses as readonly string[]).includes(ticket.current_status),
+      ),
+    }));
     return (
       <Box sx={boardColumnsSx}>
         {columns.map((column) => (
@@ -212,10 +192,11 @@ export default function TicketCardView(props: TicketCardViewProps) {
                   key={ticket.id ?? ticket.number}
                   ticket={ticket}
                   onOpen={props.onCardClick}
+                  columnStatus={column.title.toLowerCase()}
                 />
               ))
             ) : (
-              <EmptyColumn />
+              <EmptyColumn title={column.title} />
             )}
           </TicketColumn>
         ))}
@@ -227,7 +208,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
     {
       title: "Open",
       accent: getStatusColor("open"),
-      rows: props.data.filter((ticket) => ticket.current_status === "open"),
+      rows: props.data.filter((ticket) => ["open", "date revision"].includes(ticket.current_status)),
     },
     {
       title: "Closed",
@@ -259,7 +240,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
               />
             ))
           ) : (
-            <EmptyColumn />
+            <EmptyColumn title={column.title} />
           )}
         </TicketColumn>
       ))}

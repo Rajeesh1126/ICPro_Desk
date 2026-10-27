@@ -9,10 +9,10 @@ import {
   type BudgetOwnerValidation,
   type DailyHoursValidation,
   type WeeklyTimesheetLog,
-} from "../submission/timesheetMath";
+} from "@/pages/timesheet/submission/timesheetMath";
 
 export const LOCKED_ACTION_MESSAGE =
-  "This action is not available for the current time sheet status.";
+  "This action is not available for the current timesheet status.";
 
 /**
  * Week-level permissions. While the status is still loading nothing that

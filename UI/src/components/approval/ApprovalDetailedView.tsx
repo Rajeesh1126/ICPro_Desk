@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Dialog, Typography } from "@mui/material";
-import { insetSx } from "../../styles/tokens";
-import { VirtualizedTable } from "../../components/common/TableView";
-import type { ApprovalRow, TaskRow } from "../../types/dataTypes";
-import api from "../../api/axios";
-import { approveDetailDialogPaperSx } from "../../styles/common";
-import { useNotification } from "../../context/notificationContext";
+import { insetSx } from "@/styles/tokens";
+import { VirtualizedTable } from "@/components/common/TableView";
+import type { ApprovalRow, TaskRow } from "@/types/dataTypes";
+import api from "@/api/axios";
+import {
+  approveDetailDialogPaperSx,
+  approvalLoadingSx,
+  approvalLoadingTextSx,
+  approvalTableAreaSx,
+  fullHeightSx,
+} from "@/styles/common";
+import { useNotification } from "@/context/notificationContext";
 import {
   applyActionResult,
   buildWeekDays,
@@ -17,11 +23,11 @@ import {
   toggleId,
   type ApprovalAction,
   type ApprovalDetailResponse,
-} from "./detail/approvalData";
-import { useApprovalColumns } from "./detail/useApprovalColumns";
-import { ApprovalTotalsRow } from "./detail/ApprovalTableCells";
-import { ApprovalComments, ApprovalDetailHeader } from "./detail/ApprovalDetailSections";
-import RejectReasonDialog from "./detail/RejectReasonDialog";
+} from "@/components/approval/detail/approvalData";
+import { useApprovalColumns } from "@/components/approval/detail/useApprovalColumns";
+import { ApprovalTotalsRow } from "@/components/approval/detail/ApprovalTableCells";
+import { ApprovalComments, ApprovalDetailHeader } from "@/components/approval/detail/ApprovalDetailSections";
+import RejectReasonDialog from "@/components/approval/detail/RejectReasonDialog";
 
 interface ApprovalDetailedViewProps {
   open: boolean;
@@ -207,12 +213,12 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
           })}
         >
           {loading ? (
-            <Box sx={{ height: "40dvh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Typography sx={{ fontSize: 13 }}>Loading...</Typography>
+            <Box sx={approvalLoadingSx}>
+              <Typography sx={approvalLoadingTextSx}>Loading...</Typography>
             </Box>
           ) : (
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden", pb: 0.25 }}>
-              <Box sx={{ height: "100%" }}>
+            <Box sx={approvalTableAreaSx}>
+              <Box sx={fullHeightSx}>
                 <VirtualizedTable<TaskRow>
                   columns={columns}
                   rows={visibleTasks}

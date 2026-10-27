@@ -1,4 +1,4 @@
-import { insetSx } from "../../styles/tokens";
+import { insetSx, RADIUS_PX } from "@/styles/tokens";
 import {
   Box,
   ButtonBase,
@@ -18,8 +18,21 @@ import { alpha } from "@mui/material/styles";
 import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import EmptyTableState from "../common/EmptyTableState";
-import type { AssignedTask, Milestone, SubmissionProject } from "../../types/dataTypes";
+import EmptyTableState from "@/components/common/EmptyTableState";
+import type { AssignedTask, Milestone, SubmissionProject } from "@/types/dataTypes";
+import {
+  mobileDayEntryEmptySx,
+  mobileDayEntryHintSx,
+  mobileDayEntryListSx,
+  mobileDayEntryNavSx,
+  mobileDayEntryOwnerFieldSx,
+  mobileDayEntryOwnerLabelSx,
+  mobileDayEntrySelectLabelSx,
+  mobileDayEntrySx,
+  mobileDayEntryTaskNameSx,
+  mobileDayStripSx,
+  wrapAnywhereSx,
+} from "@/styles/common";
 
 type WeekDay = { label: string; date: string };
 type OwnerOption = { value: string; label: string };
@@ -76,7 +89,7 @@ export default function MobileDayEntry({
   );
 
   return (
-    <Box sx={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column", gap: 1 }}>
+    <Box sx={mobileDayEntrySx}>
       {/* Day stepper */}
       <Stack direction="row" alignItems="center" spacing={0.5}>
         <IconButton
@@ -89,13 +102,7 @@ export default function MobileDayEntry({
         <Box
           role="tablist"
           aria-label="Day of week"
-          sx={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${weekDays.length}, minmax(0, 1fr))`,
-            gap: 0.5,
-            flex: 1,
-            minWidth: 0,
-          }}
+          sx={mobileDayStripSx(weekDays.length)}
         >
           {weekDays.map((day, index) => {
             const selected = index === activeIndex;
@@ -110,7 +117,7 @@ export default function MobileDayEntry({
                 sx={(theme) => ({
                   flexDirection: "column",
                   py: 0.5,
-                  borderRadius: 1,
+                  borderRadius: RADIUS_PX.md,
                   border: 1,
                   borderColor: selected ? "primary.main" : "divider",
                   bgcolor: selected
@@ -120,7 +127,7 @@ export default function MobileDayEntry({
                   "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main" },
                 })}
               >
-                <Typography variant="caption" fontWeight={700} lineHeight={1.2}>
+                <Typography variant="caption" fontWeight={600} lineHeight={1.2}>
                   {day.label.slice(0, 3)}
                 </Typography>
                 <Typography variant="caption" lineHeight={1.2} color={hasHours ? "inherit" : "text.secondary"}>
@@ -139,8 +146,8 @@ export default function MobileDayEntry({
         </IconButton>
       </Stack>
 
-      <Stack direction="row" justifyContent="space-between" sx={{ px: 0.5 }}>
-        <Typography variant="body2" fontWeight={700}>
+      <Stack direction="row" justifyContent="space-between" sx={mobileDayEntryNavSx}>
+        <Typography variant="body2" fontWeight={600}>
           {activeDay?.label} · {activeDay?.date}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -149,9 +156,9 @@ export default function MobileDayEntry({
       </Stack>
 
       {/* Task entries for the active day */}
-      <Box role="tabpanel" sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, pb: 1 }}>
+      <Box role="tabpanel" sx={mobileDayEntryListSx}>
         {rows.length === 0 && (
-          <Box sx={{ display: "grid", placeItems: "center", minHeight: 220 }}>
+          <Box sx={mobileDayEntryEmptySx}>
             <EmptyTableState
               title="No timesheet entries"
               description="Jobs and assigned ticket work for the selected week will appear here."
@@ -164,12 +171,12 @@ export default function MobileDayEntry({
             const others = isOthersProject(project);
             const hoursId = `hours-${task.assign_id}-${activeDay.date}`;
             return (
-              <Paper key={task.assign_id} variant="outlined" sx={{ ...insetSx }}>
-                <Typography variant="caption" color="text.secondary" component="p" sx={{ overflowWrap: "anywhere" }}>
+              <Paper key={task.assign_id} variant="outlined" sx={insetSx}>
+                <Typography variant="caption" color="text.secondary" component="p" sx={wrapAnywhereSx}>
                   {project.code}
                   {project.description ? ` · ${project.description}` : ""} › {milestone.name}
                 </Typography>
-                <Typography variant="body2" fontWeight={700} sx={{ overflowWrap: "anywhere", mb: 1 }}>
+                <Typography variant="body2" fontWeight={600} sx={mobileDayEntryTaskNameSx}>
                   {task.name}
                 </Typography>
 
@@ -182,14 +189,14 @@ export default function MobileDayEntry({
                     onChange={(event) =>
                       onHoursChange(project.id, milestone.id, task.assign_id, activeDay.date, event.target.value)
                     }
-                    helperText={editable ? "h.mm: 1.30 = 1 h 30 m" : undefined}
+                    helperText={editable ? "1.30 = 1 h 30 m" : undefined}
                     slotProps={{
                       htmlInput: { inputMode: "decimal", placeholder: "0.00" },
                       input: editable
                         ? undefined
-                        : { startAdornment: <LockOutlinedIcon fontSize="small" sx={{ mr: 0.5 }} aria-hidden="true" /> },
+                        : { startAdornment: <LockOutlinedIcon fontSize="small" sx={mobileDayEntryOwnerLabelSx} aria-hidden="true" /> },
                     }}
-                    sx={{ width: 140, flexShrink: 0 }}
+                    sx={mobileDayEntryOwnerFieldSx}
                   />
                   {!others && (
                     <FormControl fullWidth>
@@ -213,13 +220,13 @@ export default function MobileDayEntry({
                   )}
                 </Stack>
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={mobileDayEntryHintSx}>
                   <Typography variant="caption" color="text.secondary">
                     {editable ? `Week total ${formatHours(taskWeekTotal(task))} h` : `Locked for this day · Week total ${formatHours(taskWeekTotal(task))} h`}
                   </Typography>
                   {!others && (
                     <FormControlLabel
-                      sx={{ mr: 0 }}
+                      sx={mobileDayEntrySelectLabelSx}
                       control={
                         <Checkbox
                           checked={selectedAssignedTaskIds.includes(task.assign_id)}

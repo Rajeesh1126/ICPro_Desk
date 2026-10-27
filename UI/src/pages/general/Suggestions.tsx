@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
   Box,
@@ -15,37 +15,34 @@ import {
 } from "@mui/material";
 import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { showNotification } from "../../api/notificationService";
-import { formatDateTime } from "../../components/common/formatDate";
-import { getStoredPermissions } from "../../utils/permissions";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import DialogHeader from "../../components/common/DialogHeader";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { showNotification } from "@/api/notificationService";
+import { formatDateTime } from "@/components/common/formatDate";
+import { getStoredPermissions } from "@/utils/permissions";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import DialogHeader from "@/components/common/DialogHeader";
+import ActionDivider from "@/components/common/ActionDivider";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
+} from "@/components/common/TableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
   contentPanel,
-  dialogContentTop,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   deleteIconSx,
-} from "../../styles/common";
+  rowDeleteButtonSx,
+  preWrapTextSx,
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
 
 type SuggestionStatus =
   | "Open"
@@ -97,12 +94,19 @@ export default function Suggestions() {
     useState<SystemSuggestion | null>(null);
   const [form, setForm] = useState<SuggestionFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [readingSuggestion, setReadingSuggestion] =
+    useState<SystemSuggestion | null>(null);
 
   // Cached list: returning to this page shows the last rows immediately and
   // refreshes in the background. Successful saves/deletes refresh it
   // automatically (see invalidateAfterMutation), so dialogs never reload it.
-  const listQuery = useApiQuery<SystemSuggestion[]>("/documents/system-suggestions/");
-  const suggestions = useMemo(() => asArray<SystemSuggestion>(listQuery.data), [listQuery.data]);
+  const listQuery = useApiQuery<SystemSuggestion[]>(
+    "/documents/system-suggestions/",
+  );
+  const suggestions = useMemo(
+    () => asArray<SystemSuggestion>(listQuery.data),
+    [listQuery.data],
+  );
   const loading = listQuery.isPending;
 
   const openCreateDialog = () => {
@@ -194,29 +198,26 @@ export default function Suggestions() {
   const columns = useMemo<ColumnData<SystemSuggestion>[]>(
     () => [
       {
-        label: "#",
-        width: { xs: 40, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
         label: "Suggestion",
         dataKey: "suggestion",
         width: "auto",
+        wrap: true,
       },
       {
         label: "Status",
         dataKey: "status",
+        width: 110,
       },
       {
         label: "Submitted By",
         dataKey: "user_name",
+        width: 150,
       },
       {
         label: "Remarks",
         dataKey: "remarks",
-        width: "auto",
-        render: (row) => row.remarks?.trim() || "No remarks",
+        width: 260,
+        render: (row) => row.remarks?.trim() || "—",
       },
       {
         label: "Created Date",
@@ -225,16 +226,21 @@ export default function Suggestions() {
         render: (row) => formatDateTime(row.created_at),
       },
       {
-        label: "Updated Date",
-        dataKey: "updated_at",
-        width: 150,
-        render: (row) => formatDateTime(row.updated_at),
-      },
-      {
         label: "Actions",
-        width: 90,
+        width: 140,
         render: (row) => (
           <Stack direction="row" spacing={0.5}>
+            <Tooltip title="Read suggestion and remarks">
+              <IconButton
+                aria-label={`Read suggestion from ${row.user_name ?? "user"}`}
+                onClick={() => setReadingSuggestion(row)}
+              >
+                <VisibilityOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <ActionDivider />
+
             {canChangeSuggestion && (
               <Tooltip title="Edit suggestion">
                 <IconButton
@@ -246,9 +252,13 @@ export default function Suggestions() {
                 </IconButton>
               </Tooltip>
             )}
+
+            <ActionDivider />
+
             {canDeleteSuggestion && (
               <Tooltip title="Delete suggestion">
                 <IconButton
+                  sx={rowDeleteButtonSx}
                   aria-label="Delete suggestion"
                   onClick={() => setDeleteSuggestion(row)}
                 >
@@ -266,34 +276,39 @@ export default function Suggestions() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>Suggestion / Feedback</Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Capture ICProDesk feedback and improvement suggestions.
-            </Typography>
-          </Box>
-          {canAddSuggestion && (
-            <Box sx={pageHeaderActions}>
-              <Button
-                variant="contained"
-                startIcon={<AddCommentOutlinedIcon />}
-                onClick={openCreateDialog}
-              >
-                <Box component="span" sx={buttonLabelFull}>Add Suggestion</Box>
-                <Box component="span" sx={buttonLabelCompact}>Add</Box>
-              </Button>
-            </Box>
-          )}
-        </Box>
+        <PageHeader
+          title="Suggestion / Feedback"
+          subtitle="Capture ICProDesk feedback and improvement suggestions."
+          actions={[
+            canAddSuggestion && {
+              key: "add",
+              priority: "high",
+              node: (
+                <Button
+                  variant="contained"
+                  startIcon={<AddCommentOutlinedIcon />}
+                  onClick={openCreateDialog}
+                >
+                  <Box component="span" sx={buttonLabelFull}>
+                    Add Suggestion
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    Add
+                  </Box>
+                </Button>
+              ),
+            },
+          ]}
+        />
 
         <Box sx={contentPanel}>
           <VirtualizedTable<SystemSuggestion>
             columns={columns}
             rows={suggestions}
             height="100%"
-            tableMinWidth={1220}
-            tableHead=""
+            fitContent
+            tableMinWidth={1050}
+            tableHead="Suggestions"
             loading={loading}
             emptyTitle="No suggestions yet"
             emptyDescription="Share an idea or feedback to help improve ICProDesk."
@@ -301,14 +316,59 @@ export default function Suggestions() {
         </Box>
       </Box>
 
-      <Dialog open={dialogOpen} onClose={discard.requestClose} onChangeCapture={discard.markDirty} fullWidth maxWidth="sm">
+      <Dialog
+        open={readingSuggestion !== null}
+        onClose={() => setReadingSuggestion(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogHeader
+          title="Suggestion details"
+          onClose={() => setReadingSuggestion(null)}
+        />
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography
+              variant="body1"
+              sx={preWrapTextSx}
+            >
+              {readingSuggestion?.suggestion}
+            </Typography>
+            <Typography variant="subtitle2">Remarks</Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={preWrapTextSx}
+            >
+              {readingSuggestion?.remarks || "No remarks"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {readingSuggestion?.user_name || "Unknown user"} ·{" "}
+              {readingSuggestion
+                ? formatDateTime(readingSuggestion.created_at)
+                : ""}{" "}
+              · Updated{" "}
+              {readingSuggestion
+                ? formatDateTime(readingSuggestion.updated_at)
+                : ""}
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={discard.requestClose}
+        onChangeCapture={discard.markDirty}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogHeader
           title={editingSuggestion ? "Update Suggestion" : "Add Suggestion"}
-          icon={<FeedbackOutlinedIcon />}
           onClose={discard.requestClose}
         />
         <DialogContent>
-          <Stack spacing={2} sx={dialogContentTop}>
+          <Stack spacing={2}>
             <TextField
               label="Suggestion"
               value={form.suggestion}
@@ -347,23 +407,15 @@ export default function Suggestions() {
         </DialogContent>
         <DialogActions>
           <Button
-            variant="outlined"
-            onClick={discard.requestClose}
-            disabled={saving}
-            startIcon={<CancelOutlinedIcon />}
-          >
-            Cancel
-          </Button>
-          <Button
             onClick={submitSuggestion}
             disabled={saving}
             variant="contained"
             startIcon={
-              saving
-                ? undefined
-                : editingSuggestion
-                  ? <UpdateOutlinedIcon />
-                  : <SendOutlinedIcon />
+              saving ? undefined : editingSuggestion ? (
+                <SaveOutlinedIcon />
+              ) : (
+                <SendOutlinedIcon />
+              )
             }
           >
             {saving ? "Saving..." : editingSuggestion ? "Update" : "Submit"}
@@ -376,11 +428,9 @@ export default function Suggestions() {
         onClose={() => setDeleteSuggestion(null)}
         title="Delete Suggestion"
         description="Delete this suggestion?"
-        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
         confirmLabel="Delete"
         confirmColor="error"
         confirmIcon={<DeleteOutlinedIcon />}
-        tone="error"
         onConfirm={handleDeleteSuggestion}
       />
     </Box>

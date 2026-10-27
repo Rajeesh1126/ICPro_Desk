@@ -1,4 +1,3 @@
-import { INSET_X } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
   Box,
@@ -7,16 +6,15 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  Tooltip,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 
-import { VirtualizedTable, type ColumnData } from "../common/TableView";
+import { VirtualizedTable, type ColumnData } from "@/components/common/TableView";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  ticketsDialogContentSx,
+  ticketsDialogNoteSx,
+} from "@/styles/common";
 
 export type TimeSheetTicketOption = {
   id: number;
@@ -92,17 +90,8 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
 
   return (
     <Dialog open={open} onClose={closeModal} fullWidth maxWidth="lg">
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          Assigned Tickets
-          <Tooltip title="Close">
-            <IconButton aria-label="Close dialog" onClick={closeModal}>
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </DialogTitle>
-      <DialogContent sx={{ height: 520 }}>
+      <DialogHeader title="Assigned Tickets" onClose={closeModal} />
+      <DialogContent sx={ticketsDialogContentSx}>
         <VirtualizedTable
           columns={columns}
           rows={tickets}
@@ -111,19 +100,16 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
         />
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" startIcon={<CancelOutlinedIcon />} onClick={closeModal}>
-          Cancel
-        </Button>
         <Button
           variant="contained"
-          startIcon={<SendOutlinedIcon />}
+          startIcon={<AssignmentTurnedInOutlinedIcon />}
           disabled={submitting || selectedTicketIds.length === 0}
           onClick={() => void submitTickets()}
         >
           {submitting ? "Assigning..." : "Assign Tickets"}
         </Button>
       </DialogActions>
-      <Box sx={{ px: INSET_X, pb: 1.5, color: "text.secondary", fontSize: 13 }}>
+      <Box sx={ticketsDialogNoteSx}>
         Open and closed tickets are not listed.
       </Box>
     </Dialog>

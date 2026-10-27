@@ -1,4 +1,4 @@
-import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { useDocumentTitle } from "@/utils/useDocumentTitle";
 import { useState } from "react";
 import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -11,7 +11,6 @@ import {
   IconButton,
   InputAdornment,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -19,32 +18,28 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
-import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
-import bgImage from "../assets/taskmanagementloginimage.jpg";
-import logo from "../assets/icpro_logo.svg";
-import api from "../api/axios";
-import { queryClient } from "../api/queryClient";
-import { getErrorStatus } from "../utils/errorUtils";
-import { useThemeMode } from "../styles/theme/themeModeContext";
+import bgImage from "@/assets/taskmanagementloginimage.jpg";
+import api from "@/api/axios";
+import { queryClient } from "@/api/queryClient";
+import { getErrorStatus } from "@/utils/errorUtils";
+import AuthCardHeader from "@/components/common/AuthCardHeader";
 import {
   getSafeReturnTo,
   hasActiveSession,
   RETURN_TO_PARAM,
   SESSION_EXPIRED_PARAM,
   SESSION_EXPIRED_VALUE,
-} from "../api/session";
+} from "@/api/session";
 import {
   authPageBackgroundSx,
-  authLogoSx,
   authSubmitButtonSx,
-  authThemeToggleSx,
   authCardContentSx,
   authCardSx,
   authSpinnerSx,
   authFootnoteSx,
   marginBottomSectionSx,
-} from "../styles/common";
+  authLinkSx,
+} from "@/styles/common";
 
 type LoginResponse = {
   access: string;
@@ -63,7 +58,6 @@ export default function Login() {
   useDocumentTitle("Sign in");
   const navigate = useNavigate();
   const location = useLocation();
-  const { mode, toggleMode } = useThemeMode();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -136,20 +130,7 @@ export default function Login() {
     <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
       <Card sx={authCardSx}>
         <CardContent sx={authCardContentSx}>
-          <Tooltip
-            title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            <IconButton
-              aria-label={
-                mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
-              }
-              onClick={toggleMode}
-              sx={authThemeToggleSx(mode === "dark")}
-            >
-              {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
-            </IconButton>
-          </Tooltip>
-          <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
+          <AuthCardHeader />
           {/* <Box sx={authIconBadgeSx}>
             <LockOutlinedIcon />
           </Box> */}
@@ -257,7 +238,6 @@ export default function Login() {
               type="submit"
               variant="contained"
               color="primary"
-              size="large"
               disabled={loading}
               startIcon={loading ? undefined : <LoginOutlinedIcon />}
               sx={authSubmitButtonSx}
@@ -282,7 +262,7 @@ export default function Login() {
               align="center"
               color="primary.main"
               display="block"
-              sx={{ mt: 2, fontWeight: 700, textDecoration: "none" }}
+              sx={authLinkSx}
             >
               Forgot password?
             </Typography>

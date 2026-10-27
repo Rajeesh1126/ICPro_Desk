@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -11,14 +11,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import api from "../../api/axios";
-import { sanitizeUserMessage } from "../../utils/errorUtils";
-import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
-import type { rolesData } from "../../types/dataTypes";
-import { showNotification } from "../../api/notificationService";
+import api from "@/api/axios";
+import { sanitizeUserMessage } from "@/utils/errorUtils";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import type { rolesData } from "@/types/dataTypes";
+import { showNotification } from "@/api/notificationService";
 
 type RoleModelProps = {
   open: boolean;
@@ -124,7 +123,7 @@ export default function RoleModel({
       onClose={loading ? undefined : discard.requestClose}
       onChangeCapture={discard.markDirty}
       fullWidth
-      maxWidth="md"
+      maxWidth="sm"
     >
       <DialogHeader
         title={editing ? "Edit Role" : "Create Role"}
@@ -140,7 +139,7 @@ export default function RoleModel({
       <DialogContent>
         <Stack spacing={2.25}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
               {" "}
               Role Details{" "}
             </Typography>
@@ -183,19 +182,11 @@ export default function RoleModel({
       <DialogActions>
         <RequiredFieldsNote />
 
-        <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={discard.requestClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
 
         <Button
           variant="contained"
           color="primary"
-          startIcon={editing ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+          startIcon={editing ? <SaveOutlinedIcon /> : <CheckOutlinedIcon />}
           onClick={() => void submit()}
           disabled={loading || !formData.name.trim()}
         >

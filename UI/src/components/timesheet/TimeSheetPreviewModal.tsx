@@ -1,11 +1,8 @@
-import { formatHoursMinutes } from "../../utils/hoursMinutes";
-import { INSET_X, INSET_Y } from "../../styles/tokens";
+import { formatHoursMinutes } from "@/utils/hoursMinutes";
 import React, { useMemo, useState } from "react";
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  IconButton,
   TableCell,
   TableRow,
   TextField,
@@ -13,12 +10,18 @@ import {
   Box,
   Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../common/TableView";
+} from "@/components/common/TableView";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  previewActionsSx,
+  previewSectionSx,
+  previewSectionTitleSx,
+  strongTextSx,
+} from "@/styles/common";
 
 export interface TimeSheetDay {
   day: string;
@@ -92,8 +95,8 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
 
   const renderFooter = () => (
     <TableRow>
-      <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
-      <TableCell align="right" sx={{ fontWeight: 700 }}>
+      <TableCell sx={strongTextSx}>Total</TableCell>
+      <TableCell align="right" sx={strongTextSx}>
         {formatHoursMinutes(totalHours * 3600)}
       </TableCell>
     </TableRow>
@@ -105,38 +108,9 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
       onClose={onClose}
       fullWidth
       maxWidth="sm"
-      PaperProps={{
-        sx: {
-          borderRadius: "8px",
-        },
-      }}
     >
       {/* Header */}
-      <DialogTitle
-        sx={{
-          px: INSET_X,
-          py: INSET_Y,
-          fontSize: "20px",
-          fontWeight: 600,
-          color: "text.primary",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        Total Work Hours
-
-        <IconButton aria-label="Close dialog"
-          onClick={onClose}
-          sx={{
-            position: "absolute",
-            right: 8,
-            top: 6,
-            color: "text.secondary",
-          }}
-        >
-          <CloseOutlinedIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader title="Total Work Hours" onClose={onClose} />
 
       <DialogContent>
         <VirtualizedTable
@@ -149,13 +123,9 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
         />
 
         {/* Comments */}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={previewSectionSx}>
           <Typography
-            sx={{
-              fontSize: "16px",
-              color: "text.primary",
-              mb: 0.5,
-            }}
+            sx={previewSectionTitleSx}
           >
             Comments
           </Typography>
@@ -172,24 +142,13 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
 
         {/* Submit */}
         <Box
-          sx={{
-            display: "flex",
-            justifyContent: "flex-end",
-            mt: 2,
-          }}
+          sx={previewActionsSx}
         >
           <Button
             variant="contained"
             onClick={handleSubmit}
             disabled={submitting}
             startIcon={submitting ? undefined : <SendOutlinedIcon />}
-            sx={{
-              textTransform: "none",
-              backgroundColor: "primary.main",
-              "&:hover": {
-                backgroundColor: "primary.dark",
-              },
-            }}
           >
             {submitting ? "Submitting..." : "Submit"}
           </Button>

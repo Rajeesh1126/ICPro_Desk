@@ -17,7 +17,7 @@ import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlin
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import type { TicketData } from "../../../types/dataTypes";
+import type { TicketData } from "@/types/dataTypes";
 
 export type TicketActionId =
   | "accept"
@@ -43,6 +43,10 @@ export type TicketActionButton = {
   color: Tone;
   /** Shown but not yet available. */
   disabled?: boolean;
+  /** Ends or withdraws the ticket: shown apart from routine actions. */
+  consequential?: boolean;
+  /** One line on what the action does, shown beside it. */
+  hint?: string;
 };
 
 export const ACTION_BUTTONS: Record<TicketActionId, TicketActionButton> = {
@@ -58,7 +62,14 @@ export const ACTION_BUTTONS: Record<TicketActionId, TicketActionButton> = {
   reviseDate: { label: "Revise Target Date", icon: EventRepeatOutlinedIcon, variant: "outlined", color: "warning" },
   notSatisfied: { label: "Not Satisfactory & Re Open", icon: ThumbDownAltOutlinedIcon, variant: "outlined", color: "error" },
   rate: { label: "Rate & Close Ticket", icon: StarOutlinedIcon, variant: "contained", color: "primary" },
-  recallClose: { label: "Recall and closed", icon: AssignmentTurnedInOutlinedIcon, variant: "contained", color: "success" },
+  recallClose: {
+    label: "Recall and close ticket",
+    icon: AssignmentTurnedInOutlinedIcon,
+    variant: "outlined",
+    color: "warning",
+    consequential: true,
+    hint: "Withdraws the ticket and closes it. You'll confirm first.",
+  },
 };
 
 /**

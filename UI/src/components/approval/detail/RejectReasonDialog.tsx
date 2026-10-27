@@ -1,7 +1,12 @@
 import { useState } from "react";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from "@mui/material";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import { Button, Dialog, DialogActions, DialogContent, TextField, Typography } from "@mui/material";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import DialogHeader from "@/components/common/DialogHeader";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import {
+  rejectTaskNameSx,
+  rejectWarningSx,
+} from "@/styles/common";
 
 /**
  * Asks for a rejection reason. The caller remounts it (via `key`) per task,
@@ -40,11 +45,11 @@ export default function RejectReasonDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onCancel} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Reject submission?</DialogTitle>
+      <DialogHeader title="Reject submission?" />
 
       <DialogContent>
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 0.5 }}>{taskName}</Typography>
-        <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1.5 }}>
+        <Typography sx={rejectTaskNameSx}>{taskName}</Typography>
+        <Typography sx={rejectWarningSx}>
           This action cannot be undone. Please provide a rejection reason to confirm.
         </Typography>
         <TextField
@@ -65,7 +70,7 @@ export default function RejectReasonDialog({
       </DialogContent>
 
       <DialogActions>
-        <Button variant="outlined" startIcon={<CancelOutlinedIcon />} onClick={onCancel} disabled={busy}>
+        <Button startIcon={<CloseOutlinedIcon />} variant="outlined" onClick={onCancel} disabled={busy}>
           Cancel
         </Button>
         <Button
@@ -73,7 +78,7 @@ export default function RejectReasonDialog({
           color="error"
           onClick={submit}
           disabled={busy}
-          startIcon={busy ? undefined : <SendOutlinedIcon />}
+          startIcon={busy ? undefined : <BlockOutlinedIcon />}
         >
           {busy ? "Rejecting..." : "Reject"}
         </Button>

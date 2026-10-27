@@ -6,7 +6,7 @@ import {
   hoursInputError,
   hoursMinutesToSeconds,
   normaliseHoursInput,
-} from "../../utils/hoursMinutes";
+} from "@/utils/hoursMinutes";
 
 interface HoursInputProps {
   value: number | string | undefined;
@@ -91,7 +91,7 @@ export default function HoursInput({
           ...sx,
           ...(shown && {
             "& .MuiInputBase-input": {
-              fontWeight: 700,
+              fontWeight: 600,
               color: "primary.main",
             },
             "& .MuiInputBase-input.Mui-disabled": {

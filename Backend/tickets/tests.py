@@ -15,6 +15,70 @@ from users.models import DepartmentManager, UserProfile
 User = get_user_model()
 
 
+class ExecutiveReportVisibilityTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.viewer = User.objects.create_user(username='report.viewer', is_staff=True)
+        self.other = User.objects.create_user(username='report.other')
+        self.profile = UserProfile.objects.create(user=self.viewer, exe_role=False)
+        self.client.force_authenticate(self.viewer)
+        self.department = Group.objects.create(name='Report department')
+        self.unrelated_department = Group.objects.create(name='Unrelated department')
+        DepartmentManager.objects.create(department=self.department, manager=self.viewer)
+        self.own_do_list = Self_Ticket.objects.create(creator=self.viewer, task='Own task')
+        self.other_do_list = Self_Ticket.objects.create(creator=self.other, task='Other task')
+        self.mapped_ticket = Ticket.objects.create(
+            creator=self.other, task='Mapped ticket', department=self.department,
+        )
+        self.other_ticket = Ticket.objects.create(
+            creator=self.other, task='Unrelated ticket', department=self.unrelated_department,
+        )
+
+    def ids(self, endpoint, **params):
+        response = self.client.get(f'/api/{endpoint}/', params)
+        self.assertEqual(response.status_code, 200, response.data)
+        return {item['id'] for item in response.data}
+
+    def test_non_executive_report_keeps_own_do_list_and_mapped_tickets(self):
+        self.assertEqual(self.ids('self-tickets', include_executive='true'), {self.own_do_list.pk})
+        self.assertEqual(self.ids('tickets', include_executive='true'), {self.mapped_ticket.pk})
+
+    def test_executive_report_returns_all_do_list_but_scoped_tickets(self):
+        self.profile.exe_role = True
+        self.profile.save(update_fields=['exe_role'])
+        self.assertEqual(self.ids('self-tickets', include_executive='true'), {
+            self.own_do_list.pk, self.other_do_list.pk,
+        })
+        self.assertEqual(self.ids('tickets', include_executive='true'), {self.mapped_ticket.pk})
+
+    def test_executive_report_includes_member_departments(self):
+        self.profile.exe_role = True
+        self.profile.save(update_fields=['exe_role'])
+        self.viewer.groups.add(self.unrelated_department)
+        self.assertEqual(self.ids('tickets', include_executive='true'), {
+            self.mapped_ticket.pk, self.other_ticket.pk,
+        })
+
+    def test_executive_without_flag_retains_normal_scope(self):
+        self.profile.exe_role = True
+        self.profile.save(update_fields=['exe_role'])
+        self.assertEqual(self.ids('self-tickets'), {self.own_do_list.pk})
+        self.assertEqual(self.ids('tickets'), {self.mapped_ticket.pk})
+
+    def test_non_executive_membership_does_not_expand_report_scope(self):
+        self.viewer.groups.add(self.unrelated_department)
+        self.assertEqual(self.ids('tickets', include_executive='true'), {self.mapped_ticket.pk})
+
+    def test_executive_flag_does_not_grant_write_access(self):
+        self.profile.exe_role = True
+        self.profile.save(update_fields=['exe_role'])
+        response = self.client.patch(
+            f'/api/self-tickets/{self.other_do_list.pk}/?include_executive=true',
+            {'task': 'Changed'},
+        )
+        self.assertEqual(response.status_code, 404)
+
+
 class TicketCrudApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -282,6 +346,36 @@ class SelfTicketCrudApiTests(TestCase):
                 creator=self.user,
             ).exists()
         )
+
+    def test_closing_or_cancelling_self_ticket_clears_alarm(self):
+        for method in ['patch', 'put']:
+            for new_status in ['closed', 'cancelled']:
+                with self.subTest(method=method, new_status=new_status):
+                    created = self.create_self_ticket()
+                    ticket_id = created.data['id']
+                    Self_Ticket.objects.filter(pk=ticket_id).update(alarm=True)
+                    response = getattr(self.client, method)(
+                        f'/api/self-tickets/{ticket_id}/',
+                        {'current_status': new_status, 'alarm': True, 'comments': 'Finished task.'},
+                        format='json',
+                    )
+                    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+                    self.assertEqual(response.data['current_status'], new_status)
+                    self.assertFalse(response.data['alarm'])
+                    ticket = Self_Ticket.objects.get(pk=ticket_id)
+                    self.assertEqual(ticket.current_status, new_status)
+                    self.assertFalse(ticket.alarm)
+                    self.assertTrue(ticket.selfLogs.filter(comments='Finished task.').exists())
+
+    def test_in_progress_self_ticket_keeps_active_alarm(self):
+        created = self.create_self_ticket()
+        ticket_id = created.data['id']
+        Self_Ticket.objects.filter(pk=ticket_id).update(alarm=True)
+        response = self.client.patch(
+            f'/api/self-tickets/{ticket_id}/', {'current_status': 'in progress'}, format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertTrue(response.data['alarm'])
 
     def test_delete_self_ticket_removes_record(self):
         create_response = self.create_self_ticket()

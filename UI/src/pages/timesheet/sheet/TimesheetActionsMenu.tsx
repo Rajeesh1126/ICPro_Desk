@@ -16,7 +16,7 @@ import {
   compactDivider,
   compactHeaderButton,
   headerActionBadge,
-} from "../../../styles/common";
+} from "@/styles/common";
 
 export type AddWorkKind = "quotation" | "undefined" | "costMaster" | "tickets";
 export type WeekTaskKind = "unlock" | "extend" | "remove";
@@ -97,33 +97,33 @@ export default function TimesheetActionsMenu({
         slotProps={{ paper: { sx: actionMenuPaper } }}
       >
         <Box sx={actionMenuSection}>Add work</Box>
-        {item("primary", <WorkOutlineOutlinedIcon fontSize="small" />, "Assign Jobs From ERP",
+        {item("primary", <WorkOutlineOutlinedIcon fontSize="small" />, "Assign jobs from ERP",
           "Import approved job records into this week.", () => onAddWork("quotation"), actionsDisabled)}
-        {item("info", <HelpOutlineOutlinedIcon fontSize="small" />, "Create Undefined Jobs",
+        {item("info", <HelpOutlineOutlinedIcon fontSize="small" />, "Create undefined job",
           "Add a temporary job if ERP details are missing.", () => onAddWork("undefined"), actionsDisabled)}
-        {item("success", <AssignmentOutlinedIcon fontSize="small" />, "Import Undefined Tasks To Job",
+        {item("success", <AssignmentOutlinedIcon fontSize="small" />, "Map undefined tasks to a job",
           "Map temporary tasks to cost codes.", () => onAddWork("costMaster"), actionsDisabled)}
-        {item("secondary", <ConfirmationNumberOutlinedIcon fontSize="small" />, "Assigned Tickets",
-          "Bring ticket work into the current timesheet.", () => onAddWork("tickets"), actionsDisabled)}
+        {item("secondary", <ConfirmationNumberOutlinedIcon fontSize="small" />, "Add assigned tickets",
+          "Bring ticket work into this week.", () => onAddWork("tickets"), actionsDisabled)}
 
         <Divider sx={compactDivider} />
         <Box sx={actionMenuSection}>Week controls</Box>
-        {item("warning", <LockOpenOutlinedIcon fontSize="small" />, "Unlock Time Sheet Request",
+        {item("warning", <LockOpenOutlinedIcon fontSize="small" />, "Request timesheet unlock",
           "Ask for edit access after submission is locked.", () => onWeekTask("unlock"), unlockDisabled)}
-        {item("info", <UpdateOutlinedIcon fontSize="small" />, "Extend Task To Next Week",
+        {item("info", <UpdateOutlinedIcon fontSize="small" />, "Extend tasks to next week",
           selectedCount
             ? `${selectedCount} selected task(s) will move forward.`
-            : "Select tasks in the table before extending.",
-          () => onWeekTask("extend"))}
-        {item("error", <DeleteOutlineOutlinedIcon fontSize="small" />, "Remove Task / Project",
+            : "Select tasks in the table first.",
+          () => onWeekTask("extend"), selectedCount === 0)}
+        {item("error", <DeleteOutlineOutlinedIcon fontSize="small" />, "Remove tasks",
           selectedCount
             ? `${selectedCount} selected task(s) may be removed.`
-            : "Select removable tasks first.",
-          () => onWeekTask("remove"), actionsDisabled)}
+            : "Select tasks in the table first.",
+          () => onWeekTask("remove"), actionsDisabled || selectedCount === 0)}
 
         <Divider sx={compactDivider} />
         <Box sx={actionMenuSection}>Finalize</Box>
-        {item("success", <SendOutlinedIcon fontSize="small" />, "Preview / Submit",
+        {item("success", <SendOutlinedIcon fontSize="small" />, "Preview and submit",
           "Check totals and send this week for approval.", onPreview, previewDisabled)}
       </Menu>
     </>

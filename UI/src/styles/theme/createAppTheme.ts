@@ -1,8 +1,11 @@
 import { alpha, createTheme } from "@mui/material/styles";
 import type { PaletteMode } from "@mui/material";
-import { COLORS, ELEVATION, INSET_PX, RADIUS, TYPOGRAPHY } from "../tokens";
+import { COLORS, CONTROL_HEIGHT, DIALOG_SECTION_PADDING, ELEVATION, INSET_PX, MOTION, RADIUS, TYPOGRAPHY } from "@/styles/tokens";
 
-/** The app-wide content inset as CSS, switching at the `sm` breakpoint. */
+/** Short, purposeful transition for interactive surfaces. */
+const ease = (...props: string[]) =>
+  props.map((prop) => `${prop} ${MOTION.fast} ${MOTION.easing}`).join(", ");
+
 /**
  * The app-wide content inset, switching at the `sm` breakpoint.
  *
@@ -22,13 +25,36 @@ const insetPadding = (important = false) => ({
   padding: `var(--inset-y) var(--inset-x)${important ? " !important" : ""}`,
 });
 
+/**
+ * Padding for the dialog sections (title, content, actions): compact on
+ * phones, roomier from `sm`. Same CSS-variable approach as `insetPadding`.
+ */
+const dialogPadding = (
+  xs: [number, number],
+  sm: [number, number],
+  important = false,
+) => ({
+  "--dialog-py": `${xs[0]}px`,
+  "--dialog-px": `${xs[1]}px`,
+  "@media (min-width: 600px)": {
+    "--dialog-py": `${sm[0]}px`,
+    "--dialog-px": `${sm[1]}px`,
+  },
+  padding: `var(--dialog-py) var(--dialog-px)${important ? " !important" : ""}`,
+});
+
 export const appFontFamily = TYPOGRAPHY.fontFamily;
 
 const buildPalette = (mode: PaletteMode) => {
   const c = COLORS[mode];
 
   return {
-    primary: { main: c.accent, dark: c.accentDark, light: c.accentLight },
+    primary: {
+      main: c.accent,
+      dark: c.accentDark,
+      light: c.accentLight,
+      contrastText: c.accentContrast,
+    },
     secondary: {
       main: c.secondary,
       light: c.secondaryLight,
@@ -93,14 +119,35 @@ export function createAppTheme(mode: PaletteMode) {
     shape: { borderRadius: 12 },
     typography: {
       fontFamily: appFontFamily,
-      h4: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.22 },
-      h5: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.25 },
-      h6: { fontWeight: 650, letterSpacing: 0, lineHeight: 1.3 },
-      subtitle1: { fontWeight: 650, letterSpacing: 0, lineHeight: 1.35 },
-      subtitle2: { fontWeight: 500, letterSpacing: 0, lineHeight: 1.45 },
-      body1: { letterSpacing: 0, lineHeight: 1.55 },
-      body2: { letterSpacing: 0, lineHeight: 1.5 },
-      button: { fontWeight: 650, letterSpacing: 0 },
+      // One ramp (TYPOGRAPHY.size): page titles 28, dialog/section titles 17,
+      // body 14–15, supporting text 12–13. Weights stop at 600.
+      fontWeightBold: TYPOGRAPHY.weight.semibold,
+      h4: { fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.22 },
+      h5: { fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.25 },
+      h6: {
+        fontWeight: 600,
+        fontSize: TYPOGRAPHY.size.title3,
+        letterSpacing: "-0.01em",
+        lineHeight: 1.3,
+      },
+      subtitle1: { fontWeight: 600, fontSize: TYPOGRAPHY.size.callout, letterSpacing: 0, lineHeight: 1.35 },
+      subtitle2: { fontWeight: 500, fontSize: TYPOGRAPHY.size.footnote, letterSpacing: 0, lineHeight: 1.45 },
+      body1: { fontSize: TYPOGRAPHY.size.callout, letterSpacing: 0, lineHeight: 1.55 },
+      body2: { fontSize: TYPOGRAPHY.size.body, letterSpacing: 0, lineHeight: 1.5 },
+      caption: { fontSize: TYPOGRAPHY.size.caption, letterSpacing: 0, lineHeight: 1.4 },
+      button: { fontWeight: 600, letterSpacing: 0 },
+    },
+    // Short, purposeful motion: dialogs, menus and accordions included.
+    transitions: {
+      duration: {
+        shortest: 140,
+        shorter: 180,
+        short: 220,
+        standard: 220,
+        complex: 260,
+        enteringScreen: 200,
+        leavingScreen: 160,
+      },
     },
     components: {
       MuiCssBaseline: {
@@ -131,13 +178,14 @@ export function createAppTheme(mode: PaletteMode) {
             borderRadius: RADIUS.sm,
           },
           "::-webkit-scrollbar-thumb:hover": {
-            backgroundColor: palette.primary.main,
+            backgroundColor: palette.text.secondary,
           },
           "::selection": {
-            backgroundColor: alpha(palette.secondary.main, 0.28),
+            backgroundColor: alpha(palette.primary.main, 0.24),
           },
+          "b, strong": { fontWeight: 600 },
           "*:focus-visible": {
-            outline: `3px solid ${alpha(palette.primary.main, 0.35)}`,
+            outline: `2px solid ${alpha(palette.primary.main, 0.7)}`,
             outlineOffset: 2,
           },
           "@media (prefers-reduced-motion: reduce)": {
@@ -185,16 +233,32 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiButton: {
         defaultProps: {
-          size: "small",
+          // size: "small",
           disableElevation: true,
         },
         styleOverrides: {
           root: {
-            borderRadius: RADIUS.md,
+            borderRadius: RADIUS.sm,
             textTransform: "none",
-            padding: "4px 12px",
+            // Height and padding come from the size prop (small by default).
             gap: 6,
+            fontWeight: 600,
+            lineHeight: 1.5,
+            transition: ease("background-color", "border-color", "box-shadow", "color"),
           },
+          outlined: {
+            backgroundColor: palette.background.paper,
+            "&:hover": {
+              borderColor: alpha(palette.text.primary, isDark ? 0.3 : 0.22),
+              backgroundColor: alpha(palette.text.primary, isDark ? 0.05 : 0.03),
+            },
+          },
+          // Secondary actions stay quiet: a neutral border, brand-coloured text.
+          outlinedPrimary: {
+            borderColor: alpha(palette.text.primary, isDark ? 0.22 : 0.16),
+          },
+          startIcon: { marginRight: 0 },
+          endIcon: { marginLeft: 0 },
         },
       },
       MuiToggleButton: {
@@ -204,41 +268,47 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             textTransform: "none",
-            fontWeight: 700,
+            fontWeight: 600,
           },
         },
       },
+      // Compact macOS-style segmented control: a quiet track with the
+      // selected segment raised on the paper surface in the brand colour.
       MuiToggleButtonGroup: {
         defaultProps: {
           size: "small",
         },
         styleOverrides: {
+          root: {
+            padding: 4,
+            gap: 2,
+            borderRadius: RADIUS.sm,
+            backgroundColor: alpha(palette.text.primary, isDark ? 0.08 : 0.06),
+          },
           grouped: {
-            color: isDark ? palette.primary.dark : palette.primary.light,
-
+            border: 0,
+            borderRadius: `${RADIUS.sm - 2}px !important`,
+            margin: "0 !important",
+            minHeight: CONTROL_HEIGHT.desktop - 4,
+            padding: "4px 8px",
+            gap: 6,
+            color: palette.text.secondary,
+            transition: ease("background-color", "color", "box-shadow"),
             "&:hover": {
-              color: isDark ? palette.primary.light : palette.primary.dark,
-              backgroundColor: alpha(
-                isDark ? palette.primary.light : palette.primary.dark,
-                isDark ? 0.084 : 0.08,
-              ),
+              color: palette.text.primary,
+              backgroundColor: alpha(palette.text.primary, isDark ? 0.06 : 0.05),
             },
-
-            "&.Mui-selected": {
-              color: isDark ? palette.primary.light : palette.primary.dark,
-              backgroundColor: alpha(
-                isDark ? palette.primary.light : palette.primary.dark,
-                isDark ? 0.108 : 0.12,
-              ),
+            "&.Mui-selected, &.Mui-selected:hover": {
+              color: palette.primary.main,
+              backgroundColor: isDark
+                ? alpha(palette.text.primary, 0.18)
+                : palette.background.paper,
+              boxShadow: isDark
+                ? `inset 0 0 0 1px ${alpha(palette.text.primary, 0.06)}`
+                : "0 1px 2px rgba(16, 24, 40, 0.1)",
             },
-
-            "&.Mui-selected:hover": {
-              color: isDark ? palette.primary.dark : palette.primary.light,
-              backgroundColor: alpha(
-                isDark ? palette.primary.dark : palette.primary.light,
-                isDark ? 0.144 : 0.16,
-              ),
-            },
+            "&.Mui-disabled": { color: palette.text.disabled },
+            "@media (pointer: coarse)": { minHeight: CONTROL_HEIGHT.touch - 4 },
           },
         },
       },
@@ -247,9 +317,12 @@ export function createAppTheme(mode: PaletteMode) {
           size: "small",
         },
         styleOverrides: {
+          // One shape for every icon button: a borderless glyph on a 36px
+          // rounded-square hit area; the fill appears on hover only.
           root: {
             minWidth: 36,
             minHeight: 36,
+            borderRadius: RADIUS.sm,
             "@media (pointer: coarse)": {
               minWidth: 44,
               minHeight: 44,
@@ -268,11 +341,14 @@ export function createAppTheme(mode: PaletteMode) {
           rounded: { borderRadius: RADIUS.md },
         },
       },
+      // Depth comes from one cue: a soft shadow in light mode, a hairline
+      // border in dark mode (where shadows don't read). Never both.
       MuiCard: {
         styleOverrides: {
           root: {
-            border: `1px solid ${palette.divider}`,
-            boxShadow: isDark ? ELEVATION.dark.card : ELEVATION.light.card,
+            borderRadius: RADIUS.md,
+            border: isDark ? `1px solid ${palette.divider}` : 0,
+            boxShadow: isDark ? "none" : ELEVATION.light.card,
           },
         },
       },
@@ -283,81 +359,262 @@ export function createAppTheme(mode: PaletteMode) {
             backgroundColor: isDark
               ? alpha(palette.text.primary, 0.03)
               : palette.background.paper,
+            // Field boundaries read against the surface without shouting.
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: alpha(palette.text.primary, isDark ? 0.2 : 0.24),
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: alpha(palette.text.primary, isDark ? 0.34 : 0.4),
+            },
+            "&.Mui-disabled": {
+              backgroundColor: palette.action.disabledBackground,
+            },
+            "&.Mui-disabled .MuiOutlinedInput-notchedOutline": {
+              borderColor: alpha(palette.text.primary, 0.14),
+            },
+            "& .MuiInputBase-input.Mui-disabled": {
+              WebkitTextFillColor: palette.text.secondary,
+            },
+            // Single-line small fields are 36px, the same as buttons.
+            "& .MuiInputBase-inputSizeSmall:not(.MuiInputBase-inputMultiline)": {
+              paddingTop: 7.25,
+              paddingBottom: 7.25,
+            },
+            // Focus is shown by MUI's own primary-coloured outline only; an
+            // extra ring would sit over the floating label and hide it.
           },
         },
       },
+      // Keep the resting label centred in the 36px field.
+      MuiInputLabel: {
+        styleOverrides: {
+          sizeSmall: {
+            "&:not(.MuiInputLabel-shrink)": {
+              transform: "translate(14px, 8px) scale(1)",
+            },
+          },
+        },
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          inputRoot: {
+            "&.MuiInputBase-sizeSmall": { paddingTop: 4.5, paddingBottom: 4.5 },
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            borderRadius: RADIUS.md,
+            border: `1px solid ${palette.divider}`,
+            boxShadow: isDark ? ELEVATION.dark.menu : ELEVATION.light.menu,
+          },
+          list: { padding: 4 },
+        },
+      },
+      // Menu / select options: a soft rounded highlight inside the menu, the
+      // selected option tinted in the brand colour.
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            minHeight: 34,
+            borderRadius: RADIUS.sm - 4,
+            fontSize: TYPOGRAPHY.size.body,
+            transition: ease("background-color", "color"),
+            "&.Mui-selected": {
+              backgroundColor: alpha(palette.primary.main, isDark ? 0.18 : 0.1),
+              color: isDark ? palette.primary.light : palette.primary.dark,
+            },
+            "&.Mui-selected:hover, &.Mui-selected.Mui-focusVisible": {
+              backgroundColor: alpha(palette.primary.main, isDark ? 0.24 : 0.14),
+            },
+            "@media (pointer: coarse)": { minHeight: 44 },
+          },
+        },
+      },
+      MuiLinearProgress: {
+        styleOverrides: { root: { borderRadius: RADIUS.pill, height: 4 } },
+      },
+      MuiPopover: {
+        styleOverrides: {
+          paper: {
+            borderRadius: RADIUS.md,
+            border: `1px solid ${palette.divider}`,
+            boxShadow: isDark ? ELEVATION.dark.menu : ELEVATION.light.menu,
+          },
+        },
+      },
+      /*
+       * Dialog chrome — the single source for every dialog in the app.
+       * Dialog / DialogTitle / DialogContent / DialogActions take their
+       * padding, borders, backgrounds and phone margins from here only.
+       * Components should not override these; per-dialog sx is limited to
+       * content layout (fixed heights, flex/gap inside the body, sizes).
+       */
       MuiDialog: {
         styleOverrides: {
-          root: { borderRadius: RADIUS.xs },
+          root: {
+            borderRadius: RADIUS.xs,
+            "& .MuiBackdrop-root": {
+              backgroundColor: alpha("#000", isDark ? 0.55 : 0.35),
+              backdropFilter: "blur(1px)",
+              WebkitBackdropFilter: "blur(1px)",
+            },
+            "& .MuiDialog-paper:not(.MuiDialog-paperFullScreen)": {
+              borderRadius: RADIUS.lg,
+              // A hairline edge only where the shadow can't separate the sheet.
+              border: isDark ? `1px solid ${palette.divider}` : 0,
+              boxShadow: isDark ? ELEVATION.dark.dialog : ELEVATION.light.dialog,
+              // Phones: an 8px gutter instead of MUI's 32px.
+              "@media (max-width: 599.95px)": {
+                margin: 8,
+                maxHeight: "calc(100% - 16px)",
+                "&.MuiDialog-paperFullWidth": { width: "calc(100% - 16px)" },
+              },
+            },
+          },
         },
       },
       MuiDialogTitle: {
         styleOverrides: {
           root: {
-            ...insetPadding(),
-            borderBottom: `1px solid ${palette.divider}`,
+            ...dialogPadding(
+              [DIALOG_SECTION_PADDING.title.xs.y, DIALOG_SECTION_PADDING.title.xs.x],
+              [DIALOG_SECTION_PADDING.title.sm.y, DIALOG_SECTION_PADDING.title.sm.x],
+            ),
+            // One title style for every dialog: no icon, no colour, no rule.
+            // 18px on phones, 20px from sm; inner headings inherit it.
+            fontSize: 18,
+            "@media (min-width: 600px)": { fontSize: 20 },
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            lineHeight: 1.3,
+            color: palette.text.primary,
+            "& h2, & .MuiTypography-h6": {
+              fontSize: "inherit",
+              fontWeight: 600,
+              letterSpacing: "inherit",
+              lineHeight: "inherit",
+            },
+            backgroundColor: palette.background.paper,
             "& .MuiIconButton-root": {
-              backgroundColor: alpha(palette.text.primary, isDark ? 0.1 : 0.07),
               color: palette.text.secondary,
+              minWidth: 32,
+              minHeight: 32,
+              padding: 4,
               "&:hover": {
-                backgroundColor: alpha(
-                  palette.text.primary,
-                  isDark ? 0.16 : 0.12,
-                ),
+                color: palette.text.primary,
+                backgroundColor: alpha(palette.text.primary, isDark ? 0.1 : 0.06),
               },
+              "@media (pointer: coarse)": { minWidth: 44, minHeight: 44 },
             },
           },
         },
       },
       MuiDialogContent: {
         styleOverrides: {
-          root: insetPadding(true),
+          root: {
+            ...dialogPadding(
+              [DIALOG_SECTION_PADDING.content.xs.y, DIALOG_SECTION_PADDING.content.xs.x],
+              [DIALOG_SECTION_PADDING.content.sm.y, DIALOG_SECTION_PADDING.content.sm.x],
+              true,
+            ),
+            minWidth: 0,
+            // Without a title rule the body follows the title closely.
+            ".MuiDialogTitle-root + &": { paddingTop: "4px !important" },
+          },
         },
       },
       MuiDialogActions: {
         styleOverrides: {
           root: {
-            ...insetPadding(),
+            ...dialogPadding(
+              [DIALOG_SECTION_PADDING.actions.xs.y, DIALOG_SECTION_PADDING.actions.xs.x],
+              [DIALOG_SECTION_PADDING.actions.sm.y, DIALOG_SECTION_PADDING.actions.sm.x],
+            ),
             borderTop: `1px solid ${palette.divider}`,
+            columnGap: 8,
+            rowGap: 8,
+            alignItems: "center",
+            "&:empty": { display: "none" },
+            // A footer left with no buttons (e.g. a ticket with no available
+            // actions) is hidden; dismissing is the header close icon.
+            "&:not(:has(button))": { display: "none" },
+            "&.MuiDialogActions-spacing > :not(style) ~ :not(style)": {
+              marginLeft: 0,
+            },
+            // Cancel / Close: neutral, so only the primary action carries colour.
+            "& .MuiButton-outlinedPrimary, & .MuiButton-textPrimary": {
+              color: palette.text.primary,
+            },
           },
         },
       },
+      // Sortable columns always show a faint arrow, so users can tell
+      // which headers sort before hovering them.
+      MuiTableSortLabel: {
+        styleOverrides: {
+          root: {
+            "& .MuiTableSortLabel-icon": { opacity: 0.3 },
+            "&:hover .MuiTableSortLabel-icon": { opacity: 0.6 },
+            "&.Mui-active .MuiTableSortLabel-icon": { opacity: 1 },
+          },
+        },
+      },
+      // Tabs read as a segmented control: a quiet track with the selected
+      // tab raised on the paper surface; no sliding underline.
       MuiTabs: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark
-              ? alpha(palette.text.primary, 0.035)
-              : alpha(palette.primary.main, 0.08),
+            backgroundColor: alpha(palette.text.primary, isDark ? 0.06 : 0.05),
             borderRadius: RADIUS.sm,
+            // 2px track + 32px tabs = 36px, the shared control height.
+            padding: 4,
+            minHeight: 0,
           },
+          indicator: { display: "none" },
+          flexContainer: { gap: 2 },
+          // The disabled scroll arrow would leave an empty gutter.
+          scrollButtons: { "&.Mui-disabled": { display: "none" } },
         },
       },
       MuiTab: {
         styleOverrides: {
           root: {
-            minWidth: 100,
+            minWidth: 96,
+            minHeight: CONTROL_HEIGHT.desktop - 4,
             padding: "4px 12px",
+            borderRadius: RADIUS.sm - 4,
 
             textTransform: "none",
-            fontSize: "0.875rem",
-            fontWeight: 400,
+            fontSize: TYPOGRAPHY.size.body,
+            // Same weight selected or not, so labels never shift width.
+            fontWeight: 500,
 
             color: palette.text.secondary,
 
-            transition: "all 0.2s ease",
+            transition: ease("background-color", "color", "box-shadow"),
+
+            "& .MuiTab-iconWrapper": { fontSize: 16 },
 
             "&:hover": {
-              color: palette.primary.main,
+              color: palette.text.primary,
+              backgroundColor: alpha(palette.text.primary, isDark ? 0.05 : 0.04),
             },
 
             "&.Mui-selected": {
               color: palette.primary.main,
-              borderColor: palette.primary.main,
-              fontWeight: 700,
+              backgroundColor: isDark
+                ? alpha(palette.text.primary, 0.18)
+                : palette.background.paper,
+              boxShadow: isDark
+                ? `inset 0 0 0 1px ${alpha(palette.text.primary, 0.06)}`
+                : "0 1px 2px rgba(16, 24, 40, 0.1)",
             },
 
+            // Unavailable, not broken: full opacity, disabled text colour.
             "&.Mui-disabled": {
-              opacity: 0.4,
+              color: palette.text.disabled,
             },
           },
         },
@@ -371,17 +628,26 @@ export function createAppTheme(mode: PaletteMode) {
             color: palette.text.primary,
             fontSize: "0.8125rem",
             lineHeight: 1.45,
+            fontVariantNumeric: "tabular-nums",
           },
+          // The one table-header rule for the app: quiet label, one hairline.
+          // Header band: an opaque tint a step darker than the even-row
+          // zebra (1.8–2.5%), so it stays solid while sticky.
           head: {
             backgroundColor: palette.background.paper,
-            color: palette.text.primary,
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            letterSpacing: 0,
+            backgroundImage: `linear-gradient(${alpha(
+              palette.text.primary,
+              isDark ? 0.07 : 0.05,
+            )}, ${alpha(palette.text.primary, isDark ? 0.07 : 0.05)})`,
+            color: palette.text.secondary,
+            fontSize: TYPOGRAPHY.size.caption,
+            fontWeight: 600,
+            letterSpacing: "0.01em",
             position: "sticky",
             top: 0,
-            textTransform: "uppercase",
+            textTransform: "none",
             zIndex: 2,
+            borderBottom: `1px solid ${palette.divider}`,
           },
         },
       },
@@ -391,8 +657,6 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             overflow: "auto",
-            // border: `1px solid ${palette.divider}`,
-            // borderRadius: RADIUS.md,
             backgroundColor: palette.background.paper,
             boxShadow: "none",
           },
@@ -411,15 +675,8 @@ export function createAppTheme(mode: PaletteMode) {
             "& .MuiTableCell-root": {
               boxSizing: "border-box",
             },
-            "& .MuiTableCell-head": {
-              backgroundColor: palette.background.paper,
-              backgroundImage: `linear-gradient(${alpha(
-                isDark ? palette.text.primary : palette.primary.main,
-                isDark ? 0.045 : 0.12,
-              )}, ${alpha(
-                isDark ? palette.text.primary : palette.primary.main,
-                isDark ? 0.045 : 0.12,
-              )})`,
+            "& .MuiTableBody-root .MuiTableRow-root:hover > .MuiTableCell-root": {
+              backgroundColor: alpha(palette.text.primary, isDark ? 0.035 : 0.025),
             },
           },
         },
@@ -434,15 +691,24 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiTooltip: {
         defaultProps: { arrow: true },
+        styleOverrides: {
+          tooltip: { borderRadius: RADIUS.xs + 2, fontSize: 12, fontWeight: 500 },
+        },
       },
       MuiChip: {
         defaultProps: {
           size: "small",
         },
-        styleOverrides: { root: { fontSize: 12, fontWeight: 700 } },
+        styleOverrides: { root: { fontSize: 12, fontWeight: 600 } },
+      },
+      MuiFormHelperText: {
+        styleOverrides: { root: { fontSize: 12, lineHeight: 1.45 } },
       },
       MuiAlert: {
-        styleOverrides: { root: { borderRadius: RADIUS.sm } },
+        styleOverrides: { root: { borderRadius: RADIUS.md } },
+      },
+      MuiSnackbarContent: {
+        styleOverrides: { root: { borderRadius: RADIUS.md } },
       },
       MuiSkeleton: {
         styleOverrides: { root: { borderRadius: RADIUS.xs } },

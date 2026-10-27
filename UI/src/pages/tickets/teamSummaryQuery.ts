@@ -1,4 +1,4 @@
-import { prefetchApi } from "../../api/useApiQuery";
+import { prefetchApi } from "@/api/useApiQuery";
 
 export type DatePreset = "weekly" | "biweekly" | "monthly" | "custom";
 export type DateRange = { startDate: string; endDate: string };

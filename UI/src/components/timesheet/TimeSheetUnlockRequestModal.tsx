@@ -2,7 +2,10 @@ import React, { type ReactNode } from "react";
 import { Stack, TextField, Typography } from "@mui/material";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 
-import ConfirmDialog from "../common/ConfirmDialog";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import {
+  unlockRequestSummarySx,
+} from "@/styles/common";
 
 type TimeSheetUnlockRequestModalProps = {
   open: boolean;
@@ -30,17 +33,16 @@ const TimeSheetUnlockRequestModal: React.FC<
   return (
     <ConfirmDialog
       open={open}
-      title="Unlock Time Sheet Request"
+      title="Request timesheet unlock"
       description="Explain why this submitted week needs to be reopened."
       confirmLabel={submitting ? "Requesting..." : "Request Unlock"}
       confirmDisabled={submitting || reason.trim().length === 0}
-      titleIcon={<LockOpenOutlinedIcon fontSize="small" />}
       confirmIcon={<LockOpenOutlinedIcon fontSize="small" />}
       onClose={onClose}
       onConfirm={onSubmit}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-        <Typography variant="body2" fontWeight={700}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={unlockRequestSummarySx}>
+        <Typography variant="body2" fontWeight={600}>
           Week {weekNumber}
         </Typography>
         {weekRange}

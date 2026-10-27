@@ -3,8 +3,8 @@
  * functions (no React), so grouping, totals and rating validation can be
  * unit-tested on their own.
  */
-import type { ApiTaskRow, TaskRow } from "../../../types/dataTypes";
-import { hoursMinutesToSeconds } from "../../../utils/hoursMinutes";
+import type { ApiTaskRow, TaskRow } from "@/types/dataTypes";
+import { hoursMinutesToSeconds } from "@/utils/hoursMinutes";
 
 export interface ApprovalDetailResponse {
   rows: ApiTaskRow[];

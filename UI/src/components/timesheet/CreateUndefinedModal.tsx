@@ -1,17 +1,20 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import React, { useState } from "react";
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
   TextField,
   Button,
-  IconButton,
   Box,
   Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  undefinedJobsActionsSx,
+  undefinedJobsErrorSx,
+  undefinedJobsFormSx,
+} from "@/styles/common";
 
 interface CreateUndefinedModalProps {
   open: boolean;
@@ -116,52 +119,14 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
       onChangeCapture={discard.markDirty}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: "8px",
-          overflow: "hidden",
-        },
-      }}
     >
       {/* Header */}
-      <DialogTitle
-        sx={{
-          height: "48px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          fontSize: "20px",
-          fontWeight: 600,
-          color: "text.primary",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        Undefined Jobs
-
-        <IconButton aria-label="Close dialog"
-          onClick={discard.requestClose}
-          sx={{
-            color: "text.secondary",
-          }}
-        >
-          <CloseOutlinedIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader title="Undefined Jobs" onClose={discard.requestClose} />
 
       {/* Content */}
-      <DialogContent
-        sx={{
-          padding: "14px 16px 16px !important",
-        }}
-      >
+      <DialogContent>
         <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-          }}
+          sx={undefinedJobsFormSx}
         >
           {/* Project Name */}
           <TextField
@@ -207,11 +172,7 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
 
           {/* Note */}
           <Typography
-            sx={{
-              color: "error.main",
-              fontSize: "13px",
-              marginTop: "-5px",
-            }}
+            sx={undefinedJobsErrorSx}
           >
             * job Number is applicable only for US team, Others must leave this
             as blank.
@@ -219,25 +180,13 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
 
           {/* Submit */}
           <Box
-            sx={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginTop: "4px",
-            }}
+            sx={undefinedJobsActionsSx}
           >
             <Button
               variant="contained"
               onClick={handleSubmit}
               disabled={submitting || description.trim().length === 0}
               startIcon={submitting ? undefined : <SendOutlinedIcon />}
-              sx={{
-                textTransform: "none",
-                backgroundColor: "primary.main",
-                fontSize: "15px",
-                "&:hover": {
-                  backgroundColor: "primary.dark",
-                },
-              }}
             >
               {submitting ? "Submitting..." : "Submit"}
             </Button>

@@ -31,6 +31,13 @@ User = get_user_model()
 # Get Depart ment
 class DepartmentMixin:
 
+    def include_all_executive_records(self):
+        return (
+            self.action in {"list", "retrieve"}
+            and self.request.query_params.get("include_executive", "false").lower() == "true"
+            and bool(getattr(getattr(self.request.user, "profile", None), "exe_role", False))
+        )
+
     def get_department_ids(self):
         user = self.request.user
 
@@ -43,8 +50,8 @@ class DepartmentMixin:
             == "true"
         )
         if include_executive:
-            executive = set(set(user.groups.values_list("id", flat=True)))
-            groups |= executive
+            if getattr(getattr(user, "profile", None), "exe_role", False):
+                groups.update(user.groups.values_list("id", flat=True))
         return list(groups)
 
 class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
@@ -62,14 +69,15 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
             log_qs = Ticket_Log.objects.filter(
                 ticket=OuterRef("pk")
             )
+            visibility = (
+                Q(creator=self.request.user)
+                | Q(assigned_to=self.request.user)
+                | Q(department__in=department_ids)
+            )
 
             queryset = (
                 Ticket.objects
-                .filter(
-                    Q(creator=self.request.user) |
-                    Q(assigned_to=self.request.user) |
-                    Q(department__in=department_ids)
-                )
+                .filter(visibility)
                 .select_related(
                     "creator",
                     "assigned_to",
@@ -219,14 +227,9 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
         elif end_date:
             queryset = queryset.filter(target_date__lte=end_date)
 
-        excluded_status = ["recall requested", "recall successful"]
+        excluded_status = ["recall requested", "recall successful", "cancelled"]
 
-        active_status = [
-            "open",
-            "revised",
-            "reopened",
-            "not-satisfied",
-        ]
+        active_status = ["open","revised","reopened","not-satisfied"]
 
         progress_status = ["assigned", "accepted","in progress", "date revision", "pending"]
 
@@ -498,6 +501,10 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                     profile__reporting_to=self.request.user
                 ).values_list("id", flat=True)
 
+            visibility = Q()
+            if not self.include_all_executive_records():
+                visibility = Q(creator=self.request.user) | Q(creator_id__in=reportee_ids)
+
             return (
                     Self_Ticket.objects
                     .select_related("creator")
@@ -507,11 +514,7 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                         reporting_to=F("creator__profile__reporting_to"),
                         creator_name=F("creator__first_name"),
                     )
-                    .filter(
-                        Q(creator=self.request.user) |
-                        Q(creator_id__in=reportee_ids) 
-                        # Q(has_group=True)
-                    )
+                    .filter(visibility)
                     .order_by("-created_at")
                 )
         except Exception:

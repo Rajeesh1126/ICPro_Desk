@@ -1,4 +1,7 @@
 import { Alert, Snackbar } from "@mui/material";
+import {
+  snackbarAlertSx,
+} from "@/styles/common";
 
 export interface CommonSnackbarProps {
     open: boolean;
@@ -32,13 +35,7 @@ export default function CommonSnackbar({
                 onClose={onClose}
                 severity={severity}
                 variant="filled"
-                sx={{
-                    width: "100%",
-                    minWidth: 350,
-                    borderRadius: "4px",
-                    alignItems: "center",
-                    fontSize: "0.95rem",
-                }}
+                sx={snackbarAlertSx}
             >
                 {message}
             </Alert>

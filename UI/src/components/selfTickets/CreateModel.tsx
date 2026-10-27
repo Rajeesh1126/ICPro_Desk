@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -9,11 +9,9 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   Grid,
-  IconButton,
   InputLabel,
   MenuItem,
   Paper,
@@ -23,21 +21,18 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import api from "../../api/axios";
-import { showNotification } from "../../api/notificationService";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import api from "@/api/axios";
+import { showNotification } from "@/api/notificationService";
 import type {
   SelfTicketData,
   SelfTicketFormData,
-} from "../../types/dataTypes";
+} from "@/types/dataTypes";
 import {
   compactFieldSx,
   dateFieldSx,
-  marginTopSmallSx,
   reminderHelpIconBadgeSx,
   reminderExampleTextSx,
   reminderExampleDaysSx,
@@ -47,33 +42,41 @@ import {
   reminderExampleChipSx,
   doListFormTooltipPopperSx,
   formSwitchLabelSx,
-  doListFormCloseButtonSx,
   reminderHelpIconSx,
   requiredNoteIconSx,
   reminderHelpPopoverSx,
   reminderHelpHeaderSx,
   requiredNoteRowSx,
-  doListFormTitleSx,
+  formDialogActionsSx,
   doListFormSectionTitleSx,
   reminderHelpIntroSx,
   reminderHelpExampleSx,
   requiredNoteTextSx,
-} from "../../styles/common";
+} from "@/styles/common";
+import DialogHeader from "@/components/common/DialogHeader";
 
 
 type Props = {
   open: boolean;
   handleClose: () => void;
   Data: SelfTicketData | null;
+  initialTargetDate?: string | null;
 };
 
 type Priority = "high" | "medium" | "low" | "";
 
 
+const formatLocalInputDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+
+const getTodayDate = () => formatLocalInputDate(new Date());
+
 const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split("T")[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return formatLocalInputDate(tomorrow);
 };
 
 const emptyForm: SelfTicketFormData = {
@@ -92,7 +95,7 @@ const emptyForm: SelfTicketFormData = {
 
 
 const reminderExamples = [
-  { days: 0, label: "NIL" },
+  { days: 0, label: "No reminder" },
   { days: 1, label: "Daily" },
   { days: 2, label: "Every Other Day" },
   { days: 7, label: "Weekly" },
@@ -104,6 +107,7 @@ export default function CreateSelfTicketModel({
   open,
   handleClose,
   Data,
+  initialTargetDate = null,
 }: Props) {
   const [formData, setFormData] = useState<SelfTicketFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<Partial<SelfTicketFormData>>();
@@ -129,11 +133,14 @@ export default function CreateSelfTicketModel({
         ticket_number: Data.ticket_number || "",
         reminder_interval: Data.reminder_interval ?? 0,
       }
-      : emptyForm;
+      : {
+          ...emptyForm,
+          target_date: initialTargetDate || getTomorrowDate(),
+        };
 
     setFormData(data);
     setChecked(!!data.ticket_number);
-  }, [Data, open]);
+  }, [Data, open, initialTargetDate]);
 
   // Ask before discarding typed input (backdrop, Escape, X, Cancel).
   const discard = useDiscardGuard(open, handleClose);
@@ -183,7 +190,8 @@ export default function CreateSelfTicketModel({
     }
   };
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const tomorrow = getTomorrowDate();
+  const targetDateMinimum = initialTargetDate ? getTodayDate() : tomorrow;
   const invalid =
     !formData.task.trim() ||
     !formData.priority ||
@@ -198,35 +206,12 @@ export default function CreateSelfTicketModel({
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle component="div">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          gap={1.5}
-        >
-          <Box minWidth={0}>
-            <Typography variant="h6" sx={doListFormTitleSx}>
-              {Data ? "Edit self task" : "Create self task"}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={marginTopSmallSx}
-            >
-              Plan an action or follow-up with reminders.
-            </Typography>
-          </Box>
-          <IconButton
-            aria-label="Close"
-            onClick={discard.requestClose}
-            disabled={loading}
-            sx={doListFormCloseButtonSx}
-          >
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+      <DialogHeader
+        title={Data ? "Edit task" : "Create task"}
+        subtitle="Plan an action or follow-up with reminders."
+        onClose={discard.requestClose}
+        closeDisabled={loading}
+      />
 
       <DialogContent >
         <Stack spacing={2.25}>
@@ -333,7 +318,7 @@ export default function CreateSelfTicketModel({
                   sx={dateFieldSx}
                   slotProps={{
                     inputLabel: { shrink: true },
-                    htmlInput: { min: tomorrow },
+                    htmlInput: { min: targetDateMinimum },
                   }}
                 // sx={compactFieldSx}
                 />
@@ -355,6 +340,13 @@ export default function CreateSelfTicketModel({
                     )
                   }
                   slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                  helperText={
+                    formData.reminder_interval
+                      ? `A reminder every ${formData.reminder_interval} day${
+                          formData.reminder_interval === 1 ? "" : "s"
+                        }.`
+                      : "0 means no reminder."
+                  }
                   // sx={compactFieldSx}
                   onFocus={(event) => setReminderAnchor(event.currentTarget)}
                   onBlur={() => setReminderAnchor(null)}
@@ -423,7 +415,7 @@ export default function CreateSelfTicketModel({
               </Box>
               <Typography
                 variant="subtitle2"
-                fontWeight={900}
+                fontWeight={600}
                 lineHeight={1.1}
                 color="text.primary"
               >
@@ -473,7 +465,7 @@ export default function CreateSelfTicketModel({
         </Popper>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={formDialogActionsSx}>
         <Stack
           direction="row"
           alignItems="center"
@@ -495,21 +487,13 @@ export default function CreateSelfTicketModel({
           </Typography>
         </Stack>
         <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={discard.requestClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button
           variant="contained"
           color="primary"
-          startIcon={Data ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+          startIcon={Data ? <SaveOutlinedIcon /> : <AddOutlinedIcon />}
           onClick={() => void submit()}
           disabled={loading || invalid}
         >
-          {loading ? "Saving..." : Data ? "Update" : "Submit"}
+          {loading ? "Saving..." : Data ? "Save changes" : "Create task"}
         </Button>
       </DialogActions>
       {discard.dialog}

@@ -5,7 +5,12 @@ import {
   formatFullDateRange,
   formatRangeLength,
   isoDate,
-} from "../../utils/dateRange";
+} from "@/utils/dateRange";
+import {
+  dateRangeIconSx,
+  dateRangeMetaSx,
+  dateRangeValueSx,
+} from "@/styles/common";
 
 type DateInput = Parameters<typeof formatDateRange>[0];
 
@@ -61,22 +66,17 @@ export default function DateRange({
     >
       <CalendarMonthOutlinedIcon
         aria-hidden="true"
-        sx={{ fontSize: "1rem", color: "primary.main", flexShrink: 0 }}
+        sx={dateRangeIconSx}
       />
       <Box
         component="time"
         dateTime={startIso && endIso ? `${startIso}/${endIso}` : (startIso ?? endIso)}
-        sx={{
-          color: "text.primary",
-          fontWeight: 650,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+        sx={dateRangeValueSx}
       >
         {label}
       </Box>
       {showLength && length && (
-        <Box component="span" sx={{ color: "text.secondary", fontWeight: 500 }}>
+        <Box component="span" sx={dateRangeMetaSx}>
           · {length}
         </Box>
       )}

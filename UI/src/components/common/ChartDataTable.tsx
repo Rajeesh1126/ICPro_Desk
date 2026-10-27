@@ -1,16 +1,6 @@
 import { Box } from "@mui/material";
+import { visuallyHiddenSx } from "@/styles/common";
 
-const visuallyHidden = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  p: 0,
-  m: -1,
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
 
 interface ChartDataTableProps {
   caption: string;
@@ -28,7 +18,7 @@ interface ChartDataTableProps {
 export default function ChartDataTable({ caption, rowHeader, rows, columns }: ChartDataTableProps) {
   if (!rows.length) return null;
   return (
-    <Box component="table" sx={visuallyHidden}>
+    <Box component="table" sx={visuallyHiddenSx}>
       <caption>{caption}</caption>
       <thead>
         <tr>

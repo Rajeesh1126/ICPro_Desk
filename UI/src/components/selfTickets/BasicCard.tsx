@@ -1,41 +1,46 @@
 import {
+  Box,
+  Button,
   Card,
   CardContent,
   Typography,
-  Chip,
-  Divider,
-  IconButton,
-  Stack,
   Tooltip,
-  Grid,
 } from "@mui/material";
-import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
+import DoneOutlinedIcon from "@mui/icons-material/DoneOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 
-import { alpha, useTheme } from "@mui/material/styles";
-import type { SelfTicketData } from "../../types/dataTypes";
-import { formatDate } from "../common/formatDate";
+import type { SelfTicketData } from "@/types/dataTypes";
+import { formatDate, formatDueDate, formatOverdueLabel } from "@/components/common/formatDate";
 import {
+  getReminderState,
   getSelfTicketAlertMessage,
-  getSelfTicketAlertReason,
-  shouldBlinkSelfTicket,
-} from "./highlight";
+  isSelfTicketOverdue,
+} from "@/components/selfTickets/highlight";
+import { PriorityPill } from "@/components/common/StatusPill";
+import { sentenceCase } from "@/components/common/tableCell";
 import {
-  compactTextSx,
-  alarmBellSx,
-  detailLabelSx,
-  detailValueSx,
-  secondaryTextSx,
+  boardCardCreatedSx,
+  boardCardCreatorSx,
+  boardCardDueLabelSx,
+  boardCardDueSx,
+  boardCardFieldLabelSx,
+  boardCardIndicatorsSx,
+  boardCardMetaSx,
+  boardCardNumberSx,
+  boardCardTagSx,
+  boardCardSx,
+  boardCardTopRowSx,
+  boardCardTypeTagSx,
+  doListAcknowledgeButtonSx,
+  doListCardFooterSx,
+  doListLinkedTicketSx,
+  doListReminderValueSx,
   sharedCardContentSx,
-  sharedCardDividerSx,
-  doListCardSx,
-  doListCardPriorityChipSx,
-  doListCardNumberSx,
-  doListCardDateSx,
   sharedCardTitleSx,
-  getPriorityCardStyles,
-} from "../../styles/common";
+} from "@/styles/common";
 
 interface BasicCardProps {
   ticket: SelfTicketData;
@@ -46,20 +51,57 @@ const currentUserParsed = Number(localStorage.getItem("user") || "null");
 
 const userId = currentUserParsed ?? null;
 
+const everyDays = (days: number) => `Every ${days} day${days === 1 ? "" : "s"}`;
+
+/**
+ * Do List work item: task number, creator and creation date; the subject;
+ * type, priority and reminder / overdue state; then a fixed two-column
+ * footer (reminder left, target date right) and the linked ticket when there
+ * is one. Acknowledging a reminder never opens the card.
+ */
 export default function BasicCardSelfTicket({
   ticket,
   onOpen,
   onAcknowledgeAlarm,
 }: BasicCardProps) {
-  const theme = useTheme();
   if (!ticket?.number) return null;
 
-  const styles = getPriorityCardStyles(theme, ticket.priority);
-  const hasAlarm = ticket.alarm === true;
-  const highlighted = shouldBlinkSelfTicket(ticket);
+  const reminder = getReminderState(ticket);
+  const hasAlarm = reminder === "active";
   const alertMessage = getSelfTicketAlertMessage(ticket);
-  const alertReason = getSelfTicketAlertReason(ticket);
-  const isOverdue = alertReason === "target-date";
+  const due = formatDueDate(ticket.target_date);
+  const exactDue = formatDate(ticket.target_date);
+  // Urgency colours only matter while the task is still open.
+  const isOpen = ticket.current_status?.toLowerCase() === "open";
+  const dueTone = isOpen ? due.tone : "upcoming";
+  // Same rule as the Do List highlight: an open task whose target date is
+  // today or earlier needs action; so does an active reminder.
+  const isOverdue = isSelfTicketOverdue(ticket);
+  const overdueText = isOverdue ? formatOverdueLabel(ticket.target_date) ?? "Overdue" : null;
+  const alertParts = [
+    isOverdue ? overdueText : null,
+    hasAlarm ? "Reminder active" : null,
+  ].filter((part): part is string => Boolean(part));
+  const typeLabel = sentenceCase(ticket.type);
+  const interval = ticket.reminder_interval ?? 0;
+
+  const reminderValue =
+    reminder === "active" ? (
+      <>
+        <NotificationsActiveOutlinedIcon aria-hidden="true" />
+        Active now
+      </>
+    ) : reminder === "scheduled" ? (
+      <>
+        <NotificationsNoneOutlinedIcon aria-hidden="true" />
+        {everyDays(interval)}
+      </>
+    ) : (
+      <>
+        <NotificationsOffOutlinedIcon aria-hidden="true" />
+        Off
+      </>
+    );
 
   return (
     <Card
@@ -67,7 +109,9 @@ export default function BasicCardSelfTicket({
       onClick={() => onOpen(ticket)}
       role="button"
       tabIndex={0}
-      aria-label={`Open task ${ticket.number}${alertMessage ? `, ${alertMessage}` : ""}`}
+      aria-label={`Open task ${ticket.number}${
+        alertParts.length ? `, ${alertParts.join(", ")}` : alertMessage ? `, ${alertMessage}` : ""
+      }`}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
@@ -75,143 +119,104 @@ export default function BasicCardSelfTicket({
           onOpen(ticket);
         }
       }}
-      sx={doListCardSx({ highlighted, styles })}
+      sx={boardCardSx()}
     >
       <CardContent sx={sharedCardContentSx}>
-
-        {alertMessage && (
-          <Stack
-            direction="row"
-            justifyContent={isOverdue ? "center" : "flex-end"}
-            mb={0.75}
-          >
-            <Chip
-              icon={
-                alertReason === "alarm" ? (
-                  <NotificationsActiveOutlinedIcon fontSize="small" />
-                ) : (
-                  <EventBusyOutlinedIcon fontSize="small" />
-                )
-              }
-              label={alertMessage}
-              color={isOverdue ? "error" : undefined}
-              variant={isOverdue ? "filled" : "outlined"}
-              sx={{
-                fontWeight: 700,
-                ...(isOverdue
-                  ? { boxShadow: `0 2px 6px ${alpha(theme.palette.error.main, 0.28)}` }
-                  : {
-                      color: styles.color,
-                      borderColor: styles.color,
-                    }),
-                "& .MuiChip-icon": { color: "inherit" },
-              }}
-            />
-          </Stack>
-        )}
-
-        <Stack
-          direction={{ xs: "row", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          gap={0.5}
-          mb={1}
-        >
-          <Typography
-            sx={doListCardNumberSx({ styles })}
-          >
+        <Box sx={boardCardTopRowSx}>
+          <Typography sx={boardCardNumberSx}>
             Task No #{ticket.number}
           </Typography>
-          <Stack
-            direction="row"
-            spacing={0.5}
-            alignItems="center"
-            sx={secondaryTextSx}
-          >
-            {hasAlarm && (
-              <Tooltip title="Acknowledge reminder">
-                <IconButton
-                  aria-label={`Acknowledge reminder ${ticket.number}`}
-                  sx={{ color: styles.color }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onAcknowledgeAlarm?.(ticket);
-                  }}
-                >
-                  <NotificationsActiveRoundedIcon sx={alarmBellSx} />
-                </IconButton>
-              </Tooltip>
+          <Box sx={boardCardMetaSx}>
+            {ticket.creator !== userId && ticket.creator_name && (
+              <Typography sx={boardCardCreatorSx}>{ticket.creator_name}</Typography>
             )}
-            {ticket.creator !== userId ? (
-              <Typography sx={compactTextSx}>
-                {ticket.creator_name ? ticket.creator_name : ""}
-              </Typography>
-            ) : (
-              ""
-            )}
-            <Typography sx={doListCardDateSx}>
-              {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
+            <Typography sx={boardCardCreatedSx}>
+              {formatDate(ticket.created_at)}
             </Typography>
-          </Stack>
-        </Stack>
-
-        
+          </Box>
+        </Box>
 
         <Typography variant="h6" sx={sharedCardTitleSx}>
           {ticket.task}
         </Typography>
 
-        <Divider sx={sharedCardDividerSx} />
+        <Box sx={boardCardIndicatorsSx}>
+          {typeLabel && (
+            <Box component="span" sx={boardCardTypeTagSx} aria-label={`Type ${typeLabel}`}>
+              {typeLabel}
+            </Box>
+          )}
+          <PriorityPill priority={ticket.priority || "Normal"} />
+          {isOverdue && (
+            <Box component="span" sx={boardCardTagSx("overdue")}>
+              <EventBusyOutlinedIcon aria-hidden="true" />
+              {overdueText}
+            </Box>
+          )}
+          {hasAlarm && !isOverdue && (
+            <Box component="span" sx={boardCardTagSx("reminder")}>
+              <NotificationsActiveOutlinedIcon aria-hidden="true" />
+              Reminder active
+            </Box>
+          )}
+        </Box>
 
-        <Grid container spacing={1}>
-          <Grid size={{ xs: 6, md: 3.5 }}>
-            <Typography sx={detailLabelSx}>Reminder Interval</Typography>
-            <Typography sx={detailValueSx}>
-              {ticket.reminder_interval
-                ? `${ticket.reminder_interval} day${
-                  ticket.reminder_interval > 1 ? "s" : ""
-                }`
-                : "N/A"}
+        <Box sx={doListCardFooterSx}>
+          <Box minWidth={0}>
+            <Typography sx={boardCardFieldLabelSx}>Reminder</Typography>
+            <Typography component="span" sx={doListReminderValueSx(reminder)}>
+              {reminderValue}
             </Typography>
-          </Grid>
-          <Grid
-            size={{ xs: 6, md: 3 }}
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: { xs: "flex-end", sm: "flex-start" },
-              justifyContent: "flex-start",
-              textAlign: { xs: "right", sm: "left" },
-            }}
-          >
-            <Typography sx={detailLabelSx}>Target date</Typography>
-            <Typography sx={detailValueSx}>
-              {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
+          </Box>
+          <Box minWidth={0} textAlign="right">
+            <Typography sx={boardCardFieldLabelSx}>Target date</Typography>
+            <Typography sx={boardCardDueSx(dueTone, !isOpen)}>
+              <Box component="span" sx={boardCardDueLabelSx(dueTone)}>
+                {due.label}
+              </Box>
+              {due.label !== exactDue && exactDue !== "—" && (
+                <Box component="span" sx={boardCardCreatedSx}>
+                  {" · "}
+                  {exactDue}
+                </Box>
+              )}
             </Typography>
-          </Grid>
-          <Grid size={{ xs: 6, md: 3.5 }}>
-            <Typography sx={detailLabelSx}>Ticket No</Typography>
-            <Typography sx={detailValueSx}>
-              {ticket.ticket_number ? ticket.ticket_number : "N/A"}
-            </Typography>
-          </Grid>
-          <Grid
-            size={{ xs: 6, md: 2 }}
-            sx={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Chip
-              label={ticket.priority || "Normal"}
-              sx={{
-                ...doListCardPriorityChipSx({ alpha, styles }),
-                minWidth: { xs: "auto", sm: 60 },
-              }}
-            />
-          </Grid>
-        </Grid>
+          </Box>
+
+             {hasAlarm && onAcknowledgeAlarm && isOpen && userId == ticket.creator && (
+            <Tooltip
+              title={`Marks this reminder as seen and clears the alert.${
+                interval ? ` The next one follows the ${interval}-day interval.` : ""
+              }`}
+            >
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                startIcon={<DoneOutlinedIcon />}
+                aria-label={`Acknowledge reminder for task ${ticket.number}`}
+                onClick={(event) => {
+                  // Acknowledge only; never open the card.
+                  event.stopPropagation();
+                  onAcknowledgeAlarm(ticket);
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
+                sx={doListAcknowledgeButtonSx}
+              >
+                Acknowledge reminder
+              </Button>
+            </Tooltip>
+          )}
+
+          {/* Only a real link is shown; "no ticket" isn't worth a field. */}
+          {ticket.ticket_number && (
+            <Box component="span" sx={doListLinkedTicketSx}>
+              {/* <LinkOutlinedIcon aria-hidden="true" /> */}
+              Linked ticket
+              <Box component="span">{ticket.ticket_number}</Box>
+            </Box>
+          )}
+        </Box>
       </CardContent>
     </Card>
   );

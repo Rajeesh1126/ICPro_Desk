@@ -1,5 +1,8 @@
-import { insetSx } from "../../styles/tokens";
 import { Box, Skeleton, Stack } from "@mui/material";
+import {
+  visuallyHiddenSx,
+  tableLoadingCardSx,
+} from "@/styles/common";
 
 interface TableLoadingStateProps {
   /** Number of placeholder rows. */
@@ -32,7 +35,7 @@ export default function TableLoadingState({
           {Array.from({ length: Math.min(rows, 4) }, (_, index) => (
             <Box
               key={index}
-              sx={{ border: 1, borderColor: "divider", borderRadius: 1, ...insetSx }}
+              sx={tableLoadingCardSx}
             >
               <Skeleton variant="text" width="45%" />
               <Skeleton variant="text" width="80%" />
@@ -48,11 +51,3 @@ export default function TableLoadingState({
   );
 }
 
-const visuallyHiddenSx = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-} as const;

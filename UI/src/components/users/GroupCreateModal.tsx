@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -8,16 +8,18 @@ import {
   Grid,
   TextField,
 } from "@mui/material";
-import DialogHeader, { RequiredFieldsNote } from "../common/DialogHeader";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 
-import api from "../../api/axios";
-import { sanitizeUserMessage } from "../../utils/errorUtils";
-import { showNotification } from "../../api/notificationService";
+import api from "@/api/axios";
+import { sanitizeUserMessage } from "@/utils/errorUtils";
+import { showNotification } from "@/api/notificationService";
 
-import type { groupData } from "../../types/dataTypes";
+import type { groupData } from "@/types/dataTypes";
+import {
+  topSpacingSx,
+} from "@/styles/common";
 
 type GroupFormData = {
   name: string;
@@ -136,7 +138,7 @@ export default function GroupCreateModal({
         closeDisabled={loading}
       />
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid container spacing={2} sx={topSpacingSx}>
           <Grid size={{ xs: 12 }}>
             <TextField
               required
@@ -154,16 +156,8 @@ export default function GroupCreateModal({
       <DialogActions>
         <RequiredFieldsNote />
         <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={discard.requestClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button
           variant="contained"
-          startIcon={Data ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+          startIcon={Data ? <SaveOutlinedIcon /> : <CheckOutlinedIcon />}
           onClick={() => void submit()}
           disabled={loading || invalid}
         >

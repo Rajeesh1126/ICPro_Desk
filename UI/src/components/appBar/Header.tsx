@@ -9,9 +9,9 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
+  InputAdornment,
   Menu,
   MenuItem,
   Stack,
@@ -21,26 +21,27 @@ import {
 } from "@mui/material";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import SupervisorAccountOutlinedIcon from "@mui/icons-material/SupervisorAccountOutlined";
-import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
-import { alpha, type Theme } from "@mui/material/styles";
-import pdfFile from "../../assets/Work_Wise_Process_Flow.pdf";
-import logo from "../../assets/icpro_logo.svg";
-import api from "../../api/axios";
-import { sanitizeUserMessage } from "../../utils/errorUtils";
-import { showNotification } from "../../api/notificationService";
-import { useThemeMode } from "../../styles/theme/themeModeContext";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import { alpha } from "@mui/material/styles";
+import pdfFile from "@/assets/Work_Wise_Process_Flow.pdf";
+import logo from "@/assets/icpro_logo.svg";
+import api from "@/api/axios";
+import { sanitizeUserMessage } from "@/utils/errorUtils";
+import { showNotification } from "@/api/notificationService";
+import { useThemeMode } from "@/styles/theme/themeModeContext";
+import DialogHeader from "@/components/common/DialogHeader";
 import {
   headerAvatarSx,
   notificationEmptyStateSx,
@@ -51,15 +52,27 @@ import {
   notificationMenuSelfTicketIconSx,
   notificationMenuTicketItemSx,
   notificationMenuTicketIconSx,
-  headerMenuButtonSx,
-  headerProfileButtonSx,
-  headerProfileChevronSx,
-  headerProfileTriggerNameSx,
-  headerProfileTriggerTextSx,
+  headerBarSx,
+  headerIconButtonSx,
+  headerThemeToggleSx,
+  headerLogoImageSx,
+  headerLogoLinkSx,
+  headerMenuListSx,
+  headerNavButtonSx,
+  headerNotificationMenuPaperSx,
+  headerProfileMenuPaperSx,
+  headerAccountAvatarSx,
+  headerAccountChevronSx,
+  headerAccountNameSx,
+  headerAccountRoleSx,
+  headerAccountTextSx,
+  headerAccountTriggerSx,
   appBarHeaderProfileBodySx,
   appBarHeaderProfileCardSx,
   appBarHeaderProfileDetailRowSx,
   appBarHeaderProfileFooterButtonSx,
+  headerDesktopActionSx,
+  headerPhoneMenuButtonSx,
   appBarHeaderProfileHeaderSx,
   appBarHeaderProfileInfoIconSx,
   appBarHeaderProfileMetaSx,
@@ -67,75 +80,17 @@ import {
   appBarHeaderProfileValueSx,
   profileUsernameSx,
   profileTruncatedTextSx,
-  dialogContentTop,
   marginTopMediumSx,
   marginTopSmallSx,
   pushRightSx,
-} from "../../styles/common";
-import type { NotificationsType } from "../../types/dataTypes";
-import { ELEVATION } from "../../styles/tokens";
-import { clearSession } from "../../api/session";
+} from "@/styles/common";
+import type { NotificationsType } from "@/types/dataTypes";
+import { clearSession } from "@/api/session";
 
 const emptyNotifications: NotificationsType = {
   selfticketOpenCount: 0,
   ticketOpenCount: 0,
 };
-
-const coloredIconButtonSx =
-  (color: "primary" | "info" | "warning" | "secondary" | "error" | "muted") =>
-  (theme: Theme) => {
-    const iconColor =
-      color === "muted"
-        ? theme.palette.text.secondary
-        : theme.palette[color].main;
-
-    return {
-      color: iconColor,
-      "&:hover": {
-        bgcolor: alpha(iconColor, theme.palette.mode === "dark" ? 0.18 : 0.1),
-      },
-    };
-  };
-
-const menuButtonSx = (theme: Theme) => ({
-  ...(headerMenuButtonSx as object),
-  ...coloredIconButtonSx("primary")(theme),
-  alignItems: "center",
-  alignSelf: "center",
-  height: 40,
-  justifyContent: "center",
-  p: 0,
-  width: 40,
-  display: "inline-flex",
-  "&:hover": {
-    bgcolor: "transparent",
-  },
-});
-
-const notificationMenuPaperSx = (theme: Theme) => ({
-  width: "min(360px, calc(100vw - 24px))",
-  mt: 1.25,
-  overflow: "hidden",
-  borderRadius: 2,
-  border: "1px solid",
-  borderColor: "divider",
-  bgcolor: "background.paper",
-  boxShadow: theme.palette.mode === "dark" ? ELEVATION.dark.menu : ELEVATION.light.menu,
-});
-
-const profileMenuPaperSx = (theme: Theme) => ({
-  width: "min(420px, calc(100vw - 24px))",
-  maxHeight: "calc(100dvh - 96px)",
-  mt: 2.5,
-  overflow: "hidden",
-  borderRadius: 2,
-  border: "1px solid",
-  borderColor: "divider",
-  bgcolor: "background.paper",
-  boxShadow: theme.palette.mode === "dark" ? ELEVATION.dark.menu : ELEVATION.light.menu,
-});
-
-const menuListSx = { p: 0 };
 
 type StoredPermission = {
   id?: number;
@@ -193,7 +148,7 @@ function ProfileDetail({
   return (
     <Box sx={appBarHeaderProfileDetailRowSx}>
       <Box sx={appBarHeaderProfileInfoIconSx({ color })}>{icon}</Box>
-      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>
         {label}
       </Typography>
       <Box sx={appBarHeaderProfileValueSx}>{children}</Box>
@@ -211,7 +166,7 @@ function ProfileValue({ value }: { value?: string | null }) {
       sx={profileTruncatedTextSx}
       color={value ? "text.primary" : "text.secondary"}
     >
-      {value || "Not set"}
+      {value || "—"}
     </Typography>
   );
 }
@@ -273,6 +228,7 @@ export default function ResponsiveAppBar({
     {},
   );
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({ old: false, next: false, confirm: false });
 
   const currentUser = getStoredUser();
   const firstName = currentUser.first_name || localStorage.getItem("first_name") || "";
@@ -319,6 +275,7 @@ export default function ResponsiveAppBar({
     setProfileAnchor(null);
     setPasswordForm(emptyPasswordForm);
     setPasswordErrors({});
+    setShowPasswords({ old: false, next: false, confirm: false });
     setChangePasswordOpen(true);
   };
 
@@ -327,6 +284,7 @@ export default function ResponsiveAppBar({
     setChangePasswordOpen(false);
     setPasswordForm(emptyPasswordForm);
     setPasswordErrors({});
+    setShowPasswords({ old: false, next: false, confirm: false });
   };
 
   const updatePasswordForm = <K extends keyof ChangePasswordForm>(
@@ -393,21 +351,11 @@ export default function ResponsiveAppBar({
 
   return (
     <>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          minHeight: { xs: 58, sm: 64 },
-          flexShrink: 0,
-          px: { xs: 0.75, sm: 1, lg: 1 },
-          gap: { xs: 0.25, sm: 0.75 },
-          bgcolor: "background.paper",
-        }}
-      >
+      <Box sx={headerBarSx}>
           <IconButton
             aria-label="Open navigation"
             onClick={onMenuClick}
-            sx={menuButtonSx}
+            sx={headerNavButtonSx}
           >
             <MenuOutlinedIcon />
           </IconButton>
@@ -416,17 +364,13 @@ export default function ResponsiveAppBar({
             component={RouterLink}
             to="/Home"
             aria-label="ICPro home"
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              flexShrink: 0,
-            }}
+            sx={headerLogoLinkSx}
           >
             <Box
               component="img"
               src={logo}
               alt="ICPro"
-              sx={{ width: { xs: 64, sm: 84, md: 96 }, height: 32, objectFit: "contain" }}
+              sx={headerLogoImageSx}
             />
           </Box>
 
@@ -436,13 +380,13 @@ export default function ResponsiveAppBar({
             spacing={{ xs: 0, sm: 0.5 }}
             sx={pushRightSx}
           >
-            <Tooltip title="Process flow">
+            <Tooltip title="Download process flow">
               <IconButton
                 aria-label="Download process flow"
                 onClick={downloadProcessFlow}
-                sx={{ ...coloredIconButtonSx("info"), display: { xs: "none", sm: "inline-flex" } }}
+                sx={[headerIconButtonSx, headerDesktopActionSx]}
               >
-                <InfoOutlinedIcon />
+                <DescriptionOutlinedIcon />
               </IconButton>
             </Tooltip>
             <Tooltip
@@ -457,14 +401,12 @@ export default function ResponsiveAppBar({
                     : "Switch to dark mode"
                 }
                 onClick={toggleMode}
-                sx={coloredIconButtonSx(
-                  mode === "dark" ? "warning" : "primary",
-                )}
+                sx={headerThemeToggleSx}
               >
                 {mode === "dark" ? (
-                  <LightModeOutlinedIcon />
+                  <LightModeIcon />
                 ) : (
-                  <DarkModeOutlinedIcon />
+                  <DarkModeIcon />
                 )}
               </IconButton>
             </Tooltip>
@@ -478,10 +420,7 @@ export default function ResponsiveAppBar({
               <IconButton
                 aria-label="Notifications"
                 onClick={(event) => setNotificationAnchor(event.currentTarget)}
-                sx={{
-                  ...coloredIconButtonSx(totalNotifications ? "error" : "muted"),
-                  display: { xs: "none", sm: "inline-flex" },
-                }}
+                sx={headerIconButtonSx}
               >
                 {totalNotifications > 0 ? (
                   <Badge badgeContent={totalNotifications} color="error">
@@ -500,17 +439,17 @@ export default function ResponsiveAppBar({
                 aria-expanded={profileAnchor ? "true" : undefined}
                 aria-haspopup="menu"
                 onClick={(event) => setProfileAnchor(event.currentTarget)}
-                endIcon={<KeyboardArrowDownRoundedIcon sx={headerProfileChevronSx(Boolean(profileAnchor))} />}
-                sx={headerProfileButtonSx(Boolean(profileAnchor))}
+                endIcon={<KeyboardArrowDownRoundedIcon sx={headerAccountChevronSx(Boolean(profileAnchor))} />}
+                sx={headerAccountTriggerSx(Boolean(profileAnchor))}
               >
-                <Avatar sx={headerAvatarSx}>
+                <Avatar sx={headerAccountAvatarSx}>
                   {avatarInitials}
                 </Avatar>
-                <Stack spacing={0.125} sx={headerProfileTriggerTextSx}>
-                  <Typography variant="body2" sx={headerProfileTriggerNameSx}>
+                <Stack sx={headerAccountTextSx}>
+                  <Typography variant="body2" sx={headerAccountNameSx}>
                     {loggedUser || "Account"}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={profileTruncatedTextSx}>
+                  <Typography variant="caption" sx={headerAccountRoleSx}>
                     {role || "Account settings"}
                   </Typography>
                 </Stack>
@@ -528,9 +467,9 @@ export default function ResponsiveAppBar({
         slotProps={{
           paper: {
             elevation: 0,
-            sx: notificationMenuPaperSx,
+            sx: headerNotificationMenuPaperSx,
           },
-          list: { sx: menuListSx },
+          list: { sx: headerMenuListSx },
         }}
       >
         <Box sx={notificationMenuHeaderSx({ alpha })}>
@@ -541,7 +480,7 @@ export default function ResponsiveAppBar({
             gap={2}
           >
             <Box minWidth={0}>
-              <Typography fontWeight={900} lineHeight={1.15}>
+              <Typography fontWeight={600} lineHeight={1.15}>
                 Notifications
               </Typography>
               <Typography
@@ -568,7 +507,7 @@ export default function ResponsiveAppBar({
         <Divider />
         {totalNotifications === 0 ? (
           <Box sx={notificationEmptyStateSx}>
-            <Typography fontWeight={800}>No notifications</Typography>
+            <Typography fontWeight={600}>No notifications</Typography>
             <Typography
               variant="body2"
               color="text.secondary"
@@ -590,7 +529,7 @@ export default function ResponsiveAppBar({
                 <FormatListBulletedOutlinedIcon fontSize="small" />
               </Box>
               <Box minWidth={0} sx={notificationItemTextSx}>
-                <Typography fontWeight={900} lineHeight={1.15}>
+                <Typography fontWeight={600} lineHeight={1.15}>
                   Do List
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -613,7 +552,7 @@ export default function ResponsiveAppBar({
                 <TaskAltOutlinedIcon fontSize="small" />
               </Box>
               <Box minWidth={0} sx={notificationItemTextSx}>
-                <Typography fontWeight={900} lineHeight={1.15}>
+                <Typography fontWeight={600} lineHeight={1.15}>
                   Tickets
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -639,10 +578,10 @@ export default function ResponsiveAppBar({
         slotProps={{
           paper: {
             elevation: 0,
-            sx: profileMenuPaperSx,
+            sx: headerProfileMenuPaperSx,
           },
           list: {
-            sx: menuListSx,
+            sx: headerMenuListSx,
             "aria-labelledby": "account-menu-button",
           },
         }}
@@ -654,7 +593,7 @@ export default function ResponsiveAppBar({
                 {avatarInitials}
               </Avatar>
               <Stack spacing={0.5} sx={appBarHeaderProfileTextSx}>
-                <Typography variant="subtitle1" fontWeight={800} sx={profileTruncatedTextSx}>
+                <Typography variant="subtitle1" fontWeight={600} sx={profileTruncatedTextSx}>
                   {loggedUser || "Signed in"}
                 </Typography>
                 {currentUser.username && (
@@ -686,7 +625,7 @@ export default function ResponsiveAppBar({
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  fontWeight={900}
+                  fontWeight={600}
                 >
                   Role
                 </Typography>
@@ -699,20 +638,16 @@ export default function ResponsiveAppBar({
                 </Box>
               </Box>
 
-              <ProfileDetail icon={<BadgeOutlinedIcon fontSize="small" />} color="secondary" label="Designation">
+              <ProfileDetail icon={<BadgeOutlinedIcon fontSize="small" />} color="primary" label="Designation">
                 <ProfileValue value={currentUser.designation} />
               </ProfileDetail>
 
               <ProfileDetail
                 icon={<SupervisorAccountOutlinedIcon fontSize="small" />}
-                color="secondary"
+                color="primary"
                 label="Reporting To"
               >
-                <ProfileValue value={reportingTo} />
-              </ProfileDetail>
-
-              <ProfileDetail icon={<EmailOutlinedIcon fontSize="small" />} color="info" label="Email">
-                <ProfileValue value={currentUser.email} />
+                <ProfileValue value={reportingTo || "Not assigned"} />
               </ProfileDetail>
             </Stack>
 
@@ -726,6 +661,15 @@ export default function ResponsiveAppBar({
               <Button
                 fullWidth
                 variant="outlined"
+                startIcon={<DescriptionOutlinedIcon />}
+                onClick={downloadProcessFlow}
+                sx={headerPhoneMenuButtonSx}
+              >
+                Process flow
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
                 startIcon={<LockResetOutlinedIcon />}
                 onClick={openChangePasswordDialog}
                 sx={appBarHeaderProfileFooterButtonSx}
@@ -734,11 +678,11 @@ export default function ResponsiveAppBar({
               </Button>
               <Button
                 fullWidth
-                variant="contained"
+                variant="outlined"
                 color="error"
                 startIcon={<LogoutOutlinedIcon />}
                 onClick={logout}
-                sx={appBarHeaderProfileFooterButtonSx}
+                // sx={appBarHeaderProfileFooterButtonSx}
               >
                 Logout
               </Button>
@@ -753,17 +697,16 @@ export default function ResponsiveAppBar({
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <LockResetOutlinedIcon color="primary" />
-            <Typography variant="h6">Change Password</Typography>
-          </Stack>
-        </DialogTitle>
+        <DialogHeader
+          title="Change password"
+          onClose={closeChangePasswordDialog}
+          closeDisabled={changingPassword}
+        />
         <DialogContent>
-          <Stack spacing={2} sx={dialogContentTop}>
+          <Stack spacing={2}>
             <TextField
               label="Current Password"
-              type="password"
+              type={showPasswords.old ? "text" : "password"}
               value={passwordForm.old_password}
               onChange={(event) =>
                 updatePasswordForm("old_password", event.target.value)
@@ -773,10 +716,11 @@ export default function ResponsiveAppBar({
               autoComplete="current-password"
               error={Boolean(passwordErrors.old_password)}
               helperText={formatPasswordError(passwordErrors.old_password)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.old ? "Hide current password" : "Show current password"} onClick={() => setShowPasswords((value) => ({ ...value, old: !value.old }))} edge="end">{showPasswords.old ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
             />
             <TextField
               label="New Password"
-              type="password"
+              type={showPasswords.next ? "text" : "password"}
               value={passwordForm.new_password}
               onChange={(event) =>
                 updatePasswordForm("new_password", event.target.value)
@@ -785,11 +729,12 @@ export default function ResponsiveAppBar({
               required
               autoComplete="new-password"
               error={Boolean(passwordErrors.new_password)}
-              helperText={formatPasswordError(passwordErrors.new_password)}
+              helperText={formatPasswordError(passwordErrors.new_password) || "Choose a new password that meets your organization's requirements."}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.next ? "Hide new password" : "Show new password"} onClick={() => setShowPasswords((value) => ({ ...value, next: !value.next }))} edge="end">{showPasswords.next ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
             />
             <TextField
               label="Confirm Password"
-              type="password"
+              type={showPasswords.confirm ? "text" : "password"}
               value={passwordForm.confirm_password}
               onChange={(event) =>
                 updatePasswordForm("confirm_password", event.target.value)
@@ -797,27 +742,20 @@ export default function ResponsiveAppBar({
               fullWidth
               required
               autoComplete="new-password"
-              error={Boolean(passwordErrors.confirm_password)}
-              helperText={formatPasswordError(passwordErrors.confirm_password)}
+              error={Boolean(passwordErrors.confirm_password) || Boolean(passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password)}
+              helperText={formatPasswordError(passwordErrors.confirm_password) || (passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password ? "Passwords do not match." : "Re-enter your new password to confirm.")}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.confirm ? "Hide confirmation password" : "Show confirmation password"} onClick={() => setShowPasswords((value) => ({ ...value, confirm: !value.confirm }))} edge="end">{showPasswords.confirm ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
             />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={closeChangePasswordDialog}
-            disabled={changingPassword}
-            startIcon={<CancelOutlinedIcon />}
-          >
-            Cancel
-          </Button>
           <Button
             variant="contained"
             onClick={submitChangePassword}
             disabled={changingPassword}
             startIcon={changingPassword ? undefined : <LockResetOutlinedIcon />}
           >
-            {changingPassword ? "Changing..." : "Change"}
+            {changingPassword ? "Changing..." : "Change password"}
           </Button>
         </DialogActions>
       </Dialog>

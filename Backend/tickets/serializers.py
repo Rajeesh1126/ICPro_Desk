@@ -323,7 +323,7 @@ class SelfTicketLogSerializer(serializers.ModelSerializer):
         fields = ['id', 'self_ticket', 'comments', 'creator', 'created_at', 'creator_name']
 
 
-
+# self ticket serializer
 class SelfTicketSerializer(serializers.ModelSerializer):
     team = serializers.ReadOnlyField()
     team_name = serializers.ReadOnlyField()
@@ -359,6 +359,9 @@ class SelfTicketSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         comments = validated_data.pop('comments', None)
+
+        if validated_data.get('current_status', instance.current_status) in {'closed', 'cancelled'}:
+            validated_data['alarm'] = False
 
         instance = super().update(instance, validated_data)
 

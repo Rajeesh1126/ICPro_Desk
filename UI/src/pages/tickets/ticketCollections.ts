@@ -1,7 +1,8 @@
-import type { TicketCollections, TicketData, TicketLog } from "../../types/dataTypes";
+import type { TicketCollections, TicketData, TicketLog } from "@/types/dataTypes";
 
 export const emptyTicketCollections: TicketCollections = {
   all: [],
+  overview: [],
   assigned: [],
   created: [],
   closed: [],
@@ -10,6 +11,17 @@ export const emptyTicketCollections: TicketCollections = {
 };
 
 const inactiveStatuses = ["rejected", "closed", "recall successful"];
+
+/** Board columns and the statuses each groups; anything else is list-only. */
+export const TICKET_BOARD_GROUPS = [
+  { title: "Open", accentStatus: "open", statuses: ["open", "revised", "reopened"] },
+  {
+    title: "In progress",
+    accentStatus: "assigned",
+    statuses: ["assigned", "not-satisfied", "accepted", "in progress", "recall requested"],
+  },
+  { title: "Completed", accentStatus: "completed", statuses: ["completed"] },
+] as const;
 
 /**
  * Splits one cached `/tickets/` response into every tab's dataset, so
@@ -38,6 +50,7 @@ export function buildTicketCollections(
 
   return {
     all: all.filter(mine),
+    overview: all.filter((ticket) => !inactiveStatuses.includes(ticket.current_status)),
     assigned: all.filter(
       (ticket) =>
         (!inactiveStatuses.includes(ticket.current_status) &&

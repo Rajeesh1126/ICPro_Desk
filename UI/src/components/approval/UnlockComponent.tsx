@@ -12,11 +12,20 @@ import {
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
-import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
-import { compactFieldSx, emptyStateSx, tableHeaderBarSx, tablePanelSx, tableTitleSx, tableViewTitleGroupSx } from "../../styles/common";
-import { insetSx } from "../../styles/tokens";
-import type { timesheetStatusData } from "../../types/dataTypes";
-import ConfirmDialog from "../common/ConfirmDialog";
+import {
+  compactFieldSx,
+  emptyStateSx,
+  tableHeaderBarSx,
+  tableTitleSx,
+  tableViewTitleGroupSx,
+  unlockAvatarSx,
+  unlockListSx,
+  unlockPanelSx,
+  wrapAnywhereSx,
+} from "@/styles/common";
+import { RADIUS_PX } from "@/styles/tokens";
+import type { timesheetStatusData } from "@/types/dataTypes";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 interface UnlockComponentProps {
   unlockRequests: timesheetStatusData[];
@@ -63,14 +72,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
 
   return (
     <Box
-      sx={{
-        ...tablePanelSx({ height: "100%" }),
-        width: { xs: "100%", lg: 320 },
-        minWidth: { xs: "100%", lg: 320 },
-        maxWidth: { xs: "100%", lg: 320 },
-        height: { xs: 280, lg: "100%" },
-        flex: { xs: "0 0 auto", lg: "0 0 320px" },
-      }}
+      sx={unlockPanelSx}
     >
       <Box sx={tableHeaderBarSx}>
         <Box sx={tableViewTitleGroupSx}>
@@ -80,7 +82,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
               Unlock Requests
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Review pending time sheet access requests
+              Review pending timesheet access requests
             </Typography>
           </Box>
         </Box>
@@ -88,7 +90,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
       </Box>
 
       {unlockRequests.length ? (
-        <Stack spacing={1} sx={{ ...insetSx, flex: 1, minHeight: 0, overflowY: "auto" }}>
+        <Stack spacing={1} sx={unlockListSx}>
           {unlockRequests.map((request) => {
             const name = requestName(request);
             const isUpdating = updatingId === request.id;
@@ -98,29 +100,29 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
                 key={request.id}
                 variant="outlined"
                 sx={(theme) => ({
-                  p: 1.25,
-                  borderRadius: 1.5,
+                  p: 1,
+                  borderRadius: RADIUS_PX.md,
                   borderColor: theme.palette.divider,
                   bgcolor: theme.palette.background.default,
                 })}
               >
                 <Stack spacing={1.1}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Avatar sx={{ width: 30, height: 30, bgcolor: "warning.main", fontSize: 13, fontWeight: 800 }}>
+                    <Avatar sx={unlockAvatarSx}>
                       {name.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box minWidth={0} flex={1}>
-                      <Typography noWrap fontWeight={700} fontSize={13}>
+                      <Typography noWrap fontWeight={600} fontSize={13}>
                         {name}
                       </Typography>
                     </Box>
                   </Stack>
 
                   <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
                       REASON
                     </Typography>
-                    <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+                    <Typography variant="body2" sx={wrapAnywhereSx}>
                       {request.unlock_reason?.trim() || "No reason provided."}
                     </Typography>
                   </Box>
@@ -169,13 +171,11 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
         onClose={closeRejectDialog}
         onConfirm={() => void rejectRequest()}
         title="Reject unlock request?"
-        titleIcon={<TaskAltOutlinedIcon />}
         description="Provide a clear reason so the employee knows what must be addressed."
         confirmLabel={updatingId !== null ? "Rejecting..." : "Reject"}
         confirmColor="error"
         confirmIcon={<HighlightOffOutlinedIcon />}
         confirmDisabled={!comments.trim() || updatingId !== null}
-        tone="error"
       >
         <TextField
           autoFocus

@@ -10,13 +10,11 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  centeredDialogActions,
   errorDialogContent,
   errorDialogIcon,
   errorDialogMessage,
-  errorDialogTitle,
   preLineText,
-} from "../../styles/common";
+} from "@/styles/common";
 
 interface Props {
   open: boolean;
@@ -38,12 +36,7 @@ export default function CommonErrorDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle
-        sx={errorDialogTitle}
-      >
-        <ErrorOutlineOutlinedIcon />
-        {title}
-      </DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
 
       <DialogContent
         sx={errorDialogContent}
@@ -65,9 +58,7 @@ export default function CommonErrorDialog({
         </Box>
       </DialogContent>
 
-      <DialogActions
-        sx={centeredDialogActions}
-      >
+      <DialogActions>
         <Button
           variant="contained"
           color="error"

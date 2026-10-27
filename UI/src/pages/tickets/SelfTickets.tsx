@@ -7,21 +7,15 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   Tab,
   Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import TableRowsOutlinedIcon from "@mui/icons-material/TableRowsOutlined";
-import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -29,42 +23,49 @@ import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import CreateSelfTicketModel from "../../components/selfTickets/CreateModel";
-import TicketCardView from "../../components/common/CardView";
-import TableLoadingState from "../../components/common/TableLoadingState";
-import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
-import { formatDate } from "../../components/common/formatDate";
-import { shouldBlinkSelfTicket, getSelfTicketAlertReason } from "../../components/selfTickets/highlight";
+} from "@/components/common/TableView";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import CreateSelfTicketModel from "@/components/selfTickets/CreateModel";
+import TicketCardView from "@/components/common/CardView";
+import {
+  DueDateCell,
+  RecordNumberCell,
+  TicketCalendar,
+  type PageView,
+} from "@/components/common/TicketPageParts";
+
+const DO_LIST_VIEWS: readonly PageView[] = ["table", "card", "calendar"];
+import TableLoadingState from "@/components/common/TableLoadingState";
+import {
+  getReminderState,
+  getSelfTicketAlertReason,
+  isSelfTicketOverdue,
+  shouldBlinkSelfTicket,
+} from "@/components/selfTickets/highlight";
 import type {
   SelfTicketCollections,
   SelfTicketData,
   ReportingEmployees,
-} from "../../types/dataTypes";
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { useSessionState } from "../../utils/useSessionState";
-import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
+} from "@/types/dataTypes";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { useSessionState, WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
+import SelfTicketDetailModel from "@/components/selfTickets/DetailModel";
 import {
-  buttonLabelCompact,
-  buttonLabelFull,
   filterField,
+  headerFilterFieldSx,
   inlineCenterGapSx,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   priorityAlarmRowHighlight,
   priorityDueRowHighlight,
   tabs,
   tabsContainer,
   tablePageContent,
-  toggleButton,
-} from "../../styles/common";
+  viewEnterSx,
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
+import { viewToggleAction } from "@/components/common/headerActions";
 
 
 function loggedUser(): number | null {
@@ -77,12 +78,13 @@ function loggedUser(): number | null {
 export default function SelfTickets() {
   const userId = useMemo(() => loggedUser(), []);
   const [selectedUser, setSelectedUser] = useState("");
-  const [view, setView] = useSessionState<"table" | "card">(
-    "do-list:view",
+  const [view, setView] = useSessionState<PageView>(
+    WORK_ITEM_VIEW_SESSION_KEY,
     "card",
-    (value): value is "table" | "card" => value === "table" || value === "card",
+    (value): value is PageView => DO_LIST_VIEWS.includes(value as PageView),
   );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createTargetDate, setCreateTargetDate] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<SelfTicketData | null>(null);
   const [tabValue, setTabValue] = useSessionState(
@@ -117,6 +119,14 @@ export default function SelfTickets() {
   );
 
   const openCreate = useCallback(() => {
+    setCreateTargetDate(null);
+    setSelectedRow(null);
+    setEditing(false);
+    setDialogOpen(true);
+  }, []);
+
+  const openCreateForDate = useCallback((targetDate: string) => {
+    setCreateTargetDate(targetDate);
     setSelectedRow(null);
     setEditing(false);
     setDialogOpen(true);
@@ -136,6 +146,7 @@ export default function SelfTickets() {
 
   const closeDialog = useCallback(() => {
     setDialogOpen(false);
+    setCreateTargetDate(null);
     setEditing(false);
     setSelectedRow(null);
   }, []);
@@ -167,40 +178,20 @@ export default function SelfTickets() {
   const columns = useMemo<ColumnData<SelfTicketData>[]>(
     () => [
       {
-        label: "#",
-        width: 45,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
         label: "Task Number",
         // This cell contains three action icons and the task number. Reserve
         // enough fixed-table width for an active reminder bell as well.
-        width: 280,
+        width: 220,
         render: (row) => (
-          <Box sx={{ ...inlineCenterGapSx, flexWrap: "nowrap" }}>
-            <Tooltip title="View details">
-              <IconButton
-                aria-label={`View ${row.number}`}
-                onClick={() => openDetails(row)}
-              >
-                <VisibilityOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Edit task">
-              <span><IconButton
-                aria-label={`Edit ${row.number}`}
-                onClick={() => openEdit(row)}
-                disabled={
-                  row.creator !== userId || row.current_status !== "open"
-                }
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton></span>
-            </Tooltip>
-            <Typography variant="body2" fontWeight={700}>{row.number}</Typography>
-            {row.alarm && (
-              <Tooltip title="Acknowledge reminder">
+          <RecordNumberCell
+            number={row.number}
+            editTitle="Edit task"
+            editDisabled={row.creator !== userId || row.current_status !== "open"}
+            onView={() => openDetails(row)}
+            onEdit={() => openEdit(row)}
+          >
+            {row.alarm && row.current_status === "open" && row.creator === userId && (
+              <Tooltip title="Acknowledge reminder: marks it as seen and clears the alert">
                 <IconButton
                   aria-label={`Acknowledge reminder ${row.number}`}
                   color="warning"
@@ -210,58 +201,60 @@ export default function SelfTickets() {
                 </IconButton>
               </Tooltip>
             )}
-          </Box>
+          </RecordNumberCell>
         ),
       },
-      { label: "Subject", dataKey: "task", width: 350  },
+      { label: "Subject", dataKey: "task", width: 'auto' },
       { label: "Owner", dataKey: "creator_name" },
-      { label: "Status", dataKey: "current_status" },
+      { label: "Status", dataKey: "current_status", width: 120 },
       {
         label: "Due Date",
         dataKey: "target_date",
-        render: (row) => {
-          const overdue = getSelfTicketAlertReason(row) === "target-date";
-          return (
-            <Box sx={inlineCenterGapSx}>
-              <Typography variant="body2">
-                {row.target_date ? formatDate(row.target_date) : "N/A"}
-              </Typography>
-              {overdue && (
-                <Typography
-                  component="span"
-                  variant="caption"
-                  sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, color: "error.main", fontWeight: 700 }}
-                >
-                  <EventBusyOutlinedIcon sx={{ fontSize: 14 }} aria-hidden="true" />
-                  Overdue
-                </Typography>
-              )}
-            </Box>
-          );
-        },
+        render: (row) => (
+          <DueDateCell
+            date={row.target_date}
+            overdue={getSelfTicketAlertReason(row) === "target-date"}
+          />
+        ),
+        minWidth: 'auto'
       },
-      { label: "Type", dataKey: "type" },
-      { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours" },
+      { label: "Type", dataKey: "type", format: "label" },
+      { label: "Priority", dataKey: "priority", width: 100, },
+      { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
       {
         label: "Reminder",
-        width: 120,
-        render: (row) =>
-          row.alarm ? (
+        width: 130,
+        render: (row) => {
+          const reminder = getReminderState(row);
+          if (reminder === "active") {
+            return (
+              <Box sx={inlineCenterGapSx}>
+                <NotificationsActiveOutlinedIcon color="warning" fontSize="small" aria-hidden="true" />
+                <Typography color="warning.main" fontWeight={600} fontSize={13.5}>
+                  Active
+                </Typography>
+              </Box>
+            );
+          }
+          if (reminder === "scheduled") {
+            return (
+              <Box sx={inlineCenterGapSx}>
+                <NotificationsNoneOutlinedIcon fontSize="small" aria-hidden="true" />
+                <Typography fontSize={13.5}>
+                  Every {row.reminder_interval} day{row.reminder_interval === 1 ? "" : "s"}
+                </Typography>
+              </Box>
+            );
+          }
+          return (
             <Box sx={inlineCenterGapSx}>
-              <NotificationsActiveOutlinedIcon color="warning" fontSize="small" aria-hidden="true" />
-              <Typography color="warning.main" fontWeight={700} fontSize={13}>
-                Active
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={inlineCenterGapSx}>
-              <NotificationsOffOutlinedIcon color="disabled" fontSize="small" />
-              <Typography color="text.secondary" fontSize={13}>
+              <NotificationsOffOutlinedIcon color="disabled" fontSize="small" aria-hidden="true" />
+              <Typography color="text.secondary" fontSize={13.5}>
                 Off
               </Typography>
             </Box>
-          ),
+          );
+        },
       },
     ],
     [requestAcknowledgeAlarm, userId, openDetails, openEdit],
@@ -288,72 +281,51 @@ export default function SelfTickets() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>Do List</Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Organize personal actions, reminders, and follow-ups.
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: "row", sm: "row" }}
-            spacing={1}
-            sx={pageHeaderActions}
-          >
-            {tabValue !== 0 && (
-              <FormControl sx={[filterField, { flex: { xs: "1 1 140px", sm: "0 0 auto" }, minWidth: { xs: 0, sm: 210 } }]}>
-                <InputLabel>Employee</InputLabel>
-                <Select
-                  value={selectedUser}
-                  label="Employee"
-                  onChange={(event) => setSelectedUser(event.target.value)}
-                >
-                  <MenuItem value="">
-                    <em>All employees</em>
-                  </MenuItem>
-                  {users.map((user) => (
-                    <MenuItem key={user.id} value={user.id}>
-                      {user.first_name}
+        <PageHeader
+          title="Do List"
+          subtitle="Organize personal actions, reminders, and follow-ups."
+          actions={[
+            tabValue !== 0 && {
+              key: "employee",
+              priority: "high",
+              // A select needs width: its own row on phones.
+              mobile: "row",
+              node: (
+                <FormControl sx={[filterField, headerFilterFieldSx]}>
+                  <InputLabel>Employee</InputLabel>
+                  <Select
+                    value={selectedUser}
+                    label="Employee"
+                    onChange={(event) => setSelectedUser(event.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>All employees</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {tabValue === 0 && (
-              <Button
-                startIcon={<AddOutlinedIcon />}
-                variant="contained"
-                onClick={openCreate}
-              >
-                <Box component="span" sx={buttonLabelFull}>New Task</Box>
-                <Box component="span" sx={buttonLabelCompact}>New</Box>
-              </Button>
-            )}
-
-            <ToggleButtonGroup
-              exclusive
-              value={view}
-              onChange={(_, next: "table" | "card" | null) =>
-                next && setView(next)
-              }
-              aria-label="Task view"
-              sx={toggleButton}
-            >
-              <Tooltip title="Table view" arrow>
-                <ToggleButton value="table" aria-label="Table view">
-                  <TableRowsOutlinedIcon fontSize="small" />
-                </ToggleButton>
-              </Tooltip>
-
-              <Tooltip title="Board view" arrow>
-                <ToggleButton value="card" aria-label="Board view">
-                  <ViewKanbanOutlinedIcon fontSize="small" />
-                </ToggleButton>
-              </Tooltip>
-            </ToggleButtonGroup>
-          </Stack>
-        </Box>
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.first_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ),
+            },
+            tabValue === 0 && {
+              key: "new",
+              priority: "high",
+              node: (
+                <Button
+                  startIcon={<AddOutlinedIcon />}
+                  variant="contained"
+                  onClick={openCreate}
+                >
+                  New Task
+                </Button>
+              ),
+            },
+            viewToggleAction<PageView>(DO_LIST_VIEWS, view, setView),
+          ]}
+        />
 
         <Box sx={tabsContainer}>
           <Tabs
@@ -380,8 +352,19 @@ export default function SelfTickets() {
           </Tabs>
         </Box>
 
-        <Box sx={tablePageContent}>
-          {view === "card" && loading ? (
+        <Box key={view} sx={[tablePageContent, viewEnterSx]}>
+          {view === "calendar" ? (
+            <TicketCalendar
+              tickets={filteredRows}
+              loading={loading}
+              error={ticketsQuery.isError}
+              onOpen={openDetails}
+              onCreate={openCreateForDate}
+              noun="task"
+              personOf={(task) => task.creator_name}
+              isOverdue={isSelfTicketOverdue}
+            />
+          ) : view === "card" && loading ? (
             <TableLoadingState variant="cards" label="Loading tasks" />
           ) : view === "card" ? (
             <TicketCardView
@@ -398,12 +381,13 @@ export default function SelfTickets() {
               tableMinWidth="100%"
               getRowSx={(row) =>
                 row.alarm === true
-                  ? priorityAlarmRowHighlight(row.priority)
+                  ? priorityAlarmRowHighlight()
                   : shouldBlinkSelfTicket(row)
-                  ? priorityDueRowHighlight(row.priority)
+                  ? priorityDueRowHighlight()
                   : undefined
               }
               tableHead="Tasks"
+              fitContent
               loading={loading}
               emptyTitle="No tasks in this view"
               emptyDescription="Add a task or reminder to start your Do List."
@@ -417,6 +401,7 @@ export default function SelfTickets() {
           open={dialogOpen}
           handleClose={closeDialog}
           Data={null}
+          initialTargetDate={createTargetDate}
         />
       )}
       {selectedRow && editing && (
@@ -436,15 +421,17 @@ export default function SelfTickets() {
       <ConfirmDialog
         open={Boolean(acknowledgeTarget)}
         title="Acknowledge Reminder"
-        description={`Are you sure you want to acknowledge reminder ${
+        description={`Acknowledging marks the reminder for task ${
           acknowledgeTarget?.number ? `#${acknowledgeTarget.number}` : ""
-        }?`}
-        titleIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
+        } as seen and clears its alert. The task stays open${
+          acknowledgeTarget?.reminder_interval
+            ? `, and the next reminder follows its ${acknowledgeTarget.reminder_interval}-day interval`
+            : ""
+        }.`}
         confirmLabel={acknowledging ? "Acknowledging..." : "Acknowledge"}
         confirmColor="warning"
         confirmIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
         confirmDisabled={acknowledging}
-        tone="warning"
         onClose={closeAcknowledgeDialog}
         onConfirm={() => void confirmAcknowledgeAlarm()}
       />

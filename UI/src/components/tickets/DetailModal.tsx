@@ -1,24 +1,24 @@
 import { useMemo, useState } from "react";
 import { Dialog, DialogActions, DialogContent, Grid } from "@mui/material";
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { showNotification } from "../../api/notificationService";
-import type { TicketData, UserSummary } from "../../types/dataTypes";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { showNotification } from "@/api/notificationService";
+import type { TicketData, UserSummary } from "@/types/dataTypes";
 import {
   buildStatusChangePayload,
   getAvailableActionGroups,
   STATUS_MESSAGES,
   type StatusChangeExtras,
   type TicketActionId,
-} from "./detail/ticketActions";
+} from "@/components/tickets/detail/ticketActions";
 import {
   TicketActivityTimeline,
   TicketAttachments,
   TicketDetailHeader,
   TicketSummaryPanel,
-} from "./detail/TicketDetailSections";
-import TicketActionButtons from "./detail/TicketActionButtons";
-import TicketActionDialogs from "./detail/TicketActionDialogs";
+} from "@/components/tickets/detail/TicketDetailSections";
+import TicketActionButtons from "@/components/tickets/detail/TicketActionButtons";
+import TicketActionDialogs from "@/components/tickets/detail/TicketActionDialogs";
 
 const readStoredJson = (key: string) => {
   try {
@@ -43,7 +43,12 @@ export default function TicketDetailModal({
   data: TicketData;
 }) {
   const userId = readStoredJson("user") as number | null;
-  const userName = readStoredJson("full_name") as string | null;
+  // The login stores the profile under "currentUser"; there is no separate
+  // "full_name" key, so build the name the status-change payload records.
+  const currentUser = readStoredJson("currentUser") as { first_name?: string; last_name?: string } | null;
+  const userName =
+    [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(" ") ||
+    (localStorage.getItem("first_name") ?? null);
 
   // Shared, cached user list for reassignment (fetched only while open).
   const usersQuery = useApiQuery<UserSummary[]>("/users/", undefined, { enabled: open });
@@ -84,19 +89,22 @@ export default function TicketDetailModal({
         <TicketDetailHeader ticket={data} onClose={onClose} />
 
         <DialogContent>
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5} alignItems="stretch">
             <Grid size={{ xs: 12, md: 8 }}>
               <TicketSummaryPanel ticket={data} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TicketActivityTimeline logs={data.logs} />
+              <TicketActivityTimeline logs={data.logs} currentUserId={userId} />
             </Grid>
           </Grid>
           <TicketAttachments files={data.files} />
         </DialogContent>
 
         <DialogActions>
-          <TicketActionButtons groups={getAvailableActionGroups(data, userId)} onAction={openAction} />
+          <TicketActionButtons
+            groups={getAvailableActionGroups(data, userId)}
+            onAction={openAction}
+          />
         </DialogActions>
       </Dialog>
 

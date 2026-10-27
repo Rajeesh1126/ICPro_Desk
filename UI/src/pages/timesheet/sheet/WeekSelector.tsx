@@ -1,14 +1,14 @@
-import { Chip, IconButton, Paper, Stack } from "@mui/material";
+import { Box, Chip, IconButton, Paper, Stack } from "@mui/material";
 import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import DateRange from "../../../components/common/DateRange";
+import DateRange from "@/components/common/DateRange";
 import {
+  calendarNavControlsSx,
   centeredTextGroup,
   compactWeekChip,
   nowrapResponsiveText,
-  squareIconButton,
   weekSelectorPanel,
-} from "../../../styles/common";
+} from "@/styles/common";
 
 interface WeekSelectorProps {
   weekNumber: number;
@@ -30,9 +30,11 @@ export default function WeekSelector({
 }: WeekSelectorProps) {
   return (
     <Paper elevation={0} sx={weekSelectorPanel(compact)}>
-      <IconButton aria-label="Previous week" onClick={onPrevious} sx={squareIconButton}>
-        <ChevronLeftOutlinedIcon />
-      </IconButton>
+      <Box sx={calendarNavControlsSx}>
+        <IconButton aria-label="Previous week" onClick={onPrevious}>
+          <ChevronLeftOutlinedIcon />
+        </IconButton>
+      </Box>
 
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -41,7 +43,12 @@ export default function WeekSelector({
         justifyContent="center"
         sx={centeredTextGroup}
       >
-        <Chip label={`Week ${weekNumber}`} color="primary" variant="outlined" sx={compactWeekChip} />
+        <Chip
+          label={`Week ${weekNumber}`}
+          color="primary"
+          variant="outlined"
+          sx={compactWeekChip}
+        />
         <DateRange
           start={weekStart}
           end={weekEnd}
@@ -51,9 +58,11 @@ export default function WeekSelector({
         />
       </Stack>
 
-      <IconButton aria-label="Next week" onClick={onNext} sx={squareIconButton}>
-        <ChevronRightOutlinedIcon />
-      </IconButton>
+      <Box sx={calendarNavControlsSx}>
+        <IconButton aria-label="Next week" onClick={onNext}>
+          <ChevronRightOutlinedIcon />
+        </IconButton>
+      </Box>
     </Paper>
   );
 }

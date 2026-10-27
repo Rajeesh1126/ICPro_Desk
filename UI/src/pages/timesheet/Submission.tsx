@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Skeleton, Stack, useMediaQuery, useTheme } from "@mui/material";
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { showNotification } from "../../api/notificationService";
-import MobileDayEntry from "../../components/timesheet/MobileDayEntry";
-import { formatHoursMinutes, hoursInputError, secondsToDecimalHours } from "../../utils/hoursMinutes";
-import type { SubmissionProject, UsersData } from "../../types/dataTypes";
-import SubmissionGrid, { type BudgetOwnerOption } from "./submission/SubmissionGrid";
-import SubmissionActionBar from "./submission/SubmissionActionBar";
+import { 
+  // Alert, AlertTitle, alpha, 
+  Box, Skeleton, Stack, useMediaQuery, useTheme } from "@mui/material";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { showNotification } from "@/api/notificationService";
+import MobileDayEntry from "@/components/timesheet/MobileDayEntry";
+import { formatHoursMinutes, hoursInputError, secondsToDecimalHours } from "@/utils/hoursMinutes";
+import type { SubmissionProject, UsersData } from "@/types/dataTypes";
+import SubmissionGrid, { type BudgetOwnerOption } from "@/pages/timesheet/submission/SubmissionGrid";
+import SubmissionActionBar from "@/pages/timesheet/submission/SubmissionActionBar";
 import {
   applySavedDraft,
   budgetOwnerMessage,
@@ -35,7 +37,11 @@ import {
   type TaskRef,
   type TimesheetSubmitEntry,
   type WeeklyTimesheetLog,
-} from "./submission/timesheetMath";
+} from "@/pages/timesheet/submission/timesheetMath";
+import {
+  submissionLayoutSx,
+  submissionLoadingSx,
+} from "@/styles/common";
 
 const FilterBase = [
   "Super Admin",
@@ -65,6 +71,9 @@ type SubmissionProps = {
   weeklyStatus: WeeklyTimesheetLog;
   /** True while the selected week's status is loading. */
   weeklyStatusLoading?: boolean;
+  /** Opens Preview / Submit from the bottom bar. */
+  onSubmit?: () => void;
+  submitDisabled?: boolean;
 };
 
 const toggleId = (list: number[], id: number) =>
@@ -108,6 +117,8 @@ function Submission({
   onUnsavedHourChangesChange,
   weeklyStatus,
   weeklyStatusLoading = false,
+  onSubmit,
+  submitDisabled,
 }: SubmissionProps) {
   const theme = useTheme();
   // Below `sm` the 1,180px grid is replaced by a one-day-at-a-time editor.
@@ -225,6 +236,9 @@ function Submission({
     () => getDailyHoursValidation(weekDayTotals, weekDays, estimatedWeekHours),
     [estimatedWeekHours, weekDayTotals, weekDays],
   );
+
+  const incompleteRequiredDayCount = dailyHoursValidation.missingRequiredDays.length;
+  const requiredDaysComplete = incompleteRequiredDayCount === 0;
   const submitEntries = useMemo(() => buildSubmitEntries(projects, weekDays), [projects, weekDays]);
   const missingBudgetOwnerTaskNames = useMemo(
     () => findTasksMissingBudgetOwner(projects, weekDays),
@@ -340,17 +354,11 @@ function Submission({
   // ---- Render -----------------------------------------------------------------------
   return (
     <Box
-      sx={{
-        width: "100%",
-        height: "100%",
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
+      sx={submissionLayoutSx}
     >
+
       {loading && projects.length === 0 ? (
-        <Stack spacing={1} role="status" aria-label="Loading timesheet" sx={{ flex: 1, p: 1 }}>
+        <Stack spacing={1} role="status" aria-label="Loading timesheet" sx={submissionLoadingSx}>
           <Skeleton variant="rounded" height={44} />
           {Array.from({ length: 6 }, (_, index) => (
             <Skeleton key={index} variant="rounded" height={isPhone ? 96 : 40} />
@@ -383,6 +391,7 @@ function Submission({
         <SubmissionGrid
           projects={projects}
           weekDays={weekDays}
+          estimatedWeekHours={estimatedWeekHours}
           weekDayTotals={weekDayTotals}
           weekTotal={weekTotal}
           expandedProjects={expandedProjects}
@@ -412,6 +421,9 @@ function Submission({
         saveDisabled={savingDraft || lock.isLockedSubmitted || weeklyStatusLoading}
         saving={savingDraft}
         onSave={() => void saveDraft()}
+        onSubmit={onSubmit}
+        showSubmit={requiredDaysComplete}
+        submitDisabled={submitDisabled || weeklyStatusLoading}
       />
     </Box>
   );

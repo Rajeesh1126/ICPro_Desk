@@ -39,6 +39,7 @@ export const queryClient = new QueryClient({
  *   never a stale copy that changes in front of the user.
  */
 const LIVE_ENDPOINT_PREFIXES = [
+  "/calendar/",
   "/tickets/",
   "/self-tickets/",
   "/summary/",

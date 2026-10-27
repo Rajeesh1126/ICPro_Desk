@@ -7,8 +7,8 @@ import {
 
 import type { ReactNode } from "react";
 
-import CommonSnackbar from "../components/common/CommonSnackbar";
-import { registerNotificationHandler } from "../api/notificationService";
+import CommonSnackbar from "@/components/common/CommonSnackbar";
+import { registerNotificationHandler } from "@/api/notificationService";
 
 /* eslint-disable react-refresh/only-export-components */
 

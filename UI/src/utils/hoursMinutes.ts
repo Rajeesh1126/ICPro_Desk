@@ -32,11 +32,24 @@ export function formatHoursMinutes(seconds: number) {
 /** Same value as a number (legacy callers that call `.toFixed(2)`). */
 export const hoursMinutesValue = (seconds: number) => Number(formatHoursMinutes(seconds));
 
-/** Unambiguous words, e.g. "7 h 30 m", "45 h", "0 h". */
+/** Unambiguous words, e.g. "7 h 30 m", "45 h", "30 m", "0 h". */
 export function describeHoursMinutes(seconds: number) {
   const { hours, minutes } = split(seconds);
   if (!minutes) return `${hours} h`;
+  if (!hours) return `${minutes} m`;
   return `${hours} h ${minutes} m`;
+}
+
+/**
+ * Read-only display of DECIMAL hours (tickets, budgets): 2.5 → "2 h 30 m",
+ * 0.5 → "30 m", -12 → "−12 h". The app-wide format for hour figures.
+ */
+export function formatDecimalHours(value: unknown, fallback = "—") {
+  if (value == null || value === "") return fallback;
+  const hours = Number(value);
+  if (Number.isNaN(hours)) return fallback;
+  const text = describeHoursMinutes(Math.abs(hours) * 3600);
+  return hours < 0 ? `−${text}` : text;
 }
 
 /** Decimal hours (7 h 30 m → 7.5) for comparisons and arithmetic only. */

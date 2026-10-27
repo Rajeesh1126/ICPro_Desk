@@ -1,5 +1,5 @@
 import { isValidElement, type ReactNode } from "react";
-import { formatIfDate } from "../../utils/dateRange";
+import { formatIfDate } from "@/utils/dateRange";
 
 type SearchableColumn<T> = {
   dataKey?: keyof T;

@@ -49,18 +49,20 @@ import TuneIcon from "@mui/icons-material/Tune";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 import WorkHistoryOutlinedIcon from "@mui/icons-material/WorkHistoryOutlined";
-import Header from "../components/appBar/Header";
-import { preloadRoute } from "../routes/lazyPages";
-import { useSessionExpiryWatch } from "../api/session";
-import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { prefetchTeamSummary } from "./tickets/teamSummaryQuery";
-import { prefetchApi } from "../api/useApiQuery";
-import ErrorBoundary from "../components/common/ErrorBoundary";
-import ErrorPage from "./ErrorPage";
-import PageLoadingSkeleton from "../components/common/PageLoadingSkeleton";
+import Header from "@/components/appBar/Header";
+import { preloadRoute } from "@/routes/lazyPages";
+import { useSessionExpiryWatch } from "@/api/session";
+import { useDocumentTitle } from "@/utils/useDocumentTitle";
+import { prefetchTeamSummary } from "@/pages/tickets/teamSummaryQuery";
+import { prefetchApi } from "@/api/useApiQuery";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
+import ErrorPage from "@/pages/ErrorPage";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 import {
   appMain,
   appShell,
+  positionRelativeSx,
+  skipLinkSx,
   appShellBody,
   listItemReset,
   mobileDrawer,
@@ -72,7 +74,7 @@ import {
   sidebarPanel,
   sidebarSection,
   sidebarSectionDivider,
-} from "../styles/common";
+} from "@/styles/common";
 
 const sidebarWidth = 265;
 const sidebarCollapsedWidth = 76;
@@ -94,6 +96,13 @@ const pages: readonly SidebarPage[] = [
     path: "/Home",
     icon: <DashboardOutlinedIcon />,
     activeIcon: <DashboardIcon />,
+  },
+  {
+    label: "ICPro Calendar",
+    path: "/Home/ICProCalendar",
+    icon: <CalendarMonthOutlinedIcon />,
+    activeIcon: <CalendarMonthIcon />,
+    codeName: "view_calendarentry",
   },
   {
     label: "Do List",
@@ -157,10 +166,12 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/TimesheetAnalysis",
     icon: <QueryStatsOutlinedIcon />,
     activeIcon: <QueryStatsIcon />,
-    codeName: "access_timesheet_analysis",
+    // Same permission as the route (App.tsx), so everyone who can open the
+    // page can also find it in the sidebar.
+    codeName: "access_timesheet",
   },
   {
-    label: "Users Management",
+    label: "Users",
     section: "User Management",
     path: "/Home/Users",
     icon: <ManageAccountsOutlinedIcon />,
@@ -168,7 +179,7 @@ const pages: readonly SidebarPage[] = [
     codeName: "access_user_management",
   },
   {
-    label: "Roles Management",
+    label: "Roles & Permissions",
     section: "User Management",
     path: "/Home/Roles",
     icon: <AdminPanelSettingsOutlinedIcon />,
@@ -200,21 +211,22 @@ const pages: readonly SidebarPage[] = [
     codeName: "access_document_template",
   },
   {
-    label: "Suggestion / Feedback",
-    section: "General",
-    path: "/Home/Suggestions",
-    icon: <RateReviewOutlinedIcon />,
-    activeIcon: <RateReviewIcon />,
-    codeName: "access_system_suggetions",
-  },
-  {
-    label: "Lesson Learnt",
+    label: "Lessons Learnt",
     section: "General",
     path: "/Home/LessonLearnt",
     icon: <LightbulbOutlinedIcon />,
     activeIcon: <LightbulbIcon />,
     codeName: "access_lesson_learnt",
   },
+  {
+    label: "Suggestion / Feedback",
+    section: "General",
+    path: "/Home/Suggestions",
+    icon: <RateReviewOutlinedIcon />,
+    activeIcon: <RateReviewIcon />,
+    codeName: "access_system_suggetions",
+  }
+  
 ] as const;
 
 function getStoredPermissions(): string[] {
@@ -260,7 +272,7 @@ export default function HomePage() {
   useSessionExpiryWatch();
   const location = useLocation();
   const isSidebarLayout = useMediaQuery((theme) => theme.breakpoints.up("md"));
-  // Like Gmail, the expanded/collapsed choice survives reloads.
+  // the expanded/collapsed choice survives reloads.
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
     try {
       return localStorage.getItem(sidebarOpenKey) !== "false";
@@ -323,7 +335,7 @@ export default function HomePage() {
           return (
             <Box key={page.path} component="li" sx={listItemReset}>
               {showSectionHeader && (
-                <Box sx={{ position: "relative" }}>
+                <Box sx={positionRelativeSx}>
                   <Typography
                     component="div"
                     className="sidebar-section-label"
@@ -370,21 +382,7 @@ export default function HomePage() {
       <Box
         component="a"
         href="#main-content"
-        sx={{
-          position: "absolute",
-          left: 8,
-          top: -48,
-          zIndex: (theme) => theme.zIndex.tooltip + 1,
-          px: 1.5,
-          py: 1,
-          borderRadius: 1,
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          fontWeight: 700,
-          textDecoration: "none",
-          transition: "top 120ms ease",
-          "&:focus": { top: 8 },
-        }}
+        sx={skipLinkSx}
       >
         Skip to main content
       </Box>
@@ -432,7 +430,7 @@ export default function HomePage() {
             component="main"
             id="main-content"
             tabIndex={-1}
-            sx={{ ...appMain, position: "relative", "&:focus": { outline: "none" } }}
+            sx={appMain}
           >
             {/*
               The Suspense boundary stays mounted across navigations. Because

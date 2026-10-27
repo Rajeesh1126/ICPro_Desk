@@ -1,9 +1,9 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { showGlobalError } from "./errorDialogService";
-import { formatValidationErrors } from "../utils/errorUtils";
-import { expireSession } from "./session";
-import { invalidateAfterMutation } from "./queryClient";
+import { showGlobalError } from "@/api/errorDialogService";
+import { formatValidationErrors } from "@/utils/errorUtils";
+import { expireSession } from "@/api/session";
+import { invalidateAfterMutation } from "@/api/queryClient";
 
 declare module "axios" {
     export interface AxiosRequestConfig {

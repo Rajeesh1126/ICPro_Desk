@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
   Box,
@@ -16,36 +16,32 @@ import {
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import PsychologyAltOutlinedIcon from "@mui/icons-material/PsychologyAltOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import FileUploadField from "../../components/common/FileUploadField";
-import { showNotification } from "../../api/notificationService";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import DialogHeader from "../../components/common/DialogHeader";
-import { type ColumnData } from "../../components/common/TableView";
-import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import FileUploadField from "@/components/common/FileUploadField";
+import { showNotification } from "@/api/notificationService";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import DialogHeader from "@/components/common/DialogHeader";
+import ActionDivider from "@/components/common/ActionDivider";
+import { type ColumnData } from "@/components/common/TableView";
+import { CollapsibleTableView } from "@/components/common/CollapsibleTableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
   contentPanel,
-  dialogContentTop,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   deleteIconSx,
-} from "../../styles/common";
-import { formatDateTime } from "../../components/common/formatDate";
-import { getStoredPermissions } from "../../utils/permissions";
+  rowDeleteButtonSx,
+  preWrapTextSx,
+} from "@/styles/common";
+import { formatDateTime } from "@/components/common/formatDate";
+import { getStoredPermissions } from "@/utils/permissions";
+import PageHeader from "@/components/common/PageHeader";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
@@ -252,12 +248,6 @@ export default function LessonLearnt() {
   const columns = useMemo<ColumnData<LessonLearntRow>[]>(
     () => [
       {
-        label: "#",
-        width: { xs: 40, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
         label: "Project",
         dataKey: "project",
         width: 280,
@@ -271,12 +261,16 @@ export default function LessonLearnt() {
         label: "Event",
         dataKey: "event",
         width: "auto",
+        wrap: true,
       },
       {
         label: "Actions Taken",
         dataKey: "actions",
         width: 260,
+        wrap: true,
       },
+      { label: "Limitations", dataKey: "limitations", width: 260, wrap: true },
+      { label: "Remarks", dataKey: "remarks", width: 260, wrap: true },
       {
         label: "Status",
         dataKey: "status",
@@ -296,11 +290,11 @@ export default function LessonLearnt() {
       {
         label: "Attachment",
         width: 160,
-        render: (row) => getFileName(row.file),
+        render: (row) => row.file ? <Button size="small" startIcon={<DownloadOutlinedIcon />} onClick={() => downloadFile(row)}>{getFileName(row.file)}</Button> : "No attachment",
       },
       {
         label: "Actions",
-        width: 120,
+        width: 140,
         render: (row) => (
           <Stack direction="row" spacing={0}>
             {canChangeLesson && (
@@ -314,6 +308,9 @@ export default function LessonLearnt() {
                 </IconButton>
               </Tooltip>
             )}
+
+            <ActionDivider />
+            
             <Tooltip title="Download attachment">
               <span>
                 <IconButton
@@ -325,9 +322,13 @@ export default function LessonLearnt() {
                 </IconButton>
               </span>
             </Tooltip>
+
+            <ActionDivider />
+            
             {canDeleteLesson && (
               <Tooltip title="Delete lesson">
                 <IconButton
+                  sx={rowDeleteButtonSx}
                   aria-label="Delete lesson"
                   onClick={() => setDeleteLesson(row)}
                 >
@@ -344,7 +345,7 @@ export default function LessonLearnt() {
   const primaryColumns = useMemo(
     () =>
       columns.filter((column) =>
-        ["#", "Project", "Event", "Status", "Shared By", "Actions"].includes(
+        ["Project", "Event", "Status", "Shared By", "Created Date", "Actions"].includes(
           column.label,
         ),
       ),
@@ -353,42 +354,42 @@ export default function LessonLearnt() {
   const detailColumns = useMemo(
     () =>
       columns.filter((column) =>
-        ["Category", "Actions Taken", "Created Date", "Attachment"].includes(
+        ["Category", "Actions Taken", "Attachment", "Limitations", "Remarks"].includes(
           column.label,
         ),
-      ),
+      ).concat([
+        { label: "Full Event / Learning", dataKey: "event", width: "auto", render: (row: LessonLearntRow) => <Typography variant="body2" sx={preWrapTextSx}>{row.event || "—"}</Typography> },
+      ]),
     [columns],
   );
 
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>
-              Lessons Learned
-            </Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Capture project execution learning and shared experience.
-            </Typography>
-          </Box>
-          {canAddLesson && (
-            <Box sx={pageHeaderActions}>
-              <Button
-                variant="contained"
-                startIcon={<AddOutlinedIcon />}
-                onClick={openCreateDialog}
-              >
-                <Box component="span" sx={buttonLabelFull}>
-                  Add Lesson
-                </Box>
-                <Box component="span" sx={buttonLabelCompact}>
-                  Add
-                </Box>
-              </Button>
-            </Box>
-          )}
-        </Box>
+        <PageHeader
+          title="Lessons Learnt"
+          subtitle="Capture project execution learning and shared experience."
+          actions={[
+            canAddLesson && {
+              key: "add",
+              priority: "high",
+              node: (
+                <Button
+                  variant="contained"
+                  startIcon={<AddOutlinedIcon />}
+                  onClick={openCreateDialog}
+                >
+                  <Box component="span" sx={buttonLabelFull}>
+                    Add Lesson
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    Add
+                  </Box>
+                </Button>
+              ),
+            },
+          ]}
+        />
 
         <Box sx={contentPanel}>
           <CollapsibleTableView<LessonLearntRow>
@@ -397,9 +398,9 @@ export default function LessonLearnt() {
             mobileColumns={columns}
             rows={lessons}
             getRowId={(row) => row.id}
-            height="100%"
+            height={lessons.length <= 3 ? "auto" : "100%"}
             tableMinWidth={900}
-            tableHead=""
+            tableHead="Lessons"
             loading={loading}
             emptyTitle="No lessons recorded yet"
             emptyDescription="Add a lesson to share what the team learned on a project."
@@ -416,11 +417,10 @@ export default function LessonLearnt() {
       >
         <DialogHeader
           title={editingLesson ? "Update Lesson" : "Add Lesson"}
-          icon={<PsychologyAltOutlinedIcon />}
           onClose={discard.requestClose}
         />
         <DialogContent>
-          <Stack spacing={2} sx={dialogContentTop}>
+          <Stack spacing={2}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 label="Project"
@@ -499,22 +499,14 @@ export default function LessonLearnt() {
         </DialogContent>
         <DialogActions>
           <Button
-            variant="outlined"
-            onClick={discard.requestClose}
-            disabled={saving}
-            startIcon={<CancelOutlinedIcon />}
-          >
-            Cancel
-          </Button>
-          <Button
             onClick={submitLesson}
             disabled={saving}
             variant="contained"
             startIcon={
               saving ? undefined : editingLesson ? (
-                <UpdateOutlinedIcon />
+                <SaveOutlinedIcon />
               ) : (
-                <SendOutlinedIcon />
+                <CheckOutlinedIcon />
               )
             }
           >
@@ -528,11 +520,9 @@ export default function LessonLearnt() {
         onClose={() => setDeleteLesson(null)}
         title="Delete Lesson"
         description={`Delete "${deleteLesson?.event || "this lesson learnt"}"?`}
-        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
         confirmLabel="Delete"
         confirmColor="error"
         confirmIcon={<DeleteOutlinedIcon />}
-        tone="error"
         onConfirm={handleDeleteLesson}
       />
     </Box>

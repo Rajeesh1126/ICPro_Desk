@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { MenuItem, Select } from "@mui/material";
-import type { ColumnData } from "../../common/TableView";
-import type { TaskRow } from "../../../types/dataTypes";
+import type { ColumnData } from "@/components/common/TableView";
+import type { TaskRow } from "@/types/dataTypes";
 import {
   canDecideTask,
   canRejectTask,
@@ -9,8 +9,12 @@ import {
   RATING_OPTIONS,
   type ApprovalAction,
   type ApprovalWeekDay,
-} from "./approvalData";
-import { ActionButton, HourCell, JobCell, StatusBadge } from "./ApprovalTableCells";
+} from "@/components/approval/detail/approvalData";
+import { ActionButton, HourCell, JobCell } from "@/components/approval/detail/ApprovalTableCells";
+import { StatusPill } from "@/components/common/StatusPill";
+import {
+  approvalStatusSelectSx,
+} from "@/styles/common";
 
 interface ApprovalColumnsOptions {
   days: ApprovalWeekDay[];
@@ -70,7 +74,7 @@ export function useApprovalColumns({
               inputProps={{ "aria-label": `Rating for ${row.task}` }}
               disabled={!canRejectTask(row) || busyAction(row) !== null}
               onChange={(event) => onRatingChange(row.id, String(event.target.value))}
-              sx={{ width: 118, height: 32, fontSize: 12, "& .MuiSelect-select": { py: 0.5, px: 1 } }}
+              sx={approvalStatusSelectSx}
             >
               {RATING_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -81,7 +85,7 @@ export function useApprovalColumns({
           ),
         ),
       },
-      { label: "Status", width: 80, render: taskOnly((row) => <StatusBadge status={row.status} />) },
+      { label: "Status", width: 80, render: taskOnly((row) => <StatusPill status={row.status} />) },
       {
         label: "Accept",
         width: 100,

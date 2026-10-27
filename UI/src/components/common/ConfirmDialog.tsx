@@ -9,34 +9,29 @@ import {
   Typography,
 } from "@mui/material";
 import type { ButtonProps } from "@mui/material/Button";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import {
-  confirmDialogContentSx,
   confirmDialogActionsSx,
-  confirmDialogHeaderSx,
-  confirmDialogPaperSx,
   confirmDialogRootSx,
-  confirmDialogTitleContentSx,
-  confirmDialogTitleIconSx,
-  confirmDialogTitleRowSx,
-  confirmationDialogTitleSx,
   confirmationMessageSx,
-} from "../../styles/common";
-import type { ConfirmDialogTone } from "../../styles/common";
+} from "@/styles/common";
+import {
+  dialogActionsRowSx,
+  dialogTitleContentSx,
+  dialogTitleRowSx,
+} from "@/styles/dialog";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
 export type ConfirmDialogProps = {
   open: boolean;
   title: string;
   description?: string;
   children?: ReactNode;
-  titleIcon?: ReactNode;
   titleAdornment?: ReactNode;
   cancelLabel?: string;
   confirmLabel: string;
   confirmColor?: ButtonProps["color"];
   confirmIcon?: ReactNode;
   confirmDisabled?: boolean;
-  tone?: ConfirmDialogTone;
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
 };
@@ -46,14 +41,12 @@ export default function ConfirmDialog({
   title,
   description,
   children,
-  titleIcon,
   titleAdornment,
   cancelLabel = "Cancel",
   confirmLabel,
   confirmColor = "primary",
   confirmIcon,
   confirmDisabled = false,
-  tone = "default",
   onClose,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -64,34 +57,29 @@ export default function ConfirmDialog({
       maxWidth="xs"
       fullWidth
       sx={confirmDialogRootSx}
-      PaperProps={{ sx: confirmDialogPaperSx }}
     >
-      <DialogTitle component="div" sx={confirmDialogHeaderSx(tone)}>
-        <Box sx={confirmDialogTitleRowSx}>
-          <Box sx={confirmDialogTitleContentSx}>
-            {titleIcon && (
-              <Box sx={confirmDialogTitleIconSx}>{titleIcon}</Box>
-            )}
-            <Typography component="h2" sx={confirmationDialogTitleSx}>
+      <DialogTitle component="div">
+        <Box sx={dialogTitleRowSx}>
+          <Box sx={dialogTitleContentSx}>
+            <Typography variant="h6" component="h2">
               {title}
             </Typography>
           </Box>
           {titleAdornment}
         </Box>
       </DialogTitle>
-      <DialogContent sx={{ ...confirmDialogContentSx, mt: 2}}>
+      <DialogContent>
         {description && (
-          <Typography variant="body2" sx={{ ...confirmationMessageSx , mb:1 }}>
+          <Typography variant="body2" sx={confirmationMessageSx}>
             {description}
           </Typography>
         )}
         {children}
       </DialogContent>
-      <DialogActions sx={confirmDialogActionsSx}>
-        <Button
+      <DialogActions sx={[dialogActionsRowSx, confirmDialogActionsSx]}>
+        <Button startIcon={<CloseOutlinedIcon />}
           onClick={onClose}
           variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
         >
           {cancelLabel}
         </Button>

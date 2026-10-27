@@ -1,11 +1,22 @@
 import type { ReactNode } from "react";
 import { Box, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import {
+  dialogSubtitleSx,
+  dialogTitleActionsSx,
+  dialogTitleContentSx,
+  dialogTitleRowSx,
+  dialogTitleTextSx,
+  requiredFieldsNoteSx,
+  requiredMarkSx,
+} from "@/styles/dialog";
+import {
+  minWidthZero,
+} from "@/styles/common";
 
 interface DialogHeaderProps {
   title: ReactNode;
   subtitle?: ReactNode;
-  icon?: ReactNode;
   onClose?: () => void;
   /** Disable closing while a save is in flight. */
   closeDisabled?: boolean;
@@ -15,13 +26,12 @@ interface DialogHeaderProps {
 }
 
 /**
- * Shared dialog header: title, optional subtitle/icon, and a consistently
- * placed close button. Use with `aria-labelledby={id}` on the Dialog.
+ * Shared dialog header: title, optional subtitle, and a consistently placed
+ * close button. Titles never carry a leading icon. Use with `aria-labelledby={id}` on the Dialog.
  */
 export default function DialogHeader({
   title,
   subtitle,
-  icon,
   onClose,
   closeDisabled,
   actions,
@@ -29,25 +39,20 @@ export default function DialogHeader({
 }: DialogHeaderProps) {
   return (
     <DialogTitle component="div" id={id}>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1.5}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-          {icon && (
-            <Box aria-hidden="true" sx={{ display: "flex", color: "primary.main" }}>
-              {icon}
-            </Box>
-          )}
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h6" component="h2" sx={{ overflowWrap: "anywhere" }}>
+      <Stack direction="row" sx={dialogTitleRowSx}>
+        <Stack direction="row" sx={dialogTitleContentSx}>
+          <Box sx={minWidthZero}>
+            <Typography variant="h6" component="h2" sx={dialogTitleTextSx}>
               {title}
             </Typography>
             {subtitle && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              <Typography variant="body2" color="text.secondary" sx={dialogSubtitleSx}>
                 {subtitle}
               </Typography>
             )}
           </Box>
         </Stack>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+        <Stack direction="row" sx={dialogTitleActionsSx}>
           {actions}
           {onClose && (
             <IconButton aria-label="Close dialog" onClick={onClose} disabled={closeDisabled}>
@@ -63,8 +68,8 @@ export default function DialogHeader({
 /** Footer note for forms that mark required fields with an asterisk. */
 export function RequiredFieldsNote() {
   return (
-    <Typography variant="caption" color="text.secondary" sx={{ mr: "auto", pl: 1 }}>
-      Fields marked with <Box component="span" sx={{ fontWeight: 700 }}>*</Box> are required.
+    <Typography variant="caption" color="text.secondary" sx={requiredFieldsNoteSx}>
+      Fields marked with <Box component="span" sx={requiredMarkSx}>*</Box> are required.
     </Typography>
   );
 }

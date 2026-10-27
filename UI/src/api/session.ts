@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
-import { themeStorageKey } from "../styles/theme/themeModeContext";
-import { queryClient } from "./queryClient";
+import { themeStorageKey } from "@/styles/theme/themeModeContext";
+import { queryClient } from "@/api/queryClient";
+import { WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
 
 /** Query flag Login reads to explain why the user was signed out. */
 export const SESSION_EXPIRED_PARAM = "session";
@@ -15,6 +16,7 @@ export function clearSession() {
     void queryClient.cancelQueries();
     queryClient.clear();
     localStorage.clear();
+    sessionStorage.removeItem(WORK_ITEM_VIEW_SESSION_KEY);
     if (theme) localStorage.setItem(themeStorageKey, theme);
 }
 

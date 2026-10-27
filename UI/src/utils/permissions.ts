@@ -4,7 +4,10 @@ export const getStoredPermissions = () => {
     const permissions = JSON.parse(localStorage.getItem("permissions") ?? "[]");
     return new Set(
       Array.isArray(permissions)
-        ? permissions.filter((permission): permission is string => typeof permission === "string")
+        ? permissions.filter(
+            (permission): permission is string =>
+              typeof permission === "string",
+          )
         : [],
     );
   } catch {

@@ -1,11 +1,20 @@
-import { Box, Button, Chip, IconButton, TableCell, TableRow, Typography } from "@mui/material";
+import { Box, Button, IconButton, TableCell, TableRow, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import KeyboardArrowDownOutlinedIcon from "@mui/icons-material/KeyboardArrowDownOutlined";
 import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
-import type { ColumnData } from "../../common/TableView";
-import type { TaskRow } from "../../../types/dataTypes";
-import { formatHoursMinutes } from "../../../utils/hoursMinutes";
-import type { ApprovalAction, ApprovalWeekDay } from "./approvalData";
+import type { ColumnData } from "@/components/common/TableView";
+import type { TaskRow } from "@/types/dataTypes";
+import { formatHoursMinutes } from "@/utils/hoursMinutes";
+import type { ApprovalAction, ApprovalWeekDay } from "@/components/approval/detail/approvalData";
+import { RADIUS_PX } from "@/styles/tokens";
+import {
+  approvalActionButtonSx,
+  approvalCellMetaSx,
+  approvalCellNoteSx,
+  approvalCellRowSx,
+  approvalCellTitleSx,
+  approvalExpandButtonSx,
+} from "@/styles/common";
 
 /* Table cells and totals row for the approval detail dialog. */
 
@@ -20,18 +29,18 @@ export function JobCell({
 }) {
   if (row.rowType !== "project") {
     return (
-      <Typography component="span" sx={{ marginLeft: 4, fontSize: 13 }}>
+      <Typography component="span" sx={approvalCellNoteSx}>
         {row.task}
       </Typography>
     );
   }
   return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
+    <Box sx={approvalCellRowSx}>
       <IconButton
         aria-label={`${expanded ? "Collapse" : "Expand"} ${row.project}`}
         aria-expanded={expanded}
         onClick={() => onToggle(row.projectId)}
-        sx={{ p: 0, mr: 0.5 }}
+        sx={approvalExpandButtonSx}
       >
         <KeyboardArrowDownOutlinedIcon
           sx={{
@@ -43,11 +52,11 @@ export function JobCell({
       </IconButton>
       <Box minWidth={0}>
         {row.description && (
-          <Typography component="div" sx={{ fontSize: 13, fontWeight: 500 }}>
+          <Typography component="div" sx={approvalCellTitleSx}>
             {row.description}
           </Typography>
         )}
-        <Typography component="div" sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+        <Typography component="div" sx={approvalCellMetaSx}>
           {row.project}
         </Typography>
       </Box>
@@ -66,11 +75,11 @@ export function HourCell({ value }: { value: string }) {
         alignItems: "center",
         justifyContent: "center",
         mx: "auto",
-        borderRadius: 1,
+        borderRadius: RADIUS_PX.md,
         backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[100],
         border: `1px solid ${theme.palette.divider}`,
         color: theme.palette.text.primary,
-        fontSize: 11.5,
+        fontSize: 12,
         fontWeight: 500,
         transition: "background-color 0.15s ease, border-color 0.15s ease",
         "&:hover": {
@@ -81,26 +90,6 @@ export function HourCell({ value }: { value: string }) {
     >
       {value}
     </Box>
-  );
-}
-
-export function StatusBadge({ status }: { status: string }) {
-  const statusColor = (() => {
-    switch (status.trim().toLowerCase()) {
-      case "submitted":
-        return "primary";
-      case "accepted":
-        return "success";
-      case "rejected":
-        return "error";
-      case "draft":
-      default:
-        return "secondary";
-    }
-  })();
-
-  return (
-    <Chip label={status} color={statusColor} variant="outlined" />
   );
 }
 
@@ -124,7 +113,7 @@ export function ActionButton({
       startIcon={busy ? undefined : <Icon />}
       disabled={disabled}
       onClick={onClick}
-      sx={{ textTransform: "none", boxShadow: "none", "& .MuiButton-startIcon": { mr: 0.5 } }}
+      sx={approvalActionButtonSx}
     >
       {busy ? "..." : accept ? "Accept" : "Reject"}
     </Button>
@@ -155,7 +144,7 @@ export function ApprovalTotalsRow({
               minWidth: column.width,
               maxWidth: column.width,
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 600,
               color: theme.palette.text.primary,
               backgroundColor: first
                 ? `${theme.palette.background.paper} !important`

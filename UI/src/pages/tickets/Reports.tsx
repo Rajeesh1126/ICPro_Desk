@@ -1,7 +1,7 @@
-import DateRange from "../../components/common/DateRange";
-import DateRangeSummary from "../../components/common/DateRangeSummary";
+import DateRange from "@/components/common/DateRange";
+import { countChangedFilters } from "@/utils/filterCount";
 import { useCallback, useMemo, useState } from "react";
-import FilterPopover, { ActiveFilterChips, type ActiveFilter } from "../../components/common/FilterPopover";
+import FilterPopover, { ActiveFilterChips, type ActiveFilter } from "@/components/common/FilterPopover";
 import {
   Box,
   FormControl,
@@ -19,7 +19,7 @@ import {
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
+} from "@/components/common/TableView";
 import ArticleIcon from "@mui/icons-material/Article";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
@@ -28,28 +28,25 @@ import type {
   TicketData,
   UserSummary,
   SelfTicketData,
-} from "../../types/dataTypes";
-import { loadXlsx, useExportStatus } from "../../utils/useExportStatus";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
+} from "@/types/dataTypes";
+import { loadXlsx, useExportStatus } from "@/utils/useExportStatus";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import TicketDetailModal from "../../components/tickets/DetailModal";
-import SelfTicketDetailModel from "../../components/selfTickets/DetailModel";
-import ReportHeaderActions from "../../components/common/ReportHeaderActions";
-import { inlineCenterGapSx } from "../../styles/common";
-import { dateFieldSx } from "../../styles/filters";
+import TicketDetailModal from "@/components/tickets/DetailModal";
+import SelfTicketDetailModel from "@/components/selfTickets/DetailModel";
+import PageHeader from "@/components/common/PageHeader";
+import { ColumnPicker } from "@/components/common/TicketPageParts";
+import { useSessionState } from "@/utils/useSessionState";
+import { reportHeaderActions } from "@/components/common/headerActions";
+import { inlineCenterGapSx } from "@/styles/common";
+import { dateFieldSx } from "@/styles/filters";
 import {
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
-  pageHeaderTitleGroup,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
-  tablePageContent,
   tabs,
   tabsContainer,
-} from "../../styles/layout";
+  contentPanel,
+} from "@/styles/layout";
 
 type Department = { id: number; name: string };
 type Filters = {
@@ -60,6 +57,17 @@ type Filters = {
   department: string;
   creator: string;
 };
+
+/** Tickets-tab columns added back from the "Columns" menu; hidden by default. */
+const OPTIONAL_REPORT_TICKET_COLUMNS = [
+  "Est Hrs",
+  "Act Hrs",
+  "Actual Start",
+  "Actual Completion",
+  "Rating",
+  "Work Efficiency",
+  "Schedule Efficiency",
+];
 
 function initialFilters(): Filters {
   const today = new Date();
@@ -107,9 +115,6 @@ function FilterFields({
 
   return (
     <Grid container spacing={1.5}>
-      <Grid size={12}>
-        <DateRangeSummary start={filters.startDate} end={filters.endDate} />
-      </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
         <TextField
           fullWidth
@@ -340,16 +345,11 @@ export default function Reports() {
     setDialogTicketOpen(false);
     setDialogSelfOpen(false);
     setSelectedTicket(null);
+    setSelectedSelfTicket(null);
   }, []);
 
   const ticketColumns = useMemo<ColumnData<TicketData>[]>(
     () => [
-      {
-        label: "#",
-        width: { xs: 45, sm: 10 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       {
         label: "Ticket Number",
         width: { xs: 160, sm: 180 },
@@ -369,12 +369,13 @@ export default function Reports() {
         ),
       },
       { label: "Subject", dataKey: "task", width: "auto" },
-      { label: "Status", dataKey: "current_status" },
+      { label: "Status", dataKey: "current_status", width: 120 },
       { label: "Team", dataKey: "department_name" },
       { label: "Assigned By", dataKey: "creator_name" },
+      { label: "Target Date", dataKey: "target_date" },
       { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours" },
-      { label: "Act Hrs", dataKey: "act_hours" },
+      { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
+      { label: "Act Hrs", dataKey: "act_hours", format: "hours" },
       // { label: "Estimated Start", dataKey: "created_at" },
       { label: "Actual Start", dataKey: "actual_start_date" },
       // { label: "Target Completion", dataKey: "target_date" },
@@ -398,14 +399,18 @@ export default function Reports() {
     [openTicketDetails],
   );
 
+  const [hiddenTicketColumnsValue, setHiddenTicketColumnsValue] = useSessionState(
+    "reports:hidden-ticket-columns",
+    OPTIONAL_REPORT_TICKET_COLUMNS.join(","),
+    (value): value is string => typeof value === "string",
+  );
+  const hiddenTicketColumns = useMemo(
+    () => hiddenTicketColumnsValue.split(",").filter(Boolean),
+    [hiddenTicketColumnsValue],
+  );
+
   const dolistColumns = useMemo<ColumnData<SelfTicketData>[]>(
     () => [
-      {
-        label: "#",
-        width: 10,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       {
         label: "Task Number",
          width: { xs: 160, sm: 180 },
@@ -429,7 +434,7 @@ export default function Reports() {
       // { label: "Team", dataKey: "team_name" },
       { label: "Name", dataKey: "creator_name" },
       { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours" },
+      { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
     ],
     [openSelfTicketDetails],
   );
@@ -564,31 +569,21 @@ export default function Reports() {
     return list;
   }, [departments, filters, reportType, users]);
 
-  const renderReportControls = () => (
-    <ReportHeaderActions
-      onExport={() => runExport(exportToExcel)}
-      exportDisabled={loading}
-      exporting={exporting}
-      onFilter={() => setFilterOpen(true)}
-      filterButtonRef={setFilterButton}
-    />
-  );
-
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Box sx={pageHeaderTitleGroup}>
-              <Typography variant="h5" component="h1" sx={pageTitle}>Executive Overview</Typography>
-            </Box>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Filter performance data and export a focused Tickets / Do-list
-              report.
-            </Typography>
-          </Box>
-          <Box sx={pageHeaderActions}>{renderReportControls()}</Box>
-        </Box>
+        <PageHeader
+          title="Executive Overview"
+          subtitle="Filter performance data and export a focused Tickets / Do-list report."
+          actions={reportHeaderActions({
+            onExport: () => runExport(exportToExcel),
+            exportDisabled: loading,
+            exporting,
+            activeFilterCount: countChangedFilters(filters, initialFilters()),
+            onFilter: () => setFilterOpen(true),
+            filterButtonRef: setFilterButton,
+          })}
+        />
 
         <Box sx={tabsContainer}>
           <Tabs
@@ -619,14 +614,26 @@ export default function Reports() {
           onClearAll={() => setFilters(initialFilters())}
         />
 
-        <Box sx={tablePageContent}>
+        <Box sx={{ mt: 1}} />
+
+        <Box sx={contentPanel}>
           {reportType === "tickets" ? (
             <VirtualizedTable
               columns={ticketColumns}
               rows={filteredTickets}
               height="100%"
-              tableMinWidth={1600}
+              // Full width only with every column shown; otherwise fit the visible ones.
+              tableMinWidth={hiddenTicketColumns.length ? undefined : 1600}
+              stickyFirstColumn
               tableHead={`Tickets`}
+              hiddenColumns={hiddenTicketColumns}
+              headerAction={
+                <ColumnPicker
+                  options={OPTIONAL_REPORT_TICKET_COLUMNS}
+                  hidden={hiddenTicketColumns}
+                  onChange={(next) => setHiddenTicketColumnsValue(next.join(","))}
+                />
+              }
               loading={loading}
               emptyTitle="No tickets match these filters"
               emptyDescription="Widen the date range or remove a filter."

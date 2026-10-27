@@ -1,97 +1,58 @@
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Chip,
-  Divider,
-  Avatar,
-  Stack,
-  Tooltip,
-} from "@mui/material";
+import { Card, CardContent, Typography, Box, Avatar } from "@mui/material";
+import { isActiveTicket, isOverdueTicket } from "@/utils/ticketDue";
 
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 
-import { alpha, useTheme } from "@mui/material/styles";
-import type { TicketData } from "../../types/dataTypes";
-import { formatDate } from "../common/formatDate";
+import type { TicketData } from "@/types/dataTypes";
+import { formatDate, formatDueDate, formatOverdueLabel } from "@/components/common/formatDate";
+import { PriorityPill, StatusPill } from "@/components/common/StatusPill";
 import {
-  alarmBellSx,
-  detailLabelSx,
-  detailValueSx,
-  minWidthZeroSx,
-  pushRightSx,
-  secondaryTextSx,
-  ticketCardAssigneeAvatarSx,
-  sharedCardMetaRowSx,
-  ticketCardTargetDateSx,
+  boardCardCreatedSx,
+  boardCardDueLabelSx,
+  boardCardDueSx,
+  boardCardFieldLabelSx,
+  boardCardFieldSx,
+  boardCardFieldValueSx,
+  boardCardFooterSx,
+  boardCardIndicatorsSx,
+  boardCardMetaSx,
+  boardCardNumberSx,
+  boardCardTagSx,
+  boardCardSx,
+  boardCardTopRowSx,
   sharedCardContentSx,
-  sharedCardDividerSx,
-  ticketCardSx,
-  ticketCardPriorityChipSx,
-  ticketCardNumberSx,
-  ticketCardDateSx,
   sharedCardTitleSx,
+  ticketCardAssigneeAvatarSx,
   ticketCardDescriptionSx,
-  getPriorityCardStyles,
-} from "../../styles/common";
+} from "@/styles/common";
 
 interface BasicCardProps {
   ticket: TicketData;
   onOpen: (data: TicketData) => void;
+  /** The board column's own stage; its status pill would only repeat it. */
+  columnStatus?: string;
 }
 
-function parseTicketDueDay(value: string | null | undefined) {
-  if (!value) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day).setHours(0, 0, 0, 0);
-  }
-
-  const normalizedValue = value.replace(" ", "T");
-  const dueDate = new Date(normalizedValue);
-  const timestamp = dueDate.getTime();
-  dueDate.setHours(0, 0, 0, 0);
-
-  return Number.isNaN(timestamp) ? null : dueDate.getTime();
-}
-
-function isActiveDueTicket(ticket: TicketData) {
-  const dueDay = parseTicketDueDay(ticket.target_date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const status = ticket.current_status?.toLowerCase() ?? "";
-  const activeStatuses = [
-    "open",
-    "revised",
-    "reopened",
-    "in progress",
-    "assigned",
-    "not-satisfied",
-    "accepted",
-    "recall requested",
-    "date revision",
-    "pending",
-  ];
-
-  return (
-    dueDay !== null &&
-    dueDay <= today.getTime() &&
-    activeStatuses.includes(status)
-  );
-}
-
+/**
+ * Ticket work item (Tickets and Work Let boards):
+ * 1. identifier + creation date, 2. subject, 3. description preview,
+ * 4. status / priority / urgency, 5. assignee + target date.
+ * Everything shown here is also in the details dialog.
+ */
 export default function BasicCardComponent({
   ticket,
   onOpen,
+  columnStatus,
 }: BasicCardProps) {
-  const theme = useTheme();
   if (!ticket?.number) return null;
 
-  const styles = getPriorityCardStyles(theme, ticket.priority);
   const hasAlarm = ticket.alarm === true;
-  const highlighted = hasAlarm || isActiveDueTicket(ticket);
+  const isOverdue = isOverdueTicket(ticket);
+  const due = formatDueDate(ticket.target_date);
+  const exactDue = formatDate(ticket.target_date);
+  // Urgency colours only matter while the ticket is still active.
+  const dueTone = isActiveTicket(ticket) ? due.tone : "upcoming";
   const assignedInitials = ticket.assigned_to_name
     ? ticket.assigned_to_name
         .split(" ")
@@ -100,6 +61,11 @@ export default function BasicCardComponent({
         .slice(0, 2)
         .toUpperCase()
     : "?";
+  // What needs action, in plain words for the banner and screen readers.
+  const alertParts = [
+    isOverdue ? formatOverdueLabel(ticket.target_date) ?? "Overdue" : null,
+    hasAlarm ? "Reminder active" : null,
+  ].filter((part): part is string => Boolean(part));
 
   return (
     <Card
@@ -107,94 +73,86 @@ export default function BasicCardComponent({
       onClick={() => onOpen(ticket)}
       role="button"
       tabIndex={0}
-      aria-label={`Open ticket ${ticket.number}${ticket.task ? `: ${ticket.task}` : ""}`}
+      aria-label={`Open ticket ${ticket.number}${ticket.task ? `: ${ticket.task}` : ""}${
+        alertParts.length ? `, ${alertParts.join(", ")}` : ""
+      }`}
       onKeyDown={(event: React.KeyboardEvent) => {
-            if (event.target !== event.currentTarget) return;
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onOpen(ticket);
-            }
-          }}
-      sx={ticketCardSx({ highlighted, styles })}
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(ticket);
+        }
+      }}
+      sx={boardCardSx()}
     >
       <CardContent sx={sharedCardContentSx}>
-        <Stack
-          direction={{ xs: "row", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          gap={0.5}
-          mb={1}
-        >
-          <Typography
-            sx={ticketCardNumberSx({ styles })}
-          >
+        <Box sx={boardCardTopRowSx}>
+          <Typography sx={boardCardNumberSx}>
             Ticket No #{ticket.number}
           </Typography>
-          <Stack
-            direction="row"
-            spacing={0.5}
-            alignItems="center"
-            sx={secondaryTextSx}
-          >
-            {hasAlarm && (
-              <Tooltip title="Reminder active">
-                <NotificationsActiveRoundedIcon
-                  fontSize="small"
-                  style={{ color: styles.color }}
-                  titleAccess="Reminder active"
-                  sx={alarmBellSx}
-                />
-              </Tooltip>
-            )}
-            <Typography sx={ticketCardDateSx}>
-              {ticket.created_at ? formatDate(ticket.created_at) : "N/A"}
+          <Box sx={boardCardMetaSx}>
+            <Typography sx={boardCardCreatedSx}>
+              {formatDate(ticket.created_at)}
             </Typography>
-          </Stack>
-        </Stack>
+          </Box>
+        </Box>
 
         <Typography variant="h6" sx={sharedCardTitleSx}>
           {ticket.task}
         </Typography>
 
-        <Typography variant="body2" sx={ticketCardDescriptionSx}>
-          {ticket.description}
-        </Typography>
+        {ticket.description && (
+          <Typography variant="body2" sx={ticketCardDescriptionSx}>
+            {ticket.description}
+          </Typography>
+        )}
 
-        <Divider sx={sharedCardDividerSx} />
+        <Box sx={boardCardIndicatorsSx}>
+          {/* Exact status only when it adds to the column (e.g. "Revised" under Open). */}
+          {ticket.current_status !== columnStatus && <StatusPill status={ticket.current_status} />}
+          <PriorityPill priority={ticket.priority || "Normal"} />
+          {isOverdue && (
+            <Box component="span" sx={boardCardTagSx("overdue")}>
+              <EventBusyOutlinedIcon aria-hidden="true" />
+              {formatOverdueLabel(ticket.target_date) ?? "Overdue"}
+            </Box>
+          )}
+          {hasAlarm && !isOverdue && (
+            <Box component="span" sx={boardCardTagSx("reminder")}>
+              <NotificationsActiveRoundedIcon aria-hidden="true" />
+              Reminder active
+            </Box>
+          )}
+        </Box>
 
-        <Box sx={sharedCardMetaRowSx}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={minWidthZeroSx}
-          >
-            <Avatar sx={ticketCardAssigneeAvatarSx}>{assignedInitials}</Avatar>
-            <Box>
-              <Typography sx={detailLabelSx}>Assigned</Typography>
-              <Typography sx={detailValueSx}>
+        <Box sx={boardCardFooterSx}>
+          <Box sx={boardCardFieldSx}>
+            <Avatar sx={ticketCardAssigneeAvatarSx} aria-hidden="true">
+              {assignedInitials}
+            </Avatar>
+            <Box minWidth={0}>
+              <Typography sx={boardCardFieldLabelSx}>Assigned</Typography>
+              <Typography sx={boardCardFieldValueSx}>
                 {ticket.assigned_to_name || "Unassigned"}
               </Typography>
             </Box>
-          </Stack>
-
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={pushRightSx}
-          >
-            <Box sx={ticketCardTargetDateSx}>
-              <Typography sx={detailLabelSx}>Target date</Typography>
-              <Typography sx={detailValueSx}>
-                {ticket.target_date ? formatDate(ticket.target_date) : "N/A"}
+          </Box>
+          <Box sx={boardCardFieldSx} textAlign="right">
+            <Box minWidth={0}>
+              <Typography sx={boardCardFieldLabelSx}>Target date</Typography>
+              <Typography sx={boardCardDueSx(dueTone, !isActiveTicket(ticket))}>
+                <Box component="span" sx={boardCardDueLabelSx(dueTone)}>
+                  {due.label}
+                </Box>
+                {due.label !== exactDue && exactDue !== "—" && (
+                  <Box component="span" sx={boardCardCreatedSx}>
+                    {" · "}
+                    {exactDue}
+                  </Box>
+                )}
               </Typography>
             </Box>
-            <Chip
-              label={ticket.priority || "Normal"}
-              sx={ticketCardPriorityChipSx({ alpha, styles })}
-            />
-          </Stack>
+          </Box>
         </Box>
       </CardContent>
     </Card>

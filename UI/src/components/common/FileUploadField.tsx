@@ -1,6 +1,13 @@
 import { useId, useRef, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import {
+  fileUploadButtonSx,
+  fileUploadErrorSx,
+  fileUploadNameSx,
+  fileUploadRulesSx,
+  strongTextSx,
+} from "@/styles/common";
 
 /**
  * Upload limits shown to users before they pick a file. Keep these in sync
@@ -79,11 +86,11 @@ export default function FileUploadField({
           startIcon={<UploadFileOutlinedIcon />}
           onClick={() => inputRef.current?.click()}
           aria-describedby={helpId}
-          sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+          sx={fileUploadButtonSx}
         >
           {buttonLabel}
         </Button>
-        <Typography variant="body2" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+        <Typography variant="body2" sx={fileUploadNameSx}>
           {file ? `${file.name} (${formatSize(file.size)})` : "No new file selected"}
         </Typography>
       </Stack>
@@ -91,20 +98,20 @@ export default function FileUploadField({
         id={helpId}
         component="ul"
         spacing={0.25}
-        sx={{ mt: 0.75, mb: 0, pl: 2.5, color: "text.secondary" }}
+        sx={fileUploadRulesSx}
       >
         <Typography component="li" variant="caption">
-          <Box component="span" sx={{ fontWeight: 700 }}>Accepted formats:</Box> {acceptLabel}
+          <Box component="span" sx={strongTextSx}>Accepted formats:</Box> {acceptLabel}
         </Typography>
         <Typography component="li" variant="caption">
-          <Box component="span" sx={{ fontWeight: 700 }}>Maximum size:</Box> {maxSizeMb} MB
+          <Box component="span" sx={strongTextSx}>Maximum size:</Box> {maxSizeMb} MB
         </Typography>
         <Typography component="li" variant="caption">
-          <Box component="span" sx={{ fontWeight: 700 }}>{fileGuidance.label}:</Box> {fileGuidance.value}
+          <Box component="span" sx={strongTextSx}>{fileGuidance.label}:</Box> {fileGuidance.value}
         </Typography>
       </Stack>
       {error && (
-        <Typography role="alert" variant="caption" color="error" component="p" sx={{ mt: 0.5 }}>
+        <Typography role="alert" variant="caption" color="error" component="p" sx={fileUploadErrorSx}>
           {error}
         </Typography>
       )}

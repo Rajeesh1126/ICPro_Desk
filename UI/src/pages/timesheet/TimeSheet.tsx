@@ -1,46 +1,44 @@
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Box, Tab, Tabs, } from "@mui/material";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import api from "../../api/axios";
-import { useApiQuery } from "../../api/useApiQuery";
-import { showNotification } from "../../api/notificationService";
-import TimeSheetPreviewModal, { type TimeSheetDay } from "../../components/timesheet/TimeSheetPreviewModal";
+import api from "@/api/axios";
+import { useApiQuery } from "@/api/useApiQuery";
+import { showNotification } from "@/api/notificationService";
+import TimeSheetPreviewModal, { type TimeSheetDay } from "@/components/timesheet/TimeSheetPreviewModal";
 import {
   pageFill,
-  pageHeaderContent,
-  pageSubtitle,
-  pageTitle,
   tabPanelContent,
   tabs,
   tabsContainer,
-  timesheetHeaderActions,
-  timesheetPageHeader,
-} from "../../styles/common";
-import Approval from "./Approval";
+  timesheetHeaderWeekSx,
+  flexFillHeightSx,
+} from "@/styles/common";
+import Approval from "@/pages/timesheet/Approval";
 import Submission, {
   type BudgetOwnerValidation,
   type DailyHoursValidation,
   type TimesheetSubmitEntry,
-} from "./Submission";
-import type { WeeklyTimesheetLog } from "./submission/timesheetMath";
+} from "@/pages/timesheet/Submission";
+import type { WeeklyTimesheetLog } from "@/pages/timesheet/submission/timesheetMath";
 import {
   getPreviewBlocker,
   getSubmitBlocker,
   getTimesheetActionState,
   LOCKED_ACTION_MESSAGE,
-} from "./sheet/timesheetStatus";
-import { useUnsavedNavigationGuard } from "./sheet/useUnsavedNavigationGuard";
-import WeekSelector from "./sheet/WeekSelector";
-import TimesheetActionsMenu, { type AddWorkKind, type WeekTaskKind } from "./sheet/TimesheetActionsMenu";
-import AddWorkDialogs from "./sheet/AddWorkDialogs";
-import WeekTaskDialogs from "./sheet/WeekTaskDialogs";
-import { getStoredPermissions } from "../../utils/permissions";
+} from "@/pages/timesheet/sheet/timesheetStatus";
+import { useUnsavedNavigationGuard } from "@/pages/timesheet/sheet/useUnsavedNavigationGuard";
+import WeekSelector from "@/pages/timesheet/sheet/WeekSelector";
+import TimesheetActionsMenu, { type AddWorkKind, type WeekTaskKind } from "@/pages/timesheet/sheet/TimesheetActionsMenu";
+import AddWorkDialogs from "@/pages/timesheet/sheet/AddWorkDialogs";
+import WeekTaskDialogs from "@/pages/timesheet/sheet/WeekTaskDialogs";
+import { getStoredPermissions } from "@/utils/permissions";
+import PageHeader from "@/components/common/PageHeader";
 
 dayjs.extend(isoWeek);
 
@@ -140,14 +138,14 @@ function TimeSheet() {
   const openWeekTask = (kind: WeekTaskKind) => {
     if (kind === "remove" && actionsDisabled) return showLocked();
     if (kind === "unlock" && unlockRequestDisabled) {
-      return showLocked("Unlock request is not available for this time sheet status.");
+      return showLocked("Unlock request is not available for this timesheet status.");
     }
     setWeekTask(kind);
   };
 
   const openPreview = () => {
     if (previewSubmitDisabled) {
-      return showLocked("This time sheet cannot be previewed or submitted again.");
+      return showLocked("This timesheet cannot be previewed or submitted again.");
     }
     const blocker = getPreviewBlocker(dailyHoursValidation);
     if (blocker) {
@@ -158,7 +156,7 @@ function TimeSheet() {
 
   const submitTimeSheet = async (comments: string) => {
     if (previewSubmitDisabled) {
-      showLocked("This time sheet cannot be submitted again.");
+      showLocked("This timesheet cannot be submitted again.");
       setPreviewOpen(false);
       return;
     }
@@ -206,13 +204,15 @@ function TimeSheet() {
           onUnsavedHourChangesChange={setHasUnsavedHourChanges}
           weeklyStatus={weeklyStatus}
           weeklyStatusLoading={weeklyStatusLoading}
+          onSubmit={openPreview}
+          submitDisabled={previewSubmitDisabled}
         />
       ),
     },
     {
       // permission: "view_approval",
       label: "Approval",
-      component: <Approval weekStart={weekStartKey} />,
+      component: <Approval weekStart={weekStartKey} onPreviousWeek={previousWeek} />,
     },
   ];
   // Approval is available to every user who can open this page. Submission is
@@ -222,7 +222,6 @@ function TimeSheet() {
   );
   const selectedTab = availableTabs[tabIndex];
   const isSubmissionTab = selectedTab?.label === "Submission";
-  const isApprovalTab = selectedTab?.label === "Approval";
 
   useEffect(() => {
     if (availableTabs.length && tabIndex >= availableTabs.length) setTabIndex(0);
@@ -230,38 +229,46 @@ function TimeSheet() {
 
   return (
     <Box sx={pageFill}>
-      <Box sx={timesheetPageHeader(isApprovalTab)}>
-        <Box sx={pageHeaderContent}>
-          <Typography variant="h5" component="h1" sx={pageTitle}>
-            Timesheet
-          </Typography>
-          <Typography variant="body2" sx={pageSubtitle}>
-            Submit and approve timesheets for your team.
-          </Typography>
-        </Box>
-
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={timesheetHeaderActions}>
-          <WeekSelector
-            weekNumber={weekNumber}
-            weekStart={weekStart.toDate()}
-            weekEnd={weekEnd.toDate()}
-            compact={isApprovalTab}
-            onPrevious={previousWeek}
-            onNext={nextWeek}
-          />
-          {isSubmissionTab && (
-            <TimesheetActionsMenu
-              selectedCount={selectedAssignedTaskIds.length}
-              actionsDisabled={actionsDisabled}
-              unlockDisabled={unlockRequestDisabled}
-              previewDisabled={previewSubmitDisabled}
-              onAddWork={openAddWork}
-              onWeekTask={openWeekTask}
-              onPreview={openPreview}
-            />
-          )}
-        </Stack>
-      </Box>
+      <PageHeader
+        title="Timesheet"
+        subtitle="Submit and approve timesheets for your team."
+        actions={[
+          isSubmissionTab && {
+            key: "actions",
+            priority: "high",
+            node: (
+              <TimesheetActionsMenu
+                selectedCount={selectedAssignedTaskIds.length}
+                actionsDisabled={actionsDisabled}
+                unlockDisabled={unlockRequestDisabled}
+                previewDisabled={previewSubmitDisabled}
+                onAddWork={openAddWork}
+                onWeekTask={openWeekTask}
+                onPreview={openPreview}
+              />
+            ),
+          },
+          // Week picker last and always full size, so it keeps its place
+          // when Actions is hidden on the Approval tab; its own row on phones.
+          {
+            key: "week",
+            priority: "high",
+            mobile: "row",
+            node: (
+              <Box sx={timesheetHeaderWeekSx}>
+                <WeekSelector
+                  weekNumber={weekNumber}
+                  weekStart={weekStart.toDate()}
+                  weekEnd={weekEnd.toDate()}
+                  compact={false}
+                  onPrevious={previousWeek}
+                  onNext={nextWeek}
+                />
+              </Box>
+            ),
+          },
+        ]}
+      />
 
       <Box sx={tabsContainer}>
         {availableTabs.length > 1 && (
@@ -275,7 +282,7 @@ function TimeSheet() {
           >
             {availableTabs.map((tab, index) => (
               <Tab
-                key={tab.permission}
+                key={tab.label}
                 icon={tab.permission === "view_submission"
                   ? tabIndex === index ? <AssignmentIcon /> : <AssignmentOutlinedIcon />
                   : tabIndex === index ? <FactCheckIcon /> : <FactCheckOutlinedIcon />}
@@ -289,9 +296,9 @@ function TimeSheet() {
         )}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0 }}>
+      <Box sx={flexFillHeightSx}>
         {availableTabs.map((tab, index) => (
-          <TabPanel key={tab.permission} value={tabIndex} index={index}>
+          <TabPanel key={tab.label} value={tabIndex} index={index}>
             {tab.component}
           </TabPanel>
         ))}

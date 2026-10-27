@@ -1,13 +1,16 @@
-import { insetSx } from "../../styles/tokens";
-import DateRange from "../../components/common/DateRange";
-import DateRangeSummary from "../../components/common/DateRangeSummary";
+import { countChangedFilters } from "@/utils/filterCount";
+import DateRange from "@/components/common/DateRange";
 import { useEffect, useMemo, useRef, useState } from "react";
-import FilterPopover, { ActiveFilterChips } from "../../components/common/FilterPopover";
-import EmptyTableState from "../../components/common/EmptyTableState";
-import ChartDataTable from "../../components/common/ChartDataTable";
-import { summariseSeries } from "../../utils/chartSummary";
+import FilterPopover, {
+  ActiveFilterChips,
+} from "@/components/common/FilterPopover";
+import EmptyTableState from "@/components/common/EmptyTableState";
+import ChartDataTable from "@/components/common/ChartDataTable";
+import { summariseSeries } from "@/utils/chartSummary";
 import {
   Box,
+  Button,
+  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -16,7 +19,6 @@ import {
   Tab,
   Tabs,
   TextField,
-  Typography,
   Skeleton,
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
@@ -27,29 +29,31 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import { echarts, type ECharts, type EChartsOption } from "../../utils/charts";
-import { loadXlsx, useExportStatus } from "../../utils/useExportStatus";
+import { echarts, type ECharts, type EChartsOption } from "@/utils/charts";
+import { loadXlsx, useExportStatus } from "@/utils/useExportStatus";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
-import ReportHeaderActions from "../../components/common/ReportHeaderActions";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { useDebouncedValue } from "../../utils/useDebouncedValue";
-import { surfacePanel } from "../../styles/common";
-import { dateFieldSx } from "../../styles/filters";
+} from "@/components/common/TableView";
+import PageHeader from "@/components/common/PageHeader";
+import { reportHeaderActions } from "@/components/common/headerActions";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { useDebouncedValue } from "@/utils/useDebouncedValue";
+import {
+  analysisChartAreaSx,
+  analysisChartEmptySx,
+  analysisChartPanelSx,
+  analysisChartSkeletonSx,
+  analysisLegendRowSx,
+} from "@/styles/common";
+import { dateFieldSx } from "@/styles/filters";
 import {
   page,
   pageContent,
-  pageHeader,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageSubtitle,
-  pageTitle,
   tablePageContent,
   tabs,
   tabsContainer,
-} from "../../styles/layout";
+} from "@/styles/layout";
 
 type AnalysisRow = {
   id: number;
@@ -93,6 +97,16 @@ type AnalysisResponse = {
   project_employee: ChartPoint[];
   task_employee: ChartPoint[];
 };
+
+const RATING_LABELS: Record<number, string> = {
+  1: "Poor",
+  2: "Average",
+  3: "Good",
+  4: "Very Good",
+  5: "Excellent",
+};
+
+const formatRating = (rate: number) => RATING_LABELS[rate] ?? "Not rated";
 
 type DateFilters = {
   startDate: string;
@@ -165,6 +179,20 @@ function TimesheetBarChart({
     const element = chartElement.current;
     if (!element) return;
 
+    const palette = [
+      theme.palette.primary.main,
+      theme.palette.secondary.main,
+      theme.palette.success.main,
+      theme.palette.warning.main,
+      theme.palette.info.main,
+      theme.palette.error.main,
+    ];
+    const employeeColor = (name: string) => {
+      let hash = 0;
+      for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+      return palette[Math.abs(hash) % palette.length];
+    };
+
     const chart =
       chartInstance.current ??
       echarts.getInstanceByDom(element) ??
@@ -174,19 +202,12 @@ function TimesheetBarChart({
     chart.setOption(
       {
         animationDuration: 450,
-        color: [
-          theme.palette.primary.main,
-          theme.palette.secondary.main,
-          theme.palette.success.main,
-          theme.palette.warning.main,
-          theme.palette.info.main,
-          theme.palette.error.main,
-        ],
+        color: palette,
         grid: {
-          left: 58,
-          right: 24,
+          left: 110,
+          right: 28,
           top: 54,
-          bottom: labels.length > 8 ? 92 : 62,
+          bottom: 14,
           containLabel: true,
         },
         legend: {
@@ -209,63 +230,36 @@ function TimesheetBarChart({
             typeof value === "number" ? `${value} hrs` : `${value ?? 0} hrs`,
         },
         xAxis: {
-          type: "category",
-          data: labels,
-          axisLabel: {
-            color: theme.palette.text.secondary,
-            fontSize: 11,
-            interval: 0,
-            rotate: labels.length > 5 ? 35 : 0,
-            width: 88,
-            overflow: "truncate",
-          },
-          axisLine: { lineStyle: { color: theme.palette.divider } },
-          axisTick: { alignWithLabel: true },
-        },
-        yAxis: {
           type: "value",
           name: "Hours",
-          nameTextStyle: {
-            color: theme.palette.text.secondary,
-            fontSize: 12,
-          },
           axisLabel: {
             color: theme.palette.text.secondary,
             fontSize: 11,
+            formatter: (value: number) => `${value} h`,
+          },
+          axisLine: { lineStyle: { color: theme.palette.divider } },
+        },
+        yAxis: {
+          type: "category",
+          data: labels,
+          inverse: true,
+          axisLabel: {
+            color: theme.palette.text.secondary,
+            fontSize: 11,
+            width: 120,
+            overflow: "break",
           },
           splitLine: {
             lineStyle: { color: theme.palette.divider },
           },
         },
-        dataZoom:
-          labels.length > 10
-            ? [
-              {
-                type: "inside",
-                xAxisIndex: 0,
-                filterMode: "none",
-              },
-              {
-                type: "slider",
-                xAxisIndex: 0,
-                height: 18,
-                bottom: 18,
-                borderColor: theme.palette.divider,
-                fillerColor: theme.palette.action.selected,
-                handleStyle: {
-                  color: theme.palette.primary.main,
-                },
-                textStyle: {
-                  color: theme.palette.text.secondary,
-                },
-              },
-            ]
-            : [],
         series: series.map((item) => ({
           name: item.label,
           type: "bar",
           data: item.data,
-          barMaxWidth: 42,
+          barMaxWidth: 26,
+          itemStyle: { color: employeeColor(item.label), borderRadius: [0, 5, 5, 0] },
+          label: { show: true, position: "right", color: theme.palette.text.secondary, fontSize: 10, formatter: (params) => `${params.value ?? 0} h` },
           emphasis: { focus: "series" },
         })),
       } satisfies EChartsOption,
@@ -289,7 +283,9 @@ function TimesheetBarChart({
 
   const totals = labels.map((label, index) => ({
     name: label,
-    value: Number(series.reduce((sum, item) => sum + (item.data[index] ?? 0), 0).toFixed(2)),
+    value: Number(
+      series.reduce((sum, item) => sum + (item.data[index] ?? 0), 0).toFixed(2),
+    ),
   }));
 
   return (
@@ -298,13 +294,16 @@ function TimesheetBarChart({
         ref={chartElement}
         role="img"
         aria-label={`Hours by group. ${summariseSeries(totals, " h")}`}
-        sx={{ height: "100%", width: "100%" }}
+        sx={analysisChartAreaSx}
       />
       <ChartDataTable
         caption="Hours by group and employee"
         rowHeader="Group"
         rows={labels}
-        columns={series.map((item) => ({ label: item.label, values: item.data }))}
+        columns={series.map((item) => ({
+          label: item.label,
+          values: item.data,
+        }))}
       />
     </>
   );
@@ -315,30 +314,19 @@ export default function TimesheetAnalysis() {
   const [filters, setFilters] = useState<DateFilters>(initialFilters);
   const [filterOpen, setFilterOpen] = useState(false);
   // The Filters button; the filter panel drops down from it.
-  const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
+  const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(
+    null,
+  );
   const { exporting, runExport } = useExportStatus();
   // Debounced and cached per filter combination.
   const debouncedFilters = useDebouncedValue(filters);
-
-  const RATING_LABELS: Record<number, string> = {
-    1: "Poor",
-    2: "Average",
-    3: "Good",
-    4: "Very Good",
-    5: "Excellent",
-  };
-
-  const formatRating = (rate: number) => RATING_LABELS[rate] ?? "Not rated";
-  const analysisQuery = useApiQuery<AnalysisResponse>(
-    "/timesheet-analysis/",
-    {
-      start_date: debouncedFilters.startDate,
-      end_date: debouncedFilters.endDate,
-      employee_id: debouncedFilters.employeeId || undefined,
-      project_id: debouncedFilters.projectId || undefined,
-      task_id: debouncedFilters.taskId || undefined,
-    },
-  );
+  const analysisQuery = useApiQuery<AnalysisResponse>("/timesheet-analysis/", {
+    start_date: debouncedFilters.startDate,
+    end_date: debouncedFilters.endDate,
+    employee_id: debouncedFilters.employeeId || undefined,
+    project_id: debouncedFilters.projectId || undefined,
+    task_id: debouncedFilters.taskId || undefined,
+  });
   // Skeleton from the moment filters change (including the debounce wait).
   const loading = filters !== debouncedFilters || analysisQuery.isPending;
   const analysis = useMemo<AnalysisResponse>(() => {
@@ -364,24 +352,25 @@ export default function TimesheetAnalysis() {
 
   const columns = useMemo<ColumnData<AnalysisRow>[]>(
     () => [
-      {
-        label: "#",
-        width: { xs: 40, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
+      // Key facts first (who, when, how long, state) so they stay on screen;
+      // the longer project / task text follows and can scroll.
       { label: "Date", dataKey: "date", width: 120 },
-      { label: "Employee", dataKey: "employee_name", width: 180 },
-      { label: "Project", dataKey: "project", width: 180 },
-      { label: "Description", dataKey: "description", width: 240 },
-      { label: "Task", dataKey: "task", width: 240 },
-      { label: "Hours", dataKey: "hours", width: 90, numeric: true },
+      { label: "Employee", dataKey: "employee_name", width: 160 },
+      {
+        label: "Hours",
+        dataKey: "hours",
+        width: 90,
+        numeric: true,
+        align: "center",
+      },
       { label: "Status", dataKey: "status", width: 130 },
+      { label: "Project", dataKey: "project", width: 160 },
+      { label: "Description", dataKey: "description", width: 200 },
+      { label: "Task", dataKey: "task", width: 200 },
       {
         label: "Rating",
         dataKey: "rate",
         width: 100,
-        numeric: true,
         render: (row) => formatRating(row.rate),
       },
       { label: "Approver", dataKey: "approver_name", width: 180 },
@@ -414,6 +403,15 @@ export default function TimesheetAnalysis() {
     });
   };
 
+  const applyDatePreset = (preset: "week" | "month" | "30days") => {
+    const end = new Date();
+    const start = new Date(end);
+    if (preset === "week") start.setDate(end.getDate() - ((end.getDay() + 6) % 7));
+    if (preset === "month") start.setDate(1);
+    if (preset === "30days") start.setDate(end.getDate() - 29);
+    setFilters((current) => ({ ...current, startDate: formatDate(start), endDate: formatDate(end) }));
+  };
+
   const updateSelectFilter = (
     field: "employeeId" | "projectId" | "taskId",
     event: SelectChangeEvent,
@@ -423,15 +421,14 @@ export default function TimesheetAnalysis() {
 
   const exportReportToExcel = async () => {
     const XLSX = await loadXlsx();
-    const rows = analysis.rows.map((row, index) => ({
-      "#": index + 1,
+    const rows = analysis.rows.map((row) => ({
       Date: row.date,
       Employee: row.employee_name,
       Project: row.project,
       Task: row.task,
       Hours: row.hours,
       Status: row.status,
-      Rating: row.rate > 0 ? row.rate : "Not rated",
+      Rating: formatRating(row.rate),
       Approver: row.approver_name,
     }));
 
@@ -456,20 +453,36 @@ export default function TimesheetAnalysis() {
 
   const renderBarChart = (labels: string[], series: BarChartSeries[]) => (
     <Box
-      sx={{
-        ...surfacePanel,
-        height: "100%",
-        // Short phones (and landscape) must not force a page-level scroll.
-        minHeight: { xs: "min(320px, 60dvh)", sm: 380, md: 440 },
-        ...insetSx,
-      }}
+      sx={analysisChartPanelSx}
     >
       {loading ? (
-        <Skeleton variant="rounded" sx={{ height: "100%", minHeight: { xs: 240, sm: 340 } }} aria-label="Loading chart" />
+        <Skeleton
+          variant="rounded"
+          sx={analysisChartSkeletonSx}
+          aria-label="Loading chart"
+        />
       ) : labels.length ? (
-        <TimesheetBarChart labels={labels} series={series} />
+        <>
+          <Stack direction="row" useFlexGap flexWrap="wrap" spacing={1} sx={analysisLegendRowSx}>
+            <Chip
+              size="small"
+              color="primary"
+              variant="outlined"
+              label={`Total: ${series.reduce((sum, item) => sum + item.data.reduce((a, b) => a + b, 0), 0).toFixed(2)} h`}
+            />
+            <Chip size="small" variant="outlined" label={`Employees: ${series.length}`} />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`${tabValue === 1 ? "Projects" : "Tasks"}: ${labels.length}`}
+            />
+          </Stack>
+          <TimesheetBarChart labels={labels} series={series} />
+        </>
       ) : (
-        <Box sx={{ display: "grid", placeItems: "center", height: "100%", minHeight: { xs: 220, sm: 340 } }}>
+        <Box
+          sx={analysisChartEmptySx}
+        >
           <EmptyTableState
             title="No analysis data for these filters"
             description="Widen the date range or clear the employee, project or task filter."
@@ -482,29 +495,21 @@ export default function TimesheetAnalysis() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>
-              Timesheet Analysis
-            </Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Employee, project, task, hours, status, rating and approver report.
-            </Typography>
-          </Box>
-          <Box sx={pageHeaderActions}>
-            <ReportHeaderActions
-              onExport={
-                tabValue === 0
-                  ? () => runExport(exportReportToExcel)
-                  : undefined
-              }
-              exportDisabled={analysis.rows.length === 0 || loading}
-              exporting={exporting}
-              onFilter={() => setFilterOpen(true)}
-              filterButtonRef={setFilterButton}
-            />
-          </Box>
-        </Box>
+        <PageHeader
+          title="Timesheet Analysis"
+          subtitle="Employee, project, task, hours, status, rating and approver report."
+          actions={reportHeaderActions({
+            onExport:
+              tabValue === 0
+                ? () => runExport(exportReportToExcel)
+                : undefined,
+            exportDisabled: analysis.rows.length === 0 || loading,
+            exporting,
+            activeFilterCount: countChangedFilters(filters, initialFilters()),
+            onFilter: () => setFilterOpen(true),
+            filterButtonRef: setFilterButton,
+          })}
+        />
 
         <Box sx={tabsContainer}>
           <Tabs
@@ -516,7 +521,9 @@ export default function TimesheetAnalysis() {
             sx={tabs}
           >
             <Tab
-              icon={tabValue === 0 ? <AssessmentIcon /> : <AssessmentOutlinedIcon />}
+              icon={
+                tabValue === 0 ? <AssessmentIcon /> : <AssessmentOutlinedIcon />
+              }
               iconPosition="start"
               label={`Report (${analysis.rows.length})`}
             />
@@ -526,7 +533,9 @@ export default function TimesheetAnalysis() {
               label="Project vs Employee"
             />
             <Tab
-              icon={tabValue === 2 ? <AssignmentIcon /> : <AssignmentOutlinedIcon />}
+              icon={
+                tabValue === 2 ? <AssignmentIcon /> : <AssignmentOutlinedIcon />
+              }
               iconPosition="start"
               label="Task vs Employee"
             />
@@ -538,28 +547,39 @@ export default function TimesheetAnalysis() {
           filters={[
             {
               key: "dates",
-              label: <DateRange start={filters.startDate} end={filters.endDate} />,
+              label: (
+                <DateRange start={filters.startDate} end={filters.endDate} />
+              ),
             },
             ...(filters.employeeId
-              ? [{
-                key: "employee",
-                label: `Employee: ${analysis.filter_options.employees.find((item) => String(item.id) === filters.employeeId)?.name ?? filters.employeeId}`,
-                onRemove: () => setFilters((current) => ({ ...current, employeeId: "" })),
-              }]
+              ? [
+                  {
+                    key: "employee",
+                    label: `Employee: ${analysis.filter_options.employees.find((item) => String(item.id) === filters.employeeId)?.name ?? filters.employeeId}`,
+                    onRemove: () =>
+                      setFilters((current) => ({ ...current, employeeId: "" })),
+                  },
+                ]
               : []),
             ...(filters.projectId
-              ? [{
-                key: "project",
-                label: `Project: ${analysis.filter_options.projects.find((item) => String(item.id) === filters.projectId)?.name ?? filters.projectId}`,
-                onRemove: () => setFilters((current) => ({ ...current, projectId: "" })),
-              }]
+              ? [
+                  {
+                    key: "project",
+                    label: `Project: ${analysis.filter_options.projects.find((item) => String(item.id) === filters.projectId)?.name ?? filters.projectId}`,
+                    onRemove: () =>
+                      setFilters((current) => ({ ...current, projectId: "" })),
+                  },
+                ]
               : []),
             ...(filters.taskId
-              ? [{
-                key: "task",
-                label: `Task: ${analysis.filter_options.tasks.find((item) => String(item.id) === filters.taskId)?.name ?? filters.taskId}`,
-                onRemove: () => setFilters((current) => ({ ...current, taskId: "" })),
-              }]
+              ? [
+                  {
+                    key: "task",
+                    label: `Task: ${analysis.filter_options.tasks.find((item) => String(item.id) === filters.taskId)?.name ?? filters.taskId}`,
+                    onRemove: () =>
+                      setFilters((current) => ({ ...current, taskId: "" })),
+                  },
+                ]
               : []),
           ]}
         />
@@ -593,10 +613,11 @@ export default function TimesheetAnalysis() {
         applyLabel="Show results"
       >
         <Stack spacing={1.5}>
-          <DateRangeSummary
-            start={filters.startDate}
-            end={filters.endDate}
-          />
+          <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} aria-label="Date range presets">
+            <Button size="small" variant="outlined" onClick={() => applyDatePreset("week")}>This week</Button>
+            <Button size="small" variant="outlined" onClick={() => applyDatePreset("month")}>This month</Button>
+            <Button size="small" variant="outlined" onClick={() => applyDatePreset("30days")}>Last 30 days</Button>
+          </Stack>
           <TextField
             fullWidth
             label="From"

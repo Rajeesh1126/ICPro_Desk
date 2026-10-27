@@ -1,4 +1,3 @@
-import { INSET_X, INSET_Y } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
   Box,
@@ -9,20 +8,26 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import ExpandLessOutlinedIcon from "@mui/icons-material/ExpandLessOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 
-import type { SubmissionProject } from "../../types/dataTypes";
+import type { SubmissionProject } from "@/types/dataTypes";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  assignTaskContentSx,
+  assignTaskLoadingSx,
+  assignTaskMilestoneListSx,
+  assignTaskNestedListSx,
+  assignTaskTaskListSx,
+  assignTaskToolbarSx,
+  assignTaskTreeSx,
+} from "@/styles/common";
 
 export type TimeSheetCostCategory = {
   id: number;
@@ -210,29 +215,17 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          Assign Task To Project
-          <Tooltip title="Close">
-            <IconButton
-              aria-label="Close dialog"
-              onClick={onClose}
-            >
-              <CloseOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </DialogTitle>
-      <DialogContent sx={{ height: 560, overflow: "auto" }}>
+      <DialogHeader title="Assign Task To Project" onClose={onClose} />
+      <DialogContent
+        sx={assignTaskContentSx(
+          !loading && !errorMessage && projects.length > 0 && phasesWithCategories.length > 0,
+        )}
+      >
         {loading ? (
           <Stack
             alignItems="center"
             justifyContent="center"
-            sx={{ height: "100%" }}
+            sx={assignTaskLoadingSx}
             spacing={1.5}
           >
             <CircularProgress size={28} />
@@ -262,17 +255,13 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
               return (
                 <Box
                   key={project.id}
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                  }}
+                  sx={assignTaskTreeSx}
                 >
                   <Stack
                     direction="row"
                     alignItems="center"
                     spacing={0.5}
-                    sx={{ px: INSET_X, py: INSET_Y }}
+                    sx={assignTaskToolbarSx}
                   >
                     <IconButton
                       aria-label={`${expandedKeys.includes(projectKey) ? "Collapse" : "Expand"} ${project.code}`}
@@ -306,7 +295,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                     timeout="auto"
                     unmountOnExit
                   >
-                    <Stack spacing={0.5} sx={{ pb: 1, pl: 4, pr: 1 }}>
+                    <Stack spacing={0.5} sx={assignTaskMilestoneListSx}>
                       {phasesWithCategories.map((phase) => {
                         const phaseKey = `${project.id}-${phase.name}`;
                         const phaseIds = phase.categories.flatMap((category) =>
@@ -357,7 +346,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                               timeout="auto"
                               unmountOnExit
                             >
-                              <Stack spacing={0.25} sx={{ pl: 4 }}>
+                              <Stack spacing={0.25} sx={assignTaskTaskListSx}>
                                 {phase.categories.map((category) => {
                                   const categoryKey = `${project.id}-${phase.name}-${category.id}`;
                                   const categoryIds = (
@@ -414,7 +403,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                         timeout="auto"
                                         unmountOnExit
                                       >
-                                        <Stack sx={{ pl: 5 }}>
+                                        <Stack sx={assignTaskNestedListSx}>
                                           {(
                                             costMastersByCategory.get(
                                               category.id,
@@ -468,15 +457,8 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
       </DialogContent>
       <DialogActions>
         <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-        <Button
           variant="contained"
-          startIcon={<SendOutlinedIcon />}
+          startIcon={<AssignmentTurnedInOutlinedIcon />}
           disabled={submitting || selectedCount === 0}
           onClick={() => void submitSelection()}
         >

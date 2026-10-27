@@ -1,44 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   Box,
   Chip,
   CircularProgress,
   Dialog,
   DialogContent,
-  DialogTitle,
-  IconButton,
   Stack,
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import { useTheme } from "@mui/material/styles";
+import DialogHeader from "@/components/common/DialogHeader";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../common/TableView";
+} from "@/components/common/TableView";
 import {
   formatStatusLabel,
   getStatusColor,
+  teamReportCounterSx,
+  teamReportCountersSx,
   teamReportModalLoadingSx,
   teamReportModalPaperSx,
-  teamReportModalSectionIconSx,
-  teamReportModalSectionHeaderSx,
-  teamReportModalSectionPanelSx,
-  teamReportModalSectionStackSx,
-  teamReportModalSubtitleSx,
-  teamReportModalSummaryChipSx,
-  teamReportModalSummaryStackSx,
-  teamReportModalTableWrapSx,
-  teamReportModalTitleContentSx,
-  teamReportModalTitleIconSx,
-  teamReportModalTitleMetaSx,
-  teamReportModalTitleRowSx,
-  teamReportModalTitleSx,
-} from "../../styles/common";
+  teamReportSectionCaptionSx,
+  teamReportSectionHeaderSx,
+  teamReportSectionTitleSx,
+  teamReportSectionsSx,
+  teamReportTableSx,
+  teamReportTotalPillSx,
+  teamReportTotalsSx,
+} from "@/styles/common";
 
 type TeamTicketRow = {
   number: string;
@@ -79,7 +70,8 @@ type TeamReportModalProps = {
 const summaryOrder = ["Open", "InProgress", "Completed", "Closed"];
 const summaryOrderDoList = ["Open", "Closed"];
 
-function SummaryChips({
+/** Status counters for one section: dot, status label, count. */
+function StatusCounters({
   data,
   order = summaryOrder,
 }: {
@@ -87,16 +79,37 @@ function SummaryChips({
   order?: string[];
 }) {
   return (
-    <Stack direction="row" sx={teamReportModalSummaryStackSx}>
+    <Box sx={teamReportCountersSx}>
       {order.map((key) => (
-        <Chip
-          key={key}
-          label={`${formatStatusLabel(key)}: ${data[key] ?? 0}`}
-          variant="outlined"
-          sx={teamReportModalSummaryChipSx(getStatusColor(key))}
-        />
+        <Box key={key} component="span" sx={teamReportCounterSx(getStatusColor(key))}>
+          {formatStatusLabel(key)}
+          <strong>{data[key] ?? 0}</strong>
+        </Box>
       ))}
-    </Stack>
+    </Box>
+  );
+}
+
+/** Title + caption on the left, status counters on the right. */
+function SectionHeader({
+  title,
+  caption,
+  children,
+}: {
+  title: string;
+  caption: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box sx={teamReportSectionHeaderSx}>
+      <Box minWidth={0}>
+        <Typography component="h3" sx={teamReportSectionTitleSx}>
+          {title}
+        </Typography>
+        <Typography sx={teamReportSectionCaptionSx}>{caption}</Typography>
+      </Box>
+      {children}
+    </Box>
   );
 }
 
@@ -118,12 +131,6 @@ export default function TeamReportModal({
   );
   const ticketColumns = useMemo<ColumnData<TeamTicketRow>[]>(
     () => [
-      {
-        label: "#",
-        width: 45,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       { label: "Ticket Number", dataKey: "number", width: 170 },
       { label: "Subject", dataKey: "task", width: "auto" },
       { label: "Status", dataKey: "current_status", width: 140 },
@@ -133,12 +140,6 @@ export default function TeamReportModal({
 
   const dolistColumns = useMemo<ColumnData<TeamDoListRow>[]>(
     () => [
-      {
-        label: "#",
-        width: 45,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       { label: "Task Number", dataKey: "number", width: 170 },
       { label: "Subject", dataKey: "task", width: "auto" },
       { label: "Status", dataKey: "current_status", width: 140 },
@@ -155,30 +156,17 @@ export default function TeamReportModal({
       fullScreen={fullScreen}
       PaperProps={{ sx: teamReportModalPaperSx }}
     >
-      <DialogTitle component="div">
-        <Stack direction="row" sx={teamReportModalTitleRowSx}>
-          <Stack direction="row" spacing={1.25} sx={teamReportModalTitleContentSx}>
-            <Box sx={teamReportModalTitleIconSx}>
-              <GroupsOutlinedIcon fontSize="small" />
-            </Box>
-            <Box minWidth={0}>
-              <Typography sx={teamReportModalTitleSx}>
-                {detail?.department.name || "Team Report"}
-              </Typography>
-              <Stack direction="row" sx={teamReportModalTitleMetaSx}>
-                <Typography sx={teamReportModalSubtitleSx}>
-                  Manager: {detail?.department.manager || "Not assigned"}
-                </Typography>
-                <Chip label={`${ticketTotal} tickets`} variant="outlined" />
-                <Chip label={`${dolistTotal} tasks`} variant="outlined" />
-              </Stack>
-            </Box>
+      <DialogHeader
+        title={detail?.department.name || "Team Report"}
+        subtitle={`Manager: ${detail?.department.manager || "Not assigned"}`}
+        actions={
+          <Stack direction="row" spacing={0.75} sx={teamReportTotalsSx}>
+            <Chip label={`${ticketTotal} tickets`} sx={teamReportTotalPillSx} />
+            <Chip label={`${dolistTotal} tasks`} sx={teamReportTotalPillSx} />
           </Stack>
-          <IconButton aria-label="Close team report" onClick={onClose}>
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+        }
+        onClose={onClose}
+      />
       <DialogContent>
         {loading ? (
           <Box sx={teamReportModalLoadingSx}>
@@ -188,21 +176,12 @@ export default function TeamReportModal({
             </Typography>
           </Box>
         ) : (
-          <Stack sx={teamReportModalSectionStackSx}>
-            <Box sx={teamReportModalSectionPanelSx}>
-              <Stack direction="row" spacing={1} sx={teamReportModalSectionHeaderSx}>
-                <Box sx={teamReportModalSectionIconSx("primary")}>
-                  <AssignmentOutlinedIcon fontSize="small" />
-                </Box>
-                <Box minWidth={0}>
-                  <Typography fontWeight={900}>Tickets</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    External ticket workload
-                  </Typography>
-                </Box>
-              </Stack>
-              <SummaryChips data={detail?.ticket_summary ?? {}} />
-              <Box sx={teamReportModalTableWrapSx}>
+          <Box sx={teamReportSectionsSx}>
+            <Box component="section">
+              <SectionHeader title="Tickets" caption="External ticket workload">
+                <StatusCounters data={detail?.ticket_summary ?? {}} />
+              </SectionHeader>
+              <Box sx={teamReportTableSx}>
                 <VirtualizedTable
                   columns={ticketColumns}
                   rows={detail?.tickets ?? []}
@@ -213,23 +192,14 @@ export default function TeamReportModal({
               </Box>
             </Box>
 
-            <Box sx={teamReportModalSectionPanelSx}>
-              <Stack direction="row" spacing={1} sx={teamReportModalSectionHeaderSx}>
-                <Box sx={teamReportModalSectionIconSx("secondary")}>
-                  <FormatListBulletedOutlinedIcon fontSize="small" />
-                </Box>
-                <Box minWidth={0}>
-                  <Typography fontWeight={900}>Do List</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Manager task follow-ups
-                  </Typography>
-                </Box>
-              </Stack>
-              <SummaryChips
-                data={detail?.dolist_summary ?? {}}
-                order={summaryOrderDoList}
-              />
-              <Box sx={teamReportModalTableWrapSx}>
+            <Box component="section">
+              <SectionHeader title="Do List" caption="Manager task follow-ups">
+                <StatusCounters
+                  data={detail?.dolist_summary ?? {}}
+                  order={summaryOrderDoList}
+                />
+              </SectionHeader>
+              <Box sx={teamReportTableSx}>
                 <VirtualizedTable
                   columns={dolistColumns}
                   rows={detail?.dolist ?? []}
@@ -239,7 +209,7 @@ export default function TeamReportModal({
                 />
               </Box>
             </Box>
-          </Stack>
+          </Box>
         )}
       </DialogContent>
     </Dialog>

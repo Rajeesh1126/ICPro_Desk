@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class OrganizationCalendarConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'organization_calendar'
+    verbose_name = 'Organization calendar'

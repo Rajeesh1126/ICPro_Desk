@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useBeforeUnload, useNavigate } from "react-router-dom";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 /**
  * Protects unsaved timesheet hours from being lost by:
@@ -80,11 +80,10 @@ export function useUnsavedNavigationGuard(
     <ConfirmDialog
       open={Boolean(pendingAction)}
       title="Discard unsaved hours?"
-      description="You have edited time sheet hours that have not been saved as a draft. Leave this page without saving?"
+      description="You have edited timesheet hours that have not been saved as a draft. Leave this page without saving?"
       cancelLabel="Stay on timesheet"
       confirmLabel="Leave without saving"
       confirmColor="warning"
-      titleIcon={<WarningAmberOutlinedIcon fontSize="small" />}
       confirmIcon={<WarningAmberOutlinedIcon fontSize="small" />}
       onClose={() => setPendingAction(null)}
       onConfirm={() => {

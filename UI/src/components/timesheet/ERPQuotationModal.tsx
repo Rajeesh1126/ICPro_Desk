@@ -1,32 +1,28 @@
-import { INSET_X, INSET_Y } from "../../styles/tokens";
 import React, { useMemo, useState } from "react";
 import {
-    Box,
-    Button,
-    Checkbox,
-    Chip,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    Stack,
-    Tooltip,
-    Typography,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 
 import {
     VirtualizedTable,
     type ColumnData,
-} from "../../components/common/TableView";
+} from "@/components/common/TableView";
 
 import type {
     ERPQuotation
-} from "../../types/dataTypes";
+} from "@/types/dataTypes";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  erpContentSx,
+  erpTableAreaSx,
+} from "@/styles/common";
 
 interface ERPQuotationModalProps {
     open: boolean;
@@ -116,7 +112,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                         quotation.system_name ||
                         quotation.project__name;
 
-                    return projectName ? String(projectName) : "-";
+                    return projectName ? String(projectName) : "—";
                 },
             },
             // {
@@ -146,59 +142,26 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
                 },
             }}
         >
-            <DialogTitle>
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    spacing={2}
-                >
-                    <Stack direction="row" alignItems="center" spacing={1.25}>
-                        <RequestQuoteOutlinedIcon color="primary" />
-                        <Box>
-                            <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
-                                Select ERP Quotation
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Choose one or more quotations to assign.
-                            </Typography>
-                        </Box>
-                    </Stack>
-
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                        {selectedIds.length > 0 && (
-                            <Chip
-                                color="primary"
-                                variant="outlined"
-                                label={`${selectedIds.length} selected`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                        )}
-                        <Tooltip title="Close">
-                            <IconButton aria-label="Close dialog" onClick={handleClose}>
-                                <CloseOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                </Stack>
-            </DialogTitle>
+            <DialogHeader
+                title="Select ERP Quotation"
+                subtitle="Choose one or more quotations to assign."
+                onClose={handleClose}
+                actions={
+                    selectedIds.length > 0 && (
+                        <Chip
+                            color="primary"
+                            variant="outlined"
+                            label={`${selectedIds.length} selected`}
+                        />
+                    )
+                }
+            />
 
             <DialogContent
-                dividers
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                    overflow: "hidden",
-                    px: INSET_X,
-                    py: INSET_Y,
-                }}
+                sx={erpContentSx}
             >
                 <Box
-                    sx={{
-                        flex: 1,
-                        minHeight: 0,
-                    }}
+                    sx={erpTableAreaSx}
                 >
                     <VirtualizedTable
                         columns={columns}
@@ -210,13 +173,6 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
             </DialogContent>
 
             <DialogActions>
-                <Button
-                    variant="outlined"
-                    onClick={handleClose}
-                    startIcon={<CancelOutlinedIcon />}
-                >
-                    Cancel
-                </Button>
 
                 <Button
                     variant="contained"

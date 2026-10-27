@@ -1,6 +1,7 @@
 :root {
-  color: #3f4652;
-  background: #edf1f8;
+  /* Opaque fallback before the theme mounts (matches the light tokens). */
+  color: #1f2329;
+  background: #f7f7fa;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

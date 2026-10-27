@@ -1,5 +1,7 @@
-import { insetSx } from "../../styles/tokens";
+// Shared spacing token keeps the table surface aligned with page content.
+// React supplies state, memoization, contexts, and component typings.
 import * as React from "react";
+// Material UI primitives build the table surface, toolbar, and responsive states.
 import {
   Table,
   TableBody,
@@ -12,93 +14,176 @@ import {
   IconButton,
   TextField,
   Box,
-  Badge,
   Typography,
   InputAdornment,
   Stack,
   useMediaQuery,
   type SxProps,
 } from "@mui/material";
+// Theme helpers provide breakpoint detection and theme-aware row styling.
 import { useTheme, type Theme } from "@mui/material/styles";
 
-// Corrected Imports for verbatimModuleSyntax
+// Virtuoso renders large datasets efficiently while preserving table semantics.
 import { TableVirtuoso } from "react-virtuoso";
+// Virtuoso component types keep the custom table element mapping type safe.
 import type { TableComponents } from "react-virtuoso";
+// Sort controls expose the active field and direction in column headers.
 import { TableSortLabel } from "@mui/material";
+// Down arrow indicates that a collapsible table is currently closed.
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+// Up arrow indicates that a collapsible table is currently open.
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+// Search icon identifies the table-wide search field.
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import EmptyTableState from "./EmptyTableState";
-import { formatIfDate } from "../../utils/dateRange";
-import { getColumnSearchText } from "./tableSearch";
-import TableLoadingState from "./TableLoadingState";
+// EmptyTableState renders the standard no-data and no-results presentation.
+import EmptyTableState from "@/components/common/EmptyTableState";
+// MobileRowCard converts each record into the responsive card layout.
+import MobileRowCard from "@/components/common/MobileRowCard";
+// Date formatting keeps recognized date values consistent across cells.
+import { formatIfDate } from "@/utils/dateRange";
+// Search text extraction normalizes arbitrary column values for filtering.
+import { getColumnSearchText } from "@/components/common/tableSearch";
+// Cell helpers define rendering, formatting, and alignment behavior.
+import {
+  columnAlign,
+  columnFormat,
+  renderTableCell,
+  type CellFormat,
+  type ColumnAlign,
+} from "@/components/common/tableCell";
+// TableLoadingState supplies the shared table and card loading skeletons.
+import TableLoadingState from "@/components/common/TableLoadingState";
+// Shared style objects keep table surfaces, rows, headers, and controls consistent.
 import {
   alternatingRowSx,
-  formatStatusLabel,
-  getStatusColor,
   stickyTableCellSx,
   tableHeadSx,
   tableHeaderCellSx,
   type TableRowStatus,
-  tableStatusCellSx,
   tableHeaderBarSx,
   tableBodyAreaSx,
   tableEmptyOverlaySx,
   tableBodyRowSx,
   tableHeaderCellForColumnSx,
   tableBodyCellForColumnSx,
-  tableStatusDotSx,
   tablePanelSx,
   tableScrollContainerSx,
   tableViewTableWithMinWidth,
+  tableColumnsTotalWidth,
+  resolveTableMinWidth,
   tableVirtuosoStyle,
   tableSearchFieldSx,
   tableViewTitleGroupSx,
   tableViewTitleStackSx,
   tableSubtitleSx,
-  tableStatusTextSx,
   tableTitleSx,
-} from "../../styles/common";
+  tableTitleCountSx,
+  tableSearchPlaceholder,
+  tableHeaderToolsSx,
+  tableCardListSx,
+  tableCardsEmptySx,
+  tableExpandButtonSx,
+} from "@/styles/common";
 
+/** Width values supported by a table column at a single breakpoint. */
 type ColumnWidth = number | "auto" | `${number}%`;
+/** A fixed width or a width map that adapts across application breakpoints. */
 type ResponsiveColumnWidth =
   | ColumnWidth
   | Partial<Record<"xs" | "sm" | "md" | "lg" | "xl", ColumnWidth>>;
 
+/** Describes how one record field is labeled, sized, searched, and rendered. */
 export interface ColumnData<T> {
+  /** Human-readable heading displayed for this column. */
   label: string;
+  /** Fixed or responsive width allocated to the column. */
   width?: ResponsiveColumnWidth;
+  /** Right-aligns raw values when the column contains numbers. */
   numeric?: boolean;
+  /** Optional record key used to read and sort the cell value. */
   dataKey?: keyof T;
+  /** Optional renderer for values that need richer UI than formatted text. */
   render?: (row: T, index: number) => React.ReactNode;
   /** Optional plain-text value used by the table-wide search. */
   searchValue?: (row: T, index: number) => unknown;
+  /** Display style for the raw value; "Status" / "Priority" labels infer it. */
+  format?: CellFormat;
+  /** Long text: show up to two lines (full text on hover) instead of one. */
+  wrap?: boolean;
+  /** Header and body cell alignment; defaults to right for numbers, else left. */
+  align?: ColumnAlign;
+  /**
+   * Phone cards: columns with an order are the summary (shown first, in this
+   * order); the rest go behind "Show more". Without any, the first few show.
+   */
+  mobileOrder?: number;
 }
 
+/** Configuration accepted by the shared desktop table and mobile card view. */
 interface VirtualizedTableProps<T> {
+  /** Column definitions that control table presentation and behavior. */
   columns: ColumnData<T>[];
+  /** Records displayed by the table. */
   rows: T[];
+  /** Height passed to the table panel when a page controls its size. */
   height?: string;
+  /** Minimum desktop table width before horizontal scrolling begins. */
   tableMinWidth?: number | string;
+  /** Opens or selects a record when its row is activated. */
   onRowClick?: (row: T) => void;
+  /** Maps a record to the semantic status used for row accents. */
   getRowStatus?: (row: T) => TableRowStatus | undefined;
+  /** Adds record-specific styling to a desktop row. */
   getRowSx?: (row: T) => SxProps<Theme> | undefined;
+  /** Main title displayed in the table header. */
   tableHead?: string;
+  /** Supporting text displayed below the table title. */
   tableHeadSub?: React.ReactNode;
+  /** Creates an optional fixed footer from the currently displayed rows. */
   fixedFooterContent?: (rows: T[]) => React.ReactNode;
+  /** Keeps the first column visible during horizontal scrolling. */
   stickyFirstColumn?: boolean;
+  /** Allows the table body to be expanded and collapsed. */
   collapsible?: boolean;
+  /** Controlled expanded state for a collapsible table. */
   expanded?: boolean;
+  /** Reports changes to the controlled expanded state. */
   onExpandedChange?: (expanded: boolean) => void;
   /** True until the first response resolves; shows a skeleton instead of the empty state. */
   loading?: boolean;
+  /** Heading used when the table contains no records. */
   emptyTitle?: string;
+  /** Supporting copy used when the table contains no records. */
   emptyDescription?: string;
+  /** Optional action displayed with the empty state. */
+  emptyAction?: React.ReactNode;
+  /** Clear, contextual wording for the table's row search. */
+  searchPlaceholder?: string;
+  /** Accessible label for the search input. */
+  searchLabel?: string;
+  /** Removes the table search control when a page supplies its own filtering. */
+  hideSearch?: boolean;
+  /** Section action shown at the right of the title bar, e.g. "+ Add task". */
+  headerAction?: React.ReactNode;
+  /** Column labels hidden on desktop (a column selector); phones show all. */
+  hiddenColumns?: readonly string[];
+  /**
+   * Desktop: size the panel to its rows (capped at the available height, then
+   * it scrolls) instead of always filling the page.
+   */
+  fitContent?: boolean;
 }
 
+/** Fixed header row height, used when the panel is sized to its rows. */
+const FIT_HEADER_HEIGHT = 48;
+/** Room for the empty state when a fitted table has no rows. */
+const FIT_EMPTY_HEIGHT = 240;
+
+/** Converts raw cell values into readable fallback text or formatted dates. */
 const formatCellValue = (value: unknown): React.ReactNode => {
   if (value == null || value === "") return "—";
   if (Array.isArray(value)) {
+    // Object arrays use their name field while primitive arrays use their text value.
     const formatted = value
       .map((item) =>
         typeof item === "object" && item !== null && "name" in item
@@ -112,20 +197,26 @@ const formatCellValue = (value: unknown): React.ReactNode => {
   return formatIfDate(value) as React.ReactNode;
 };
 
+/** Produces native hover text for simple values that may be visually truncated. */
 const cellTitle = (value: unknown) =>
   typeof value === "string" || typeof value === "number"
     ? String(formatCellValue(value))
     : undefined;
 
+/** Resolves a stable row key from common identifiers, with the index as fallback. */
 const getRowKey = <T extends object>(row: T, index: number) => {
   if ("id" in row && row.id != null) return String(row.id);
   if ("number" in row && row.number != null) return String(row.number);
   return String(index);
 };
 
+/** Row callbacks shared through context so Virtuoso can keep its row component stable. */
 type RowHandlers = {
+  /** Opens or selects the record represented by a row. */
   onRowClick?: (row: never) => void;
+  /** Resolves the row's semantic status for visual accents. */
   getRowStatus?: (row: never) => TableRowStatus | undefined;
+  /** Resolves optional page-specific styling for a row. */
   getRowSx?: (row: never) => SxProps<Theme> | undefined;
 };
 
@@ -136,12 +227,14 @@ type RowHandlers = {
  */
 const RowHandlersContext = React.createContext<RowHandlers>({});
 
+/** Renders a virtualized desktop row with click, keyboard, status, and style behavior. */
 function VirtualRow({
   item,
   ...props
 }: {
   item: Record<string, unknown>;
 } & React.HTMLAttributes<HTMLTableRowElement>) {
+  // Read current page callbacks without rebuilding Virtuoso's row component.
   const { onRowClick, getRowStatus, getRowSx } = React.useContext(
     RowHandlersContext,
   ) as {
@@ -169,10 +262,12 @@ function VirtualRow({
       }
       data-status={getRowStatus?.(item)}
       sx={(theme) => {
+        // Start with the shared alternating and interactive row styles.
         const baseRowSx = tableBodyRowSx({
           alternatingRowSx,
           onRowClick,
         }) as (theme: Theme) => Record<string, unknown>;
+        // Allow the owning page to add styles for this specific record.
         const customRowSx = getRowSx?.(item);
 
         return {
@@ -186,8 +281,9 @@ function VirtualRow({
   );
 }
 
+/** Displays a reusable searchable table that switches to cards on small screens. */
 export function VirtualizedTable<T extends object>({
-  columns,
+  columns: allColumns,
   rows,
   height,
   tableMinWidth,
@@ -204,17 +300,47 @@ export function VirtualizedTable<T extends object>({
   loading = false,
   emptyTitle,
   emptyDescription,
+  emptyAction,
+  searchPlaceholder,
+  searchLabel,
+  hideSearch = false,
+  headerAction,
+  hiddenColumns,
+  fitContent = false,
 }: VirtualizedTableProps<T>) {
+  // Tracks Virtuoso's measured content height for tables that fit their rows.
+  const [listHeight, setListHeight] = React.useState(0);
+  // Provides the active application theme to responsive and style helpers.
   const theme = useTheme();
+  // Selects the card layout at the application's phone breakpoint.
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // Phone cards keep every field (secondary ones sit behind "Show more").
+  const columns = React.useMemo(
+    () =>
+      isMobile || !hiddenColumns?.length
+        ? allColumns
+        : allColumns.filter((column) => !hiddenColumns.includes(column.label)),
+    [allColumns, hiddenColumns, isMobile],
+  );
+  // Plain pixel widths become shares of the table so it fits the screen.
+  const columnsTotalWidth = React.useMemo(
+    () => tableColumnsTotalWidth(columns),
+    [columns],
+  );
+  // Stores the record field currently used for client-side sorting.
   const [sortField, setSortField] = React.useState<keyof T | null>(null);
+  // Stores the direction applied to the active sort field.
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">(
     "asc",
   );
+  // Stores the user's table-wide search query.
   const [searchText, setSearchText] = React.useState("");
+  // Applies the current search and sort settings without mutating source rows.
   const processedRows = React.useMemo(() => {
+    // Begin with the supplied records and replace this list only when filtering.
     let filtered = rows;
     if (searchText.trim() !== "") {
+      // Normalize the query once before comparing it with every searchable cell.
       const lower = searchText.toLowerCase();
 
       filtered = rows.filter((row, index) =>
@@ -227,6 +353,7 @@ export function VirtualizedTable<T extends object>({
     }
     if (sortField) {
       filtered = [...filtered].sort((a, b) => {
+        // Read both values from the active field for a stable pairwise comparison.
         const aValue = a[sortField];
         const bValue = b[sortField];
 
@@ -241,11 +368,13 @@ export function VirtualizedTable<T extends object>({
     return filtered;
   }, [rows, searchText, sortField, sortDirection, columns]);
 
+  // Memoize page callbacks so the context value changes only when a handler changes.
   const rowHandlers = React.useMemo(
     () => ({ onRowClick, getRowStatus, getRowSx }) as RowHandlers,
     [getRowSx, getRowStatus, onRowClick],
   );
 
+  // Maps Virtuoso's structural slots to the application's styled table elements.
   const virtuosoTableComponents: TableComponents<T> = React.useMemo(
     () => ({
       Scroller: React.forwardRef<HTMLDivElement>((props, ref) => (
@@ -257,7 +386,12 @@ export function VirtualizedTable<T extends object>({
         />
       )),
       Table: (props) => (
-        <Table {...props} sx={tableViewTableWithMinWidth(tableMinWidth)} />
+        <Table
+          {...props}
+          sx={tableViewTableWithMinWidth(
+            resolveTableMinWidth(tableMinWidth, columnsTotalWidth),
+          )}
+        />
       ),
       TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
         <TableHead {...props} ref={ref} sx={tableHeadSx} />
@@ -270,9 +404,10 @@ export function VirtualizedTable<T extends object>({
         <TableBody {...props} ref={ref} />
       )),
     }),
-    [tableMinWidth],
+    [tableMinWidth, columnsTotalWidth],
   );
 
+  /** Activates a new sort field or reverses the current field's direction. */
   const handleSort = (field?: keyof T) => {
     if (!field) return;
 
@@ -284,36 +419,44 @@ export function VirtualizedTable<T extends object>({
     }
   };
 
+  // Normalize the optional heading for labels, messages, and accessible text.
   const tableTitle = tableHead ? tableHead : "";
+  // Distinguish an empty search result from a table that has no source records.
   const isFiltered = searchText.trim() !== "" && rows.length > 0;
+  // Build the contextual empty state shared by desktop and mobile layouts.
   const emptyState = isFiltered ? (
     <EmptyTableState
       title="No matching records"
       description={`Nothing in ${tableTitle} matches "${searchText.trim()}". Clear or change the search.`}
     />
   ) : (
-    <EmptyTableState title={emptyTitle} description={emptyDescription} />
+    <EmptyTableState title={emptyTitle} description={emptyDescription} action={emptyAction} />
   );
+  // A non-collapsible table is always treated as expanded.
   const isTableExpanded = !collapsible || expanded;
+  // Resolve the shared table panel styles once for the supplied height.
   const paperSx = tablePanelSx({ height }) as Record<string, unknown>;
 
+  /** Requests the opposite expanded state when collapsing is enabled. */
   const toggleExpanded = () => {
     if (!collapsible) return;
     onExpandedChange?.(!expanded);
   };
 
+  /** Renders the sticky desktop header and its optional sort controls. */
   const fixedHeaderContent = () => (
     <TableRow>
       {columns.map((column, index) => (
         <TableCell
           key={column.label}
           variant="head"
-          align="left"
+          align={columnAlign(column)}
           sx={tableHeaderCellForColumnSx({
             column,
             index,
             tableHeaderCellSx,
             stickyFirstColumn,
+            totalWidth: columnsTotalWidth,
           })}
         >
           {column.dataKey ? (
@@ -332,14 +475,15 @@ export function VirtualizedTable<T extends object>({
     </TableRow>
   );
 
+  /** Renders every cell for one virtualized desktop row. */
   const rowContent = (rowIndex: number, row: T) => (
     <React.Fragment>
       {columns.map((column, index) => (
         <TableCell
           key={column.label}
-          align="left"
+          align={columnAlign(column)}
           title={
-            !column.render && column.label !== "Status" && column.dataKey
+            !column.render && !columnFormat(column) && column.dataKey
               ? cellTitle(row[column.dataKey])
               : undefined
           }
@@ -348,151 +492,44 @@ export function VirtualizedTable<T extends object>({
             index,
             stickyTableCellSx,
             stickyFirstColumn,
+            totalWidth: columnsTotalWidth,
           })}
         >
-          {column.render ? (
-            column.render(row, rowIndex)
-          ) : column.dataKey ? (
-            column.label === "Status" ? (
-              <Box sx={tableStatusCellSx}>
-                <Badge
-                  aria-hidden="true"
-                  variant="dot"
-                  sx={tableStatusDotSx({
-                    column,
-                    getStatusColor,
-                    row,
-                  })}
-                />
-
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={tableStatusTextSx}
-                >
-                  {formatStatusLabel(row[column.dataKey])}
-                </Typography>
-              </Box>
-            ) : (
-              formatCellValue(row[column.dataKey])
-            )
-          ) : null}
+          {renderTableCell(column, row, rowIndex, formatCellValue)}
         </TableCell>
       ))}
     </React.Fragment>
   );
 
+  /** Adapts the shared cell renderer to MobileRowCard's render callback. */
   const renderColumnValue = (
     column: ColumnData<T>,
     row: T,
     rowIndex: number,
-  ) => {
-    if (column.render) return column.render(row, rowIndex);
-    if (!column.dataKey) return null;
+  ) => renderTableCell(column, row, rowIndex, formatCellValue);
 
-    if (column.label === "Status") {
-      return (
-        <Box sx={tableStatusCellSx}>
-          <Badge
-            aria-hidden="true"
-            variant="dot"
-            sx={tableStatusDotSx({ column, getStatusColor, row })}
-          />
-          <Typography component="span" variant="body2" sx={tableStatusTextSx}>
-            {formatStatusLabel(row[column.dataKey])}
-          </Typography>
-        </Box>
-      );
-    }
-
-    return formatCellValue(row[column.dataKey]);
-  };
-
+  // Assemble the responsive card list and its centered empty state.
   const mobileContent = (
     <Box
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        flexDirection: "column",
-        gap: 1,
-        overflowY: "auto",
-        ...insetSx,
-      }}
+      sx={tableCardListSx}
     >
       {processedRows.length ? (
         processedRows.map((row, rowIndex) => (
-          <Paper
+          <MobileRowCard
             key={getRowKey(row, rowIndex)}
-            component="article"
-            role={onRowClick ? "button" : undefined}
-            tabIndex={onRowClick ? 0 : undefined}
-            variant="outlined"
-            onClick={() => onRowClick?.(row)}
-            onKeyDown={(event) => {
-              if (onRowClick && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                onRowClick(row);
-              }
-            }}
-            sx={{
-              appearance: "none",
-              width: "100%",
-              ...insetSx,
-              textAlign: "left",
-              color: "text.primary",
-              bgcolor: "background.paper",
-              borderLeft: "3px solid",
-              borderLeftColor: getRowStatus?.(row)
-                ? `${getRowStatus?.(row)}.main`
-                : "primary.main",
-              cursor: onRowClick ? "pointer" : "default",
-            }}
-          >
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "minmax(88px, 0.8fr) minmax(0, 1.6fr)",
-                columnGap: 1.25,
-                rowGap: 1,
-                alignItems: "start",
-              }}
-            >
-              {columns.map((column) => (
-                <React.Fragment key={column.label}>
-                  <Typography
-                    component="div"
-                    variant="caption"
-                    sx={{
-                      color: "text.secondary",
-                      fontWeight: 700,
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {column.label || "Details"}
-                  </Typography>
-                  <Box
-                    sx={{
-                      minWidth: 0,
-                      overflowWrap: "anywhere",
-                      "& .MuiIconButton-root": { width: 44, height: 44 },
-                    }}
-                  >
-                    {renderColumnValue(column, row, rowIndex)}
-                  </Box>
-                </React.Fragment>
-              ))}
-            </Box>
-          </Paper>
+            row={row}
+            index={rowIndex}
+            columns={columns}
+            renderValue={renderColumnValue}
+            accent={
+              getRowStatus?.(row) ? `${getRowStatus(row)}.main` : undefined
+            }
+            onClick={onRowClick}
+          />
         ))
       ) : (
         <Box
-          sx={{
-            display: "grid",
-            flex: 1,
-            minHeight: 220,
-            placeItems: "center",
-          }}
+          sx={tableCardsEmptySx}
         >
           {emptyState}
         </Box>
@@ -500,11 +537,37 @@ export function VirtualizedTable<T extends object>({
     </Box>
   );
 
+  // Assemble the virtualized desktop table, footer, and empty-state overlay.
   const tableContent = (
-    <Box sx={tableBodyAreaSx}>
+    <Box
+      sx={
+        fitContent
+          ? {
+              ...tableBodyAreaSx,
+              flex: "0 0 auto",
+              height: processedRows.length
+                ? listHeight || FIT_HEADER_HEIGHT
+                : FIT_EMPTY_HEIGHT,
+            }
+          : tableBodyAreaSx
+      }
+    >
       <RowHandlersContext.Provider value={rowHandlers}>
         <TableVirtuoso
-          style={tableVirtuosoStyle}
+          style={
+            fitContent
+              ? {
+                  ...tableVirtuosoStyle,
+                  // Rows' own height; flex lets it shrink to the space left.
+                  height: processedRows.length
+                    ? listHeight || FIT_HEADER_HEIGHT
+                    : FIT_EMPTY_HEIGHT,
+                  flex: "0 1 auto",
+                  minHeight: 0,
+                }
+              : tableVirtuosoStyle
+          }
+          totalListHeightChanged={fitContent ? setListHeight : undefined}
           data={processedRows}
           components={virtuosoTableComponents}
           fixedHeaderContent={fixedHeaderContent}
@@ -529,6 +592,9 @@ export function VirtualizedTable<T extends object>({
         ...paperSx,
         ...(collapsible && !isTableExpanded
           ? { height: "auto", flex: "0 0 auto" }
+          : null),
+        ...(fitContent && !isMobile
+          ? { height: "auto", maxHeight: "100%", flex: "0 1 auto" }
           : null),
       }}
     >
@@ -558,7 +624,7 @@ export function VirtualizedTable<T extends object>({
                 event.stopPropagation();
                 toggleExpanded();
               }}
-              sx={{ width: 30, height: 30, flexShrink: 0 }}
+              sx={tableExpandButtonSx}
             >
               {isTableExpanded ? (
                 <KeyboardArrowUpIcon />
@@ -568,21 +634,33 @@ export function VirtualizedTable<T extends object>({
             </IconButton>
           )}
           <Stack spacing={0.5} sx={tableViewTitleStackSx}>
-            <Typography variant="subtitle1" fontWeight={700} sx={tableTitleSx}>
+            <Typography variant="subtitle1" fontWeight={600} sx={tableTitleSx}>
               {tableTitle}
+              {tableTitle && !loading && (
+                <Box component="span" sx={tableTitleCountSx}>
+                  {rows.length}
+                </Box>
+              )}
             </Typography>
             <Typography
               variant="subtitle2"
-              fontWeight={100}
+              fontWeight={400}
               sx={tableSubtitleSx}
             >
               {tableHeadSub ? tableHeadSub : ""}
             </Typography>
           </Stack>
         </Box>
-        {isTableExpanded && (
+        <Box
+          sx={tableHeaderToolsSx}
+          // Clicks here act on the tools, never toggle a collapsible table.
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+        {headerAction}
+        {isTableExpanded && !hideSearch && (
           <TextField
-            placeholder="Search..."
+            placeholder={searchPlaceholder ?? tableSearchPlaceholder(tableTitle)}
             variant="outlined"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -596,12 +674,13 @@ export function VirtualizedTable<T extends object>({
                 ),
               },
               htmlInput: {
-                "aria-label": `Search ${tableTitle}`,
+                "aria-label": searchLabel ?? `Search rows in ${tableTitle}`,
               },
             }}
             sx={tableSearchFieldSx}
           />
         )}
+        </Box>
       </Box>
       {isTableExpanded &&
         (loading ? (

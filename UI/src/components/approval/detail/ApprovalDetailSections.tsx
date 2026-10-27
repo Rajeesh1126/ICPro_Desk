@@ -1,7 +1,11 @@
 import { Box, IconButton, Typography } from "@mui/material";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import { INSET_X, INSET_Y, insetSx } from "../../../styles/tokens";
-import type { ApprovalRow } from "../../../types/dataTypes";
+import { INSET_X, INSET_Y, insetSx, RADIUS_PX } from "@/styles/tokens";
+import type { ApprovalRow } from "@/types/dataTypes";
+import {
+  iconMediumSx,
+  noShrinkSx,
+} from "@/styles/common";
 
 /** Employee name, overall status and close button. */
 export function ApprovalDetailHeader({ employee, onClose }: { employee: ApprovalRow; onClose: () => void }) {
@@ -38,7 +42,7 @@ export function ApprovalDetailHeader({ employee, onClose }: { employee: Approval
           ml: "auto",
           mr: { xs: 0, sm: 1 },
           fontSize: 12,
-          fontWeight: 700,
+          fontWeight: 600,
           whiteSpace: "nowrap",
           color: theme.palette.primary.main,
         })}
@@ -54,7 +58,7 @@ export function ApprovalDetailHeader({ employee, onClose }: { employee: Approval
           "&:hover": { backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary },
         })}
       >
-        <CloseOutlinedIcon sx={{ fontSize: 20 }} />
+        <CloseOutlinedIcon sx={iconMediumSx} />
       </IconButton>
     </Box>
   );
@@ -64,7 +68,7 @@ export function ApprovalDetailHeader({ employee, onClose }: { employee: Approval
 export function ApprovalComments({ comments }: { comments: string }) {
   if (!comments.trim()) return null;
   return (
-    <Box sx={{ flexShrink: 0 }}>
+    <Box sx={noShrinkSx}>
       <Typography sx={(theme) => ({ fontSize: 12, fontWeight: 500, color: theme.palette.text.secondary, mb: 0.5 })}>
         Comments
       </Typography>
@@ -79,7 +83,7 @@ export function ApprovalComments({ comments }: { comments: string }) {
           minHeight: 65,
           resize: "vertical",
           border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
+          borderRadius: RADIUS_PX.md,
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
           outline: "none",

@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
-import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 /**
  * Protects a form dialog from losing typed input.
@@ -37,11 +36,9 @@ export function useDiscardGuard(open: boolean, close: () => void) {
       open={confirming}
       title="Discard changes?"
       description="You have unsaved changes in this form. If you close it now, they will be lost."
-      titleIcon={<DeleteSweepOutlinedIcon fontSize="small" />}
       cancelLabel="Keep editing"
       confirmLabel="Discard"
       confirmColor="error"
-      tone="error"
       onClose={() => setConfirming(false)}
       onConfirm={() => {
         setConfirming(false);

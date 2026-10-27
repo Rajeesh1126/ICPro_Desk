@@ -12,22 +12,21 @@ import {
   Typography,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import StarOutlinedIcon from "@mui/icons-material/StarOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
-import ConfirmDialog from "../../common/ConfirmDialog";
-import RatingModal from "../RatingInfoModel";
-import type { TicketData, UserSummary } from "../../../types/dataTypes";
-import { marginTopSectionSx, ratingSelectedLabelSx } from "../../../styles/common";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import RatingModal from "@/components/tickets/RatingInfoModel";
+import type { TicketData, UserSummary } from "@/types/dataTypes";
+import { marginTopSectionSx, ratingSelectedLabelSx } from "@/styles/common";
 import {
   isReasonAction,
   RATING_LABELS,
   REASON_DIALOGS,
   type StatusChangeExtras,
   type TicketActionId,
-} from "./ticketActions";
+} from "@/components/tickets/detail/ticketActions";
 
 interface TicketActionDialogsProps {
   /** The action whose confirmation to show (kept while it animates closed). */
@@ -68,7 +67,6 @@ export default function TicketActionDialogs({
   // ---- Actions that need a written reason ------------------------------------
   if (action && isReasonAction(action)) {
     const config = REASON_DIALOGS[action];
-    const TitleIcon = config.icon;
     const ConfirmIcon = config.confirmIcon;
     return (
       <ConfirmDialog
@@ -76,13 +74,11 @@ export default function TicketActionDialogs({
         onClose={onClose}
         onConfirm={() => confirm(config.status, { remarks: reason.trim() })}
         title={config.title}
-        titleIcon={<TitleIcon />}
         description={config.description}
         confirmLabel={config.confirmLabel}
         confirmColor={config.tone}
         confirmIcon={ConfirmIcon ? <ConfirmIcon /> : undefined}
         confirmDisabled={!reason.trim()}
-        tone={config.tone}
       >
         <TextField
           autoFocus
@@ -111,7 +107,6 @@ export default function TicketActionDialogs({
             if (rating) confirm("closed", { rating });
           }}
           title="Rate our Service"
-          titleIcon={<StarOutlinedIcon />}
           confirmLabel="Confirm & Close"
           confirmColor="primary"
           confirmIcon={<TaskAltOutlinedIcon />}
@@ -153,7 +148,6 @@ export default function TicketActionDialogs({
             else onClose();
           }}
           title="Accept Ticket"
-          titleIcon={<CheckCircleOutlinedIcon />}
           description={
             requiresEstimatedHours
               ? "Please enter estimated hours before accepting this ticket."
@@ -163,7 +157,6 @@ export default function TicketActionDialogs({
           confirmColor="success"
           confirmIcon={<CheckCircleOutlinedIcon />}
           confirmDisabled={requiresEstimatedHours && Number(estimatedHours) <= 0}
-          tone="success"
         >
           {requiresEstimatedHours && (
             <Grid size={{ xs: 12, md: 4 }}>
@@ -186,12 +179,10 @@ export default function TicketActionDialogs({
           onClose={onClose}
           onConfirm={() => confirm("assigned", reassignTo ? { assigned_to: reassignTo } : undefined)}
           title="Reassign Ticket"
-          titleIcon={<PersonAddAltOutlinedIcon />}
           description="Please select a person for reassignment."
           confirmLabel="Confirm Reassign"
           confirmColor="secondary"
           confirmIcon={<PersonAddAltOutlinedIcon />}
-          tone="secondary"
         >
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
@@ -218,12 +209,10 @@ export default function TicketActionDialogs({
             onClose();
           }}
           title="Confirm Completion"
-          titleIcon={<TaskAltOutlinedIcon />}
           description="This action will mark the ticket as completed. Do you want to continue?"
           confirmLabel="Confirm"
           confirmColor="success"
           confirmIcon={<TaskAltOutlinedIcon />}
-          tone="success"
         />
       );
 
@@ -237,12 +226,10 @@ export default function TicketActionDialogs({
             onClose();
           }}
           title="Confirm Recall"
-          titleIcon={<AssignmentTurnedInOutlinedIcon />}
-          description="This action will recall and close the ticket. Do you want to continue?"
-          confirmLabel="Confirm"
-          confirmColor="success"
+          description="This will recall the ticket and move it to the closed state. The ticket will no longer appear as active work."
+          confirmLabel="Recall and close ticket"
+          confirmColor="warning"
           confirmIcon={<AssignmentTurnedInOutlinedIcon />}
-          tone="success"
         />
       );
 

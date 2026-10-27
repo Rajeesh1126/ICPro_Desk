@@ -81,6 +81,7 @@ export interface TicketLog {
   created_at: string;
   updated_at?: string;
   creator_name?: string;
+  changed_by?: number;
   changed_by_name?: string;
 }
 
@@ -143,6 +144,7 @@ export interface TicketFormData {
 
 export type TicketCollections = {
   all: TicketData[];
+  overview: TicketData[];
   assigned: TicketData[];
   created: TicketData[];
   closed: TicketData[];

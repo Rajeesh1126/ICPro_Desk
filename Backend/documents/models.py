@@ -18,7 +18,8 @@ class DocumentTemplate(models.Model):
         db_index=True,
     )
     version = models.CharField(max_length=20, blank=True, default="")
-    description = models.TextField(blank=True, default="")
+    orgin  = models.CharField(max_length=150, blank=True, default="")
+    # description = models.TextField(blank=True, default="")
     file = models.FileField(upload_to="documents/templates/")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

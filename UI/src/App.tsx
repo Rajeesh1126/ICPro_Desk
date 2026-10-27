@@ -1,15 +1,16 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Suspense, type ReactNode } from "react";
-import PageLoadingSkeleton from "./components/common/PageLoadingSkeleton";
-import { isTokenExpired } from "./api/axios.ts";
-import { buildLoginPath, clearSession } from "./api/session.ts";
-import ErrorPage, { RoutedErrorPage } from "./pages/ErrorPage.tsx";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
+import { isTokenExpired } from "@/api/axios.ts";
+import { buildLoginPath, clearSession } from "@/api/session.ts";
+import ErrorPage, { RoutedErrorPage } from "@/pages/ErrorPage.tsx";
 
 import {
   Dashboard,
   Documents,
   ForgotPassword,
   HomePage,
+  ICProCalendar,
   InternalTickets,
   Landing,
   LessonLearnt,
@@ -26,7 +27,7 @@ import {
   TimesheetAnalysis,
   TimesheetLogs,
   Users,
-} from "./routes/lazyPages";
+} from "@/routes/lazyPages";
 function PageSuspense({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoadingSkeleton />}>{children}</Suspense>;
 }
@@ -69,6 +70,7 @@ const homeRoutes = [
   { path: "/Home/TimesheetLogs", element: <TimesheetLogs />, permission: "access_timesheet" },
   { path: "/Home/TimesheetAnalysis", element: <TimesheetAnalysis />, permission: "access_timesheet" },
   { path: "/Home/Documents", element: <Documents /> },
+  { path: "/Home/ICProCalendar", element: <ICProCalendar />, permission: "view_calendarentry" },
   { path: "/Home/Suggestions", element: <Suggestions /> },
   { path: "/Home/LessonLearnt", element: <LessonLearnt /> },
   { path: "/Home/Users", element: <Users />, permission: "access_user_management" },

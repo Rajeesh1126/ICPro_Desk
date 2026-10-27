@@ -1,14 +1,14 @@
 import { useState } from "react";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import api from "../../../api/axios";
-import { showNotification } from "../../../api/notificationService";
-import ConfirmDialog from "../../../components/common/ConfirmDialog";
-import DateRange from "../../../components/common/DateRange";
-import TimeSheetUnlockRequestModal from "../../../components/timesheet/TimeSheetUnlockRequestModal";
-import { formatDate } from "../../../utils/dateRange";
-import { formatLocalDate } from "../submission/timesheetMath";
-import type { WeekTaskKind } from "./TimesheetActionsMenu";
+import api from "@/api/axios";
+import { showNotification } from "@/api/notificationService";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import DateRange from "@/components/common/DateRange";
+import TimeSheetUnlockRequestModal from "@/components/timesheet/TimeSheetUnlockRequestModal";
+import { formatDate } from "@/utils/dateRange";
+import { formatLocalDate } from "@/pages/timesheet/submission/timesheetMath";
+import type { WeekTaskKind } from "@/pages/timesheet/sheet/TimesheetActionsMenu";
 
 type RemoveTasksResponse = { blocked_task_ids?: number[] };
 
@@ -31,7 +31,7 @@ interface WeekTaskDialogsProps {
   onChanged: () => void;
 }
 
-const UNLOCK_UNAVAILABLE = "Unlock request is not available for this time sheet status.";
+const UNLOCK_UNAVAILABLE = "Unlock request is not available for this timesheet status.";
 
 /** Week controls: extend selected tasks, remove selected tasks, request unlock. */
 export default function WeekTaskDialogs({
@@ -123,7 +123,6 @@ export default function WeekTaskDialogs({
         description={`Update ${count} selected assigned task(s) end date to ${formatDate(nextWeekEnd)}?`}
         confirmLabel={busy ? "Extending..." : "Extend"}
         confirmDisabled={busy || count === 0}
-        titleIcon={<UpdateOutlinedIcon fontSize="small" />}
         confirmIcon={<UpdateOutlinedIcon fontSize="small" />}
         onClose={onClose}
         onConfirm={extendTasks}
@@ -135,7 +134,6 @@ export default function WeekTaskDialogs({
         confirmLabel={busy ? "Removing..." : "Remove"}
         confirmColor="error"
         confirmDisabled={busy || count === 0}
-        titleIcon={<DeleteOutlineOutlinedIcon fontSize="small" />}
         confirmIcon={<DeleteOutlineOutlinedIcon fontSize="small" />}
         onClose={onClose}
         onConfirm={async () => {

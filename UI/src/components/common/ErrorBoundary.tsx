@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import ErrorPage from "../../pages/ErrorPage";
+import ErrorPage from "@/pages/ErrorPage";
 
 type Props = { children: ReactNode; fallback?: ReactNode };
 type State = { hasError: boolean };

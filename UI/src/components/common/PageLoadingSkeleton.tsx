@@ -1,5 +1,13 @@
-import { insetSx } from "../../styles/tokens";
+import { insetSx } from "@/styles/tokens";
 import { Box, Paper, Skeleton, Stack } from "@mui/material";
+import {
+  flexFillSx,
+  pageSkeletonMetricsSx,
+  pageSkeletonSubtitleSx,
+  pageSkeletonSx,
+  pageSkeletonTableSx,
+  visuallyHiddenSx,
+} from "@/styles/common";
 
 /**
  * Shared route-loading state. It mirrors the page header, summary and content
@@ -11,17 +19,10 @@ export default function PageLoadingSkeleton() {
       aria-label="Loading page"
       aria-busy="true"
       role="status"
-      sx={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        flexDirection: "column",
-        gap: { xs: 1.25, sm: 2 },
-        ...insetSx,
-      }}
+      sx={pageSkeletonSx}
     >
       <Stack direction="row" justifyContent="space-between" gap={2}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={flexFillSx}>
           <Skeleton variant="text" width="min(52%, 280px)" height={38} />
           <Skeleton variant="text" width="min(72%, 460px)" height={22} />
         </Box>
@@ -29,19 +30,15 @@ export default function PageLoadingSkeleton() {
           variant="rounded"
           width={112}
           height={44}
-          sx={{ display: { xs: "none", sm: "block" } }}
+          sx={pageSkeletonSubtitleSx}
         />
       </Stack>
 
       <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-          gap: 1,
-        }}
+        sx={pageSkeletonMetricsSx}
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <Paper key={index} variant="outlined" sx={{ ...insetSx }}>
+          <Paper key={index} variant="outlined" sx={insetSx}>
             <Skeleton variant="text" width="58%" />
             <Skeleton variant="text" width="38%" height={34} />
             <Skeleton variant="text" width="72%" />
@@ -51,7 +48,7 @@ export default function PageLoadingSkeleton() {
 
       <Paper
         variant="outlined"
-        sx={{ display: "flex", flex: 1, minHeight: 280, flexDirection: "column", ...insetSx }}
+        sx={pageSkeletonTableSx}
       >
         <Stack direction="row" justifyContent="space-between" gap={2} mb={1.5}>
           <Skeleton variant="text" width="min(46%, 220px)" height={30} />
@@ -64,7 +61,7 @@ export default function PageLoadingSkeleton() {
           ))}
         </Stack>
       </Paper>
-      <Box component="span" sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+      <Box component="span" sx={visuallyHiddenSx}>
         Loading page
       </Box>
     </Box>

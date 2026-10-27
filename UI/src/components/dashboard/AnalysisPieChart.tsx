@@ -2,20 +2,20 @@ import { useEffect, useMemo, useRef } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import DonutLargeOutlinedIcon from "@mui/icons-material/DonutLargeOutlined";
-import { echarts, type ECharts } from "../../utils/charts";
-import ChartDataTable from "../common/ChartDataTable";
-import { summariseSeries } from "../../utils/chartSummary";
+import { echarts, type ECharts } from "@/utils/charts";
+import ChartDataTable from "@/components/common/ChartDataTable";
+import { summariseSeries } from "@/utils/chartSummary";
 import {
   borderedSurfaceSx,
   pieChartHeaderSx,
-  pieChartHeaderIconSx,
+  pieChartSingleValueSx,
   pieChartEmptyStateSx,
   pieChartEmptyIconSx,
   pieChartCanvasSx,
   pieChartPanelSx,
   formatStatusLabel,
   getStatusColor,
-} from "../../styles/common";
+} from "@/styles/common";
 
 interface AnalysisPieChartProps {
   title: string;
@@ -43,7 +43,7 @@ export default function AnalysisPieChart({
 
   useEffect(() => {
     const element = chartElement.current;
-    if (!element || !chartData.length) return;
+    if (!element || !chartData.length || chartData.length === 1) return;
 
     if (element.clientWidth === 0 || element.clientHeight === 0) {
       return;
@@ -93,7 +93,7 @@ export default function AnalysisPieChart({
               formatter: () => String(total),
               color: theme.palette.text.primary,
               fontSize: 25,
-              fontWeight: 700,
+              fontWeight: 600,
             },
             labelLine: { show: false },
             data: chartData,
@@ -125,11 +125,8 @@ export default function AnalysisPieChart({
       })}
     >
       <Box sx={pieChartHeaderSx}>
-        <Box sx={pieChartHeaderIconSx}>
-          <DonutLargeOutlinedIcon fontSize="small" />
-        </Box>
         <Box>
-          <Typography fontWeight={800}>Ticket status</Typography>
+          <Typography fontWeight={600}>Ticket status</Typography>
           <Typography variant="caption" color="text.secondary">
             {title}
           </Typography>
@@ -143,11 +140,13 @@ export default function AnalysisPieChart({
             ? `Ticket status chart. ${summariseSeries(chartData)}`
             : undefined
         }
-        sx={{
-          ...pieChartCanvasSx({ height }),
-          display: chartData.length ? "block" : "none",
-        }}
+        sx={pieChartCanvasSx({ height, visible: chartData.length > 1 })}
       />
+      {chartData.length === 1 && (
+        <Box sx={pieChartSingleValueSx} aria-label={`${chartData[0].name}: ${chartData[0].value} tickets`}>
+          <Box><Typography variant="h4" fontWeight={600}>{chartData[0].value}</Typography><Typography variant="body2" color="text.secondary">{chartData[0].name}</Typography></Box>
+        </Box>
+      )}
       <ChartDataTable
         caption="Tickets by status"
         rowHeader="Status"
@@ -160,7 +159,7 @@ export default function AnalysisPieChart({
             <DonutLargeOutlinedIcon
               sx={pieChartEmptyIconSx}
             />
-            <Typography fontWeight={700}>No status data yet</Typography>
+            <Typography fontWeight={600}>No status data yet</Typography>
           </Box>
         </Box>
       )}

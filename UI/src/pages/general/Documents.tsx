@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../../components/common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
   Box,
@@ -11,44 +11,39 @@ import {
   Stack,
   TextField,
   Tooltip,
-  Typography,
 } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { showNotification } from "../../api/notificationService";
-import { formatDateTime } from "../../components/common/formatDate";
-import { getStoredPermissions } from "../../utils/permissions";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import DialogHeader from "../../components/common/DialogHeader";
-import FileUploadField from "../../components/common/FileUploadField";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { showNotification } from "@/api/notificationService";
+import { formatDateTime } from "@/components/common/formatDate";
+import { getStoredPermissions } from "@/utils/permissions";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import DialogHeader from "@/components/common/DialogHeader";
+import ActionDivider from "@/components/common/ActionDivider";
+import FileUploadField from "@/components/common/FileUploadField";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
+} from "@/components/common/TableView";
 import {
   buttonLabelCompact,
   buttonLabelFull,
   contentPanel,
-  dialogContentTop,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
-  responsiveRightActions,
   deleteIconSx,
-} from "../../styles/common";
+  rowDeleteButtonSx,
+  documentNameCellSx,
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
 
 type DocumentType = "FDS" | "SDS" | "Template" | "Other";
 
@@ -57,7 +52,7 @@ type DocumentTemplate = {
   document_name: string;
   document_type: DocumentType;
   version: string;
-  description: string;
+  orgin: string;
   file: string;
   uploaded_by_name: string | null;
   updated_at: string;
@@ -68,7 +63,7 @@ type DocumentFormState = {
   document_name: string;
   document_type: DocumentType;
   version: string;
-  description: string;
+  orgin: string;
   file: File | null;
 };
 
@@ -76,7 +71,7 @@ const emptyForm: DocumentFormState = {
   document_name: "",
   document_type: "Template",
   version: "",
-  description: "",
+  orgin: "",
   file: null,
 };
 
@@ -111,13 +106,13 @@ export default function Documents() {
   );
   const [saving, setSaving] = useState(false);
 
-
   // Cached list: returning to this page shows the last rows immediately and
   // refreshes in the background. Successful saves/deletes refresh it
   // automatically (see invalidateAfterMutation), so dialogs never reload it.
   const listQuery = useApiQuery<DocumentTemplate[]>(
     "/documents/document-templates/",
   );
+  console.log(listQuery.data);
   const documents = useMemo(
     () => asArray<DocumentTemplate>(listQuery.data),
     [listQuery.data],
@@ -136,7 +131,7 @@ export default function Documents() {
       document_name: document.document_name,
       document_type: document.document_type,
       version: document.version || "",
-      description: document.description || "",
+      orgin: document.orgin || "",
       file: null,
     });
     setDialogOpen(true);
@@ -181,7 +176,7 @@ export default function Documents() {
     formData.append("document_name", form.document_name.trim());
     formData.append("document_type", form.document_type);
     formData.append("version", form.version.trim());
-    formData.append("description", form.description.trim());
+    formData.append("orgin", form.orgin.trim());
     if (form.file) {
       formData.append("file", form.file);
     }
@@ -243,31 +238,51 @@ export default function Documents() {
   const columns = useMemo<ColumnData<DocumentTemplate>[]>(
     () => [
       {
-        label: "#",
-        width: { xs: 40, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
         label: "Document Name",
         dataKey: "document_name",
-        width: 'auto',
+        width: "auto",
+        wrap: true,
+      },
+      {
+        label: "Orgin",
+        dataKey: "orgin",
+        width: 140,
+        // format: "label",
       },
       {
         label: "Type",
         dataKey: "document_type",
         width: 110,
-        render: (row) => row.document_type?.toUpperCase() || "—",
+        format: "label",
       },
       {
         label: "Version",
         dataKey: "version",
-        width: 100,
+        width: 80,
+        // Stored as "2" or "v1"; always shown as "v2", "v1".
+        render: (row) => {
+          const version = String(row.version ?? "")
+            .trim()
+            .replace(/^v/i, "");
+          return version ? `v${version}` : "—";
+        },
       },
       {
         label: "File",
-        width: 220,
-        render: (row) => getFileName(row.file),
+        width: "auto",
+        render: (row) => {
+          const name = getFileName(row.file);
+          return (
+            <Box
+              component="span"
+              title={name}
+              sx={documentNameCellSx}
+            >
+              <InsertDriveFileOutlinedIcon aria-hidden="true" />
+              <Box component="span">{name}</Box>
+            </Box>
+          );
+        },
       },
       {
         label: "Uploaded By",
@@ -277,40 +292,46 @@ export default function Documents() {
       {
         label: "Updated Date",
         dataKey: "updated_at",
-        width: 160,
+        width: 140,
         render: (row) => formatDateTime(row.updated_at),
       },
       {
         label: "Actions",
-        width: 120,
+        width: 200,
         render: (row) => (
           <Stack direction="row" spacing={0}>
+            <Tooltip title="Download document">
+              <Button
+                size="small"
+                startIcon={<DownloadOutlinedIcon />}
+                disabled={!row.file}
+                onClick={() => downloadDocument(row)}
+                aria-label={`Download ${row.document_name}`}
+              >
+                Download
+              </Button>
+            </Tooltip>
+
+            <ActionDivider />
+            
             {canChangeDocument && (
-              <Tooltip title="Edit document">
+              <Tooltip title="Upload a new version">
                 <IconButton
                   aria-label={`Upload new version of ${row.document_name ?? "document"}`}
                   color="primary"
                   onClick={() => openReplaceDialog(row)}
                 >
-                  <EditOutlinedIcon fontSize="small" />
+                  <FileUploadOutlinedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title="Download document">
-              <span>
-                <IconButton
-                  aria-label={`Download ${row.document_name ?? "document"}`}
-                  color="primary"
-                  disabled={!row.file}
-                  onClick={() => downloadDocument(row)}
-                >
-                  <DownloadOutlinedIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
+
+            <ActionDivider />
+            
             {canDeleteDocument && (
               <Tooltip title="Delete document">
                 <IconButton
+                  sx={rowDeleteButtonSx}
                   aria-label={`Delete ${row.document_name ?? "document"}`}
                   onClick={() => setDeleteDocument(row)}
                 >
@@ -328,43 +349,38 @@ export default function Documents() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>
-              Documents
-            </Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Manage FDS, SDS and reusable document templates.
-            </Typography>
-          </Box>
-          {canAddDocument && (
-            <Stack
-              direction={{ xs: "row-reverse", sm: "row" }}
-              spacing={1}
-              sx={[pageHeaderActions, responsiveRightActions]}
-            >
-              <Button
-                variant="contained"
-                startIcon={<UploadOutlinedIcon />}
-                onClick={openCreateDialog}
-              >
-                <Box component="span" sx={buttonLabelFull}>
-                  Upload Document
-                </Box>
-                <Box component="span" sx={buttonLabelCompact}>
-                  Upload
-                </Box>
-              </Button>
-            </Stack>
-          )}
-        </Box>
+        <PageHeader
+          title="Document Templates"
+          subtitle="Manage FDS, SDS and reusable document templates."
+          actions={[
+            canAddDocument && {
+              key: "upload",
+              priority: "high",
+              node: (
+                <Button
+                  variant="contained"
+                  startIcon={<UploadOutlinedIcon />}
+                  onClick={openCreateDialog}
+                >
+                  <Box component="span" sx={buttonLabelFull}>
+                    Upload Document
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    Upload
+                  </Box>
+                </Button>
+              ),
+            },
+          ]}
+        />
 
         <Box sx={contentPanel}>
           <VirtualizedTable<DocumentTemplate>
             columns={columns}
             rows={documents}
             height="100%"
-            tableHead=""
+            fitContent
+            tableHead="Documents"
             loading={loading}
             emptyTitle="No documents yet"
             emptyDescription="Upload an FDS, SDS or template to share it with the team."
@@ -381,11 +397,10 @@ export default function Documents() {
       >
         <DialogHeader
           title={editingDocument ? "Update Document" : "Upload Document"}
-          icon={<DescriptionOutlinedIcon />}
           onClose={discard.requestClose}
         />
         <DialogContent>
-          <Stack spacing={2} sx={dialogContentTop}>
+          <Stack spacing={2}>
             <TextField
               label="Document Name"
               value={form.document_name}
@@ -417,14 +432,10 @@ export default function Documents() {
               fullWidth
             />
             <TextField
-              label="Description"
-              value={form.description}
-              onChange={(event) =>
-                updateForm("description", event.target.value)
-              }
+              label="orgin"
+              value={form.orgin}
+              onChange={(event) => updateForm("orgin", event.target.value)}
               fullWidth
-              multiline
-              minRows={3}
             />
             <FileUploadField
               file={form.file}
@@ -438,22 +449,14 @@ export default function Documents() {
         </DialogContent>
         <DialogActions>
           <Button
-            variant="outlined"
-            onClick={discard.requestClose}
-            disabled={saving}
-            startIcon={<CancelOutlinedIcon />}
-          >
-            Cancel
-          </Button>
-          <Button
             onClick={submitDocument}
             disabled={saving}
             variant="contained"
             startIcon={
               saving ? undefined : editingDocument ? (
-                <UpdateOutlinedIcon />
+                <SaveOutlinedIcon />
               ) : (
-                <SendOutlinedIcon />
+                <CheckOutlinedIcon />
               )
             }
           >
@@ -468,11 +471,9 @@ export default function Documents() {
         onClose={() => setDeleteDocument(null)}
         title="Delete Document"
         description={`Delete "${deleteDocument?.document_name || "this document"}"?`}
-        titleIcon={<DeleteOutlinedIcon fontSize="small" />}
         confirmLabel="Delete"
         confirmColor="error"
         confirmIcon={<DeleteOutlinedIcon />}
-        tone="error"
         onConfirm={handleDeleteDocument}
       />
     </Box>

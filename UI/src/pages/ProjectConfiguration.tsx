@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../components/common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
   Box,
@@ -17,37 +17,35 @@ import {
   Typography,
 } from "@mui/material";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 
-import api from "../api/axios";
-import { asArray, useApiQuery } from "../api/useApiQuery";
-import DialogHeader from "../components/common/DialogHeader";
-import { showNotification } from "../api/notificationService";
-import ConfirmDialog from "../components/common/ConfirmDialog";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import DialogHeader from "@/components/common/DialogHeader";
+import ActionDivider from "@/components/common/ActionDivider";
+import { showNotification } from "@/api/notificationService";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "@/components/common/TableView";
 import {
-  buttonLabelCompact,
-  buttonLabelFull,
   deleteIconSx,
+  tableHeaderAddButtonSx,
+  rowDeleteButtonSx,
   editIconSx,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
-  projectConfigurationPageHeaderActionsSx,
-  projectConfigurationPageHeaderContentSx,
-  projectConfigurationPageHeaderSx,
-  scrollableContent,
   wideFilterField,
-} from "../styles/common";
-import { getStoredPermissions } from "../utils/permissions";
+  fullHeightSx,
+  projectContentSx,
+  projectFieldHintSx,
+} from "@/styles/common";
+import { getStoredPermissions } from "@/utils/permissions";
+import PageHeader from "@/components/common/PageHeader";
 
 type ProjectConfig = {
   id: number;
@@ -124,16 +122,23 @@ export default function ProjectConfiguration() {
   const projectsQuery = useApiQuery<ProjectConfig[]>("/projects/");
   const milestonesQuery = useApiQuery<MilestoneConfig[]>("/milestones/");
   const tasksQuery = useApiQuery<TaskConfig[]>("/tasks/");
-  const projects = useMemo(() => asArray<ProjectConfig>(projectsQuery.data), [projectsQuery.data]);
+  const projects = useMemo(
+    () => asArray<ProjectConfig>(projectsQuery.data),
+    [projectsQuery.data],
+  );
   const milestones = useMemo(
     () => asArray<MilestoneConfig>(milestonesQuery.data),
     [milestonesQuery.data],
   );
-  const tasks = useMemo(() => asArray<TaskConfig>(tasksQuery.data), [tasksQuery.data]);
+  const tasks = useMemo(
+    () => asArray<TaskConfig>(tasksQuery.data),
+    [tasksQuery.data],
+  );
   const [pickedProjectId, setSelectedProjectId] = useState<number | "">("");
   // Keep the user's pick while it still exists; otherwise default to the first project.
   const selectedProjectId: number | "" =
-    pickedProjectId !== "" && projects.some((project) => project.id === pickedProjectId)
+    pickedProjectId !== "" &&
+    projects.some((project) => project.id === pickedProjectId)
       ? pickedProjectId
       : projects.length
         ? projects[0].id
@@ -153,7 +158,7 @@ export default function ProjectConfiguration() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [expandedConfigTable, setExpandedConfigTable] =
-    useState<ConfigTableType | null>("projects");
+    useState<ConfigTableType | null>(null);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -179,7 +184,9 @@ export default function ProjectConfiguration() {
   );
 
   const loading =
-    projectsQuery.isPending || milestonesQuery.isPending || tasksQuery.isPending;
+    projectsQuery.isPending ||
+    milestonesQuery.isPending ||
+    tasksQuery.isPending;
 
   const openProjectDialog = (mode: DialogMode, project?: ProjectConfig) => {
     setDialogType("project");
@@ -427,22 +434,23 @@ export default function ProjectConfiguration() {
     canDelete: boolean,
   ): ColumnData<ConfigTableRow> => ({
     label: "Actions",
-    width: 85,
+    width: 90,
     render: (row) => (
       <Stack direction="row" spacing={0}>
         {canChange && (
           <Tooltip title="Edit">
-            <IconButton
-              aria-label={`Edit ${row.name}`}
-              onClick={row.onEdit}
-            >
+            <IconButton aria-label={`Edit ${row.name}`} onClick={row.onEdit}>
               <EditOutlinedIcon fontSize="small" sx={editIconSx} />
             </IconButton>
           </Tooltip>
         )}
+
+        <ActionDivider />
+
         {canDelete && (
           <Tooltip title="Delete">
             <IconButton
+              sx={rowDeleteButtonSx}
               aria-label={`Delete ${row.name}`}
               onClick={row.onDelete}
             >
@@ -530,68 +538,12 @@ export default function ProjectConfiguration() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={projectConfigurationPageHeaderSx}>
-          <Box sx={projectConfigurationPageHeaderContentSx}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>
-              Project Configuration
-            </Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              Configure projects, milestones, and tasks without assigning users.
-            </Typography>
-          </Box>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={projectConfigurationPageHeaderActionsSx}
-          >
-            {canAddProject && (
-              <Button
-                variant="contained"
-                startIcon={<AddOutlinedIcon />}
-                onClick={() => openProjectDialog("create")}
-              >
-                <Box component="span" sx={buttonLabelFull}>
-                  New Project
-                </Box>
-                <Box component="span" sx={buttonLabelCompact}>
-                  Project
-                </Box>
-              </Button>
-            )}
-            {canAddMilestone && (
-              <Button
-                variant="outlined"
-                startIcon={<AddOutlinedIcon />}
-                disabled={!selectedProject}
-                onClick={() => openMilestoneDialog("create")}
-              >
-                <Box component="span" sx={buttonLabelFull}>
-                  New Milestone
-                </Box>
-                <Box component="span" sx={buttonLabelCompact}>
-                  Milestone
-                </Box>
-              </Button>
-            )}
-            {canAddTask && (
-              <Button
-                variant="outlined"
-                startIcon={<AddOutlinedIcon />}
-                disabled={!selectedProject}
-                onClick={() => openTaskDialog("create")}
-              >
-                <Box component="span" sx={buttonLabelFull}>
-                  New Task
-                </Box>
-                <Box component="span" sx={buttonLabelCompact}>
-                  Task
-                </Box>
-              </Button>
-            )}
-          </Stack>
-        </Box>
+        <PageHeader
+          title="Project Configuration"
+          subtitle="Configure projects, milestones, and tasks without assigning users."
+        />
 
-        <Box sx={{ ...scrollableContent, pt: 0.75 }}>
+        <Box sx={projectContentSx}>
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={1}
@@ -602,9 +554,11 @@ export default function ProjectConfiguration() {
               <Select
                 label="Project"
                 value={selectedProjectId}
-                onChange={(event) =>
-                  setSelectedProjectId(event.target.value as number | "")
-                }
+                onChange={(event) => {
+                  setSelectedProjectId(event.target.value as number | "");
+                  // Picking a project is a request to see its contents.
+                  setExpandedConfigTable("milestones");
+                }}
               >
                 {projects.map((project) => (
                   <MenuItem key={project.id} value={project.id}>
@@ -620,10 +574,23 @@ export default function ProjectConfiguration() {
             </Typography>
           </Stack>
 
-          <Stack spacing={1.5} sx={{ height: "100%" }}>
+          <Stack spacing={1.5} sx={fullHeightSx}>
             <VirtualizedTable
               tableHead="Projects"
-              tableHeadSub={`${projects.length} projects`}
+              tableHeadSub={`${projects.length} projects · Expand to manage project records`}
+              headerAction={
+                canAddProject && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddOutlinedIcon />}
+                    onClick={() => openProjectDialog("create")}
+                    sx={tableHeaderAddButtonSx}
+                  >
+                    Add project
+                  </Button>
+                )
+              }
               loading={loading && projects.length === 0}
               height="100%"
               tableMinWidth="100%"
@@ -638,9 +605,31 @@ export default function ProjectConfiguration() {
 
             <VirtualizedTable
               tableHead="Milestones"
-              tableHeadSub={selectedProject ? `For project ${selectedProject.code}` : "All projects"}
+              tableHeadSub={
+                selectedProject
+                  ? `For project ${selectedProject.code}`
+                  : "All projects"
+              }
+              headerAction={
+                canAddMilestone && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddOutlinedIcon />}
+                    disabled={!selectedProject}
+                    onClick={() => openMilestoneDialog("create")}
+                    sx={tableHeaderAddButtonSx}
+                  >
+                    Add milestone
+                  </Button>
+                )
+              }
               loading={loading && milestones.length === 0}
-              emptyDescription={selectedProject ? `No milestones for ${selectedProject.code} yet.` : undefined}
+              emptyDescription={
+                selectedProject
+                  ? `No milestones for ${selectedProject.code} yet.`
+                  : undefined
+              }
               height="100%"
               tableMinWidth="100%"
               columns={milestoneColumns}
@@ -654,9 +643,31 @@ export default function ProjectConfiguration() {
 
             <VirtualizedTable
               tableHead="Tasks"
-              tableHeadSub={selectedProject ? `For project ${selectedProject.code}` : "All projects"}
+              tableHeadSub={
+                selectedProject
+                  ? `For project ${selectedProject.code}`
+                  : "All projects"
+              }
+              headerAction={
+                canAddTask && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddOutlinedIcon />}
+                    disabled={!selectedProject}
+                    onClick={() => openTaskDialog("create")}
+                    sx={tableHeaderAddButtonSx}
+                  >
+                    Add task
+                  </Button>
+                )
+              }
               loading={loading && tasks.length === 0}
-              emptyDescription={selectedProject ? `No tasks for ${selectedProject.code} yet.` : undefined}
+              emptyDescription={
+                selectedProject
+                  ? `No tasks for ${selectedProject.code} yet.`
+                  : undefined
+              }
               height="100%"
               tableMinWidth="100%"
               columns={taskColumns}
@@ -752,7 +763,7 @@ export default function ProjectConfiguration() {
                     <Typography
                       variant="caption"
                       color="error"
-                      sx={{ mt: 0.5, ml: 1.75 }}
+                      sx={projectFieldHintSx}
                     >
                       {formErrors.project}
                     </Typography>
@@ -820,7 +831,7 @@ export default function ProjectConfiguration() {
                     <Typography
                       variant="caption"
                       color="error"
-                      sx={{ mt: 0.5, ml: 1.75 }}
+                      sx={projectFieldHintSx}
                     >
                       {formErrors.project}
                     </Typography>
@@ -892,19 +903,22 @@ export default function ProjectConfiguration() {
           </DialogContent>
           <DialogActions>
             <Button
-              variant="outlined"
-              startIcon={<CancelOutlinedIcon />}
-              onClick={discard.requestClose}
-            >
-              Cancel
-            </Button>
-            <Button
               variant="contained"
-              startIcon={dialogMode === "edit" ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+              startIcon={
+                dialogMode === "edit" ? (
+                  <SaveOutlinedIcon />
+                ) : (
+                  <CheckOutlinedIcon />
+                )
+              }
               onClick={() => void saveDialog()}
               disabled={saving || !isDialogFormValid()}
             >
-              {saving ? "Saving..." : dialogMode === "edit" ? "Update" : "Submit"}
+              {saving
+                ? "Saving..."
+                : dialogMode === "edit"
+                  ? "Update"
+                  : "Submit"}
             </Button>
           </DialogActions>
           {discard.dialog}
@@ -918,7 +932,6 @@ export default function ProjectConfiguration() {
           confirmColor="error"
           confirmIcon={<DeleteOutlinedIcon />}
           confirmDisabled={deleting}
-          titleIcon={<DeleteOutlinedIcon fontSize="small" />}
           onClose={() => setDeleteTarget(null)}
           onConfirm={deleteRecord}
         />

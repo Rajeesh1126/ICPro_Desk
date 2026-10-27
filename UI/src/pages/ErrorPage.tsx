@@ -17,8 +17,8 @@ import {
   errorPageSx,
   errorPanelSx,
   errorTitleSx,
-} from "../styles/common";
-import { buildLoginPath, clearSession } from "../api/session";
+} from "@/styles/common";
+import { buildLoginPath, clearSession } from "@/api/session";
 
 type ErrorCode = number | "network" | "generic";
 

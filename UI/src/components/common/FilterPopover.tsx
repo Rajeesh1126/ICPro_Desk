@@ -7,11 +7,18 @@ import {
   DialogContent,
   Popover,
   Stack,
+  Typography,
 } from "@mui/material";
+import {
+  activeFilterBarSx,
+  activeFilterLabelSx,
+  filterDialogBodySx,
+  filterDialogContentSx,
+  filterResetButtonSx,
+} from "@/styles/common";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
-import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
-import DialogHeader from "./DialogHeader";
+import DialogHeader from "@/components/common/DialogHeader";
 
 const WIDTHS = { xs: 420, sm: 560, md: 720 } as const;
 
@@ -80,19 +87,18 @@ export default function FilterPopover({
       <DialogHeader
         id={titleId}
         title={title}
-        icon={<FilterListOutlinedIcon />}
         onClose={onClose}
       />
-      <DialogContent dividers sx={{ flex: "1 1 auto", overflowY: "auto" }}>
-        <Box sx={{ pt: 0.5 }}>{children}</Box>
+      <DialogContent sx={filterDialogContentSx}>
+        <Box sx={filterDialogBodySx}>{children}</Box>
       </DialogContent>
-      <DialogActions sx={{ gap: 1 }}>
+      <DialogActions>
         {onReset && (
           <Button
             variant="text"
             startIcon={<RestartAltOutlinedIcon />}
             onClick={onReset}
-            sx={{ mr: "auto" }}
+            sx={filterResetButtonSx}
           >
             Reset
           </Button>
@@ -134,14 +140,11 @@ export function ActiveFilterChips({
       flexWrap="wrap"
       alignItems="center"
       aria-label="Applied filters"
-      sx={{
-        // Match the table content inset so applied filters sit on the same
-        // vertical grid as the report panel below at every breakpoint.
-        px: { xs: 1, sm: 1.5 },
-        pt: 1,
-        pb: 0.5,
-      }}
+      sx={activeFilterBarSx}
     >
+      <Typography component="span" sx={activeFilterLabelSx}>
+        Showing
+      </Typography>
       {filters.map((filter) => (
         <Chip
           key={filter.key}

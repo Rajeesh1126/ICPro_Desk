@@ -7,8 +7,8 @@ import {
 
 import type { ReactNode } from "react";
 
-import CommonErrorDialog from "../components/common/CommonErrorDialog";
-import { registerErrorHandler } from "../api/errorDialogService";
+import CommonErrorDialog from "@/components/common/CommonErrorDialog";
+import { registerErrorHandler } from "@/api/errorDialogService";
 
 /* eslint-disable react-refresh/only-export-components */
 

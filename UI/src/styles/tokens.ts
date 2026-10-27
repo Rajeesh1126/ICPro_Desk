@@ -12,10 +12,15 @@ import type { PaletteMode } from "@mui/material";
 /* Radius                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Radius roles: xs small marks, sm inputs/buttons/segments (10px),
+ * md cards/menus/panels (12px), lg dialogs (16px). xl is kept for the
+ * login hero only.
+ */
 export const RADIUS = {
   none: 0,
   xs: 4,
-  sm: 8,
+  sm: 10,
   md: 12,
   lg: 16,
   xl: 20,
@@ -38,13 +43,43 @@ export const INSET_X = { xs: 1, sm: 1.5 } as const;
 export const INSET_Y = { xs: 0.5, sm: 1 } as const;
 export const insetSx = { px: INSET_X, py: INSET_Y } as const;
 
+/*
+ * Spacing roles (theme units, 1 = 8px). Keep them separate: the dense INSET
+ * above is for table cells and compact toolbars only; pages, cards and
+ * controls have their own roles so nothing grows indiscriminately.
+ */
+
+/** Card body padding: 16px. */
+export const CARD_PADDING = { xs: 2, sm: 2 } as const;
+/** Control height in px (buttons, inputs, segmented controls). */
+export const CONTROL_HEIGHT = { desktop: 36, touch: 40 } as const;
+/** Widths for the pinned table action column: icons only / includes a text action. */
+
+/** Shared padding scale for dialog title, body and footer sections (CSS px). */
+export const DIALOG_SECTION_PADDING = {
+  title: { xs: { y: 12, x: 16 }, sm: { y: 16, x: 24 } },
+  content: { xs: { y: 16, x: 16 }, sm: { y: 20, x: 24 } },
+  actions: { xs: { y: 12, x: 16 }, sm: { y: 12, x: 24 } },
+} as const;
+
+/** Interaction timing: short and purposeful (honours reduced motion globally). */
+export const MOTION = {
+  fast: "140ms",
+  base: "180ms",
+  slow: "220ms",
+  easing: "cubic-bezier(0.2, 0, 0, 1)",
+} as const;
+
+/** Tabular figures for dates, hours, counts and metrics. */
+export const TABULAR_NUMS = { fontVariantNumeric: "tabular-nums" } as const;
+
 /** Same inset in CSS pixels, for theme style overrides. */
 export const INSET_PX = {
   xs: { x: 8, y: 4 },
   sm: { x: 12, y: 8 },
 } as const;
 
-/** Radius as a CSS length string (e.g. `RADIUS_PX.md` -> "14px"). */
+/** Radius as a CSS length string (e.g. `RADIUS_PX.md` -> "12px"). */
 export const RADIUS_PX = {
   none: "0px",
   xs: `${RADIUS.xs}px`,
@@ -61,22 +96,24 @@ export const RADIUS_PX = {
 /* -------------------------------------------------------------------------- */
 
 export const TYPOGRAPHY = {
-  fontFamily: 'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
+  /** Three weights only: hierarchy comes from size and colour, not boldness. */
   weight: {
     regular: 400,
     medium: 500,
-    semibold: 650,
-    bold: 700,
-    heavy: 800,
-    black: 900,
+    semibold: 600,
   },
+  /** The type ramp (px). Every text size in the app is one of these. */
   size: {
-    xxs: 11,
-    xs: 12,
-    sm: "0.8125rem",
-    md: "0.875rem",
-    lg: "0.95rem",
-    xl: "1.25rem",
+    caption2: 11,
+    caption: 12,
+    footnote: 13,
+    body: 14,
+    callout: 15,
+    title3: 17,
+    title2: 22,
+    title1: 28,
   },
   lineHeight: {
     tight: 1.2,
@@ -95,19 +132,32 @@ export const TYPOGRAPHY = {
 
 export const ELEVATION = {
   light: {
-    card: "0 10px 30px rgba(15, 23, 42, 0.06)",
-    cardHover: "0 8px 24px rgba(15, 23, 42, 0.1)",
-    menu: "0 18px 48px rgba(15, 23, 42, 0.14)",
+    card: "0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.05)",
+    cardHover: "0 2px 4px rgba(16, 24, 40, 0.05), 0 6px 16px rgba(16, 24, 40, 0.08)",
+    menu: "0 4px 12px rgba(16, 24, 40, 0.08), 0 16px 36px rgba(16, 24, 40, 0.12)",
+    /** One soft layer: dialogs float, they don't sit in a heavy frame. */
+    dialog: "0 24px 56px rgba(16, 24, 40, 0.18)",
     sidebar: "14px 0 34px rgba(15, 23, 42, 0.16)",
     hero: "0 24px 80px rgba(4, 39, 58, 0.28)",
   },
   dark: {
-    card: "0 18px 48px rgba(0, 0, 0, 0.28)",
-    cardHover: "0 10px 28px rgba(0, 0, 0, 0.32)",
-    menu: "0 18px 48px rgba(0, 0, 0, 0.28)",
+    card: "0 1px 2px rgba(0, 0, 0, 0.3)",
+    cardHover: "0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.32)",
+    menu: "0 6px 16px rgba(0, 0, 0, 0.32), 0 18px 40px rgba(0, 0, 0, 0.36)",
+    dialog: "0 24px 56px rgba(0, 0, 0, 0.5)",
     sidebar: "14px 0 34px rgba(0, 0, 0, 0.34)",
     hero: "0 24px 80px rgba(4, 39, 58, 0.28)",
   },
+} as const;
+
+/**
+ * App-bar theme toggle glyphs: a warm sun (shown in dark mode) and a soft
+ * moon blue (shown in light mode; the lightest blue that keeps 3:1 contrast
+ * on white).
+ */
+export const THEME_TOGGLE_COLORS = {
+  sun: "#F5B83D",
+  moon: "#7B93C8",
 } as const;
 
 /** Login hero overlay gradient (layered over the background image). */
@@ -175,12 +225,15 @@ interface ColorSet {
 
 export const COLORS: Record<PaletteMode, ColorSet> = {
   light: {
-    surface: "#EDF1F8",
-    surfaceRaised: "#F7FAFD",
-    border: "#E2E8F0",
-    textPrimary: "#3F4652",
-    textSecondary: "#64748B",
-    textDisabled: "#9AA6B6",
+    // Neutral, macOS-like surfaces: a soft grey canvas with white, opaque
+    // raised surfaces for cards, tables, forms and dialogs.
+    surface: "#f7f7fa",
+    surfaceRaised: "#FFFFFF",
+    border: "#E2E4E9",
+    textPrimary: "#1F2329",
+    textSecondary: "#5F6673",
+    // Legible on white (≈3.9:1) so disabled values and hints stay readable.
+    textDisabled: "#7D8490",
     accent: "#146C94",
     accentDark: "#0B4F6C",
     accentLight: "#4D9FC2",
@@ -214,15 +267,18 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
     surface: "#131518",
     // A neutral raised surface keeps cards, the sidebar, and the app bar
     // distinct without making the dark UI read as an accent-colour wash.
-    surfaceRaised: "#1A1C20",
+    surfaceRaised: "#1C1E22",
     border: "rgba(196, 200, 206, 0.18)",
     textPrimary: "#ECEEF1",
     textSecondary: "#A9AFB7",
-    textDisabled: "#676C73",
-    accent: "#41A8B9",
-    accentDark: "#2D8DB8",
-    accentLight: "#A5DFF4",
-    accentContrast: "#FFFFFF",
+    // Legible on raised dark surfaces (≈4.9:1).
+    textDisabled: "#8A9098",
+    // A lighter step of the light-mode ocean blue (same hue family), with
+    // dark text on filled surfaces for AA contrast.
+    accent: "#4BA6D1",
+    accentDark: "#3B95C0",
+    accentLight: "#A5D6EE",
+    accentContrast: "#071A24",
     secondary: "#8E92E4",
     secondaryDark: "#6A6ECB",
     secondaryLight: "#B0B3EE",
@@ -246,40 +302,62 @@ export const COLORS: Record<PaletteMode, ColorSet> = {
     // Keep interaction feedback evident without washing dark surfaces in the
     // accent colour.
     actionHover: "rgba(236, 238, 241, 0.05)",
-    actionSelected: "rgba(65, 168, 185, 0.08)",
+    actionSelected: "rgba(75, 166, 209, 0.1)",
     actionDisabled: "#51565D",
     actionDisabledBackground: "rgba(190, 195, 202, 0.12)",
   },
 };
 
 /**
- * Status colours for chips / dots / status text. Theme-independent single
- * values chosen to read on both light and dark surfaces; extracted verbatim
- * from the previous inline map and aligned to the semantic palette.
+ * Status colour families. Every status maps to one of six semantic hues so
+ * the same meaning always looks the same. Values are mid-tones that read on
+ * both light and dark surfaces; pills derive their per-mode tint with alpha.
  */
+const STATUS_FAMILY = {
+  /** Waiting to start / not yet picked up. */
+  info: "#3B6FD8",
+  /** Moving through the workflow (brand hue). */
+  progress: "#1F86B3",
+  success: "#0F8A50",
+  warning: "#B45309",
+  danger: "#DC3B4B",
+  /** Rare, revision-type states that must stand apart from the rest. */
+  special: "#6D5BD0",
+  neutral: "#64748B",
+} as const;
+
 export const STATUS_COLORS: Record<string, string> = {
-  open: "#D97706",
-  revised: "#7C3AED",
-  reopened: "#0F766E",
-  accepted: "#146C94",
-  assigned: "#1499C0",
-  completed: "#0F8A50",
-  closed: "#64748B",
-  rejected: "#DC3B4B",
-  "not-satisfied": "#C2410C",
-  "recall requested": "#A16207",
-  "recall successful": "#4F46E5",
-  "date revision": "#A16207",
-  pending: "#B45309",
-  submitted: "#146C94",
-  ontime: "#0F8A50",
-  delayed: "#DC3B4B",
-  "not submitted": "#DC3B4B",
-  requested: "#D97706",
-  unlocked: "#0F766E",
+  // Blue, so "open" never reads as an amber reminder / warning.
+  open: STATUS_FAMILY.info,
+  scheduled: STATUS_FAMILY.info,
+  reopened: STATUS_FAMILY.info,
+  accepted: STATUS_FAMILY.progress,
+  assigned: STATUS_FAMILY.progress,
+  "in progress": STATUS_FAMILY.progress,
+  submitted: STATUS_FAMILY.progress,
+  shared: STATUS_FAMILY.progress,
+  unlocked: STATUS_FAMILY.progress,
+  completed: STATUS_FAMILY.success,
+  ontime: STATUS_FAMILY.success,
+  confirmed: STATUS_FAMILY.success,
+  active: STATUS_FAMILY.success,
+  pending: STATUS_FAMILY.warning,
+  requested: STATUS_FAMILY.warning,
+  "recall requested": STATUS_FAMILY.warning,
+  "date revision": STATUS_FAMILY.warning,
+  rejected: STATUS_FAMILY.danger,
+  delayed: STATUS_FAMILY.danger,
+  "not submitted": STATUS_FAMILY.danger,
+  "not-satisfied": STATUS_FAMILY.danger,
+  revised: STATUS_FAMILY.special,
+  "recall successful": STATUS_FAMILY.special,
+  closed: STATUS_FAMILY.neutral,
+  cancelled: STATUS_FAMILY.neutral,
+  draft: STATUS_FAMILY.neutral,
+  inactive: STATUS_FAMILY.neutral,
 };
 
-export const STATUS_COLOR_DEFAULT = "#64748B";
+export const STATUS_COLOR_DEFAULT = STATUS_FAMILY.neutral;
 
 /** Misc existing surface tints kept verbatim (light-mode only usages). */
 export const SURFACE_TINT = {

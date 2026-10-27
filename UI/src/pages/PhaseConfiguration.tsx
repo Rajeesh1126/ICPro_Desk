@@ -21,22 +21,21 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import ConfirmDialog from "../components/common/ConfirmDialog";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
 import HandymanOutlinedIcon from "@mui/icons-material/HandymanOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 
-import api from "../api/axios";
-import { asArray, useApiQuery } from "../api/useApiQuery";
-import { queryClient } from "../api/queryClient";
-import { showNotification } from "../api/notificationService";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { queryClient } from "@/api/queryClient";
+import { showNotification } from "@/api/notificationService";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../components/common/TableView";
+} from "@/components/common/TableView";
 import {
   compactCheckbox,
   countChip,
@@ -46,13 +45,8 @@ import {
   mappedTagChip,
   metaChip,
   minWidthZero,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   primarySaveButton,
   scrollableContent,
   sectionInset,
@@ -62,7 +56,12 @@ import {
   tablePanelFill,
   tableSection,
   warningOutlineChip,
-} from "../styles/common";
+  fullWidthSx,
+  pushRightSx,
+  smUpFlexSx,
+  topSpacingSx,
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
 
 type CostCategory = {
   id: number;
@@ -303,7 +302,7 @@ export default function PhaseConfiguration() {
                   key={phase}
                   label={phase}
                   variant={phase === selectedPhase ? "filled" : "outlined"}
-                  sx={mappedTagChip(phase === selectedPhase)}
+                  sx={mappedTagChip(phase, phase === selectedPhase)}
                 />
               ))
           )}
@@ -315,34 +314,48 @@ export default function PhaseConfiguration() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h4" component="h1" sx={pageTitle}>
-              Phase Configuration
-            </Typography>
-            <Typography sx={pageSubtitle}>
-              Map each ERP cost category to the phase or phases it belongs to.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} sx={pageHeaderActions}>
-            {loading && <CircularProgress size={22} />}
-            <Chip
-              icon={<CategoryOutlinedIcon />}
-              label={`${phaseMappings.length} total mappings`}
-              variant="outlined"
-              sx={metaChip}
-            />
-          </Stack>
-        </Box>
+        <PageHeader
+          title="Phase Configuration"
+          subtitle="Map each ERP cost category to the phase or phases it belongs to."
+          actions={[
+            loading && {
+              key: "loading",
+              priority: "high",
+              node: <CircularProgress size={22} />,
+            },
+            {
+              key: "total",
+              priority: "high",
+              node: (
+                <Chip
+                  icon={<CategoryOutlinedIcon />}
+                  label={`${phaseMappings.length} total mappings`}
+                  variant="outlined"
+                  sx={metaChip}
+                />
+              ),
+              // Phones: just the count, with the full wording for screen readers.
+              mobileNode: (
+                <Chip
+                  icon={<CategoryOutlinedIcon />}
+                  label={phaseMappings.length}
+                  aria-label={`${phaseMappings.length} total mappings`}
+                  variant="outlined"
+                  sx={metaChip}
+                />
+              ),
+            },
+          ]}
+        />
 
         <Box sx={scrollableContent}>
           <Box sx={sectionInset}>
-            <Typography sx={stepLabel}>Step 1 - Choose Phase</Typography>
+            <Typography component="h2" variant="h6" sx={stepLabel}>Step 1 · Choose phase</Typography>
             <Typography sx={helperText}>
               Pick the phase you want to configure.
             </Typography>
             {isPhone ? (
-              <FormControl fullWidth sx={{ mt: 1 }}>
+              <FormControl fullWidth sx={topSpacingSx}>
                 <InputLabel id="phase-select-label">Phase</InputLabel>
                 <Select
                   labelId="phase-select-label"
@@ -352,10 +365,10 @@ export default function PhaseConfiguration() {
                 >
                   {phaseOptions.map((phase) => (
                     <MenuItem key={phase} value={phase}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%" }}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={fullWidthSx}>
                         {phaseMeta[phase]?.icon}
                         <span>{phase}</span>
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+                        <Typography variant="caption" color="text.secondary" sx={pushRightSx}>
                           {mappedCountByPhase[phase] ?? 0} mapped
                         </Typography>
                       </Stack>
@@ -369,13 +382,13 @@ export default function PhaseConfiguration() {
               value={selectedPhase}
               onChange={(_event, value) => requestPhaseChange(value)}
               aria-label="Phase"
-              sx={[segmentedControl, { maxWidth: "100%" }]}
+              sx={segmentedControl}
             >
               {phaseOptions.map((phase) => (
                 <ToggleButton key={phase} value={phase}>
                   <Box
                     alignItems='center'
-                    sx={{ display: { xs: "none", sm: "flex" } }}
+                    sx={smUpFlexSx}
                   >
                     {phaseMeta[phase]?.icon}
                   </Box>
@@ -392,8 +405,8 @@ export default function PhaseConfiguration() {
 
           <Box sx={tableSection}>
             <Box>
-              <Typography sx={stepLabel}>
-                Step 2 - Select Cost Categories
+              <Typography component="h2" variant="h6" sx={stepLabel}>
+                Step 2 · Select cost categories
               </Typography>
               <Typography sx={helperText}>
                 Tick every cost category that belongs to {selectedPhase}. A
@@ -406,7 +419,7 @@ export default function PhaseConfiguration() {
                   next && setMappingFilter(next)
                 }
                 aria-label="Filter cost categories"
-                sx={{ mt: 1 }}
+                sx={topSpacingSx}
               >
                 <ToggleButton value="all">All ({rows.length})</ToggleButton>
                 <ToggleButton value="selected">
@@ -446,7 +459,7 @@ export default function PhaseConfiguration() {
               justifyContent="space-between"
             >
               <Box sx={minWidthZero}>
-                <Typography sx={stepLabel}>Step 3 - Save</Typography>
+                <Typography component="h2" variant="h6" sx={stepLabel}>Step 3 · Save changes</Typography>
                 <Stack
                   direction="row"
                   alignItems="center"
@@ -465,12 +478,14 @@ export default function PhaseConfiguration() {
                     </Box>
                     .
                   </Typography>
-                  {hasUnsavedChanges && (
+                  {hasUnsavedChanges ? (
                     <Chip
                       label={`${changedMappingCount} unsaved change${changedMappingCount === 1 ? "" : "s"}`}
                       variant="outlined"
                       sx={warningOutlineChip}
                     />
+                  ) : (
+                    <Chip label="All changes saved" color="success" variant="outlined" size="small" />
                   )}
                 </Stack>
               </Box>
@@ -478,7 +493,7 @@ export default function PhaseConfiguration() {
               <Button
                 variant="contained"
                 startIcon={<SaveOutlinedIcon />}
-                disabled={saving}
+                disabled={saving || !hasUnsavedChanges}
                 onClick={() => void saveMappings()}
                 sx={primarySaveButton}
               >
@@ -492,11 +507,9 @@ export default function PhaseConfiguration() {
           onClose={() => setPendingPhase(null)}
           title="Discard unsaved changes?"
           description={`You changed the categories for ${selectedPhase} but did not save. Switching to ${pendingPhase ?? ""} will discard those changes.`}
-          titleIcon={<WarningAmberOutlinedIcon fontSize="small" />}
           cancelLabel={`Stay on ${selectedPhase}`}
           confirmLabel="Discard and switch"
           confirmColor="warning"
-          tone="warning"
           onConfirm={() => {
             if (pendingPhase) setSelectedPhase(pendingPhase);
             setPendingPhase(null);

@@ -1,4 +1,4 @@
-import type { SelfTicketData } from "../../types/dataTypes";
+import type { SelfTicketData } from "@/types/dataTypes";
 
 export type SelfTicketAlertReason = "alarm" | "target-date";
 
@@ -48,4 +48,25 @@ export function shouldBlinkSelfTicket(
   currentDate = new Date(),
 ) {
   return getSelfTicketAlertReason(ticket, currentDate) !== null;
+}
+
+/**
+ * Overdue for display (cards, calendar): the task is flagged by the existing
+ * rule (reminder or target date) and is open with a target date of today or
+ * earlier. An active reminder alone is not "overdue".
+ */
+export function isSelfTicketOverdue(ticket: SelfTicketData, currentDate = new Date()) {
+  if (!getSelfTicketAlertReason(ticket, currentDate)) return false;
+  const targetDay = parseSelfTicketTargetDay(ticket.target_date);
+  const today = new Date(currentDate);
+  today.setHours(0, 0, 0, 0);
+  return targetDay !== null && targetDay <= today.getTime();
+}
+
+export type ReminderState = "active" | "scheduled" | "off";
+
+/** Reminder off (no interval), scheduled (interval set) or active (due now). */
+export function getReminderState(ticket: SelfTicketData): ReminderState {
+  if (ticket.alarm === true) return "active";
+  return ticket.reminder_interval ? "scheduled" : "off";
 }

@@ -17,26 +17,21 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import type { Theme } from "@mui/material/styles";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import EmptyTableState from "../../../components/common/EmptyTableState";
-import HoursInput from "../../../components/timesheet/HoursInput";
+import EmptyTableState from "@/components/common/EmptyTableState";
+import HoursInput from "@/components/timesheet/HoursInput";
 import {
-  stickyFirstColumnCell,
-  stickyFirstColumnHeaderCell,
-  stickyTableCellSx,
-  tableContainerSx,
-  tableHeaderCellSx,
+  expandToggleSpacerSx,
   tableHeadSx,
-  tableWithMinWidthSx,
-} from "../../../styles/common";
-import { formatHoursMinutes } from "../../../utils/hoursMinutes";
+  timesheetCellTextSx,
+} from "@/styles/common";
+import { formatHoursMinutes } from "@/utils/hoursMinutes";
 import type {
   AssignedTask,
   Milestone,
   SubmissionProject,
-} from "../../../types/dataTypes";
+} from "@/types/dataTypes";
 import {
   getMilestoneDayTotal,
   getMilestoneTotal,
@@ -47,18 +42,46 @@ import {
   isOthersProject,
   type TaskRef,
   type WeekDay,
-} from "./timesheetMath";
-
-const columnWidths = {
-  job: { xs: 200, sm: 300 },
-  budgetOwner: 160,
-  day: 100,
-  total: 90,
-  select: 70,
-};
-
-/** Same minimum width for the outer grid and each job's nested table, so columns line up. */
-const gridMinWidth = { xs: 1180, md: 1320, lg: 1450 };
+} from "@/pages/timesheet/submission/timesheetMath";
+import {
+  timesheetColumnWidths as columnWidths,
+  timesheetCellSx,
+  timesheetDayCellSx,
+  timesheetDayFooterCellSx,
+  timesheetDayHeaderCellSx,
+  timesheetDayHoursEmptySx,
+  timesheetDayHoursSx,
+  timesheetDayInputCellSx,
+  timesheetEmptyCellSx,
+  timesheetEmptyStateSx,
+  timesheetFooterCellSx,
+  timesheetGridContainerSx,
+  timesheetGridTableSx,
+  timesheetHintScrollSx,
+  timesheetHintSx,
+  timesheetHoursInputSx,
+  timesheetJobCellSx,
+  timesheetJobFooterCellSx,
+  timesheetJobHeaderCellSx,
+  timesheetMilestoneNameSx,
+  timesheetNestedRowCellSx,
+  timesheetNestedTableSx,
+  timesheetOwnerCellSx,
+  timesheetOwnerHeaderCellSx,
+  timesheetProjectCodeSx,
+  timesheetProjectNameRowSx,
+  timesheetProjectTitleSx,
+  timesheetSelectAllSx,
+  timesheetSelectCellSx,
+  timesheetSelectFooterCellSx,
+  timesheetSelectHeaderCellSx,
+  timesheetSmallTextSx,
+  timesheetTaskNameSx,
+  timesheetTaskSelectCellSx,
+  timesheetTotalCellSx,
+  timesheetTotalFooterCellSx,
+  timesheetTotalHeaderCellSx,
+} from "@/styles/timesheet";
 
 export type BudgetOwnerOption = { value: string; label: string };
 
@@ -66,6 +89,7 @@ export type BudgetOwnerOption = { value: string; label: string };
 export interface SubmissionGridProps {
   projects: SubmissionProject[];
   weekDays: WeekDay[];
+  estimatedWeekHours: number;
   weekDayTotals: { date: string; hours: number }[];
   weekTotal: number;
   expandedProjects: number[];
@@ -101,11 +125,7 @@ function DayHoursSummary({
       component="span"
       variant="body2"
       aria-label={`${label}: ${hours} hours`}
-      sx={{
-        fontWeight: 600,
-        color: "text.primary",
-        fontVariantNumeric: "tabular-nums",
-      }}
+      sx={timesheetDayHoursSx}
     >
       {hours}
     </Typography>
@@ -114,28 +134,26 @@ function DayHoursSummary({
       component="span"
       variant="body2"
       aria-label={`${label}: no hours`}
-      sx={{ color: "text.disabled" }}
+      sx={timesheetDayHoursEmptySx}
     >
       –
     </Typography>
   );
 }
 
-const cellSx = (theme: Theme, width: number | object) => ({
-  ...stickyTableCellSx(theme),
-  width,
-  minWidth: width,
-});
-
 function ExpandToggle({
   expanded,
   label,
   onToggle,
+  empty = false,
 }: {
   expanded: boolean;
   label: string;
   onToggle: () => void;
+  /** No children: keep the indent but show no (dead) chevron. */
+  empty?: boolean;
 }) {
+  if (empty) return <Box sx={expandToggleSpacerSx} aria-hidden="true" />;
   return (
     <IconButton
       aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
@@ -151,27 +169,25 @@ function ExpandToggle({
 // Header and footer
 // ---------------------------------------------------------------------------
 
-function GridHeader({ weekDays }: { weekDays: WeekDay[] }) {
+function GridHeader({
+  weekDays,
+  estimatedWeekHours,
+}: {
+  weekDays: WeekDay[];
+  estimatedWeekHours: number;
+}) {
   const theme = useTheme();
   return (
     <TableHead sx={tableHeadSx(theme)}>
       <TableRow>
         <TableCell
-          sx={{
-            ...stickyFirstColumnHeaderCell(theme),
-            width: columnWidths.job,
-            minWidth: columnWidths.job,
-          }}
+          sx={timesheetJobHeaderCellSx(theme)}
           className="timesheet-jobs-cell"
         >
           Jobs
         </TableCell>
         <TableCell
-          sx={{
-            ...tableHeaderCellSx(theme),
-            width: columnWidths.budgetOwner,
-            minWidth: columnWidths.budgetOwner,
-          }}
+          sx={timesheetOwnerHeaderCellSx(theme)}
         >
           Budget Owner
         </TableCell>
@@ -179,43 +195,21 @@ function GridHeader({ weekDays }: { weekDays: WeekDay[] }) {
           <TableCell
             key={day.date}
             align="center"
-            sx={{
-              ...tableHeaderCellSx(theme),
-              // tableHeaderCellSx defaults to left-aligned labels; the hour
-              // columns are centred in every row, header included.
-              textAlign: "center",
-              width: columnWidths.day,
-              minWidth: columnWidths.day,
-            }}
+            sx={timesheetDayHeaderCellSx(theme, day.date, estimatedWeekHours)}
           >
             {day.label}
           </TableCell>
         ))}
         <TableCell
           align="center"
-          sx={{
-            ...tableHeaderCellSx(theme),
-            textAlign: "center",
-            width: columnWidths.total,
-            minWidth: columnWidths.total,
-            position: "sticky",
-            bottom: 0,
-            zIndex: 1,
-            backgroundColor: (theme) => theme.palette.background.paper,
-          }}
+          sx={timesheetTotalHeaderCellSx(theme)}
         >
           Total
         </TableCell>
         <TableCell
           align="center"
-          sx={{
-            ...tableHeaderCellSx(theme),
-            width: columnWidths.select,
-            minWidth: columnWidths.select,
-          }}
-        >
-          Actions
-        </TableCell>
+          sx={timesheetSelectHeaderCellSx(theme)}
+        ></TableCell>
       </TableRow>
     </TableHead>
   );
@@ -224,58 +218,42 @@ function GridHeader({ weekDays }: { weekDays: WeekDay[] }) {
 function GridFooter({
   weekDayTotals,
   weekTotal,
+  estimatedWeekHours,
 }: {
   weekDayTotals: { date: string; hours: number }[];
   weekTotal: number;
+  estimatedWeekHours: number;
 }) {
   const theme = useTheme();
-  const footerCell = (width: number | object, bold = true) => ({
-    ...cellSx(theme, width),
-    ...(bold && { fontWeight: 700 }),
-    bgcolor: "background.default",
-    borderTop: `1px solid ${theme.palette.divider}`,
-    // Sticky table sections are unreliable and force a costly table reflow
-    // while nested rows expand. Pin the individual cells instead.
-    position: "sticky",
-    bottom: 0,
-    zIndex: 4,
-  });
   return (
     <TableFooter>
       <TableRow>
         <TableCell
-          sx={{
-            ...stickyFirstColumnCell(theme),
-            width: columnWidths.job,
-            minWidth: columnWidths.job,
-            fontWeight: 700,
-            bgcolor: "background.default",
-            borderTop: `1px solid ${theme.palette.divider}`,
-            bottom: 0,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-            // This cell is sticky on both axes, so it must layer above the
-            // remaining footer cells and the pinned body column.
-            zIndex: 5,
-          }}
+          sx={timesheetJobFooterCellSx(theme)}
           className="timesheet-jobs-cell"
         >
           Total
         </TableCell>
-        <TableCell sx={footerCell(columnWidths.budgetOwner, false)} />
+        <TableCell sx={timesheetFooterCellSx(theme, columnWidths.budgetOwner, false)} />
         {weekDayTotals.map((dayTotal) => (
           <TableCell
             key={dayTotal.date}
             align="center"
-            sx={footerCell(columnWidths.day)}
+            sx={timesheetDayFooterCellSx(theme, dayTotal.date, estimatedWeekHours)}
           >
             {formatHoursMinutes(dayTotal.hours)}
           </TableCell>
         ))}
-        <TableCell align="center" sx={footerCell(columnWidths.total)}>
+        <TableCell
+          align="center"
+          sx={timesheetTotalFooterCellSx(theme)}
+        >
           {formatHoursMinutes(weekTotal)}
         </TableCell>
-        <TableCell align="center" sx={footerCell(columnWidths.select, false)} />
+        <TableCell
+          align="center"
+          sx={timesheetSelectFooterCellSx(theme)}
+        />
       </TableRow>
     </TableFooter>
   );
@@ -306,33 +284,28 @@ function TaskRow({
   return (
     <TableRow>
       <TableCell
-        sx={{
-          ...stickyFirstColumnCell(theme),
-          width: columnWidths.job,
-          minWidth: columnWidths.job,
-        }}
+        sx={timesheetJobCellSx(theme)}
         className="timesheet-jobs-cell"
       >
-        <Box sx={{ fontSize: "0.875rem", pl: 10 }}>{task.name}</Box>
+        <Box sx={timesheetTaskNameSx}>{task.name}</Box>
       </TableCell>
 
-      <TableCell sx={{ ...cellSx(theme, columnWidths.budgetOwner), p: 0.6 }}>
+      <TableCell sx={timesheetOwnerCellSx(theme)}>
         <FormControl fullWidth>
           <Select
             value={task.assign_by ?? ""}
-            // disabled={others || props.budgetOwnerDisabled}
             disabled={props.budgetOwnerDisabled}
             onChange={(event) =>
               props.onBudgetOwnerChange(ref, event.target.value)
             }
             inputProps={{ "aria-label": `Budget owner for ${task.name}` }}
-            sx={{ fontSize: "0.8rem" }}
+            sx={timesheetSmallTextSx}
           >
             {props.budgetOwnerOptions.map((owner) => (
               <MenuItem
                 key={owner.value}
                 value={owner.value}
-                sx={{ fontSize: "0.8rem" }}
+                sx={timesheetSmallTextSx}
               >
                 {owner.label}
               </MenuItem>
@@ -345,43 +318,28 @@ function TaskRow({
         <TableCell
           key={day.date}
           align="center"
-          sx={{ width: columnWidths.day, minWidth: columnWidths.day, p: 0.6 }}
+          sx={timesheetDayInputCellSx(theme, day.date, props.estimatedWeekHours)}
         >
           <HoursInput
             value={task.entries[day.date] ?? ""}
             disabled={!props.canEditDate(day.date, project)}
             ariaLabel={`${task.name}, ${day.label}`}
             onChange={(next) => props.onHoursChange(ref, day.date, next)}
-            sx={{
-              width: 90,
-              "& .MuiOutlinedInput-root.Mui-disabled": {
-                bgcolor: theme.palette.action.disabledBackground,
-                cursor: "not-allowed",
-              },
-              "& .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline":
-                {
-                  borderColor: theme.palette.action.disabled,
-                },
-              "& input": { textAlign: "center", py: 0.8 },
-              "& .MuiInputBase-input.Mui-disabled": {
-                WebkitTextFillColor: theme.palette.text.disabled,
-                cursor: "not-allowed",
-              },
-            }}
+            sx={timesheetHoursInputSx(theme)}
           />
         </TableCell>
       ))}
 
       <TableCell
         align="center"
-        sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
+        sx={timesheetTotalCellSx(theme)}
       >
         {formatHoursMinutes(getTaskTotal(task, props.weekDays))}
       </TableCell>
 
       <TableCell
         align="center"
-        sx={{ width: columnWidths.select, minWidth: columnWidths.select }}
+        sx={timesheetTaskSelectCellSx(theme)}
       >
         {!others && (
           <Checkbox
@@ -412,30 +370,26 @@ function MilestoneRows({
     <>
       <TableRow>
         <TableCell
-          sx={{
-            ...stickyFirstColumnCell(theme),
-            width: columnWidths.job,
-            minWidth: columnWidths.job,
-          }}
+          sx={timesheetJobCellSx(theme)}
           className="timesheet-jobs-cell"
         >
-          <Box sx={{ display: "flex", alignItems: "center", pl: 5 }}>
+          <Box sx={timesheetMilestoneNameSx}>
             <ExpandToggle
               expanded={expanded}
               label={milestone.name}
               onToggle={() => props.onToggleMilestone(milestone.id)}
             />
-            <Box sx={{ fontSize: "0.875rem" }}>{milestone.name}</Box>
+            <Box sx={timesheetCellTextSx}>{milestone.name}</Box>
           </Box>
         </TableCell>
 
-        <TableCell sx={cellSx(theme, columnWidths.budgetOwner)} />
+        <TableCell sx={timesheetCellSx(theme, columnWidths.budgetOwner)} />
 
         {props.weekDays.map((day) => (
           <TableCell
             key={day.date}
             align="center"
-            sx={cellSx(theme, columnWidths.day)}
+            sx={timesheetDayCellSx(theme, day.date, props.estimatedWeekHours)}
           >
             {/* Collapsed: show the milestone's hours per day, since its hour
                 fields are hidden. Expanded: the fields show them. */}
@@ -450,13 +404,16 @@ function MilestoneRows({
 
         <TableCell
           align="center"
-          sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
+          sx={timesheetTotalCellSx(theme)}
         >
           {!expanded &&
             formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
         </TableCell>
 
-        <TableCell align="center" sx={cellSx(theme, columnWidths.select)} />
+        <TableCell
+          align="center"
+          sx={timesheetSelectCellSx(theme)}
+        />
       </TableRow>
 
       {expanded &&
@@ -492,38 +449,34 @@ function ProjectRows({
     <>
       <TableRow>
         <TableCell
-          sx={{
-            ...stickyFirstColumnCell(theme),
-            width: columnWidths.job,
-            minWidth: columnWidths.job,
-            fontWeight: 600,
-          }}
+          sx={timesheetJobCellSx(theme, true)}
           className="timesheet-jobs-cell"
         >
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box sx={timesheetProjectNameRowSx}>
             <ExpandToggle
               expanded={expanded}
               label={project.code}
               onToggle={() => props.onToggleProject(project.id)}
+              empty={project.milestones.length === 0}
             />
             <Box>
-              <Box sx={{ fontSize: "0.875rem", fontWeight: 600 }}>
+              <Box sx={timesheetProjectTitleSx}>
                 {project.description}
               </Box>
-              <Box sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+              <Box sx={timesheetProjectCodeSx}>
                 {project.code}
               </Box>
             </Box>
           </Box>
         </TableCell>
 
-        <TableCell sx={cellSx(theme, columnWidths.budgetOwner)} />
+        <TableCell sx={timesheetCellSx(theme, columnWidths.budgetOwner)} />
 
         {props.weekDays.map((day) => (
           <TableCell
             key={day.date}
             align="center"
-            sx={cellSx(theme, columnWidths.day)}
+            sx={timesheetDayCellSx(theme, day.date, props.estimatedWeekHours)}
           >
             {/* Collapsed: show the job's hours per day, since its hour fields
                 are hidden. Expanded: the fields show them. */}
@@ -538,13 +491,16 @@ function ProjectRows({
 
         <TableCell
           align="center"
-          sx={{ ...cellSx(theme, columnWidths.total), fontWeight: 600 }}
+          sx={timesheetTotalCellSx(theme)}
         >
           {!expanded &&
             formatHoursMinutes(getProjectTotal(project, props.weekDays))}
         </TableCell>
 
-        <TableCell align="center" sx={cellSx(theme, columnWidths.select)}>
+        <TableCell
+          align="center"
+          sx={timesheetSelectCellSx(theme)}
+        >
           <Checkbox
             checked={allSelected}
             indeterminate={someSelected}
@@ -556,12 +512,9 @@ function ProjectRows({
                 ),
               )
             }
-            sx={{
-              display:
-                isOthersProject(project) || selectableIds.length === 0
-                  ? "none"
-                  : "inline-flex",
-            }}
+            sx={timesheetSelectAllSx(
+              !isOthersProject(project) && selectableIds.length > 0,
+            )}
             inputProps={{
               "aria-label": `Select all tasks for ${project.description || project.code}`,
             }}
@@ -571,17 +524,13 @@ function ProjectRows({
 
       {expanded && (
         <TableRow>
-          {/* p: 0 keeps the nested table's columns aligned with the grid's. */}
           <TableCell
             colSpan={2 + props.weekDays.length + 2}
-            sx={{ p: 0, borderBottom: 0 }}
+            sx={timesheetNestedRowCellSx}
           >
             <Collapse in={expanded} timeout="auto" unmountOnExit>
               <Table
-                sx={{
-                  ...tableWithMinWidthSx(gridMinWidth),
-                  "& .timesheet-jobs-cell": { padding: "4px 0px" },
-                }}
+                sx={timesheetNestedTableSx}
               >
                 <TableBody>
                   {project.milestones.map((milestone) => (
@@ -609,37 +558,35 @@ function ProjectRows({
 /** Desktop/tablet week grid: jobs → milestones → tasks × days, with totals. */
 export default function SubmissionGrid(props: SubmissionGridProps) {
   const { projects, weekDays } = props;
+  const theme = useTheme();
 
   return (
     <>
       <Typography
-        variant="caption"
+        variant="body2"
         color="text.secondary"
-        sx={{ display: { xs: "none", sm: "block" }, px: 1, pb: 0.75 }}
+        sx={timesheetHintSx}
       >
-        Enter hours and minutes, for example <strong>1:30</strong> for 1 hour 30
-        minutes. You can also enter <strong>1.30</strong>.
-        <Box component="span" sx={{ display: { sm: "inline", lg: "none" } }}>
+        Enter hours as <strong>h.mm</strong> (for example, <strong>1.30</strong>{" "}
+        = 1 h 30 m). The <strong>h:mm</strong> format is also accepted.
+        <Box component="span" sx={timesheetHintScrollSx}>
           {" "}
-          Scroll sideways to see every day and action; the Jobs column stays
-          pinned.
+          Scroll sideways for all days; Jobs, Total, and Select stay pinned.
         </Box>
       </Typography>
 
       <TableContainer
         component={Paper}
         elevation={0}
-        sx={{
-          ...tableContainerSx,
-        }}
+        sx={timesheetGridContainerSx(theme)}
       >
         <Table
-          sx={{
-            ...tableWithMinWidthSx(gridMinWidth),
-            "& .timesheet-jobs-cell": { padding: "4px 8px" },
-          }}
+          sx={timesheetGridTableSx}
         >
-          <GridHeader weekDays={weekDays} />
+          <GridHeader
+            weekDays={weekDays}
+            estimatedWeekHours={props.estimatedWeekHours}
+          />
 
           <TableBody>
             {projects.map((project) => (
@@ -649,9 +596,9 @@ export default function SubmissionGrid(props: SubmissionGridProps) {
               <TableRow>
                 <TableCell
                   colSpan={weekDays.length + 4}
-                  sx={{ py: 4, borderBottom: 0 }}
+                  sx={timesheetEmptyCellSx}
                 >
-                  <Box sx={{ display: "grid", placeItems: "center" }}>
+                  <Box sx={timesheetEmptyStateSx}>
                     <EmptyTableState
                       title="No timesheet entries"
                       description="Jobs and assigned ticket work for the selected week will appear here."
@@ -665,6 +612,7 @@ export default function SubmissionGrid(props: SubmissionGridProps) {
           <GridFooter
             weekDayTotals={props.weekDayTotals}
             weekTotal={props.weekTotal}
+            estimatedWeekHours={props.estimatedWeekHours}
           />
         </Table>
       </TableContainer>

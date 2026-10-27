@@ -1,4 +1,4 @@
-import { useDocumentTitle } from "../../utils/useDocumentTitle";
+import { useDocumentTitle } from "@/utils/useDocumentTitle";
 import { useMemo, useState } from "react";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -18,10 +18,10 @@ import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
-import api from "../../api/axios";
-import { getErrorStatus, sanitizeUserMessage } from "../../utils/errorUtils";
-import bgImage from "../../assets/taskmanagementloginimage.jpg";
-import logo from "../../assets/icpro_logo.svg";
+import api from "@/api/axios";
+import { getErrorStatus, sanitizeUserMessage } from "@/utils/errorUtils";
+import bgImage from "@/assets/taskmanagementloginimage.jpg";
+import logo from "@/assets/icpro_logo.svg";
 import {
   authPageBackgroundSx,
   authLogoSx,
@@ -30,7 +30,9 @@ import {
   authCardSx,
   authSpinnerSx,
   marginBottomSectionSx,
-} from "../../styles/common";
+  authIntroSx,
+  authLinkSx,
+} from "@/styles/common";
 
 type ResetPasswordField = "email" | "token" | "new_password" | "confirm_password";
 type ResetPasswordErrors = Partial<
@@ -133,7 +135,7 @@ export default function ResetPassword() {
           <Typography variant="h5" component="h1" align="center">
             Reset Password
           </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" align="center" color="text.secondary" sx={authIntroSx}>
             Enter your new password to continue.
           </Typography>
 
@@ -231,7 +233,6 @@ export default function ResetPassword() {
               fullWidth
               type="submit"
               variant="contained"
-              size="large"
               disabled={loading}
               startIcon={loading ? undefined : <LockResetOutlinedIcon />}
               sx={authSubmitButtonSx}
@@ -252,7 +253,7 @@ export default function ResetPassword() {
               align="center"
               color="primary.main"
               display="block"
-              sx={{ mt: 2, fontWeight: 700, textDecoration: "none" }}
+              sx={authLinkSx}
             >
               Back to login
             </Typography>

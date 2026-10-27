@@ -1,6 +1,6 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import api from "./axios";
-import { freshnessFor, queryClient } from "./queryClient";
+import api from "@/api/axios";
+import { freshnessFor, queryClient } from "@/api/queryClient";
 
 type Params = Record<string, string | number | boolean | undefined | null>;
 

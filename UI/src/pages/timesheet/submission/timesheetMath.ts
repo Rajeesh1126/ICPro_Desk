@@ -10,13 +10,13 @@ import type {
   Milestone,
   SubmissionProject,
   TaskEntry,
-} from "../../../types/dataTypes";
+} from "@/types/dataTypes";
 import {
   describeHoursMinutes,
   hoursMinutesToSeconds,
   MAX_DAILY_SECONDS,
   secondsToDecimalHours,
-} from "../../../utils/hoursMinutes";
+} from "@/utils/hoursMinutes";
 
 // ---------------------------------------------------------------------------
 // Types shared with the Time Sheet page

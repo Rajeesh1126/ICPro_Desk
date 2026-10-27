@@ -1,5 +1,5 @@
 import type React from "react";
-import { INSET_X, INSET_Y, insetSx } from "../../styles/tokens";
+import { insetSx } from "@/styles/tokens";
 import {
   Fragment,
   useId,
@@ -23,36 +23,49 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   type GridProps,
-  type SxProps,
 } from "@mui/material";
-import { useTheme, type Theme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import EmptyTableState from "./EmptyTableState";
-import { formatIfDate } from "../../utils/dateRange";
-import TableLoadingState from "./TableLoadingState";
-import type { ColumnData } from "./TableView";
-import { getColumnSearchText } from "./tableSearch";
+import EmptyTableState from "@/components/common/EmptyTableState";
+import { formatIfDate } from "@/utils/dateRange";
+import TableLoadingState from "@/components/common/TableLoadingState";
+import type { ColumnData } from "@/components/common/TableView";
+import { columnAlign, renderTableCell } from "@/components/common/tableCell";
+import MobileRowCard from "@/components/common/MobileRowCard";
+import { getColumnSearchText } from "@/components/common/tableSearch";
 import {
   detailLabelSx,
   detailValueSx,
-  formatStatusLabel,
-  stickyTableCellSx,
   tableHeaderCellSx,
   tableHeadSx,
   tableHeaderBarSx,
   tableBodyAreaSx,
-  tableHeaderCellForColumnSx,
-  tableBodyCellForColumnSx,
+  collapsibleTableScrollSx,
   tablePanelSx,
   tableViewTableWithMinWidth,
   tableSearchFieldSx,
   tableViewTitleGroupSx,
-} from "../../styles/common";
+  tableTitleSx,
+  tableTitleCountSx,
+  tableSearchPlaceholder,
+  collapsibleBodyCellSx,
+  collapsibleCardListSx,
+  collapsibleCardsEmptySx,
+  collapsibleDetailFieldSx,
+  collapsibleDetailRowCellSx,
+  collapsibleEmptyCellSx,
+  collapsibleEmptyStateSx,
+  collapsibleExpandButtonSx,
+  collapsibleExpandCellSx,
+  collapsibleHeaderCellSx,
+  collapsibleRowSx,
+} from "@/styles/common";
 
 export type ExpandedColumnData<T> = ColumnData<T> & {
   size?: GridProps["size"];
@@ -80,47 +93,6 @@ export interface CollapsibleTableViewProps<T> {
 
 const defaultExpandColumnWidth = 28;
 const defaultColumnWidth = 140;
-
-const expandCellSx = (width: number | undefined) => ({
-  width,
-  minWidth: width,
-  maxWidth: width,
-  px: 0,
-  textAlign: "center" as const,
-});
-
-const alignedTableCellSx = {
-  px: 1,
-  textAlign: "left" as const,
-};
-
-const bodyCellSx =
-  <T,>(column: ColumnData<T>, index: number): SxProps<Theme> =>
-  (theme) => ({
-    ...(
-      tableBodyCellForColumnSx({
-        column,
-        index,
-        stickyTableCellSx,
-        stickyFirstColumn: false,
-      }) as (theme: Theme) => Record<string, unknown>
-    )(theme),
-    ...alignedTableCellSx,
-  });
-
-const headerCellSx =
-  <T,>(column: ColumnData<T>, index: number): SxProps<Theme> =>
-  (theme) => ({
-    ...(
-      tableHeaderCellForColumnSx({
-        column,
-        index,
-        tableHeaderCellSx,
-        stickyFirstColumn: false,
-      }) as (theme: Theme) => Record<string, unknown>
-    )(theme),
-    ...alignedTableCellSx,
-  });
 
 function formatValue(value: unknown): string {
   if (value == null || value === "") return "—";
@@ -173,46 +145,42 @@ function CollapsibleRow<T extends object>({
               }
             : undefined
         }
-        sx={{ cursor: onRowClick ? "pointer" : "default" }}
+        sx={collapsibleRowSx(Boolean(onRowClick))}
       >
-        <TableCell sx={expandCellSx(expandColumnWidth)}>
-          <IconButton
-            aria-label={open ? "Collapse row" : "Expand row"}
-            sx={{ width: 28, height: 28 }}
-            aria-expanded={open}
-            aria-controls={detailsId}
-            onClick={(event) => {
-              event.stopPropagation();
-              setOpen(!open);
-            }}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
+        <TableCell sx={collapsibleExpandCellSx(expandColumnWidth)}>
+          <Tooltip title={open ? "Hide details" : "View details"}>
+            <IconButton
+              aria-label={open ? "Hide row details" : "View row details"}
+              sx={collapsibleExpandButtonSx}
+              aria-expanded={open}
+              aria-controls={detailsId}
+              onClick={(event) => {
+                event.stopPropagation();
+                setOpen(!open);
+              }}
+            >
+              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+            </IconButton>
+          </Tooltip>
         </TableCell>
         {columns.map((column, columnIndex) => (
           <TableCell
             key={column.label}
-            align="left"
-            sx={bodyCellSx(column, columnIndex)}
+            align={columnAlign(column)}
+            sx={collapsibleBodyCellSx(column, columnIndex)}
           >
-            {column.render
-              ? column.render(row, index)
-              : column.dataKey
-                ? column.label === "Status"
-                  ? formatStatusLabel(row[column.dataKey])
-                  : formatValue(row[column.dataKey])
-                : null}
+            {renderTableCell(column, row, index, formatValue)}
           </TableCell>
         ))}
       </TableRow>
       <TableRow>
         <TableCell
           colSpan={columns.length + 1}
-          sx={{ py: 0, borderBottom: open ? undefined : 0 }}
+          sx={collapsibleDetailRowCellSx(open)}
         >
           <Box id={detailsId}>
             <Collapse in={open} timeout="auto" unmountOnExit>
-              <Box sx={{ ...insetSx }}>
+              <Box sx={insetSx}>
                 {details ?? (
                   <Grid container spacing={1.25}>
                     {expandedColumns?.map((column) => (
@@ -221,27 +189,13 @@ function CollapsibleRow<T extends object>({
                         size={column.size ?? { xs: 12, sm: 6, md: 3 }}
                       >
                         <Box
-                          sx={(theme) => ({
-                            px: INSET_X,
-                            py: INSET_Y,
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            bgcolor: theme.palette.background.paper,
-                            minWidth: 0,
-                            height: "100%",
-                          })}
+                          sx={collapsibleDetailFieldSx}
                         >
                           <Typography sx={detailLabelSx}>
                             {column.label}
                           </Typography>
                           <Typography sx={detailValueSx}>
-                            {column.render
-                              ? column.render(row, index)
-                              : column.dataKey
-                                ? column.label === "Status"
-                                  ? formatStatusLabel(row[column.dataKey])
-                                  : formatValue(row[column.dataKey])
-                                : null}
+                            {renderTableCell(column, row, index, formatValue)}
                           </Typography>
                         </Box>
                       </Grid>
@@ -320,8 +274,13 @@ export function CollapsibleTableView<T extends object>({
       <Box sx={tableHeaderBarSx}>
         <Box sx={tableViewTitleGroupSx}>
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1" fontWeight={700}>
+            <Typography variant="subtitle1" fontWeight={600} sx={tableTitleSx}>
               {tableHead}
+              {!loading && (
+                <Box component="span" sx={tableTitleCountSx}>
+                  {rows.length}
+                </Box>
+              )}
             </Typography>
             {tableHeadSub && (
               <Typography variant="caption" color="text.secondary">
@@ -331,7 +290,7 @@ export function CollapsibleTableView<T extends object>({
           </Stack>
         </Box>
         <TextField
-          placeholder="Search..."
+          placeholder={tableSearchPlaceholder(tableHead)}
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           sx={tableSearchFieldSx}
@@ -354,80 +313,24 @@ export function CollapsibleTableView<T extends object>({
         />
       ) : isMobile ? (
         <Box
-          sx={{
-            display: "flex",
-            flex: 1,
-            minHeight: 0,
-            flexDirection: "column",
-            gap: 1,
-            overflowY: "auto",
-            ...insetSx,
-          }}
+          sx={collapsibleCardListSx}
         >
           {filteredRows.length ? (
             filteredRows.map((row, index) => (
-              <Paper
+              <MobileRowCard
                 key={getRowId(row)}
-                component="article"
-                role={onRowClick ? "button" : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                variant="outlined"
-                onClick={() => onRowClick?.(row)}
-                onKeyDown={(event) => {
-                  if (
-                    onRowClick &&
-                    (event.key === "Enter" || event.key === " ")
-                  ) {
-                    event.preventDefault();
-                    onRowClick(row);
-                  }
-                }}
-                sx={{
-                  ...insetSx,
-                  borderLeft: "3px solid",
-                  borderLeftColor: "primary.main",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(90px, 0.8fr) minmax(0, 1.6fr)",
-                    gap: 1,
-                    alignItems: "start",
-                  }}
-                >
-                  {resolvedMobileColumns.map((column) => (
-                    <Fragment key={column.label}>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        fontWeight={700}
-                      >
-                        {column.label}
-                      </Typography>
-                      <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                        {column.render
-                          ? column.render(row, index)
-                          : column.dataKey
-                            ? column.label === "Status"
-                              ? formatStatusLabel(row[column.dataKey])
-                              : formatValue(row[column.dataKey])
-                            : null}
-                      </Box>
-                    </Fragment>
-                  ))}
-                </Box>
-              </Paper>
+                row={row}
+                index={index}
+                columns={resolvedMobileColumns}
+                renderValue={(column, cardRow, cardIndex) =>
+                  renderTableCell(column, cardRow, cardIndex, formatValue)
+                }
+                onClick={onRowClick}
+              />
             ))
           ) : (
             <Box
-              sx={{
-                display: "grid",
-                flex: 1,
-                minHeight: 220,
-                placeItems: "center",
-                textAlign: "center",
-              }}
+              sx={collapsibleCardsEmptySx}
             >
               {emptyState}
             </Box>
@@ -435,15 +338,7 @@ export function CollapsibleTableView<T extends object>({
         </Box>
       ) : (
         <Box sx={tableBodyAreaSx}>
-          <TableContainer
-            sx={{
-              overflow: "auto",
-              minHeight: 0,
-              height: "100%",
-              width: "100%",
-              scrollbarGutter: "stable",
-            }}
-          >
+          <TableContainer sx={collapsibleTableScrollSx}>
             <Table
               stickyHeader
               aria-label={tableHead}
@@ -471,14 +366,14 @@ export function CollapsibleTableView<T extends object>({
               <TableHead sx={tableHeadSx}>
                 <TableRow>
                   <TableCell
-                    sx={[tableHeaderCellSx, expandCellSx(expandColumnWidth)]}
+                    sx={[tableHeaderCellSx, collapsibleExpandCellSx(expandColumnWidth)]}
                     aria-label="Expand row"
                   />
                   {columns.map((column, columnIndex) => (
                     <TableCell
                       key={column.label}
-                      align="left"
-                      sx={headerCellSx(column, columnIndex)}
+                      align={columnAlign(column)}
+                      sx={collapsibleHeaderCellSx(column, columnIndex)}
                     >
                       {column.label}
                     </TableCell>
@@ -503,15 +398,10 @@ export function CollapsibleTableView<T extends object>({
                     <TableCell
                       colSpan={columns.length + 1}
                       align="center"
-                      sx={{ p: 0, height: 220 }}
+                      sx={collapsibleEmptyCellSx}
                     >
                       <Box
-                        sx={{
-                          minHeight: 220,
-                          display: "grid",
-                          placeItems: "center",
-                          textAlign: "center",
-                        }}
+                        sx={collapsibleEmptyStateSx}
                       >
                         {emptyState}
                       </Box>

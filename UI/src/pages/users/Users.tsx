@@ -6,6 +6,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import {
   Box,
   Button,
+  Chip,
   IconButton,
   MenuItem,
   Select,
@@ -20,38 +21,35 @@ import {
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
-import type { UsersData, groupData } from "../../types/dataTypes";
+import type { UsersData, groupData } from "@/types/dataTypes";
 
-import UserCreateModal from "../../components/users/UserCreateModal";
-import GroupCreateModal from "../../components/users/GroupCreateModal";
+import UserCreateModal from "@/components/users/UserCreateModal";
+import GroupCreateModal from "@/components/users/GroupCreateModal";
 
 import {
   buttonLabelCompact,
   buttonLabelFull,
   editIconSx,
   inlineCenterGapSx,
-  pageHeaderActions,
-  pageHeaderContent,
-  pageHeader,
   page,
   pageContent,
-  pageSubtitle,
-  pageTitle,
   tabs,
   tabsContainer,
   tablePageContent,
   toggleButton,
-} from "../../styles/common";
-import api from "../../api/axios";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
-import { queryClient } from "../../api/queryClient";
+} from "@/styles/common";
+import api from "@/api/axios";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
+import { queryClient } from "@/api/queryClient";
 import {
   VirtualizedTable,
   type ColumnData,
-} from "../../components/common/TableView";
-import { CollapsibleTableView } from "../../components/common/CollapsibleTableView";
-import { showNotification } from "../../api/notificationService";
-import { getStoredPermissions } from "../../utils/permissions";
+} from "@/components/common/TableView";
+import { CollapsibleTableView } from "@/components/common/CollapsibleTableView";
+import { showNotification } from "@/api/notificationService";
+import { getStoredPermissions } from "@/utils/permissions";
+import { StatusPill } from "@/components/common/StatusPill";
+import PageHeader from "@/components/common/PageHeader";
 
 export default function Users() {
   const permissions = getStoredPermissions();
@@ -187,50 +185,54 @@ export default function Users() {
   const columns = useMemo<ColumnData<UsersData>[]>(
     () => [
       {
-        label: "#",
-        width: { xs: 10, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
-      {
-        label: "Employee ID",
-        width: 100,
-        render: (row) => (
-          <Box sx={inlineCenterGapSx}>
-            {canChangeUser && (
-              <Tooltip title="Edit user">
-                <IconButton
-                  aria-label={`Edit ${row.id}`}
-                  onClick={() => openEdit(row)}
-                >
-                  <EditOutlinedIcon fontSize="small" sx={editIconSx} />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Typography variant="body2">{row.username}</Typography>
-          </Box>
-        ),
+        label: "User",
+        dataKey: "username",
+        width: 220,
+        render: (row) => {
+          const name = `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
+          return <Stack spacing={0.25}><Typography variant="body2" fontWeight={600}>{name || row.username || "Unnamed user"}</Typography><Typography variant="caption" color="text.secondary">{row.username}</Typography></Stack>;
+        },
+        searchValue: (row) => `${row.first_name ?? ""} ${row.last_name ?? ""} ${row.username ?? ""}`,
       },
       { label: "First Name", dataKey: "first_name" },
       { label: "Last Name", dataKey: "last_name" },
-      { label: "Email", dataKey: "email" },
-      { label: "Role", dataKey: "role" },
-      { label: "Execution Teams", dataKey: "groups" },
+      { label: "Email", dataKey: "email", width: 200 },
+      { label: "Role", dataKey: "role", width: 150, render: (row) => row.role ? <Chip size="small" label={row.role} variant="outlined" /> : "—" },
+      {
+        label: "Status",
+        width: 100,
+        render: (row) => (
+          <StatusPill status={row.is_active === false ? "inactive" : "active"} label={row.is_active === false ? "Inactive" : "Active"} />
+        ),
+      },
+      { label: "Execution Teams", dataKey: "groups", render: (row) => <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={row.groups?.join(", ")}>{(row.groups ?? []).slice(0, 2).map((group) => <Chip key={group} size="small" label={group} variant="outlined" />)}{(row.groups?.length ?? 0) > 2 && <Chip size="small" label={`+${row.groups!.length - 2}`} />}{!row.groups?.length ? "—" : null}</Stack> },
       { label: "Designation", dataKey: "designation" },
       { label: "Reporting To", dataKey: "reporting_to" },
       { label: "Location", dataKey: "location" },
+      ...(canChangeUser
+        ? [
+            {
+              label: "Actions",
+              width: 40,
+              render: (row: UsersData) => (
+                <Tooltip title="Edit user">
+                  <IconButton
+                    aria-label={`Edit ${row.username || row.id}`}
+                    onClick={() => openEdit(row)}
+                  >
+                    <EditOutlinedIcon fontSize="small" sx={editIconSx} />
+                  </IconButton>
+                </Tooltip>
+              ),
+            },
+          ]
+        : []),
     ],
     [canChangeUser, openEdit],
   );
 
   const columnsGroup = useMemo<ColumnData<groupData>[]>(
     () => [
-      {
-        label: "#",
-        width: { xs: 40, sm: 40 },
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       {
         label: "Name",
         width: "auto",
@@ -285,7 +287,7 @@ export default function Users() {
   const primaryUserColumns = useMemo(
     () =>
       columns.filter((column) =>
-        ["#", "Employee ID", "First Name", "Last Name", "Email", "Role"].includes(
+        ["User", "Email", "Role", "Status", "Actions"].includes(
           column.label,
         ),
       ),
@@ -295,6 +297,8 @@ export default function Users() {
     () =>
       columns.filter((column) =>
         [
+          "First Name",
+          "Last Name",
           "Execution Teams",
           "Designation",
           "Reporting To",
@@ -307,55 +311,62 @@ export default function Users() {
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Typography variant="h5" component="h1" sx={pageTitle}>
-              {tabValue === 0 ? "User Management" : "Team Management"}
-            </Typography>
-            <Typography variant="body2" sx={pageSubtitle}>
-              {tabValue === 0
-                ? "Manage user accounts, profiles, access, and assignments"
-                : "Manage teams and their managers"}
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: "row-reverse", sm: "row" }}
-            spacing={1}
-            sx={pageHeaderActions}
-          >
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              {tabValue === 0 ? (
-                <>
-                  <ToggleButtonGroup
-                    exclusive
-                    value={userStatusFilter}
-                    onChange={(_, value: "all" | "active" | "inactive" | null) => {
-                      if (value) setUserStatusFilter(value);
-                    }}
-                    aria-label="Filter users by status"
-                    sx={toggleButton}
-                  >
-                    <ToggleButton value="all">All</ToggleButton>
-                    <ToggleButton value="active">Active</ToggleButton>
-                    <ToggleButton value="inactive">In-Active</ToggleButton>
-                  </ToggleButtonGroup>
-                  {canAddUser && (
-                    <Button
-                      startIcon={<AddOutlinedIcon />}
-                      variant="contained"
-                      onClick={openCreate}
-                    >
-                      <Box component="span" sx={buttonLabelFull}>
-                        New User
-                      </Box>
-                      <Box component="span" sx={buttonLabelCompact}>
-                        New
-                      </Box>
-                    </Button>
-                  )}
-                </>
-              ) : null}
-              {tabValue === 1 && canAddDepartmentManager ? (
+        <PageHeader
+          title="Users"
+          subtitle={
+            tabValue === 0
+              ? "Manage user accounts, profiles, access, and assignments"
+              : "Manage teams and their managers"
+          }
+          actions={[
+            tabValue === 0 && {
+              key: "status",
+              priority: "medium",
+              node: (
+                <ToggleButtonGroup
+                  exclusive
+                  value={userStatusFilter}
+                  onChange={(_, value: "all" | "active" | "inactive" | null) => {
+                    if (value) setUserStatusFilter(value);
+                  }}
+                  aria-label="Filter users by status"
+                  sx={toggleButton}
+                >
+                  <ToggleButton value="all">All</ToggleButton>
+                  <ToggleButton value="active">Active</ToggleButton>
+                  <ToggleButton value="inactive">Inactive</ToggleButton>
+                </ToggleButtonGroup>
+              ),
+              menuLabel: "Status",
+              menuItems: (["all", "active", "inactive"] as const).map((status) => ({
+                key: status,
+                label: status === "all" ? "All" : status === "active" ? "Active" : "Inactive",
+                onClick: () => setUserStatusFilter(status),
+                selected: userStatusFilter === status,
+              })),
+            },
+            tabValue === 0 && canAddUser && {
+              key: "new-user",
+              priority: "high",
+              node: (
+                <Button
+                  startIcon={<AddOutlinedIcon />}
+                  variant="contained"
+                  onClick={openCreate}
+                >
+                  <Box component="span" sx={buttonLabelFull}>
+                    New User
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    New
+                  </Box>
+                </Button>
+              ),
+            },
+            tabValue === 1 && canAddDepartmentManager && {
+              key: "new-team",
+              priority: "high",
+              node: (
                 <Button
                   startIcon={<AddOutlinedIcon />}
                   variant="contained"
@@ -368,10 +379,10 @@ export default function Users() {
                     New
                   </Box>
                 </Button>
-              ) : null}
-            </Stack>
-          </Stack>
-        </Box>
+              ),
+            },
+          ]}
+        />
 
         <Box sx={tabsContainer}>
           <Tabs
@@ -414,7 +425,7 @@ export default function Users() {
               height="100%"
               tableMinWidth={760}
               tableHead="Users"
-              tableHeadSub="User accounts, roles and team assignments"
+              tableHeadSub="User accounts, roles and team assignments · Expand a row to view profile details"
               loading={usersLoading}
               emptyTitle="No users yet"
               emptyDescription="Create a user to give someone access to ICProDesk."

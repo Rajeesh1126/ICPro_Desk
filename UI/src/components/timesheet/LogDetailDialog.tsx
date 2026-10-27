@@ -1,13 +1,16 @@
-import { insetSx } from "../../styles/tokens";
 import type { ReactNode } from "react";
 import { Box, Chip, Dialog, DialogContent, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined";
 import RuleOutlinedIcon from "@mui/icons-material/RuleOutlined";
-import DialogHeader from "../common/DialogHeader";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  logDetailSummarySx,
+  minWidthZero,
+  noShrinkSx,
+} from "@/styles/common";
 
 interface LogDetailDialogProps {
   open: boolean;
@@ -23,8 +26,8 @@ export default function LogDetailDialog({ open, onClose, title, subtitle, childr
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   return (
     <Dialog open={open} onClose={onClose} fullWidth fullScreen={fullScreen} maxWidth="sm" scroll="paper">
-      <DialogHeader title={title} subtitle={subtitle} icon={<RateReviewOutlinedIcon />} onClose={onClose} />
-      <DialogContent dividers>
+      <DialogHeader title={title} subtitle={subtitle} onClose={onClose} />
+      <DialogContent>
         <Stack spacing={1}>{children}</Stack>
       </DialogContent>
     </Dialog>
@@ -53,19 +56,9 @@ export function LogDetailItem({
   const chip = statusChip[status] ?? statusChip.Pending;
   return (
     <Box
-      sx={{
-        display: "flex",
-        alignItems: { xs: "flex-start", sm: "center" },
-        flexDirection: { xs: "column", sm: "row" },
-        justifyContent: "space-between",
-        gap: 1,
-        ...insetSx,
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 1.5,
-      }}
+      sx={logDetailSummarySx}
     >
-      <Box sx={{ minWidth: 0 }}>
+      <Box sx={minWidthZero}>
         <Typography variant="body2" fontWeight={600}>
           {name}
         </Typography>
@@ -80,7 +73,7 @@ export function LogDetailItem({
         label={status}
         color={chip.color}
         variant={status === "Pending" ? "outlined" : "filled"}
-        sx={{ flexShrink: 0 }}
+        sx={noShrinkSx}
       />
     </Box>
   );

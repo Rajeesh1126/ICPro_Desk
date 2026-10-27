@@ -1,4 +1,4 @@
-import { useDocumentTitle } from "../../utils/useDocumentTitle";
+import { useDocumentTitle } from "@/utils/useDocumentTitle";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
@@ -17,19 +17,20 @@ import ForwardToInboxOutlinedIcon from "@mui/icons-material/ForwardToInboxOutlin
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
-import api from "../../api/axios";
-import { getErrorStatus, sanitizeUserMessage } from "../../utils/errorUtils";
-import bgImage from "../../assets/taskmanagementloginimage.jpg";
-import logo from "../../assets/icpro_logo.svg";
+import api from "@/api/axios";
+import { getErrorStatus, sanitizeUserMessage } from "@/utils/errorUtils";
+import bgImage from "@/assets/taskmanagementloginimage.jpg";
+import AuthCardHeader from "@/components/common/AuthCardHeader";
 import {
   authPageBackgroundSx,
-  authLogoSx,
   authSubmitButtonSx,
   authCardContentSx,
   authCardSx,
   authSpinnerSx,
   marginBottomSectionSx,
-} from "../../styles/common";
+  authBackLinkSx,
+  authIntroSx,
+} from "@/styles/common";
 
 type ForgotPasswordResponse = { message?: string };
 
@@ -73,11 +74,11 @@ export default function ForgotPassword() {
     <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
       <Card sx={authCardSx}>
         <CardContent sx={authCardContentSx}>
-          <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
+          <AuthCardHeader />
           <Typography variant="h5" component="h1" align="center">
             Forgot Password
           </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" align="center" color="text.secondary" sx={authIntroSx}>
             Enter your username and email to receive a reset link.
           </Typography>
 
@@ -126,7 +127,6 @@ export default function ForgotPassword() {
               fullWidth
               type="submit"
               variant="contained"
-              size="large"
               disabled={loading}
               startIcon={loading ? undefined : <ForwardToInboxOutlinedIcon />}
               sx={authSubmitButtonSx}
@@ -145,15 +145,7 @@ export default function ForgotPassword() {
               to="/"
               variant="body2"
               color="primary.main"
-              sx={{
-                mt: 2,
-                fontWeight: 700,
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 0.75,
-              }}
+              sx={authBackLinkSx}
             >
               <LoginOutlinedIcon fontSize="small" />
               Back to login

@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import DateRange from "../../components/common/DateRange";
+import DateRange from "@/components/common/DateRange";
 import {
   Box,
   Button,
   ButtonBase,
-  Collapse,
-  IconButton,
+  Chip,
   LinearProgress,
   Paper,
   Skeleton,
@@ -15,41 +14,34 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
-  useMediaQuery,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
-import AnalysisPieChart from "../../components/dashboard/AnalysisPieChart";
-import FilterPopover from "../../components/common/FilterPopover";
+import AnalysisPieChart from "@/components/dashboard/AnalysisPieChart";
+import FilterPopover from "@/components/common/FilterPopover";
 import TeamReportModal, {
   type TeamReportDetail,
-} from "../../components/dashboard/TeamReportModal";
-import { type ColumnData } from "../../components/common/TableView";
-import type { TicketData } from "../../types/dataTypes";
+} from "@/components/dashboard/TeamReportModal";
+import { type ColumnData } from "@/components/common/TableView";
+import type { TicketData } from "@/types/dataTypes";
 import CollapsibleTableView, {
   type ExpandedColumnData,
-} from "../../components/common/CollapsibleTableView";
-import { apiQueryKey, fetchApi, useApiQuery } from "../../api/useApiQuery";
-import { queryClient } from "../../api/queryClient";
+} from "@/components/common/CollapsibleTableView";
+import { apiQueryKey, fetchApi, useApiQuery } from "@/api/useApiQuery";
+import { queryClient } from "@/api/queryClient";
 import {
   getPresetRange,
   TEAM_SUMMARY_URL,
   teamSummaryParams,
   type DatePreset,
-} from "./teamSummaryQuery";
+} from "@/pages/tickets/teamSummaryQuery";
 import {
   buttonLabelCompact,
   buttonLabelFull,
-  compactStackGap,
-  contentFill,
   dateFieldSx,
-  dialogContentTop,
-  dividerListRow,
   emptyStateSx,
   fillContainer,
-  inlineProgress,
   largeMutedIcon,
   minWidthZeroSx,
   page,
@@ -58,24 +50,22 @@ import {
   overviewGrid,
   overviewPrimaryGridItem,
   overviewSecondaryGridItem,
-  pageHeader,
-  pageHeaderControlsDesktop,
-  pageHeaderControlsMobile,
-  pageHeaderContent,
-  pageHeaderFilterPanel,
-  pageHeaderFilterToggle,
-  pageHeaderTitleGroup,
-  pageHeaderTopRow,
-  pageSubtitle,
-  pageTitle,
-  panelIconBadge,
-  panelTitleRow,
-  rightMetric,
-  scrollColumn,
-  statusDot,
+  flexFillSx,
+  panelTitleRowFull,
+  teamWorkloadListSx,
+  verticalPadSx,
+  teamWorkloadBadgeSx,
+  teamWorkloadBarSx,
+  teamWorkloadChevronSx,
+  teamWorkloadCountSx,
+  teamWorkloadNameSx,
+  teamWorkloadRowSx,
+  teamWorkloadTotalSx,
+  surfacePanelLoadingSx,
   surfacePanel,
   toggleButton,
-} from "../../styles/common";
+} from "@/styles/common";
+import PageHeader from "@/components/common/PageHeader";
 
 type DepartmentLoad = {
   id: number;
@@ -101,13 +91,21 @@ const emptySummary: TicketSummary = {
 };
 
 
+/** Up to two initials for a team's badge, e.g. "Field Service" -> "FS". */
+const teamInitials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+
 export default function Dashboard() {
   const [datePreset, setDatePreset] = useState<DatePreset>("weekly");
   const [dateRange, setDateRange] = useState(() => getPresetRange("weekly"));
   const [filterOpen, setFilterOpen] = useState(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
-  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   // Cached per date range. A new range shows skeletons until its own numbers
   // arrive, so figures for the wrong range are never on screen.
   const summaryQuery = useApiQuery<Partial<TicketSummary>>(
@@ -119,10 +117,6 @@ export default function Dashboard() {
     [summaryQuery.data],
   );
   const summaryLoading = summaryQuery.isPending;
-  const theme = useTheme();
-  // Render the filter controls once, in the layout that matches the viewport,
-  // so hidden duplicates can never receive focus.
-  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [teamReportOpen, setTeamReportOpen] = useState(false);
   const [teamReportLoading, setTeamReportLoading] = useState(false);
   const [teamReportDetail, setTeamReportDetail] =
@@ -154,13 +148,8 @@ export default function Dashboard() {
 
   const columns = useMemo<ColumnData<TicketData>[]>(
     () => [
-      {
-        label: "#",
-        width: 30,
-        render: (_row, index) => index + 1,
-        numeric: true,
-      },
       { label: "Ticket Number", dataKey: "number", width: 120 },
+      { label: "Subject", dataKey: "task", width: 220, wrap: true },
       { label: "Status", dataKey: "current_status", width: { xs: 80, sm: 120 } },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Assigned To", dataKey: "assigned_to_name" },
@@ -173,8 +162,8 @@ export default function Dashboard() {
   const expandedColumns = useMemo<ExpandedColumnData<TicketData>[]>(
     () => [
       { label: "Subject", dataKey: "task", size: { xs: 12, md: 6 } },
-      { label: "Est Hrs", dataKey: "est_hours", size: { xs: 4, md: 2 } },
-      { label: "Act Hrs", dataKey: "act_hours", size: { xs: 4, md: 2 } },
+      { label: "Est Hrs", dataKey: "est_hours", format: "hours", size: { xs: 4, md: 2 } },
+      { label: "Act Hrs", dataKey: "act_hours", format: "hours", size: { xs: 4, md: 2 } },
       {
         label: "Actual Completion",
         dataKey: "actual_end_date",
@@ -225,103 +214,75 @@ export default function Dashboard() {
     [],
   );
 
-  const renderDashboardControls = useCallback(
-    () => (
-      <>
-        <ToggleButtonGroup
-          exclusive
-          value={datePreset}
-          onChange={(_, next) => updateDatePreset(next)}
-          aria-label="Dashboard date range"
-          sx={toggleButton}
-        >
-          <ToggleButton value="weekly" aria-label="Weekly">
-            <Tooltip title="Weekly" arrow>
-              <Box component="span">Weekly</Box>
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="biweekly" aria-label="Biweekly">
-            <Tooltip title="Biweekly" arrow>
-              <Box component="span">Biweekly</Box>
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="monthly" aria-label="Monthly">
-            <Tooltip title="Monthly" arrow>
-              <Box component="span">Monthly</Box>
-            </Tooltip>
-          </ToggleButton>
-        </ToggleButtonGroup>
-        <Button
-          startIcon={<FilterListOutlinedIcon />}
-          variant="outlined"
-          ref={setFilterButton}
-          onClick={() => setFilterOpen(true)}
-        >
-          <Box component="span" sx={buttonLabelFull}>
-            Custom dates
-          </Box>
-          <Box component="span" sx={buttonLabelCompact}>
-            Dates
-          </Box>
-        </Button>
-      </>
-    ),
-    [datePreset, updateDatePreset],
-  );
+  // "custom" comes from the Custom dates panel, not from these choices.
+  const presetChoices = ["weekly", "biweekly", "monthly"] as const;
+  const presetLabels = {
+    weekly: "Weekly",
+    biweekly: "Biweekly",
+    monthly: "Monthly",
+  };
 
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
-        <Box sx={pageHeader}>
-          <Box sx={pageHeaderContent}>
-            <Box sx={pageHeaderTopRow}>
-              <Box sx={pageHeaderTitleGroup}>
-                <Typography variant="h5" component="h1" sx={pageTitle}>
-                  Team Analysis
-                </Typography>
-              </Box>
-              {!isDesktop && (
-              <Tooltip
-                title={mobileControlsOpen ? "Hide filters" : "Show filters"}
-              >
-                <IconButton
-                  aria-label={
-                    mobileControlsOpen
-                      ? "Hide dashboard filters"
-                      : "Show dashboard filters"
-                  }
-                  onClick={() => setMobileControlsOpen((open) => !open)}
-                  sx={pageHeaderFilterToggle}
-                >
-                  <FilterListOutlinedIcon />
-                </IconButton>
-              </Tooltip>
-              )}
-            </Box>
-            <Typography variant="body2" sx={pageSubtitle}>
+        <PageHeader
+          title="Team Analysis"
+          subtitle={
+            <>
               Due work, team load and ticket status for{" "}
               <DateRange start={dateRange.startDate} end={dateRange.endDate} />
-            </Typography>
-            {!isDesktop && (
-              <Box sx={pageHeaderFilterPanel}>
-                <Collapse in={mobileControlsOpen} timeout="auto" unmountOnExit>
-                  <Stack spacing={1} sx={pageHeaderControlsMobile}>
-                    {renderDashboardControls()}
-                  </Stack>
-                </Collapse>
-              </Box>
-            )}
-          </Box>
-          {isDesktop && (
-            <Stack
-              spacing={1}
-              direction={{ xs: "row-reverse", sm: "row" }}
-              sx={pageHeaderControlsDesktop}
-            >
-              {renderDashboardControls()}
-            </Stack>
-          )}
-        </Box>
+            </>
+          }
+          actions={[
+            {
+              key: "preset",
+              priority: "medium",
+              node: (
+                <ToggleButtonGroup
+                  exclusive
+                  value={datePreset}
+                  onChange={(_, next) => updateDatePreset(next)}
+                  aria-label="Dashboard date range"
+                  sx={toggleButton}
+                >
+                  {presetChoices.map((preset) => (
+                    <ToggleButton key={preset} value={preset} aria-label={presetLabels[preset]}>
+                      <Tooltip title={presetLabels[preset]} arrow>
+                        <Box component="span">{presetLabels[preset]}</Box>
+                      </Tooltip>
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              ),
+              menuLabel: "Date range",
+              menuItems: presetChoices.map((preset) => ({
+                key: preset,
+                label: presetLabels[preset],
+                onClick: () => updateDatePreset(preset),
+                selected: datePreset === preset,
+              })),
+            },
+            {
+              key: "dates",
+              priority: "high",
+              node: (
+                <Button
+                  startIcon={<FilterListOutlinedIcon />}
+                  variant="outlined"
+                  ref={setFilterButton}
+                  onClick={() => setFilterOpen(true)}
+                >
+                  <Box component="span" sx={buttonLabelFull}>
+                    Custom dates
+                  </Box>
+                  <Box component="span" sx={buttonLabelCompact}>
+                    Dates
+                  </Box>
+                </Button>
+              ),
+            },
+          ]}
+        />
 
         <Box sx={overviewGrid}>
           <Box sx={overviewPrimaryGridItem}>
@@ -330,31 +291,30 @@ export default function Dashboard() {
                 direction="row"
                 spacing={1.25}
                 alignItems="center"
-                sx={panelTitleRow}
+                sx={panelTitleRowFull}
               >
-                <Box sx={panelIconBadge}>
-                  <BusinessOutlinedIcon fontSize="small" />
-                </Box>
-                <Box>
-                  <Typography fontWeight={800}>Teams workload</Typography>
+                <Box sx={flexFillSx}>
+                  <Typography fontWeight={600}>Teams workload</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Tickets by team. Select a team to open its detailed report.
+                    Click a team to open its report. Bars compare ticket counts.
                   </Typography>
                 </Box>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={summaryLoading ? "Teams" : `${summary.deptData.length} teams`}
+                  sx={teamWorkloadTotalSx}
+                />
               </Stack>
               <Stack
+                component="div"
+                role="region"
+                aria-label="Teams workload list"
                 spacing={0}
-                sx={[
-                  scrollColumn,
-                  !summary.deptData.length && {
-                    overflow: "hidden",
-                    pr: 0,
-                    scrollbarGutter: "auto",
-                  },
-                ]}
+                sx={teamWorkloadListSx}
               >
                 {summaryLoading ? (
-                  <Stack spacing={1.25} role="status" aria-label="Loading team workload" sx={{ py: 1 }}>
+                  <Stack spacing={1.25} role="status" aria-label="Loading team workload" sx={verticalPadSx}>
                     {Array.from({ length: 5 }, (_, index) => (
                       <Box key={index}>
                         <Skeleton variant="text" width="55%" />
@@ -364,88 +324,45 @@ export default function Dashboard() {
                   </Stack>
                 ) : summary.deptData.length ? (
                   summary.deptData.map((department, index) => {
-                    const color = department.color || "primary.main";
                     return (
                       <ButtonBase
                         key={department.name}
                         onClick={() => void openTeamReport(department)}
-                        aria-label={`${department.name}: ${department.count} tickets. Open team report`}
+                        aria-label={`${department.name}: ${department.count} ${department.count === 1 ? "ticket" : "tickets"}. Open team report`}
                         title={department.name}
-                        sx={{
-                          ...dividerListRow(
-                            index < summary.deptData.length - 1,
-                          ),
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          px: 0.75,
-                          borderRadius: 1,
-                          "&:hover": {
-                            bgcolor: "action.hover",
-                          },
-                          "&.Mui-focusVisible": {
-                            outline: "2px solid",
-                            outlineColor: "primary.main",
-                            outlineOffset: -2,
-                            bgcolor: "action.hover",
-                          },
-                        }}
+                        sx={teamWorkloadRowSx(index < summary.deptData.length - 1)}
                       >
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          spacing={2}
-                        >
-                          <Box sx={contentFill}>
-                            <Stack
-                              direction="row"
-                              alignItems="center"
-                              spacing={1}
-                              sx={compactStackGap}
-                            >
-                              <Box sx={statusDot(color)} />
-
-                              <Typography
-                                variant="body2"
-                                fontWeight={800}
-                                noWrap
-                                sx={minWidthZeroSx}
-                              >
-                                {department.name}
-                              </Typography>
-                            </Stack>
-
-                            <LinearProgress
-                              variant="determinate"
-                              value={Math.min(
+                        <Box aria-hidden="true" sx={teamWorkloadBadgeSx}>
+                          {teamInitials(department.name)}
+                        </Box>
+                        <Box sx={minWidthZeroSx}>
+                          <Typography noWrap sx={teamWorkloadNameSx}>
+                            {department.name}
+                          </Typography>
+                          {/* Relative counts are visual comparison only; this is not a capacity meter. */}
+                          <LinearProgress
+                            variant="determinate"
+                            value={Math.min(
+                              100,
+                              (department.count /
+                                Math.max(
+                                  1,
+                                  ...summary.deptData.map((item) => item.count),
+                                )) *
                                 100,
-                                (department.count /
-                                  Math.max(summary.total, 1)) *
-                                  100,
-                              )}
-                              sx={inlineProgress(color)}
-                            />
-                          </Box>
-
-                          <Box sx={rightMetric}>
-                            <Typography
-                              variant="subtitle2"
-                              fontWeight={900}
-                              lineHeight={1}
-                            >
-                              {department.count}
-                            </Typography>
-
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              lineHeight={1}
-                            >
-                              tickets
-                            </Typography>
-                          </Box>
-                        </Stack>
+                            )}
+                            sx={teamWorkloadBarSx}
+                          />
+                        </Box>
+                        <Typography component="span" sx={teamWorkloadCountSx}>
+                          <strong>{department.count}</strong>
+                          {department.count === 1 ? "ticket" : "tickets"}
+                        </Typography>
+                        <ChevronRightRoundedIcon
+                          aria-hidden="true"
+                          className="team-workload-chevron"
+                          sx={teamWorkloadChevronSx}
+                        />
                       </ButtonBase>
                     );
                   })
@@ -453,7 +370,7 @@ export default function Dashboard() {
                   <Box sx={emptyStateSx}>
                     <Box>
                       <EventAvailableOutlinedIcon sx={largeMutedIcon} />
-                      <Typography fontWeight={700}>
+                      <Typography fontWeight={600}>
                         No team workload yet
                       </Typography>
                     </Box>
@@ -469,7 +386,7 @@ export default function Dashboard() {
                   elevation={0}
                   role="status"
                   aria-label="Loading ticket status"
-                  sx={{ ...surfacePanel, height: "100%", display: "grid", placeItems: "center", gap: 1.5 }}
+                  sx={surfacePanelLoadingSx}
                 >
                   <Skeleton variant="text" width="40%" />
                   <Skeleton variant="circular" width={150} height={150} />
@@ -520,7 +437,7 @@ export default function Dashboard() {
         onReset={() => updateDatePreset("weekly")}
         applyLabel="Apply dates"
       >
-          <Stack spacing={1.5} sx={dialogContentTop}>
+          <Stack spacing={1.5}>
             <TextField
               fullWidth
               label="From"

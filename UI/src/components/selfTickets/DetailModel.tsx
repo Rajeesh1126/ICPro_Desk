@@ -1,76 +1,49 @@
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   Typography,
-  IconButton,
   Box,
   Grid,
-  Chip,
-  Stack,
-  Paper,
   TextField,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
 
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 
-import api from "../../api/axios";
+import api from "@/api/axios";
 import { useState } from "react";
-import { alpha, useTheme } from "@mui/material/styles";
-import type { SelfTicketData, SelfTicketLog } from "../../types/dataTypes";
-import Avatar from "@mui/material/Avatar";
-import ConfirmDialog from "../common/ConfirmDialog";
+import type { SelfTicketData, SelfTicketLog } from "@/types/dataTypes";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
-  compactFieldSx,
-  detailLabelSx,
-  detailValueSx,
-  formSectionSx,
-  getModalPalette,
-  getPriorityPalette,
-  modalFormIconSx,
-  doListDetailOwnerAvatarSx,
-  doListDetailOwnerRowSx,
-  doListDetailTabButtonSx,
-  selfTicketsDetailModelDialogActionsSx,
-  selfTicketsDetailModelDialogContentSx,
-  selfTicketsDetailModelDialogPaperSx,
-  selfTicketsDetailModelCommentPaperSx,
-  selfTicketsDetailModelCommentTitleSx,
-  selfTicketsDetailModelCommentWrapperSx,
-  selfTicketsDetailModelFooterButtonsSx,
-  selfTicketsDetailModelFooterStackSx,
-  doListDetailFieldSx,
-  doListDetailPriorityChipSx,
-  doListDetailCommentListSx,
-  doListDetailStatusPanelSx,
-  doListDetailFieldLabelSx,
-  doListDetailFieldValueSx,
-  doListDetailCloseButtonSx,
-  selfTicketsDetailModelNoteBoxSx,
-  doListDetailEyebrowSx,
-  doListDetailNumberSx,
-  doListDetailOwnerLabelSx,
-  doListCommentAuthorSx,
-  ticketDetailActivitySectionSx,
-  ticketDetailSummaryBannerSx,
-  ticketDetailDescriptionSx,
-  ticketDetailSummaryLabelSx,
-  detailSubjectSx,
-  detailDescriptionTextSx,
-} from "../../styles/common";
-import { formatDateTime } from "../common/formatDate";
-import { showNotification } from "../../api/notificationService";
+  DetailChatMessage,
+  DetailChatPanel,
+  DetailDialogHeader,
+  DetailField,
+  DetailTextField,
+} from "@/components/common/DetailDialogParts";
+import { oldestFirst } from "@/utils/chatOrder";
+import { compactFieldSx } from "@/styles/common";
+import {
+  detailActionButtonsSx,
+  detailFactsSx,
+  detailFooterSx,
+  detailMainColumnSx,
+  detailNoteSx,
+} from "@/styles/detailDialog";
+import { formatDate, formatDateTime } from "@/components/common/formatDate";
+import { formatDecimalHours } from "@/utils/hoursMinutes";
+import { showNotification } from "@/api/notificationService";
+import { buttonLabelCompact, buttonLabelFull } from "@/styles/layout";
+
 
 export default function TicketDetailModal({
   open,
@@ -88,11 +61,6 @@ export default function TicketDetailModal({
   const [openTargetRevisionModal, setOpenTargetRevisionModal] = useState(false);
   const [comments, setcomments] = useState("");
   const [task, setTask] = useState(data);
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
-  const modalPalette = getModalPalette(theme);
-
-  const pStyle = getPriorityPalette(theme, data.priority);
 
   const currentUserParsed = Number(localStorage.getItem("user") || "null");
   const userId = currentUserParsed ?? null;
@@ -146,134 +114,42 @@ export default function TicketDetailModal({
 
   return (
     <>
-      <Dialog
-        open={open}
-        onClose={onClose}
-        fullWidth
-        maxWidth="lg"
-        slotProps={{
-          paper: {
-            sx: selfTicketsDetailModelDialogPaperSx,
-          },
-        }}
-      >
-        <DialogTitle component="div">
-          <Stack
-            direction="row"
-            spacing={1.25}
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Stack
-              direction="row"
-              spacing={1.25}
-              alignItems="center"
-              minWidth={0}
-            >
-              <Box sx={modalFormIconSx}>
-                <AssignmentOutlinedIcon fontSize="small" />
-              </Box>
-              <Box>
-                <Typography sx={doListDetailEyebrowSx}>
-                  Self task
-                </Typography>
-                <Typography
-                  variant="h6"
-                  fontWeight={900}
-                  sx={doListDetailNumberSx}
-                >
-                  {task.number}
-                </Typography>
-                <Chip
-                  label={`${task.priority?.toUpperCase()} PRIORITY`}
-                  sx={doListDetailPriorityChipSx({ pStyle })}
-                />
-              </Box>
-            </Stack>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+        <DetailDialogHeader
+          eyebrow="Do List task"
+          number={task.number}
+          priority={task.priority}
+          person={
+            task.creator !== userId
+              ? { label: "Owner", name: task.creator_name }
+              : null
+          }
+          onClose={onClose}
+        />
 
-            <Box sx={doListDetailOwnerRowSx}>
-              {task.creator !== userId ? (
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                  sx={doListDetailStatusPanelSx({
-                    alpha,
-                    isDark,
-                    theme,
-                  })}
-                >
-                  <Avatar sx={doListDetailOwnerAvatarSx}>
-                    {task.creator_name
-                      ? task.creator_name.charAt(0).toUpperCase()
-                      : "U"}
-                  </Avatar>
-                  <Box>
-                    <Typography sx={doListDetailOwnerLabelSx}>
-                      Owner
-                    </Typography>
-                    <Typography sx={detailValueSx}>
-                      {task.creator_name || "Unassigned"}
-                    </Typography>
-                  </Box>
-                </Stack>
-              ) : (
-                ""
-              )}
-              <IconButton aria-label="Close dialog"
-                onClick={onClose}
-                sx={doListDetailCloseButtonSx}
-              >
-                <CloseOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          </Stack>
-        </DialogTitle>
-
-        <DialogContent sx={selfTicketsDetailModelDialogContentSx}>
-          <Grid container spacing={2}>
+        <DialogContent>
+          <Grid container spacing={2.5} alignItems="stretch">
             <Grid size={{ xs: 12, md: task.logs?.length > 0 ? 8 : 12 }}>
-              <Paper variant="outlined" sx={formSectionSx}>
-                <Box sx={ticketDetailSummaryBannerSx({ theme })}>
-                  <Typography
-                    sx={ticketDetailSummaryLabelSx({
-                      alpha,
-                      detailLabelSx,
-                      theme,
-                    })}
-                  >
-                    Subject
-                  </Typography>
-                  <Typography sx={detailSubjectSx}>
-                    {task.task}
-                  </Typography>
-                </Box>
-                <Typography sx={detailLabelSx}>Description</Typography>
-                <Box
-                  sx={ticketDetailDescriptionSx({ modalPalette })}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={detailDescriptionTextSx}
-                  >
-                    {data.description}
-                  </Typography>
-                </Box>
+              <Box sx={detailMainColumnSx}>
+                <DetailTextField
+                  label="Subject"
+                  value={task.task}
+                />
+                <DetailTextField
+                  label="Description"
+                  value={data.description}
+                  multiline
+                />
 
-                <Grid container spacing={1.25}>
+                <Box sx={detailFactsSx}>
                   {[
                     {
                       label: "Estimated hours",
-                      value:
-                        task.est_hours != null
-                          ? `${task.est_hours} hrs`
-                          : "N/A",
+                      value: formatDecimalHours(task.est_hours),
                     },
                     {
                       label: "Target date",
-                      value: task.target_date
-                        ? task.target_date.split("-").reverse().join("-")
-                        : "N/A",
+                      value: formatDate(task.target_date),
                     },
                     {
                       label: "Task type",
@@ -282,103 +158,43 @@ export default function TicketDetailModal({
                     },
                     {
                       label: "Related ticket",
-                      value: task.ticket_number || "Not linked",
+                      value: task.ticket_number || "N/A",
                     },
                     {
                       label: "Reminder interval",
                       value: task.reminder_interval
                         ? `${task.reminder_interval} ${task.reminder_interval === 1 ? "day" : "days"}`
-                        : "Not set",
+                        : "N/A",
                     },
                     {
                       label: "Current status",
                       value: task.current_status || "Open",
-                      capitalize: true,
+                      status: true,
                     },
-                  ].map(({ label, value, capitalize }) => (
-                    <Grid key={label} size={{ xs: 6, sm: 6, md: 4 }}>
-                      <Box
-                        sx={doListDetailFieldSx({
-                          alpha,
-                          isDark,
-                          theme,
-                        })}
-                      >
-                        <Typography
-                          sx={doListDetailFieldLabelSx(
-                            { detailLabelSx },
-                          )}
-                        >
-                          {label}
-                        </Typography>
-                        <Typography
-                          sx={doListDetailFieldValueSx(
-                            { capitalize, detailValueSx },
-                          )}
-                        >
-                          {value}
-                        </Typography>
-                      </Box>
-                    </Grid>
+                  ].map(({ label, ...field }) => (
+                    <DetailField key={label} label={label} {...field} />
                   ))}
-                </Grid>
-              </Paper>
+                </Box>
+              </Box>
             </Grid>
             {/* RIGHT SIDE (Timeline) */}
             {task.logs?.length ? (
               <Grid size={{ xs: 12, md: 4 }}>
-                <Paper
-                  variant="outlined"
-                  sx={ticketDetailActivitySectionSx({ formSectionSx })}
+                <DetailChatPanel
+                  title="Status / Comments"
+                  badge={task.logs.length}
                 >
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={selfTicketsDetailModelCommentTitleSx}
-                  >
-                    Status / Comments
-                  </Typography>
-
-                  <Box
-                    sx={doListDetailCommentListSx({
-                      alpha,
-                      isDark,
-                      theme,
-                    })}
-                  >
-                    {task.logs?.map((log: SelfTicketLog) => (
-                      <Box
-                        key={log.id}
-                        sx={selfTicketsDetailModelCommentWrapperSx({
-                          isCurrentUser: log.creator === userId,
-                        })}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={doListCommentAuthorSx}
-                        >
-                          {log.creator_name || "User"}
-                          <Box component="span" sx={{ mx: 0.75 }}>
-                            {formatDateTime(log.created_at)}
-                          </Box>
-                        </Typography>
-                        <Paper
-                          elevation={0}
-                          sx={selfTicketsDetailModelCommentPaperSx({
-                            alpha,
-                            isDark,
-                            theme,
-                            isCurrentUser: log.creator === userId,
-                          })}
-                        >
-                          <Typography variant="body2" color="text.primary">
-                            {log.comments || "No comments"}
-                          </Typography>
-                        </Paper>
-                      </Box>
-                    ))}
-                  </Box>
-                </Paper>
+                  {oldestFirst(task.logs).map((log: SelfTicketLog) => (
+                    <DetailChatMessage
+                      key={log.id}
+                      mine={log.creator === userId}
+                      name={log.creator_name || "User"}
+                      time={formatDateTime(log.created_at)}
+                    >
+                      {log.comments || "No comments"}
+                    </DetailChatMessage>
+                  ))}
+                </DetailChatPanel>
               </Grid>
             ) : (
               ""
@@ -386,29 +202,19 @@ export default function TicketDetailModal({
           </Grid>
         </DialogContent>
 
-        <DialogActions sx={selfTicketsDetailModelDialogActionsSx}>
+        <DialogActions>
           {["open"].includes(task.current_status) &&
             task.creator === userId && (
-              <Stack sx={selfTicketsDetailModelFooterStackSx}>
-                <Box
-                  sx={selfTicketsDetailModelNoteBoxSx({
-                    alpha,
-                    isDark,
-                    theme,
-                  })}
-                >
-                  <InfoOutlinedIcon color="primary" />
+              <Box sx={detailFooterSx}>
+                <Box sx={detailNoteSx}>
+                  <InfoOutlinedIcon />
                   <Typography variant="caption" color="text.secondary">
                     <strong>Note:</strong> To edit or modify a To-Do List item,
                     switch to <strong>Table (List) View</strong>. Editing is not
                     available in <strong>Card View</strong>.
                   </Typography>
                 </Box>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={selfTicketsDetailModelFooterButtonsSx}
-                >
+                <Box sx={detailActionButtonsSx}>
                   <Button
                     onClick={() => setOpenProgressModal(true)}
                     variant="contained"
@@ -416,16 +222,10 @@ export default function TicketDetailModal({
                     disabled={task.current_status === "closed"}
                     startIcon={<PendingActionsOutlinedIcon />}
                   >
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "inline", sm: "none" } }}
-                    >
+                    <Box component="span" sx={buttonLabelCompact}>
                       Update
                     </Box>
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "none", sm: "inline" } }}
-                    >
+                    <Box component="span" sx={buttonLabelFull}>
                       Update Progress
                     </Box>
                   </Button>
@@ -435,16 +235,10 @@ export default function TicketDetailModal({
                     color="success"
                     startIcon={<TaskAltOutlinedIcon />}
                   >
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "inline", sm: "none" } }}
-                    >
+                    <Box component="span" sx={buttonLabelCompact}>
                       Close
                     </Box>
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "none", sm: "inline" } }}
-                    >
+                    <Box component="span" sx={buttonLabelFull}>
                       Close Task
                     </Box>
                   </Button>
@@ -454,32 +248,25 @@ export default function TicketDetailModal({
                     color="error"
                     startIcon={<CancelOutlinedIcon />}
                   >
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "inline", sm: "none" } }}
-                    >
+                    <Box component="span" sx={buttonLabelCompact}>
                       Cancel
                     </Box>
-                    <Box
-                      component="span"
-                      sx={{ display: { xs: "none", sm: "inline" } }}
-                    >
+                    <Box component="span" sx={buttonLabelFull}>
                       Cancel Task
                     </Box>
                   </Button>
-                </Stack>
-              </Stack>
+                </Box>
+              </Box>
             )}
 
           {task.creator !== userId && (
-            <Stack direction="row" spacing={1}>
+            <Box sx={detailActionButtonsSx}>
               <Button
                 onClick={() => setOpenCommentsModal(true)}
                 variant="outlined"
                 color="warning"
                 disabled={task.current_status === "closed"}
                 startIcon={<ChatBubbleOutlineOutlinedIcon />}
-                sx={doListDetailTabButtonSx}
               >
                 Comments
               </Button>
@@ -489,11 +276,10 @@ export default function TicketDetailModal({
                 color="warning"
                 disabled={["closed", "cancelled"].includes(task.current_status)}
                 startIcon={<EventRepeatOutlinedIcon />}
-                sx={doListDetailTabButtonSx}
               >
                 Revise Target Date
               </Button>
-            </Stack>
+            </Box>
           )}
         </DialogActions>
       </Dialog>
@@ -506,13 +292,11 @@ export default function TicketDetailModal({
             setCloseModelOpen(false);
         }}
         title="Close Task"
-        titleIcon={<TaskAltOutlinedIcon />}
         description="Please provide a reason for closing this task"
         confirmLabel="Confirm"
         confirmColor="success"
         confirmIcon={<TaskAltOutlinedIcon />}
         confirmDisabled={!comments.trim()}
-        tone="success"
       >
         <TextField
           autoFocus
@@ -536,13 +320,11 @@ export default function TicketDetailModal({
             setOpenProgressModal(false);
         }}
         title="Update Progress"
-        titleIcon={<TaskAltOutlinedIcon />}
-        description="Please provide an update on the current progress of this ticket."
-        confirmLabel="Submit"
+        description="Please provide an update on the current progress of this task."
+        confirmLabel="Save update"
         confirmColor="info"
-        confirmIcon={<SendOutlinedIcon />}
+        confirmIcon={<SaveOutlinedIcon />}
         confirmDisabled={!comments.trim()}
-        tone="info"
       >
         <TextField
           autoFocus
@@ -566,13 +348,11 @@ export default function TicketDetailModal({
             setCancelModelOpen(false);
         }}
         title="Cancel Task"
-        titleIcon={<CancelOutlinedIcon />}
         description="Please provide a reason for cancelling this task"
         confirmLabel="Confirm"
         confirmColor="error"
         confirmIcon={<CancelOutlinedIcon />}
         confirmDisabled={!comments.trim()}
-        tone="error"
       >
         <TextField
           autoFocus
@@ -596,13 +376,11 @@ export default function TicketDetailModal({
             setOpenCommentsModal(false);
         }}
         title="Add Comments"
-        titleIcon={<ChatBubbleOutlineOutlinedIcon />}
         description="Please provide comments for this task."
-        confirmLabel="Submit"
+        confirmLabel="Add comment"
         confirmColor="warning"
         confirmIcon={<SendOutlinedIcon />}
         confirmDisabled={!comments.trim()}
-        tone="warning"
       >
         <TextField
           autoFocus
@@ -626,13 +404,11 @@ export default function TicketDetailModal({
             setOpenTargetRevisionModal(false);
         }}
         title="Request Target Date Revision"
-        titleIcon={<EventRepeatOutlinedIcon />}
         description="Please provide the reason for extending or revising the target date."
         confirmLabel="Send Request"
         confirmColor="warning"
         confirmIcon={<SendOutlinedIcon />}
         confirmDisabled={!comments.trim()}
-        tone="warning"
       >
         <TextField
           autoFocus

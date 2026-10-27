@@ -1,23 +1,31 @@
-import { insetSx } from "../../styles/tokens";
 import React, { useState } from "react";
 import {
   Box,
   Dialog,
   DialogContent,
-  DialogTitle,
   IconButton,
   Typography,
   Grid,
   Paper,
-  Stack,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SentimentVeryDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentVeryDissatisfiedOutlined";
 import SentimentDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentDissatisfiedOutlined";
 import SentimentSatisfiedOutlinedIcon from "@mui/icons-material/SentimentSatisfiedOutlined";
 import SentimentSatisfiedAltOutlinedIcon from "@mui/icons-material/SentimentSatisfiedAltOutlined";
 import SentimentVerySatisfiedOutlinedIcon from "@mui/icons-material/SentimentVerySatisfiedOutlined";
+import DialogHeader from "@/components/common/DialogHeader";
+import {
+  ratingGuideCardSx,
+  ratingGuideRowSx,
+  ratingGuideScoreSx,
+  ratingGuideDescriptionSx,
+  ratingLegendSx,
+  ratingTileBodySx,
+  ratingTileHeaderSx,
+  ratingTileStarSx,
+  ratingDistributionTileSx,
+} from "@/styles/common";
 
 type RatingItem = {
   title: string;
@@ -77,21 +85,16 @@ const coreValues = [
 
 const bulletText = (items: string[]) => (
   <Box
-    sx={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "4px 10px",
-      alignItems: "center",
-    }}
+    sx={ratingLegendSx}
   >
     {items.map((item) => (
-      <Box key={item} sx={{ display: "flex", alignItems: "flex-start" }}>
-        <Typography component="span" sx={{ fontSize: 14, lineHeight: 1.5 }}>
+      <Box key={item} sx={ratingGuideRowSx}>
+        <Typography component="span" sx={ratingGuideScoreSx}>
           •
         </Typography>
         <Typography
           component="span"
-          sx={{ fontSize: 14, lineHeight: 1.5, ml: 1 }}
+          sx={ratingGuideDescriptionSx}
         >
           {item}
         </Typography>
@@ -133,48 +136,29 @@ export default function RatingsDistribution({
         onClose={close}
         fullWidth
         maxWidth="lg"
-        PaperProps={{
-          sx: {
-            m: { xs: 1, sm: 2 },
-            maxHeight: { xs: "calc(100dvh - 16px)", sm: "calc(100dvh - 32px)" },
-          },
-        }}
       >
-        <DialogTitle component="div">
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box>
-              <Typography variant="h6">Rating guide</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Use the descriptions below to select a consistent score.
-              </Typography>
-            </Box>
-            <IconButton aria-label="Close rating guide" onClick={close}>
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
+        <DialogHeader
+          title="Rating guide"
+          subtitle="Use the descriptions below to select a consistent score."
+          onClose={close}
+        />
 
-        <DialogContent dividers>
+        <DialogContent>
           <Grid container spacing={1.2}>
             {ratings.map((rating) => (
               <Grid size={{ xs: 12, sm: 6, lg: 2.4 }} key={rating.title}>
-                <Paper variant="outlined" sx={{ height: "100%", ...insetSx, textAlign: "center" }}>
+                <Paper variant="outlined" sx={ratingDistributionTileSx}>
                   <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 0.5,
-                    }}
+                    sx={ratingTileHeaderSx}
                   >
-                    <Box sx={{ color: "warning.main", display: "flex" }}>
+                    <Box sx={ratingTileStarSx}>
                       {rating.icon}
                     </Box>
-                    <Typography fontWeight={800}>
+                    <Typography fontWeight={600}>
                       {rating.title}
                     </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={ratingTileBodySx}>
                     {rating.description}
                   </Typography>
                 </Paper>
@@ -182,16 +166,16 @@ export default function RatingsDistribution({
             ))}
           </Grid>
 
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={2} sx={ratingTileBodySx}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper variant="outlined" sx={{ ...insetSx, height: "100%" }}>
-                <Typography fontWeight={800} gutterBottom>Parameters</Typography>
+              <Paper variant="outlined" sx={ratingGuideCardSx}>
+                <Typography fontWeight={600} gutterBottom>Parameters</Typography>
                 {bulletText(parameters)}
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Paper variant="outlined" sx={{ ...insetSx, height: "100%" }}>
-                <Typography fontWeight={800} gutterBottom>Core values</Typography>
+              <Paper variant="outlined" sx={ratingGuideCardSx}>
+                <Typography fontWeight={600} gutterBottom>Core values</Typography>
                 {bulletText(coreValues)}
               </Paper>
             </Grid>

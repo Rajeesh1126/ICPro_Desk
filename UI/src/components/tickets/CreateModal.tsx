@@ -1,4 +1,4 @@
-import { useDiscardGuard } from "../common/useDiscardGuard";
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   Box,
@@ -6,34 +6,31 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
+  FormHelperText,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 
 import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
-import api from "../../api/axios";
-import { sanitizeUserMessage } from "../../utils/errorUtils";
-import { asArray, useApiQuery } from "../../api/useApiQuery";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import api from "@/api/axios";
+import { sanitizeUserMessage } from "@/utils/errorUtils";
+import { asArray, useApiQuery } from "@/api/useApiQuery";
 import type { SelectChangeEvent } from "@mui/material";
 import type {
   TicketData,
   TicketFormData,
   groupData,
   UserSummary,
-} from "../../types/dataTypes";
+} from "@/types/dataTypes";
 import {
   dateFieldSx,
   attachmentDropZoneSx,
@@ -42,8 +39,11 @@ import {
   attachmentButtonSx,
   attachmentRemoveButtonSx,
   ticketAttachmentNameSx,
-} from "../../styles/common";
-import { showNotification } from "../../api/notificationService";
+  attachmentHintSx,
+  topSpacingSx,
+} from "@/styles/common";
+import { showNotification } from "@/api/notificationService";
+import DialogHeader from "@/components/common/DialogHeader";
 
 type CreateTicketModalProps = {
   open: boolean;
@@ -52,6 +52,7 @@ type CreateTicketModalProps = {
   internalMode?: boolean;
   departmentsOverride?: groupData[];
   assignableUsers?: UserSummary[];
+  initialTargetDate?: string | null;
 };
 type Priority = "high" | "medium" | "low" | "";
 
@@ -70,10 +71,17 @@ function isValidationErrorResponse(
   return typeof error === "object" && error !== null && "response" in error;
 }
 
+const formatLocalInputDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+
+const getTodayDate = () => formatLocalInputDate(new Date());
+
 const getTomorrowDate = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split("T")[0];
+  return formatLocalInputDate(tomorrow);
 };
 
 const emptyForm: TicketFormData = {
@@ -113,6 +121,7 @@ export default function CreateTicketModal({
   internalMode = false,
   departmentsOverride,
   assignableUsers = emptyAssignableUsers,
+  initialTargetDate = null,
 }: CreateTicketModalProps) {
   const [formData, setFormData] = useState<TicketFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<
@@ -141,13 +150,14 @@ export default function CreateTicketModal({
         }
         : {
           ...emptyForm,
+          target_date: initialTargetDate || getTomorrowDate(),
           is_internal: internalMode,
           department: internalMode ? departmentsOverride?.[0]?.id ?? "" : "",
           assigned_to: internalMode ? getUserId(assignableUsers[0]) : "",
         },
     );
     setFormErrorData({});
-  }, [Data, open, internalMode, departmentsOverride, assignableUsers]);
+  }, [Data, open, internalMode, departmentsOverride, assignableUsers, initialTargetDate]);
 
   // Combine existing and newly selected attachments
   const allAttachments = [
@@ -350,7 +360,8 @@ export default function CreateTicketModal({
     }
   };
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const tomorrow = getTomorrowDate();
+  const targetDateMinimum = initialTargetDate ? getTodayDate() : tomorrow;
   const invalid =
     !formData.task.trim() ||
     !formData.description.trim() ||
@@ -367,39 +378,26 @@ export default function CreateTicketModal({
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle component="div">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Box>
-            <Typography variant="h6">
-              {Data
-                ? internalMode
-                  ? "Edit Internal Ticket"
-                  : "Edit Ticket"
-                : internalMode
-                  ? "Create Internal Ticket"
-                  : "Create Ticket"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {internalMode
-                ? "Assign internal work to an immediate reportee."
-                : "Add clear ownership, priority, and timing."}
-            </Typography>
-          </Box>
-          <IconButton
-            aria-label="Close"
-            onClick={discard.requestClose}
-            disabled={loading}
-          >
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+      <DialogHeader
+        title={
+          Data
+            ? internalMode
+              ? "Edit internal ticket"
+              : "Edit ticket"
+            : internalMode
+              ? "New internal ticket"
+              : "New ticket"
+        }
+        subtitle={
+          internalMode
+            ? "Work Let: assign internal work to one of your immediate reportees."
+            : "Add clear ownership, priority, and timing."
+        }
+        onClose={discard.requestClose}
+        closeDisabled={loading}
+      />
       <DialogContent>
-        <Grid container spacing={1.5} sx={{ mt: 1 }}>
+        <Grid container spacing={1.5} sx={topSpacingSx}>
           <Grid size={{ xs: 12 }}>
             <TextField
               required
@@ -426,10 +424,10 @@ export default function CreateTicketModal({
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl required fullWidth>
-              <InputLabel>Teams</InputLabel>
+              <InputLabel>Team</InputLabel>
               <Select
                 value={formData.department}
-                label="Teams"
+                label="Team"
                 onChange={handleGroupChange}
                 disabled={internalMode}
               >
@@ -439,6 +437,11 @@ export default function CreateTicketModal({
                   </MenuItem>
                 ))}
               </Select>
+              {internalMode && (
+                <FormHelperText>
+                  Set to the team you manage: internal tickets stay within your team.
+                </FormHelperText>
+              )}
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -475,12 +478,22 @@ export default function CreateTicketModal({
                     </MenuItem>
                   )}
               </Select>
+              <FormHelperText>
+                {internalMode
+                  ? Data
+                    ? "One of your immediate reportees."
+                    : "Pre-filled with your first reportee. Check it's the right person."
+                  : selectedDepartment
+                    ? "Assigned to the selected team’s manager."
+                    : "Select a team first."}
+              </FormHelperText>
             </FormControl>
           </Grid>
           <Grid size={{ xs: 6, sm: 4 }}>
             <TextField
               label="Estimated hours"
               type="number"
+              helperText="Enter decimal hours (for example, 1.5 hours)."
               fullWidth
               value={formData.est_hours ?? ""}
               onChange={(event) =>
@@ -517,7 +530,7 @@ export default function CreateTicketModal({
               sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
-                htmlInput: { min: tomorrow },
+                htmlInput: { min: targetDateMinimum },
               }}
             />
           </Grid>
@@ -540,6 +553,9 @@ export default function CreateTicketModal({
                   ? "Add More"
                   : "Add Attachments"}
               </Button>
+              <Typography variant="caption" color="text.secondary" sx={attachmentHintSx}>
+                Select one or more files. Duplicate file names are skipped.
+              </Typography>
 
               <Box sx={ticketAttachmentListSx}>
                 {allAttachments.map((attachment) => (
@@ -592,20 +608,18 @@ export default function CreateTicketModal({
       </DialogContent>
       <DialogActions>
         <Button
-          variant="outlined"
-          startIcon={<CancelOutlinedIcon />}
-          onClick={discard.requestClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button
           variant="contained"
-          startIcon={Data ? <UpdateOutlinedIcon /> : <SendOutlinedIcon />}
+          startIcon={Data ? <SaveOutlinedIcon /> : <AddOutlinedIcon />}
           onClick={() => void submit()}
           disabled={loading || invalid}
         >
-          {loading ? "Saving…" : Data ? "Update" : "Submit"}
+          {loading
+            ? "Saving…"
+            : Data
+              ? "Save changes"
+              : internalMode
+                ? "Create internal ticket"
+                : "Create ticket"}
         </Button>
       </DialogActions>
       {discard.dialog}
