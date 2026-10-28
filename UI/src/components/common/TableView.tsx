@@ -544,7 +544,8 @@ export function VirtualizedTable<T extends object>({
         fitContent
           ? {
               ...tableBodyAreaSx,
-              flex: "0 0 auto",
+              // Shrink to the panel so Virtuoso owns overflow for long lists.
+              flex: "0 1 auto",
               height: processedRows.length
                 ? listHeight || FIT_HEADER_HEIGHT
                 : FIT_EMPTY_HEIGHT,

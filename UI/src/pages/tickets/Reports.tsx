@@ -433,8 +433,8 @@ export default function Reports() {
       { label: "Status", dataKey: "current_status" },
       // { label: "Team", dataKey: "team_name" },
       { label: "Name", dataKey: "creator_name" },
-      { label: "Priority", dataKey: "priority" },
-      { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
+      { label: "Priority", dataKey: "priority", width: 90 },
+      { label: "Est Hrs", dataKey: "est_hours", width: 90, format: "hours" },
     ],
     [openSelfTicketDetails],
   );

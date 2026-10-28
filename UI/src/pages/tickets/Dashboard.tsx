@@ -153,7 +153,7 @@ export default function Dashboard() {
       { label: "Status", dataKey: "current_status", width: { xs: 80, sm: 120 } },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Assigned To", dataKey: "assigned_to_name" },
-      { label: "Priority", dataKey: "priority", width: { xs: 80, sm: 120 } },
+      { label: "Priority", dataKey: "priority", width: { xs: 90, sm: 120 } },
       { label: "Target Completion", dataKey: "target_date", width: { xs: 80, sm: 120 } },
     ],
     [],
@@ -300,7 +300,6 @@ export default function Dashboard() {
                   </Typography>
                 </Box>
                 <Chip
-                  size="small"
                   variant="outlined"
                   label={summaryLoading ? "Teams" : `${summary.deptData.length} teams`}
                   sx={teamWorkloadTotalSx}

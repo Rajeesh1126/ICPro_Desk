@@ -2,12 +2,13 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { showGlobalError } from "@/api/errorDialogService";
 import { formatValidationErrors } from "@/utils/errorUtils";
-import { expireSession } from "@/api/session";
+import { expireSession, refreshAccessToken } from "@/api/session";
 import { invalidateAfterMutation } from "@/api/queryClient";
 
 declare module "axios" {
     export interface AxiosRequestConfig {
         suppressGlobalError?: boolean;
+        _authRetry?: boolean;
     }
 }
 
@@ -23,19 +24,17 @@ const api = axios.create({
     },
 });
 
-const authEndpointPattern = /\/users\/(login|forgot_password|reset_password)\/?$/;
+const authEndpointPattern = /\/users\/(login|forgot_password|reset_password|token\/refresh)\/?(?:\?.*)?$/;
 
 const isAuthEndpoint = (url?: string) =>
     typeof url === "string" && authEndpointPattern.test(url);
 
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("accessToken");
-        if (token && !isAuthEndpoint(config.url)) {
-            if (isTokenExpired(token)) {
-                expireSession();
-                return Promise.reject(new Error("Token expired"));
-            }
+    async (config) => {
+        if (!isAuthEndpoint(config.url)) {
+            let token = localStorage.getItem("accessToken");
+            if (!token || isTokenExpired(token)) token = await refreshAccessToken();
+            if (config.signal?.aborted) throw new axios.CanceledError();
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -55,7 +54,7 @@ api.interceptors.response.use(
         }
         return response;
     },
-    (error) => {
+    async (error) => {
         if (isAuthEndpoint(error.config?.url)) {
             return Promise.reject(error);
         }
@@ -76,6 +75,17 @@ api.interceptors.response.use(
             status === 400 && error.config?.suppressGlobalError;
 
         if (status === 401) {
+            const config = error.config;
+            if (config && !config._authRetry) {
+                config._authRetry = true;
+                const currentToken = localStorage.getItem("accessToken");
+                const sentAuthorization = config.headers?.Authorization;
+                const token = currentToken && !isTokenExpired(currentToken)
+                    && sentAuthorization !== `Bearer ${currentToken}`
+                    ? currentToken : await refreshAccessToken();
+                config.headers.Authorization = `Bearer ${token}`;
+                return api.request(config);
+            }
             expireSession();
             return Promise.reject(error);
         }
@@ -150,7 +160,7 @@ export const isTokenExpired = (token: string): boolean => {
     try {
         const decoded = jwtDecode<JwtPayload>(token);
         const currentTime = Date.now() / 1000;
-        return typeof decoded.exp !== "number" || decoded.exp < currentTime;
+        return typeof decoded.exp !== "number" || decoded.exp <= currentTime;
     } catch {
         return true;
     }

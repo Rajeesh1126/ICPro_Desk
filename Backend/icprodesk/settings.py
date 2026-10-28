@@ -88,33 +88,33 @@ WSGI_APPLICATION = 'icprodesk.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'ICPro_Desk'),
-        
-        # 'USER': os.getenv('DB_USER', 'root'),
-        # 'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
-        # 'HOST': os.getenv('DB_HOST', '15.207.178.193'),
-        
-        'USER': os.getenv('DB_USER', 'erp_prod'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-
-        'PORT': int(os.getenv('DB_PORT', '3306')),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': os.getenv('DB_NAME', 'ICPro_Desk'),
+        
+#         'USER': os.getenv('DB_USER', 'root'),
+#         'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
+#         'HOST': os.getenv('DB_HOST', '15.207.178.193'),
+        
+#         # 'USER': os.getenv('DB_USER', 'erp_prod'),
+#         # 'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
+#         # 'HOST': os.getenv('DB_HOST', 'localhost'),
+
+#         'PORT': int(os.getenv('DB_PORT', '3306')),
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
 
 
 # Password validation
@@ -196,8 +196,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=300),
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=600),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(minutes=600),
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'

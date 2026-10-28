@@ -82,7 +82,7 @@ const TimeSheetTicketsModal: React.FC<TimeSheetTicketsModalProps> = ({
       { label: "Ticket Number", dataKey: "number", width: 160 },
       { label: "Task", dataKey: "task", width: 260 },
       { label: "Status", dataKey: "current_status", width: 150 },
-      { label: "Priority", dataKey: "priority", width: 120 },
+      { label: "Priority", dataKey: "priority", width: 90 },
       { label: "Target Date", dataKey: "target_date", width: 140 },
     ],
     [selectedTicketIds],

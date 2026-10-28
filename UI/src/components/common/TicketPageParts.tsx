@@ -29,7 +29,6 @@ import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import AddCircleOutlineRoundedIcon from "@mui/icons-material/AddCircleOutlineRounded";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-// import ViewAgendaOutlinedIcon from "@mui/icons-material/ViewAgendaOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import type { TicketData } from "@/types/dataTypes";
@@ -59,7 +58,11 @@ import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
 import { formatDate } from "@/components/common/formatDate";
-import { VIEW_META, type BaseView, type PageView } from "@/components/common/viewMeta";
+import {
+  VIEW_META,
+  type BaseView,
+  type PageView,
+} from "@/components/common/viewMeta";
 import {
   dueDateCellSx,
   overdueTagSx,
@@ -84,7 +87,6 @@ import {
   calendarCompactCountSx,
   calendarCountSx,
   calendarDayNumberSx,
-  // calendarEmptySx,
   calendarGridSx,
   calendarGroupHeadingSx,
   calendarHeadingSx,
@@ -171,7 +173,6 @@ export function ColumnPicker({
   return (
     <>
       <Button
-        size="small"
         variant="outlined"
         startIcon={<ViewColumnOutlinedIcon />}
         aria-haspopup="menu"
@@ -206,7 +207,6 @@ export function ColumnPicker({
               dense
             >
               <Checkbox
-                size="small"
                 checked={checked}
                 tabIndex={-1}
                 disableRipple
@@ -296,6 +296,8 @@ export type CalendarItem = {
   current_status?: string;
   priority?: string;
   alarm?: boolean;
+  /** Optional page-specific accent for the item inside month cells. */
+  calendar_color?: string;
 };
 type CalendarTicket = CalendarItem;
 
@@ -379,7 +381,7 @@ function CalendarTicketChip({
   onOpen: (ticket: CalendarTicket) => void;
 }) {
   const meta = useContext(CalendarMetaContext);
-  const color = getStatusColor(ticket.current_status);
+  const color = ticket.calendar_color ?? getStatusColor(ticket.current_status);
   const overdue = isCalendarOverdue(ticket, meta);
   return (
     <ButtonBase
@@ -721,32 +723,11 @@ export function TicketCalendar<T extends CalendarItem>({
         </Box>
       </Box>
       <Box sx={calendarToolbarActionsSx}>
-        <Button size="small" variant="outlined" onClick={goToday}>
+        <Button variant="outlined" onClick={goToday}>
           Today
         </Button>
-        {/* <ToggleButtonGroup
-          exclusive
-          value={mode}
-          onChange={(_, next: "month" | "agenda" | null) => next && setMode(next)}
-          aria-label="Calendar display"
-          sx={toggleButton}
-        >
-          <ToggleButton value="month" aria-label="Month">
-            <CalendarMonthOutlinedIcon />
-            <Box component="span" sx={buttonLabelFull}>
-              Month
-            </Box>
-          </ToggleButton>
-          <ToggleButton value="agenda" aria-label="Agenda">
-            <ViewAgendaOutlinedIcon />
-            <Box component="span" sx={buttonLabelFull}>
-              Agenda
-            </Box>
-          </ToggleButton>
-        </ToggleButtonGroup> */}
         {overdueTickets.length > 0 && (
           <Button
-            size="small"
             variant="outlined"
             color="error"
             startIcon={<EventBusyOutlinedIcon />}
@@ -796,43 +777,11 @@ export function TicketCalendar<T extends CalendarItem>({
     );
   }
 
-  // const datedKeys = keys.filter((key) => byDate.has(key));
-  // const agenda = (
-  //   <Box sx={calendarPanelSx}>
-  //     {datedKeys.length ? (
-  //       datedKeys.map((key) => {
-  //         const [year, month, day] = key.split("-").map(Number);
-  //         const list = byDate.get(key) ?? [];
-  //         return (
-  //           <Box key={key} component="section" aria-label={formatDayLong(year, month - 1, day)}>
-  //             <Box sx={calendarGroupHeadingSx}>
-  //               <span>
-  //                 {formatDayHeading(year, month - 1, day)}
-  //                 {key === todayKey ? " · Today" : ""}
-  //               </span>
-  //               <span>{plural(list.length, noun)}</span>
-  //             </Box>
-  //             {list.map((ticket) => (
-  //               <CalendarAgendaRow key={ticket.id ?? ticket.number} ticket={ticket} onOpen={onOpen} />
-  //             ))}
-  //           </Box>
-  //         );
-  //       })
-  //     ) : (
-  //       <Typography sx={calendarEmptySx}>No {noun}s are due in {monthLabel}.</Typography>
-  //     )}
-  //     <UndatedSection tickets={undated} onOpen={onOpen} />
-  //   </Box>
-  // );
-
   return (
     <CalendarMetaContext.Provider value={meta}>
       <Box sx={calendarShellSx}>
         {toolbar}
 
-        {/* {mode === "agenda" ? (
-        agenda
-      ) : ( */}
         <Box sx={calendarBodySx}>
           <Box
             role="grid"
@@ -903,7 +852,6 @@ export function TicketCalendar<T extends CalendarItem>({
                           {onCreate && !compact && day.key >= todayKey && (
                             <Tooltip title={`Create ${noun}`}>
                               <IconButton
-                                size="small"
                                 aria-label={`Create ${noun} from ${formatDayLong(
                                   day.year,
                                   day.month,
@@ -995,7 +943,6 @@ export function TicketCalendar<T extends CalendarItem>({
               </Box>
               {onCreate && selectedKey >= todayKey && (
                 <Button
-                  size="small"
                   variant="outlined"
                   startIcon={<AddOutlinedIcon />}
                   onClick={() => onCreate(selectedKey)}

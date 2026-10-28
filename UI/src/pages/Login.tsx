@@ -42,6 +42,7 @@ import {
 } from "@/styles/common";
 
 type LoginResponse = {
+  refresh: string;
   access: string;
   id: number;
   first_name: string;
@@ -85,6 +86,7 @@ export default function Login() {
       queryClient.clear();
 
       localStorage.setItem("accessToken", response.data.access);
+      localStorage.setItem("refreshToken", response.data.refresh);
       localStorage.setItem("user", String(response.data.id));
       localStorage.setItem("first_name", response.data.first_name);
       localStorage.setItem("role", response.data.role);

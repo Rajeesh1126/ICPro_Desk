@@ -465,14 +465,12 @@ export default function TimesheetAnalysis() {
         <>
           <Stack direction="row" useFlexGap flexWrap="wrap" spacing={1} sx={analysisLegendRowSx}>
             <Chip
-              size="small"
               color="primary"
               variant="outlined"
               label={`Total: ${series.reduce((sum, item) => sum + item.data.reduce((a, b) => a + b, 0), 0).toFixed(2)} h`}
             />
-            <Chip size="small" variant="outlined" label={`Employees: ${series.length}`} />
+            <Chip variant="outlined" label={`Employees: ${series.length}`} />
             <Chip
-              size="small"
               variant="outlined"
               label={`${tabValue === 1 ? "Projects" : "Tasks"}: ${labels.length}`}
             />
@@ -614,9 +612,9 @@ export default function TimesheetAnalysis() {
       >
         <Stack spacing={1.5}>
           <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} aria-label="Date range presets">
-            <Button size="small" variant="outlined" onClick={() => applyDatePreset("week")}>This week</Button>
-            <Button size="small" variant="outlined" onClick={() => applyDatePreset("month")}>This month</Button>
-            <Button size="small" variant="outlined" onClick={() => applyDatePreset("30days")}>Last 30 days</Button>
+            <Button variant="outlined" onClick={() => applyDatePreset("week")}>This week</Button>
+            <Button variant="outlined" onClick={() => applyDatePreset("month")}>This month</Button>
+            <Button variant="outlined" onClick={() => applyDatePreset("30days")}>Last 30 days</Button>
           </Stack>
           <TextField
             fullWidth

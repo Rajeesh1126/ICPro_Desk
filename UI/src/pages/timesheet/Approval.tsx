@@ -191,7 +191,6 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
           tableHead="Submitted timesheets"
           tableHeadSub={
             <Button
-              size="small"
               startIcon={<InfoOutlinedIcon />}
               onClick={() => setRatingsOpen(true)}
               sx={tableHeaderLinkSx}
@@ -202,7 +201,7 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
           loading={isLoading}
           emptyTitle="No timesheets to approve"
           emptyDescription={`No submissions match the week starting ${formatDate(weekStart)}. Choose another week to review earlier or later submissions.`}
-          emptyAction={<Button size="small" variant="outlined" onClick={onPreviousWeek}>View previous week</Button>}
+          emptyAction={<Button variant="outlined" onClick={onPreviousWeek}>View previous week</Button>}
         />
       </Box>
 

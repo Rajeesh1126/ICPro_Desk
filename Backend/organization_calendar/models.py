@@ -10,8 +10,11 @@ from uuid import uuid4
 class CalendarEntry(models.Model):
     class EntryType(models.TextChoices):
         EVENT = 'event', 'Event'
-        MEETING = 'meeting', 'Meeting'
-        TASK = 'task', 'Task'
+        CELEBRATION = 'celebration', 'Celebration'
+        HOLYDAY = 'holiday', 'Holiday'
+        OTHERS = 'others', 'Others'
+
+
 
     class Status(models.TextChoices):
         SCHEDULED = 'scheduled', 'Scheduled'
@@ -20,7 +23,7 @@ class CalendarEntry(models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
-    entry_type = models.CharField(max_length=10, choices=EntryType.choices, default=EntryType.EVENT)
+    entry_type = models.CharField(max_length=25, choices=EntryType.choices, default=EntryType.EVENT)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.SCHEDULED)
     start_at = models.DateTimeField(db_index=True ,default=None, null=True)
     end_at = models.DateTimeField(db_index=True,default=None, null=True)

@@ -31,6 +31,16 @@ User = get_user_model()
 # Get Depart ment
 class DepartmentMixin:
 
+    def filter_active_list(self, queryset):
+        include_executive = (
+            self.request.query_params.get("include_executive", "false").lower() == "true"
+        )
+        if self.action == "list" and not include_executive:
+            queryset = queryset.exclude(
+                current_status__in=["closed", "cancelled", "recall successful"]
+            )
+        return queryset
+
     def include_all_executive_records(self):
         return (
             self.action in {"list", "retrieve"}
@@ -144,7 +154,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                     is_internal=is_internal.lower() in {"true", "1", "yes"}
                 )
 
-            return queryset
+            return self.filter_active_list(queryset)
         except Exception:
             logger.exception(
                 "Failed to fetch tickets for user '%s'.",
@@ -231,7 +241,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
 
         active_status = ["open","revised","reopened","not-satisfied"]
 
-        progress_status = ["assigned", "accepted","in progress", "date revision", "pending"]
+        progress_status = ["assigned", "accepted","in progress", "revised", "pending"]
 
         if department_id:
             department_queryset = queryset.filter(department_id=department_id)
@@ -505,10 +515,9 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
             if not self.include_all_executive_records():
                 visibility = Q(creator=self.request.user) | Q(creator_id__in=reportee_ids)
 
-            return (
+            queryset = (
                     Self_Ticket.objects
                     .select_related("creator")
-                    .exclude(current_status="cancelled")
                     .annotate(
                         has_group=Exists(group_filter),
                         reporting_to=F("creator__profile__reporting_to"),
@@ -517,6 +526,7 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                     .filter(visibility)
                     .order_by("-created_at")
                 )
+            return self.filter_active_list(queryset)
         except Exception:
             logger.exception(
                 "Failed to fetch self-tickets for user '%s'.",
@@ -621,7 +631,7 @@ class NotificationView(DepartmentMixin, APIView):
             "selfticketOpenCount":
                 Self_Ticket.objects.filter(
                     creator=request.user,
-                    current_status__in=["open", "date revision"]
+                    current_status__in=["open", "revised"]
                 ).count(),
             "ticketOpenCount":
                 ticket_queryset.filter(
@@ -636,7 +646,7 @@ class NotificationView(DepartmentMixin, APIView):
                             "recall requested",
                             "reopened",
                             "not-satisfied",
-                            "date revision",
+                            "revised",
                             "pending",
                         ]
                     )

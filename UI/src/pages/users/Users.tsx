@@ -197,7 +197,7 @@ export default function Users() {
       { label: "First Name", dataKey: "first_name" },
       { label: "Last Name", dataKey: "last_name" },
       { label: "Email", dataKey: "email", width: 200 },
-      { label: "Role", dataKey: "role", width: 150, render: (row) => row.role ? <Chip size="small" label={row.role} variant="outlined" /> : "—" },
+      { label: "Role", dataKey: "role", width: 150, render: (row) => row.role ? <Chip label={row.role} variant="outlined" /> : "—" },
       {
         label: "Status",
         width: 100,
@@ -205,7 +205,7 @@ export default function Users() {
           <StatusPill status={row.is_active === false ? "inactive" : "active"} label={row.is_active === false ? "Inactive" : "Active"} />
         ),
       },
-      { label: "Execution Teams", dataKey: "groups", render: (row) => <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={row.groups?.join(", ")}>{(row.groups ?? []).slice(0, 2).map((group) => <Chip key={group} size="small" label={group} variant="outlined" />)}{(row.groups?.length ?? 0) > 2 && <Chip size="small" label={`+${row.groups!.length - 2}`} />}{!row.groups?.length ? "—" : null}</Stack> },
+      { label: "Execution Teams", dataKey: "groups", render: (row) => <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={row.groups?.join(", ")}>{(row.groups ?? []).slice(0, 2).map((group) => <Chip key={group} label={group} variant="outlined" />)}{(row.groups?.length ?? 0) > 2 && <Chip label={`+${row.groups!.length - 2}`} />}{!row.groups?.length ? "—" : null}</Stack> },
       { label: "Designation", dataKey: "designation" },
       { label: "Reporting To", dataKey: "reporting_to" },
       { label: "Location", dataKey: "location" },

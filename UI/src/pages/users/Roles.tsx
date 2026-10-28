@@ -40,7 +40,7 @@ import {
   rolesSelectFieldSx,
   smUpBlockSx,
 } from "@/styles/common";
-import ActionDivider from "@/components/common/ActionDivider";
+import { TableActionGroup } from "@/components/common/ActionDivider";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import { queryClient } from "@/api/queryClient";
@@ -289,7 +289,7 @@ export default function Roles() {
           // System role: deleting it would lock everyone out of administration.
           const isSystemRole = row.name?.trim().toLowerCase() === "superadmin";
           return (
-            <Stack direction="row" spacing={0.5}>
+            <TableActionGroup>
               {canChangeRole && (
                 <Tooltip title="Edit role">
                   <IconButton
@@ -301,9 +301,6 @@ export default function Roles() {
                   </IconButton>
                 </Tooltip>
               )}
-
-              <ActionDivider />
-
               {canDeleteRole && (
                 <Tooltip
                   title={
@@ -324,7 +321,7 @@ export default function Roles() {
                   </span>
                 </Tooltip>
               )}
-            </Stack>
+            </TableActionGroup>
           );
         },
       },
@@ -575,7 +572,6 @@ export default function Roles() {
                   <TextField
                     label="Find permissions"
                     placeholder="e.g. approve timesheet"
-                    size="small"
                     value={permissionQuery}
                     onChange={(event) => setPermissionQuery(event.target.value)}
                     sx={rolesSearchFieldSx}
@@ -597,7 +593,6 @@ export default function Roles() {
                   />
                   <TextField
                     select
-                    size="small"
                     label="Permission group"
                     value={permissionGroup}
                     onChange={(event) => setPermissionGroup(event.target.value)}

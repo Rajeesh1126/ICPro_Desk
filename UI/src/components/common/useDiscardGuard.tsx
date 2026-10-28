@@ -10,9 +10,15 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
  *   otherwise it closes straight away.
  * - After a successful save, call your own close function directly; saving
  *   is not discarding.
+ * - Pass `dirtyOverride` when the caller can compare the current values with
+ *   their opening snapshot. This lets reverted edits become clean again.
  * - Render `dialog` anywhere inside the component.
  */
-export function useDiscardGuard(open: boolean, close: () => void) {
+export function useDiscardGuard(
+  open: boolean,
+  close: () => void,
+  dirtyOverride?: boolean,
+) {
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
@@ -25,11 +31,12 @@ export function useDiscardGuard(open: boolean, close: () => void) {
   }
 
   const markDirty = useCallback(() => setDirty(true), []);
+  const hasUnsavedChanges = dirtyOverride ?? dirty;
 
   const requestClose = useCallback(() => {
-    if (dirty) setConfirming(true);
+    if (hasUnsavedChanges) setConfirming(true);
     else close();
-  }, [close, dirty]);
+  }, [close, hasUnsavedChanges]);
 
   const dialog = (
     <ConfirmDialog
@@ -48,5 +55,5 @@ export function useDiscardGuard(open: boolean, close: () => void) {
     />
   );
 
-  return { dirty, markDirty, requestClose, dialog };
+  return { dirty: hasUnsavedChanges, markDirty, requestClose, dialog };
 }

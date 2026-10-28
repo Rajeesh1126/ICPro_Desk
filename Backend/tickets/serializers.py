@@ -275,11 +275,11 @@ class TicketSerializer(serializers.ModelSerializer):
                 Receivermail = instance.creator.email
                 Receivername = instance.creator.first_name
                 Heading = "Ticket Pending"
-            elif new_status =="date revision":
+            elif new_status =="revised":
                 content = f"On {today}, the assigned person has requested a target date revision. Please review the reason below."
                 Receivermail = instance.creator.email
                 Receivername = instance.creator.first_name
-                Heading = "Target Date Revision Requested"
+                Heading = "Target revised Requested"
             else:
                 content = f"On {today}, the ticket with the below data has been revised."
                 Receivermail = instance.assigned_to.email
@@ -321,7 +321,6 @@ class SelfTicketLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Self_Ticket_Log
         fields = ['id', 'self_ticket', 'comments', 'creator', 'created_at', 'creator_name']
-
 
 # self ticket serializer
 class SelfTicketSerializer(serializers.ModelSerializer):

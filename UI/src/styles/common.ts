@@ -1741,7 +1741,7 @@ export const headerAccountTriggerSx =
       minWidth: 0,
       minHeight: 44,
       ml: { xs: 0.5, sm: 1.25 },
-      px: { xs: 0.5, md: 1 },
+      px: { xs: 0.5, md: 0.5 },
       py: 0.375,
       gap: 1.25,
       borderRadius: RADIUS_PX.pill,
@@ -1782,10 +1782,6 @@ export const headerAccountAvatarSx: SxProps<Theme> = (theme) => ({
   letterSpacing: "0.02em",
   color: theme.palette.primary.contrastText,
   backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.light}, ${theme.palette.primary.main} 55%, ${theme.palette.primary.dark})`,
-  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3px ${alpha(
-    theme.palette.primary.main,
-    0.35,
-  )}`,
 });
 
 export const headerAccountTextSx: SxProps<Theme> = {

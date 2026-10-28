@@ -17,10 +17,10 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import UndoIcon from "@mui/icons-material/Undo";
-import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+// import UndoIcon from "@mui/icons-material/Undo";
+// import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
+// import TaskAltIcon from "@mui/icons-material/TaskAlt";
+// import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import { VirtualizedTable } from "@/components/common/TableView";
 import {
@@ -250,7 +250,7 @@ export default function InternalTickets() {
               label={`Rejected (${tickets.rejected.length})`}
               disabled={view === "card"}
             />
-            <Tab
+            {/* <Tab
               icon={tabValue === 4 ? <UndoIcon /> : <UndoOutlinedIcon />}
               iconPosition="start"
               label={`Recalled (${tickets.recalled.length})`}
@@ -261,7 +261,7 @@ export default function InternalTickets() {
               iconPosition="start"
               label={`Closed (${tickets.closed.length})`}
               disabled={view === "card"}
-            />
+            /> */}
           </Tabs>
         </Box>
         {tabValue === 0 && tickets.all.length > 0 && createAccessChecked && !canOpenCreate && (

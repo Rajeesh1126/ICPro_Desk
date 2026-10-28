@@ -68,7 +68,7 @@ export default function TicketDetailModal({
   const statusMessages: Record<string, string> = {
     closed: "Do List task closed successfully.",
     cancelled: "Do List task cancelled successfully.",
-    "date revision": "Target date revision request sent successfully.",
+    "revised": "Target date revision request sent successfully.",
   };
 
   const handleConfirm = async (
@@ -203,7 +203,7 @@ export default function TicketDetailModal({
         </DialogContent>
 
         <DialogActions>
-          {["open"].includes(task.current_status) &&
+          {["open","revised"].includes(task.current_status) &&
             task.creator === userId && (
               <Box sx={detailFooterSx}>
                 <Box sx={detailNoteSx}>
@@ -400,7 +400,7 @@ export default function TicketDetailModal({
         open={openTargetRevisionModal}
         onClose={() => setOpenTargetRevisionModal(false)}
         onConfirm={async () => {
-          if (await handleConfirm("date revision", { comments }))
+          if (await handleConfirm("revised", { comments }))
             setOpenTargetRevisionModal(false);
         }}
         title="Request Target Date Revision"

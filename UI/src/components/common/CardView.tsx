@@ -15,7 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import type { SelfTicketData, TicketData } from "@/types/dataTypes";
 import BasicCardComponent from "@/components/tickets/BasicCard";
 import BasicCardSelfTicket from "@/components/selfTickets/BasicCard";
-import { shouldBlinkSelfTicket } from "@/components/selfTickets/highlight";
+import { isSelfTicketOverdue, shouldBlinkSelfTicket } from "@/components/selfTickets/highlight";
 import { TICKET_BOARD_GROUPS } from "@/pages/tickets/ticketCollections";
 import {
   boardColumnListSx,
@@ -79,10 +79,13 @@ function TicketColumn({
       sx={boardColumnHeaderSx}
     >
       {/* Inside the phone accordion button a heading is invalid; use a span. */}
-      <Typography component={isSmallScreen ? "span" : "h3"} sx={boardColumnTitleSx}>
+      <Typography
+        component={isSmallScreen ? "span" : "h3"}
+        sx={boardColumnTitleSx}
+      >
         <Box component="span" sx={boardColumnBulletSx({ accent })} />
         {title}
-        <Chip label={count} size="small" sx={boardColumnCountChipSx} />
+        <Chip label={count} sx={boardColumnCountChipSx} />
       </Typography>
       <Stack direction="row" spacing={0.75} alignItems="center">
         {hasAlarm && (
@@ -208,14 +211,24 @@ export default function TicketCardView(props: TicketCardViewProps) {
     {
       title: "Open",
       accent: getStatusColor("open"),
-      rows: props.data.filter((ticket) => ["open", "date revision"].includes(ticket.current_status)),
+      rows: props.data.filter(
+        (ticket) =>
+          ["open", "date revision"].includes(ticket.current_status) &&
+          !isSelfTicketOverdue(ticket)
+      ),
     },
     {
-      title: "Closed",
+      title: "Over due",
       accent: getStatusColor("closed"),
-      rows: props.data.filter((ticket) => ticket.current_status === "closed"),
+      rows: props.data.filter(
+        (ticket) =>
+          ["open", "date revision"].includes(ticket.current_status) &&
+          isSelfTicketOverdue(ticket)
+      ),
     },
   ];
+
+  console.log(columns);
   return (
     <Box sx={boardColumnsSelfSx}>
       {columns.map((column) => (

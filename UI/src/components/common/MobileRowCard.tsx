@@ -110,7 +110,6 @@ export default function MobileRowCard<T>({
         <Box sx={mobileRowCardFooterSx}>
           {hidden.length > 0 ? (
             <Button
-              size="small"
               aria-expanded={expanded}
               endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               onClick={(event) => {

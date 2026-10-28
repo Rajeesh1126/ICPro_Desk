@@ -27,7 +27,7 @@ import { formatDateTime } from "@/components/common/formatDate";
 import { getStoredPermissions } from "@/utils/permissions";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import DialogHeader from "@/components/common/DialogHeader";
-import ActionDivider from "@/components/common/ActionDivider";
+import { TableActionGroup } from "@/components/common/ActionDivider";
 import FileUploadField from "@/components/common/FileUploadField";
 import {
   VirtualizedTable,
@@ -299,10 +299,9 @@ export default function Documents() {
         label: "Actions",
         width: 200,
         render: (row) => (
-          <Stack direction="row" spacing={0}>
+          <TableActionGroup>
             <Tooltip title="Download document">
               <Button
-                size="small"
                 startIcon={<DownloadOutlinedIcon />}
                 disabled={!row.file}
                 onClick={() => downloadDocument(row)}
@@ -311,9 +310,6 @@ export default function Documents() {
                 Download
               </Button>
             </Tooltip>
-
-            <ActionDivider />
-            
             {canChangeDocument && (
               <Tooltip title="Upload a new version">
                 <IconButton
@@ -325,9 +321,6 @@ export default function Documents() {
                 </IconButton>
               </Tooltip>
             )}
-
-            <ActionDivider />
-            
             {canDeleteDocument && (
               <Tooltip title="Delete document">
                 <IconButton
@@ -339,7 +332,7 @@ export default function Documents() {
                 </IconButton>
               </Tooltip>
             )}
-          </Stack>
+          </TableActionGroup>
         ),
       },
     ],

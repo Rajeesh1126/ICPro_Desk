@@ -26,7 +26,7 @@ import FileUploadField from "@/components/common/FileUploadField";
 import { showNotification } from "@/api/notificationService";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import DialogHeader from "@/components/common/DialogHeader";
-import ActionDivider from "@/components/common/ActionDivider";
+import { TableActionGroup } from "@/components/common/ActionDivider";
 import { type ColumnData } from "@/components/common/TableView";
 import { CollapsibleTableView } from "@/components/common/CollapsibleTableView";
 import {
@@ -290,13 +290,13 @@ export default function LessonLearnt() {
       {
         label: "Attachment",
         width: 160,
-        render: (row) => row.file ? <Button size="small" startIcon={<DownloadOutlinedIcon />} onClick={() => downloadFile(row)}>{getFileName(row.file)}</Button> : "No attachment",
+        render: (row) => row.file ? <Button startIcon={<DownloadOutlinedIcon />} onClick={() => downloadFile(row)}>{getFileName(row.file)}</Button> : "No attachment",
       },
       {
         label: "Actions",
         width: 140,
         render: (row) => (
-          <Stack direction="row" spacing={0}>
+          <TableActionGroup>
             {canChangeLesson && (
               <Tooltip title="Edit lesson">
                 <IconButton
@@ -308,9 +308,6 @@ export default function LessonLearnt() {
                 </IconButton>
               </Tooltip>
             )}
-
-            <ActionDivider />
-            
             <Tooltip title="Download attachment">
               <span>
                 <IconButton
@@ -322,9 +319,6 @@ export default function LessonLearnt() {
                 </IconButton>
               </span>
             </Tooltip>
-
-            <ActionDivider />
-            
             {canDeleteLesson && (
               <Tooltip title="Delete lesson">
                 <IconButton
@@ -336,7 +330,7 @@ export default function LessonLearnt() {
                 </IconButton>
               </Tooltip>
             )}
-          </Stack>
+          </TableActionGroup>
         ),
       },
     ],

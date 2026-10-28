@@ -190,7 +190,6 @@ export default function BasicCardSelfTicket({
               }`}
             >
               <Button
-                size="small"
                 variant="outlined"
                 color="warning"
                 startIcon={<DoneOutlinedIcon />}

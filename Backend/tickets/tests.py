@@ -78,6 +78,42 @@ class ExecutiveReportVisibilityTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_ticket_and_internal_lists_filter_finished_statuses(self):
+        finished = ['closed', 'completed', 'cancelled', 'recall successful']
+        for internal in [False, True]:
+            records = [Ticket.objects.create(
+                creator=self.other, department=self.department, task=f'{state} ticket',
+                current_status=state, is_internal=internal,
+            ) for state in finished + ['in progress', 'recall requested']]
+            active_ids = {item.pk for item in records if item.current_status not in finished}
+            all_ids = {item.pk for item in records}
+            if not internal:
+                active_ids.add(self.mapped_ticket.pk)
+                all_ids.add(self.mapped_ticket.pk)
+            for flag in [None, 'false', 'true']:
+                with self.subTest(internal=internal, flag=flag):
+                    params = {'is_internal': str(internal).lower()}
+                    if flag is not None:
+                        params['include_executive'] = flag
+                    self.assertEqual(self.ids('tickets', **params), all_ids if flag == 'true' else active_ids)
+
+    def test_do_list_filters_finished_statuses(self):
+        finished = ['closed', 'completed', 'cancelled', 'recall successful']
+        records = [Self_Ticket.objects.create(
+            creator=self.viewer, task=f'{state} task', current_status=state,
+        ) for state in finished + ['in progress', 'recall requested']]
+        active_ids = {item.pk for item in records if item.current_status not in finished} | {self.own_do_list.pk}
+        self.assertEqual(self.ids('self-tickets'), active_ids)
+        self.assertEqual(self.ids('self-tickets', include_executive='false'), active_ids)
+        self.assertEqual(self.ids('self-tickets', include_executive='true'),
+                         {item.pk for item in records} | {self.own_do_list.pk})
+
+    def test_finished_items_remain_accessible_by_id(self):
+        for model, endpoint in [(Ticket, 'tickets'), (Self_Ticket, 'self-tickets')]:
+            item = model.objects.create(creator=self.viewer, task='Closed item', current_status='closed')
+            response = self.client.get(f'/api/{endpoint}/{item.pk}/')
+            self.assertEqual(response.status_code, 200, response.data)
+
 
 class TicketCrudApiTests(TestCase):
     def setUp(self):

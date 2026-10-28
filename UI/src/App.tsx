@@ -1,8 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Suspense, type ReactNode } from "react";
 import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
-import { isTokenExpired } from "@/api/axios.ts";
-import { buildLoginPath, clearSession } from "@/api/session.ts";
+import { buildLoginPath, clearSession, hasActiveSession } from "@/api/session.ts";
 import ErrorPage, { RoutedErrorPage } from "@/pages/ErrorPage.tsx";
 
 import {
@@ -85,11 +84,11 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
   const destination = `${location.pathname}${location.search}${location.hash}`;
 
-  if (!token) {
+  if (!token && !localStorage.getItem("refreshToken")) {
     return <Navigate to={buildLoginPath(destination)} replace />;
   }
 
-  if (isTokenExpired(token)) {
+  if (!hasActiveSession()) {
     clearSession();
     return <Navigate to={buildLoginPath(destination, true)} replace />;
   }

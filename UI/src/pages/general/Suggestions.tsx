@@ -27,7 +27,7 @@ import { formatDateTime } from "@/components/common/formatDate";
 import { getStoredPermissions } from "@/utils/permissions";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import DialogHeader from "@/components/common/DialogHeader";
-import ActionDivider from "@/components/common/ActionDivider";
+import { TableActionGroup } from "@/components/common/ActionDivider";
 import {
   VirtualizedTable,
   type ColumnData,
@@ -229,7 +229,7 @@ export default function Suggestions() {
         label: "Actions",
         width: 140,
         render: (row) => (
-          <Stack direction="row" spacing={0.5}>
+          <TableActionGroup>
             <Tooltip title="Read suggestion and remarks">
               <IconButton
                 aria-label={`Read suggestion from ${row.user_name ?? "user"}`}
@@ -238,9 +238,6 @@ export default function Suggestions() {
                 <VisibilityOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-
-            <ActionDivider />
-
             {canChangeSuggestion && (
               <Tooltip title="Edit suggestion">
                 <IconButton
@@ -252,9 +249,6 @@ export default function Suggestions() {
                 </IconButton>
               </Tooltip>
             )}
-
-            <ActionDivider />
-
             {canDeleteSuggestion && (
               <Tooltip title="Delete suggestion">
                 <IconButton
@@ -266,7 +260,7 @@ export default function Suggestions() {
                 </IconButton>
               </Tooltip>
             )}
-          </Stack>
+          </TableActionGroup>
         ),
       },
     ],

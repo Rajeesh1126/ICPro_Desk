@@ -108,6 +108,9 @@ const darkPalette = buildPalette("dark");
 export function createAppTheme(mode: PaletteMode) {
   const palette = mode === "dark" ? darkPalette : lightPalette;
   const isDark = mode === "dark";
+  const inputBackground = isDark
+    ? alpha(palette.text.primary, 0.03)
+    : palette.background.paper;
 
   return createTheme({
     palette: {
@@ -219,8 +222,8 @@ export function createAppTheme(mode: PaletteMode) {
       MuiInputBase: {
         styleOverrides: {
           root: {
-            "& input:-webkit-autofill": {
-              WebkitBoxShadow: `0 0 0 1000px ${palette.background.paper} inset !important`,
+            "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active": {
+              WebkitBoxShadow: `0 0 0 1000px ${inputBackground} inset !important`,
               WebkitTextFillColor: `${palette.text.primary} !important`,
               caretColor: palette.text.primary,
               transition: "background-color 9999s ease-out 0s",
@@ -233,7 +236,7 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiButton: {
         defaultProps: {
-          // size: "small",
+          size: "small",
           disableElevation: true,
         },
         styleOverrides: {
@@ -356,9 +359,7 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             borderRadius: RADIUS.sm,
-            backgroundColor: isDark
-              ? alpha(palette.text.primary, 0.03)
-              : palette.background.paper,
+            backgroundColor: inputBackground,
             // Field boundaries read against the surface without shouting.
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: alpha(palette.text.primary, isDark ? 0.2 : 0.24),

@@ -181,12 +181,12 @@ export default function SelfTickets() {
         label: "Task Number",
         // This cell contains three action icons and the task number. Reserve
         // enough fixed-table width for an active reminder bell as well.
-        width: 220,
+        width: 250,
         render: (row) => (
           <RecordNumberCell
             number={row.number}
             editTitle="Edit task"
-            editDisabled={row.creator !== userId || row.current_status !== "open"}
+            editDisabled={row.creator !== userId || ["closed","cancelled"].includes(row.current_status) }
             onView={() => openDetails(row)}
             onEdit={() => openEdit(row)}
           >
@@ -219,7 +219,7 @@ export default function SelfTickets() {
         minWidth: 'auto'
       },
       { label: "Type", dataKey: "type", format: "label" },
-      { label: "Priority", dataKey: "priority", width: 100, },
+      { label: "Priority", dataKey: "priority", width: 90, },
       { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
       {
         label: "Reminder",

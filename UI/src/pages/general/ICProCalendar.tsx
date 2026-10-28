@@ -23,7 +23,6 @@ import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import { DOCUMENT_UPLOAD_RULES } from "@/components/common/FileUploadField";
@@ -65,19 +64,19 @@ import { dateFieldSx } from "@/styles/filters";
 import PageHeader from "@/components/common/PageHeader";
 
 type Attachment = { id: number; name: string; file: string };
+type EntryType = "event" | "celebration" | "holiday" | "others";
 type Entry = {
   id: number;
   title: string;
   description: string;
-  entry_type: "event" | "meeting" | "task";
+  entry_type: EntryType;
   status: "scheduled" | "completed" | "cancelled";
   start_at: string;
   end_at: string;
   all_day: boolean;
-  /** Target date, date only (YYYY-MM-DD). Entries are shown on this day. */
+  /** Calendar date, date only (YYYY-MM-DD). Entries are shown on this day. */
   event_date: string | null;
   location: string;
-  meeting_url: string;
   participants: number[];
   created_by: number | null;
   created_by_name: string;
@@ -98,8 +97,14 @@ type Form = Omit<
 > & { event_date: string };
 type Item = CalendarItem & { entry: Entry };
 const endpoint = "/calendar/entries/";
+const ENTRY_TYPE_COLORS: Record<EntryType, string> = {
+  event: "#2563eb",
+  celebration: "#9333ea",
+  holiday: "#16a34a",
+  others: "#64748b",
+};
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
-/** The day an entry belongs on: its target date, else (older entries) its start day. */
+/** The day an entry belongs on: its calendar date, else an older entry's start day. */
 const entryDate = (entry: Entry) =>
   entry.event_date
     ? dayjs(entry.event_date)
@@ -110,10 +115,21 @@ const initialForm = (eventDate = dayjs().format("YYYY-MM-DD")): Form => ({
   entry_type: "event",
   event_date: eventDate,
   location: "",
-  meeting_url: "",
 });
+const formsMatch = (left: Form, right: Form) =>
+  left.title === right.title &&
+  left.description === right.description &&
+  left.entry_type === right.entry_type &&
+  left.event_date === right.event_date &&
+  left.location === right.location;
+function loggedUser(): number | null {
+  const value = localStorage.getItem("user");
+  const id = value ? Number(value) : NaN;
 
+  return Number.isInteger(id) ? id : null;
+}
 export default function ICProCalendar() {
+  const userId = useMemo(() => loggedUser(), []);
   const permissions = getStoredPermissions();
   const canAddCalendarEntry = permissions.has("add_calendarentry");
   const canChangeCalendarEntry = permissions.has("change_calendarentry");
@@ -130,6 +146,7 @@ export default function ICProCalendar() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [form, setForm] = useState<Form>(initialForm);
+  const [initialEditorForm, setInitialEditorForm] = useState<Form>(initialForm);
   const [saving, setSaving] = useState(false);
   const [uploads, setUploads] = useState<File[]>([]);
   const [removedFiles, setRemovedFiles] = useState<number[]>([]);
@@ -154,6 +171,7 @@ export default function ICProCalendar() {
         task: entry.title,
         target_date: date.format("YYYY-MM-DD"),
         current_status: label(entry.status),
+        calendar_color: ENTRY_TYPE_COLORS[entry.entry_type],
         entry,
       });
     }
@@ -162,27 +180,29 @@ export default function ICProCalendar() {
   const closeEditor = () => {
     if (!saving) setEditorOpen(false);
   };
-  const discard = useDiscardGuard(editorOpen, closeEditor);
+  const editorDirty =
+    !formsMatch(form, initialEditorForm) ||
+    uploads.length > 0 ||
+    removedFiles.length > 0;
+  const discard = useDiscardGuard(editorOpen, closeEditor, editorDirty);
   const update = <K extends keyof Form>(key: K, value: Form[K]) => {
-    discard.markDirty();
     setForm((previous) => ({ ...previous, [key]: value }));
   };
   const openEditor = (entry?: Entry, targetDate?: string) => {
+    const nextForm = entry
+      ? {
+        title: entry.title,
+        description: entry.description,
+        entry_type: entry.entry_type,
+        location: entry.location,
+        event_date: entryDate(entry).format("YYYY-MM-DD"),
+      }
+      : initialForm(targetDate);
     setUploads([]);
     setRemovedFiles([]);
     setEditing(entry ?? null);
-    setForm(
-      entry
-        ? {
-            title: entry.title,
-            description: entry.description,
-            entry_type: entry.entry_type,
-            location: entry.location,
-            meeting_url: entry.meeting_url,
-            event_date: entryDate(entry).format("YYYY-MM-DD"),
-          }
-        : initialForm(targetDate),
-    );
+    setForm(nextForm);
+    setInitialEditorForm(nextForm);
     setError("");
     setSelected(null);
     setEditorOpen(true);
@@ -190,11 +210,7 @@ export default function ICProCalendar() {
   const save = async () => {
     const eventDate = dayjs(form.event_date);
     if (!form.title.trim() || !form.event_date || !eventDate.isValid()) {
-      setError("Enter a title and a target date.");
-      return;
-    }
-    if (form.meeting_url && !/^https?:\/\//i.test(form.meeting_url)) {
-      setError("Enter a meeting link starting with https:// or http://.");
+      setError("Enter a title and a calendar date.");
       return;
     }
     setSaving(true);
@@ -213,7 +229,6 @@ export default function ICProCalendar() {
         end_at: eventDate.add(1, "day").startOf("day").toISOString(),
         all_day: true,
         location: form.location,
-        meeting_url: form.meeting_url,
         participants: [],
         remove_attachment_ids: removedFiles,
       };
@@ -269,7 +284,7 @@ export default function ICProCalendar() {
       <Box sx={pageContent}>
         <PageHeader
           title="ICPro Calendar"
-          subtitle="Plan and review events, meetings, and tasks."
+          subtitle="Plan and review events, celebrations, holidays, and other important dates."
           actions={[
             {
               key: "refresh",
@@ -378,11 +393,11 @@ export default function ICProCalendar() {
             error={query.isError}
             noun="entry"
             dateVerb="scheduled"
-            dateLabel="date"
+            dateLabel="calendar date"
             showPriority={false}
             itemLabelOf={(item) => label(item.entry.entry_type)}
             agendaMetaOf={(item) =>
-              `Target ${entryDate(item.entry).format("DD MMM YYYY")}`
+              `Date ${entryDate(item.entry).format("DD MMM YYYY")}`
             }
             onMonthChange={monthChanged}
             onOpen={(item) => setSelected(item.entry)}
@@ -426,7 +441,7 @@ export default function ICProCalendar() {
                     <EventOutlinedIcon />
                   </Box>
                   <Box sx={minWidthZero}>
-                    <Typography sx={calendarDetailLabelSx}>Target date</Typography>
+                    <Typography sx={calendarDetailLabelSx}>Calendar date</Typography>
                     <Typography sx={calendarDetailValueSx}>
                       {entryDate(selected).format("dddd, DD MMM YYYY")}
                     </Typography>
@@ -455,19 +470,6 @@ export default function ICProCalendar() {
                   {selected.description || "No description provided."}
                 </Typography>
               </Box>
-              {/^https?:\/\//i.test(selected.meeting_url) && (
-                <Button
-                  component="a"
-                  href={selected.meeting_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outlined"
-                  startIcon={<LinkOutlinedIcon />}
-                  sx={alignStartSx}
-                >
-                  Join meeting
-                </Button>
-              )}
               {!!selected.files?.length && (
                 <Box sx={calendarDetailSectionSx}>
                   <Box sx={calendarDetailSectionHeadingSx}>
@@ -496,7 +498,7 @@ export default function ICProCalendar() {
             </Box>
           </DialogContent>
         )}
-        {(canChangeCalendarEntry || canDeleteCalendarEntry) && (
+        {(canChangeCalendarEntry || canDeleteCalendarEntry) && selected?.created_by === userId && (
           <DialogActions sx={calendarDetailActionsSx}>
             <Box sx={calendarDetailRoutineActionsSx}>
               {canChangeCalendarEntry && (
@@ -536,7 +538,7 @@ export default function ICProCalendar() {
           subtitle={
             editing
               ? `Update the details for this ${editing.entry_type}.`
-              : "Add a title, choose a type, and set the target date."
+              : "Add a title, choose a type, and set the calendar date."
           }
           onClose={discard.requestClose}
           closeDisabled={saving}
@@ -572,21 +574,12 @@ export default function ICProCalendar() {
                 update("entry_type", e.target.value as Form["entry_type"])
               }
             >
-              {["event", "meeting", "task"].map((v) => (
+              {["event", "celebration", "holiday", "others"].map((v) => (
                 <MenuItem key={v} value={v}>
                   {label(v)}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              required
-              type="date"
-              label="Target date"
-              value={form.event_date}
-              onChange={(e) => update("event_date", e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={dateFieldSx}
-            />
             <TextField
               sx={calendarFormFullRowSx}
               multiline
@@ -602,11 +595,13 @@ export default function ICProCalendar() {
               slotProps={{ htmlInput: { maxLength: 255 } }}
             />
             <TextField
-              type="url"
-              label="Meeting link"
-              value={form.meeting_url}
-              onChange={(e) => update("meeting_url", e.target.value)}
-              slotProps={{ htmlInput: { maxLength: 500 } }}
+              required
+              type="date"
+              label="Calendar date"
+              value={form.event_date}
+              onChange={(e) => update("event_date", e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={dateFieldSx}
             />
             <Stack spacing={1} sx={calendarFormFullRowSx}>
               <Typography variant="subtitle2">Reference files</Typography>
@@ -653,16 +648,15 @@ export default function ICProCalendar() {
                     }
                     if (
                       (editing?.files?.length ?? 0) -
-                        removedFiles.length +
-                        uploads.length +
-                        files.length >
+                      removedFiles.length +
+                      uploads.length +
+                      files.length >
                       10
                     ) {
                       setError("An entry can have at most 10 reference files.");
                       return;
                     }
                     setError("");
-                    discard.markDirty();
                     setUploads((previous) => [...previous, ...files]);
                   }}
                 />
@@ -690,7 +684,6 @@ export default function ICProCalendar() {
                         aria-label={`Remove ${file.name}`}
                         disabled={saving}
                         onClick={() => {
-                          discard.markDirty();
                           setRemovedFiles((previous) => [...previous, file.id]);
                         }}
                       >
@@ -717,7 +710,6 @@ export default function ICProCalendar() {
                       aria-label={`Remove ${file.name}`}
                       disabled={saving}
                       onClick={() => {
-                        discard.markDirty();
                         setUploads((previous) =>
                           previous.filter((_, i) => i !== index),
                         );

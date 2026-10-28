@@ -485,7 +485,7 @@ export default function PhaseConfiguration() {
                       sx={warningOutlineChip}
                     />
                   ) : (
-                    <Chip label="All changes saved" color="success" variant="outlined" size="small" />
+                    <Chip label="All changes saved" color="success" variant="outlined" />
                   )}
                 </Stack>
               </Box>

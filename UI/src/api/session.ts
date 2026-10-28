@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { themeStorageKey } from "@/styles/theme/themeModeContext";
 import { queryClient } from "@/api/queryClient";
@@ -77,35 +78,88 @@ export function msUntilTokenExpiry(token = localStorage.getItem("accessToken")) 
     }
 }
 
-/** True when a usable (present and unexpired) session exists. */
-export const hasActiveSession = () => msUntilTokenExpiry() > 0;
+/** Access is usable now, or a valid refresh token can recover the session. */
+export const hasActiveSession = () =>
+    msUntilTokenExpiry() > 0 || msUntilTokenExpiry(localStorage.getItem("refreshToken")) > 0;
+
+let refreshPromise: Promise<string> | null = null;
+
+/** Share one refresh across requests; use bare Axios to avoid interceptor loops. */
+export function refreshAccessToken(): Promise<string> {
+    if (refreshPromise) return refreshPromise;
+    const refresh = localStorage.getItem("refreshToken");
+    if (!refresh || msUntilTokenExpiry(refresh) <= 0) {
+        expireSession();
+        return Promise.reject(new Error("Session expired"));
+    }
+    refreshPromise = (async () => {
+        try {
+            const response = await axios.post<{ access: string; refresh?: string }>(
+                "/users/token/refresh/", { refresh },
+                { baseURL: import.meta.env.VITE_API_BASE_URL, timeout: 15000 },
+            );
+            // A response arriving after logout or another login must not restore the old session.
+            if (localStorage.getItem("refreshToken") !== refresh) {
+                throw new Error("Session changed");
+            }
+            if (typeof response.data.access !== "string" || msUntilTokenExpiry(response.data.access) <= 0) {
+                expireSession();
+                throw new Error("Invalid refreshed access token");
+            }
+            localStorage.setItem("accessToken", response.data.access);
+            if (response.data.refresh) localStorage.setItem("refreshToken", response.data.refresh);
+            return response.data.access;
+        } catch (error) {
+            if (localStorage.getItem("refreshToken") === refresh && axios.isAxiosError(error)
+                && [400, 401].includes(error.response?.status ?? 0)) {
+                expireSession();
+            }
+            throw error;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+    return refreshPromise;
+}
 
 /**
- * Signs the user out the moment their token expires, instead of waiting for
- * the next request to fail. Browsers throttle timers in background tabs, so
- * the check also runs whenever the tab becomes visible or focused again.
+ * Refreshes on access expiry and tab wake-up. Temporary connection failures
+ * keep the session and retry; invalid refresh credentials sign the user out.
  */
 export function useSessionExpiryWatch() {
     useEffect(() => {
-        const check = () => {
-            if (msUntilTokenExpiry() <= 0) expireSession();
+        let stopped = false;
+        let timer: number | undefined;
+        const check = async () => {
+            window.clearTimeout(timer);
+            try {
+                if (msUntilTokenExpiry() <= 0) await refreshAccessToken();
+            } catch {
+                // A temporary connection failure should not discard the session.
+            }
+            if (!stopped) {
+                const remaining = msUntilTokenExpiry();
+                timer = window.setTimeout(() => void check(),
+                    remaining > 0 ? Math.min(remaining + 500, 2_147_000_000) : 30_000);
+            }
         };
-        const remaining = msUntilTokenExpiry();
-        if (remaining <= 0) {
-            check();
-            return;
-        }
-        // setTimeout overflows above ~24.8 days; cap and re-check on wake.
-        const timer = window.setTimeout(check, Math.min(remaining + 500, 2_147_000_000));
+        void check();
         const onVisible = () => {
-            if (document.visibilityState === "visible") check();
+            if (document.visibilityState === "visible") void check();
+        };
+        const onFocus = () => { void check(); };
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === "accessToken" || event.key === "refreshToken" || event.key === null) void check();
         };
         document.addEventListener("visibilitychange", onVisible);
-        window.addEventListener("focus", check);
+        window.addEventListener("focus", onFocus);
+        window.addEventListener("storage", onStorage);
         return () => {
+            stopped = true;
             window.clearTimeout(timer);
             document.removeEventListener("visibilitychange", onVisible);
-            window.removeEventListener("focus", check);
+            window.removeEventListener("focus", onFocus);
+            window.removeEventListener("storage", onStorage);
         };
     }, []);
 }

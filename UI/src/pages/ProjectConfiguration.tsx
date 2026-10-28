@@ -25,7 +25,7 @@ import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import DialogHeader from "@/components/common/DialogHeader";
-import ActionDivider from "@/components/common/ActionDivider";
+import { TableActionGroup } from "@/components/common/ActionDivider";
 import { showNotification } from "@/api/notificationService";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
@@ -436,7 +436,7 @@ export default function ProjectConfiguration() {
     label: "Actions",
     width: 90,
     render: (row) => (
-      <Stack direction="row" spacing={0}>
+      <TableActionGroup>
         {canChange && (
           <Tooltip title="Edit">
             <IconButton aria-label={`Edit ${row.name}`} onClick={row.onEdit}>
@@ -444,9 +444,6 @@ export default function ProjectConfiguration() {
             </IconButton>
           </Tooltip>
         )}
-
-        <ActionDivider />
-
         {canDelete && (
           <Tooltip title="Delete">
             <IconButton
@@ -458,7 +455,7 @@ export default function ProjectConfiguration() {
             </IconButton>
           </Tooltip>
         )}
-      </Stack>
+      </TableActionGroup>
     ),
   });
 
@@ -582,7 +579,6 @@ export default function ProjectConfiguration() {
                 canAddProject && (
                   <Button
                     variant="outlined"
-                    size="small"
                     startIcon={<AddOutlinedIcon />}
                     onClick={() => openProjectDialog("create")}
                     sx={tableHeaderAddButtonSx}
@@ -614,7 +610,6 @@ export default function ProjectConfiguration() {
                 canAddMilestone && (
                   <Button
                     variant="outlined"
-                    size="small"
                     startIcon={<AddOutlinedIcon />}
                     disabled={!selectedProject}
                     onClick={() => openMilestoneDialog("create")}
@@ -652,7 +647,6 @@ export default function ProjectConfiguration() {
                 canAddTask && (
                   <Button
                     variant="outlined"
-                    size="small"
                     startIcon={<AddOutlinedIcon />}
                     disabled={!selectedProject}
                     onClick={() => openTaskDialog("create")}
