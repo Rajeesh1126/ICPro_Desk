@@ -47,7 +47,7 @@ export function ApprovalDetailHeader({ employee, onClose }: { employee: Approval
           color: theme.palette.primary.main,
         })}
       >
-        {employee.overview === "Accepted" ? "Timesheet is already Accepted" : employee.approval_status}
+        {employee.overview === "Accepted" ? "Timesheet is already Accepted" : employee.overview}
       </Typography>
 
       <IconButton

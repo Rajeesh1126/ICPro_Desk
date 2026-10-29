@@ -1,3 +1,4 @@
+import { isTicketEditDisabled } from "@/utils/ticketEdit";
 import { createElement, useMemo } from "react";
 import type { ColumnData } from "@/components/common/TableView";
 import { DueDateCell, RecordNumberCell } from "@/components/common/TicketPageParts";
@@ -16,7 +17,7 @@ export const OPTIONAL_TICKET_COLUMNS = [
 /** Hidden until the user picks them: the table leads with what to act on. */
 export const DEFAULT_HIDDEN_TICKET_COLUMNS = OPTIONAL_TICKET_COLUMNS.join(",");
 
-const LOCKED_STATUSES = ["closed", "recall successful", "recall requested", "completed"];
+
 
 /**
  * Tickets / Work Let list columns. Widths favour Subject, Assigned To, Status
@@ -46,7 +47,7 @@ export function useTicketTableColumns({
           createElement(RecordNumberCell, {
             number: row.number,
             editTitle: "Edit ticket",
-            editDisabled: row.creator !== userId || LOCKED_STATUSES.includes(row.current_status),
+            editDisabled: isTicketEditDisabled(row, userId),
             onView: () => onView(row),
             onEdit: () => onEdit(row),
           }),

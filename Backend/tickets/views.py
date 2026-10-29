@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from core.permissions import RoleBasedPermission
-from .models import Ticket,Ticket_File,Ticket_Log,Self_Ticket
+from .models import Ticket,Ticket_File,Ticket_Log,Self_Ticket,Self_Ticket_Log
 from users.models import DepartmentManager
 
 from api.models import Submission
@@ -17,7 +17,7 @@ from django.db.models.functions import Coalesce, NullIf, Cast, Round
 from .serializers import TicketSerializer,SelfTicketSerializer
 from datetime import date, timedelta
 from django.http import JsonResponse
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Prefetch
 from django.contrib.auth.models import Group
 from django.utils.dateparse import parse_date
 # from xhtml2pdf import pisa
@@ -55,6 +55,7 @@ class DepartmentMixin:
                 manager=user
             ).values_list("department_id", flat=True))
 
+        print(f"Department IDs for user {user.username}: {groups}")
         include_executive = (
             self.request.query_params.get("include_executive", "false").lower()
             == "true"
@@ -62,6 +63,8 @@ class DepartmentMixin:
         if include_executive:
             if getattr(getattr(user, "profile", None), "exe_role", False):
                 groups.update(user.groups.values_list("id", flat=True))
+
+        print(f"Final Department IDs for user {user.username}: {groups}")
         return list(groups)
 
 class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
@@ -95,7 +98,7 @@ class TicketViewSet(DepartmentMixin, viewsets.ModelViewSet):
                 )
                 .prefetch_related(
                     "files",
-                    "logs",
+                    Prefetch("logs", queryset=Ticket_Log.objects.select_related("changed_by")),
                 )
                 .annotate(
                     act_hours=Coalesce(
@@ -517,7 +520,10 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
 
             queryset = (
                     Self_Ticket.objects
-                    .select_related("creator")
+                    .select_related("creator__profile__reporting_to")
+                    .prefetch_related(
+                        Prefetch("selfLogs", queryset=Self_Ticket_Log.objects.select_related("creator")),
+                    )
                     .annotate(
                         has_group=Exists(group_filter),
                         reporting_to=F("creator__profile__reporting_to"),

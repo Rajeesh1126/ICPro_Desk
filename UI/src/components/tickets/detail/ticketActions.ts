@@ -32,7 +32,9 @@ export type TicketActionId =
   | "reviseDate"
   | "notSatisfied"
   | "rate"
-  | "recallClose";
+  | "recallClose"
+  // | "edit"
+  ;
 
 type Tone = "primary" | "secondary" | "success" | "warning" | "error" | "info";
 
@@ -70,6 +72,7 @@ export const ACTION_BUTTONS: Record<TicketActionId, TicketActionButton> = {
     consequential: true,
     hint: "Withdraws the ticket and closes it. You'll confirm first.",
   },
+  // edit: { label: "Edit", icon: FeedbackOutlinedIcon, variant: "outlined", color: "secondary" },
 };
 
 /**
@@ -88,13 +91,13 @@ export function getAvailableActionGroups(ticket: TicketData, userId: number | nu
   }
   // Work I raised that is in flight: recall it or comment on it.
   if (
-    ["accepted", "assigned", "in progress", "feedback provided", "date revision", "pending"].includes(status) &&
+    ["accepted", "assigned", "in progress", "feedback provided",  "pending"].includes(status) &&
     isCreator
   ) {
     groups.push(["recallRequest", "feedback"]);
   }
   // Work I'm doing: report progress, finish, pause or re-plan.
-  if (["accepted", "assigned", "in progress", "feedback provided", "date revision"].includes(status) && isAssignee) {
+  if (["accepted", "assigned", "in progress", "feedback provided"].includes(status) && isAssignee) {
     groups.push(["progress", "complete", "hold", "reviseDate"]);
   }
   // Finished or refused work I raised: reopen, comment, or rate and close.
@@ -190,7 +193,7 @@ export const REASON_DIALOGS: Record<ReasonActionId, ReasonDialogConfig> = {
     confirmIcon: SendOutlinedIcon,
   },
   reviseDate: {
-    status: "date revision",
+    status: "revised",
     title: "Request Target Date Revision",
     description: "Please provide the reason for extending or revising the target date.",
     fieldLabel: "Reason for target date revision",
@@ -246,7 +249,7 @@ export const STATUS_MESSAGES: Record<string, string> = {
   "recall successful": "Recalled and closed successful.",
   "not-satisfied": "Ticket marked as Not Satisfactory successfully.",
   "on hold": "Ticket put on hold successfully.",
-  "date revision": "Target date revision request sent successfully.",
+  "revised": "Target date revision request sent successfully.",
   pending: "Ticket marked as pending successfully.",
   closed: "Ticket closed successfully.",
   cancelled: "Ticket cancelled successfully.",
@@ -277,7 +280,7 @@ export function buildStatusChangePayload(
     remarks:
       extras.remarks ||
       `Status changed to "${status}" by user ${actorName}` +
-        (assigneeName ? ` and assigned to ${assigneeName}` : ""),
+      (assigneeName ? ` and assigned to ${assigneeName}` : ""),
     assigned_to: assigneeId ? Number(assigneeId) : ticket.assigned_to,
   };
 }

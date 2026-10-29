@@ -1,9 +1,10 @@
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { isSelfTicketEditDisabled } from "@/utils/ticketEdit";
 import {
   Dialog,
   DialogContent,
   DialogActions,
   Button,
-  Typography,
   Box,
   Grid,
   TextField,
@@ -15,7 +16,6 @@ import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutline
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 
@@ -37,7 +37,6 @@ import {
   detailFactsSx,
   detailFooterSx,
   detailMainColumnSx,
-  detailNoteSx,
 } from "@/styles/detailDialog";
 import { formatDate, formatDateTime } from "@/components/common/formatDate";
 import { formatDecimalHours } from "@/utils/hoursMinutes";
@@ -49,10 +48,12 @@ export default function TicketDetailModal({
   open,
   onClose,
   data,
+  onEdit,
 }: {
   open: boolean;
   onClose: () => void;
   data: SelfTicketData;
+  onEdit?: (ticket: SelfTicketData) => void;
 }) {
   const [closeModelOpen, setCloseModelOpen] = useState(false);
   const [cancelModelOpen, setCancelModelOpen] = useState(false);
@@ -203,17 +204,24 @@ export default function TicketDetailModal({
         </DialogContent>
 
         <DialogActions>
+          {onEdit && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<EditOutlinedIcon />}
+              disabled={isSelfTicketEditDisabled(task, userId)}
+              onClick={() => {
+                if (isSelfTicketEditDisabled(task, userId)) return;
+                onClose();
+                onEdit(task);
+              }}
+            >
+              Edit
+            </Button>
+          )}
           {["open","revised"].includes(task.current_status) &&
             task.creator === userId && (
               <Box sx={detailFooterSx}>
-                <Box sx={detailNoteSx}>
-                  <InfoOutlinedIcon />
-                  <Typography variant="caption" color="text.secondary">
-                    <strong>Note:</strong> To edit or modify a To-Do List item,
-                    switch to <strong>Table (List) View</strong>. Editing is not
-                    available in <strong>Card View</strong>.
-                  </Typography>
-                </Box>
                 <Box sx={detailActionButtonsSx}>
                   <Button
                     onClick={() => setOpenProgressModal(true)}

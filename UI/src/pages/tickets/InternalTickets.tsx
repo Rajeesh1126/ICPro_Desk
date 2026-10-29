@@ -17,10 +17,7 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-// import UndoIcon from "@mui/icons-material/Undo";
-// import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
-// import TaskAltIcon from "@mui/icons-material/TaskAlt";
-// import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import { VirtualizedTable } from "@/components/common/TableView";
 import {
@@ -37,7 +34,7 @@ import {
   type PageView,
 } from "@/components/common/TicketPageParts";
 
-const WORK_LET_VIEWS: readonly PageView[] = ["table", "card", "calendar"];
+const WORK_LET_VIEWS: readonly PageView[] = ["calendar", "card", "table"];
 import PageNotice from "@/components/common/PageNotice";
 import TableLoadingState from "@/components/common/TableLoadingState";
 import type {
@@ -89,7 +86,7 @@ export default function InternalTickets() {
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [view, setView] = useSessionState<PageView>(
     WORK_ITEM_VIEW_SESSION_KEY,
-    "card",
+    "calendar",
     (value): value is PageView => WORK_LET_VIEWS.includes(value as PageView),
   );
   const [tabValue, setTabValue] = useState(0);

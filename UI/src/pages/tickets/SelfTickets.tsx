@@ -1,3 +1,4 @@
+import { isSelfTicketEditDisabled } from "@/utils/ticketEdit";
 import { useCallback, useMemo, useState } from "react";
 import {
   Box,
@@ -34,7 +35,7 @@ import {
   type PageView,
 } from "@/components/common/TicketPageParts";
 
-const DO_LIST_VIEWS: readonly PageView[] = ["table", "card", "calendar"];
+const DO_LIST_VIEWS: readonly PageView[] = ["calendar", "card", "table"];
 import TableLoadingState from "@/components/common/TableLoadingState";
 import {
   getReminderState,
@@ -80,7 +81,7 @@ export default function SelfTickets() {
   const [selectedUser, setSelectedUser] = useState("");
   const [view, setView] = useSessionState<PageView>(
     WORK_ITEM_VIEW_SESSION_KEY,
-    "card",
+    "calendar",
     (value): value is PageView => DO_LIST_VIEWS.includes(value as PageView),
   );
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -186,7 +187,7 @@ export default function SelfTickets() {
           <RecordNumberCell
             number={row.number}
             editTitle="Edit task"
-            editDisabled={row.creator !== userId || ["closed","cancelled"].includes(row.current_status) }
+            editDisabled={isSelfTicketEditDisabled(row, userId)}
             onView={() => openDetails(row)}
             onEdit={() => openEdit(row)}
           >
@@ -416,6 +417,7 @@ export default function SelfTickets() {
           open={dialogOpen}
           onClose={closeDialog}
           data={selectedRow}
+          onEdit={openEdit}
         />
       )}
       <ConfirmDialog

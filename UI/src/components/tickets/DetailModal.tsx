@@ -1,5 +1,7 @@
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { isTicketEditDisabled } from "@/utils/ticketEdit";
 import { useMemo, useState } from "react";
-import { Dialog, DialogActions, DialogContent, Grid } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, Grid } from "@mui/material";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import { showNotification } from "@/api/notificationService";
@@ -37,10 +39,12 @@ export default function TicketDetailModal({
   open,
   onClose,
   data,
+  onEdit,
 }: {
   open: boolean;
   onClose: () => void;
   data: TicketData;
+  onEdit?: (ticket: TicketData) => void;
 }) {
   const userId = readStoredJson("user") as number | null;
   // The login stores the profile under "currentUser"; there is no separate
@@ -101,6 +105,21 @@ export default function TicketDetailModal({
         </DialogContent>
 
         <DialogActions>
+          {onEdit && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<EditOutlinedIcon />}
+              disabled={isTicketEditDisabled(data, userId)}
+              onClick={() => {
+                if (isTicketEditDisabled(data, userId)) return;
+                onClose();
+                onEdit(data);
+              }}
+            >
+              Edit
+            </Button>
+          )}
           <TicketActionButtons
             groups={getAvailableActionGroups(data, userId)}
             onAction={openAction}

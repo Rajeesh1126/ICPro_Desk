@@ -33,7 +33,7 @@ import {
 
 /** The Tickets page is the one page with a Calendar view. */
 type TicketsView = PageView;
-const TICKETS_VIEWS: readonly TicketsView[] = ["table", "card", "calendar"];
+const TICKETS_VIEWS: readonly TicketsView[] = ["calendar", "card","table" ];
 import TableLoadingState from "@/components/common/TableLoadingState";
 import type {
   TicketData,
@@ -70,7 +70,7 @@ export default function Tickets() {
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [view, setView] = useSessionState<TicketsView>(
     WORK_ITEM_VIEW_SESSION_KEY,
-    "card",
+    "calendar",
     (value): value is TicketsView => TICKETS_VIEWS.includes(value as TicketsView),
   );
   const [tabValue, setTabValue] = useSessionState(
@@ -251,7 +251,6 @@ export default function Tickets() {
               loading={loading}
               emptyTitle="No tickets in this view"
               emptyDescription="Tickets you create or are assigned will appear here."
-              hideSearch
               fitContent
               hiddenColumns={hiddenColumns}
               headerAction={
@@ -279,6 +278,7 @@ export default function Tickets() {
           open={dialogOpen}
           onClose={closeDialog}
           data={selectedRow}
+          onEdit={openEdit}
         />
       )}
       {selectedRow && editing && (

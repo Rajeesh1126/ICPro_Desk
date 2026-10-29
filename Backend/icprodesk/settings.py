@@ -100,13 +100,13 @@ DATABASES = {
 #         'ENGINE': 'django.db.backends.mysql',
 #         'NAME': os.getenv('DB_NAME', 'ICPro_Desk'),
         
-#         'USER': os.getenv('DB_USER', 'root'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
-#         'HOST': os.getenv('DB_HOST', '15.207.178.193'),
+#         # 'USER': os.getenv('DB_USER', 'root'),
+#         # 'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
+#         # 'HOST': os.getenv('DB_HOST', '15.207.178.193'),
         
-#         # 'USER': os.getenv('DB_USER', 'erp_prod'),
-#         # 'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
-#         # 'HOST': os.getenv('DB_HOST', 'localhost'),
+#         'USER': os.getenv('DB_USER', 'erp_prod'),
+#         'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
+#         'HOST': os.getenv('DB_HOST', 'localhost'),
 
 #         'PORT': int(os.getenv('DB_PORT', '3306')),
 #         'OPTIONS': {

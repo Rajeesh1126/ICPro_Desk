@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -33,6 +35,44 @@ class ExecutiveReportVisibilityTests(TestCase):
         self.other_ticket = Ticket.objects.create(
             creator=self.other, task='Unrelated ticket', department=self.unrelated_department,
         )
+
+    def test_report_queries_do_not_grow_with_records_and_log_authors(self):
+        self.profile.exe_role = True
+        self.profile.save(update_fields=['exe_role'])
+        UserProfile.objects.create(user=self.other, reporting_to=self.viewer)
+
+        def add_records(index):
+            ticket = Ticket.objects.create(
+                creator=self.other, task=f'Report ticket {index}', department=self.department,
+            )
+            Ticket_Log.objects.create(
+                ticket=ticket, changed_by=self.other, status='open', remarks='Created',
+            )
+            task = Self_Ticket.objects.create(creator=self.other, task=f'Report task {index}')
+            Self_Ticket_Log.objects.create(self_ticket=task, creator=self.other, comments='Created')
+            return ticket, task
+
+        def fetch(endpoint):
+            # Authenticate with a fresh instance so cached profile access is consistent.
+            self.client.force_authenticate(User.objects.get(pk=self.viewer.pk))
+            with CaptureQueriesContext(connection) as queries:
+                response = self.client.get(f'/api/{endpoint}/', {'include_executive': 'true'})
+            self.assertEqual(response.status_code, 200, response.data)
+            return response.data, len(queries)
+
+        add_records(0)
+        counts = {endpoint: fetch(endpoint)[1] for endpoint in ['tickets', 'self-tickets']}
+        for index in range(1, 4):
+            ticket, task = add_records(index)
+        for endpoint in counts:
+            data, count = fetch(endpoint)
+            self.assertEqual(count, counts[endpoint], endpoint)
+            record_id = ticket.pk if endpoint == 'tickets' else task.pk
+            record = next(item for item in data if item['id'] == record_id)
+            name_field = 'changed_by_name' if endpoint == 'tickets' else 'creator_name'
+            self.assertEqual(record['logs'][0][name_field], self.other.first_name)
+            if endpoint == 'self-tickets':
+                self.assertEqual(record['reporting_to'], str(self.viewer))
 
     def ids(self, endpoint, **params):
         response = self.client.get(f'/api/{endpoint}/', params)

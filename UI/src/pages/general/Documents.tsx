@@ -12,13 +12,13 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import UploadOutlinedIcon from "@mui/icons-material/UploadOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
-import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
@@ -297,7 +297,7 @@ export default function Documents() {
       },
       {
         label: "Actions",
-        width: 200,
+        width: 240,
         render: (row) => (
           <TableActionGroup>
             <Tooltip title="Download document">
@@ -311,6 +311,17 @@ export default function Documents() {
               </Button>
             </Tooltip>
             {canChangeDocument && (
+              <Tooltip title="Edit document">
+                <IconButton
+                  aria-label={`Edit ${row.document_name ?? "document"}`}
+                  color="primary"
+                  onClick={() => openReplaceDialog(row)}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {/* {canChangeDocument && (
               <Tooltip title="Upload a new version">
                 <IconButton
                   aria-label={`Upload new version of ${row.document_name ?? "document"}`}
@@ -320,7 +331,7 @@ export default function Documents() {
                   <FileUploadOutlinedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            )}
+            )} */}
             {canDeleteDocument && (
               <Tooltip title="Delete document">
                 <IconButton

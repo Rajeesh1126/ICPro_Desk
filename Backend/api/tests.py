@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -102,6 +104,25 @@ class TimesheetAnalysisHierarchyTests(APITestCase):
             [item['id'] for item in response.data['filter_options']['employees']],
             [self.people['libina'].pk],
         )
+
+    def test_filtered_analysis_loads_submissions_once_with_approver(self):
+        approver = self.people['anoop']
+        Submission.objects.update(approvedBy=approver)
+        self.client.force_authenticate(user=self.people['murali'])
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get('/api/timesheet-analysis/', {
+                'employee_id': self.people['libina'].pk,
+            })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['rows']), 1)
+        self.assertEqual(response.data['rows'][0]['approver_id'], approver.pk)
+        self.assertEqual(response.data['rows'][0]['approver_name'], 'anoop')
+        self.assertEqual(len(response.data['filter_options']['employees']), 4)
+        submission_queries = [
+            item['sql'] for item in queries.captured_queries
+            if 'api_submission' in item['sql'].lower()
+        ]
+        self.assertEqual(len(submission_queries), 1)
 
     def test_reporting_cycle_terminates(self):
         UserProfile.objects.filter(user=self.people['murali']).update(

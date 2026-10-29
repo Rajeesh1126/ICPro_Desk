@@ -116,12 +116,12 @@ def _week_bounds_from_request(request):
 
 def _week_status(week_start):
     today = week_start.__class__.today()
-    due_date = week_start + timedelta(days=7)
+    due_date = week_start + timedelta(days=6)
 
     if today <= due_date:
         return f'Due by {due_date.strftime("%Y-%m-%d")}'
 
-    return 'Delayed'
+    return 'Pending'
 
 
 def _is_submission_on_time(week_start):
@@ -133,7 +133,7 @@ def _is_approval_on_time(timesheet_status):
     if not timesheet_status:
         return False
 
-    approval_due_date = timesheet_status.created_date.date() + timedelta(days=7)
+    approval_due_date = timesheet_status.created_date.date() + timedelta(days=6)
     return timezone.localdate() <= approval_due_date
 
 
@@ -182,7 +182,7 @@ def _submission_timing(timesheet_status, week_start, user=None):
     if joined_date and joined_date > week_end:
         return 'Not Applicable'
 
-    due_date = week_start + timedelta(days=7)
+    due_date = week_start + timedelta(days=6)
 
     if not timesheet_status:
         return 'Not Submitted'
@@ -201,22 +201,21 @@ def _submission_timing(timesheet_status, week_start, user=None):
     return 'OnTime' if submitted_date <= due_date else 'Delayed'
 
 
-def _submission_status_label(timesheet_status):
+def _submission_status_label(timesheet_status,week_start):
+    if not timesheet_status:
+        return _week_status(week_start)
+        
     return 'OnTime' if timesheet_status and timesheet_status.submission_status else 'Delayed'
 
 
 def _action_status_label(timesheet_status, overview, week_start):
-    if timesheet_status and timesheet_status.action_status:
-        return 'OnTime'
+    if not timesheet_status:
+        return 'N/A'
 
-    week_status = _week_status(week_start)
-    if week_status != 'Delayed':
-        return week_status
+    if overview == 'Submitted':
+         return  _week_status(week_start + timedelta(days=6))
 
-    if overview == 'Submitted' or not timesheet_status:
-        return 'Pending'
-
-    return 'Delayed'
+    return 'OnTime' if timesheet_status and timesheet_status.action_status else 'Delayed'
 
 
 def _sync_timesheet_status(user, week_start):
@@ -289,6 +288,7 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
             Submission.objects
             .filter(date__range=(start_date, end_date), hours__gt=0)
             .select_related(
+                'approvedBy',
                 'assignId',
                 'assignId__assign_to',
                 'assignId__assign_by',
@@ -303,15 +303,9 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
                 assignId__assign_to_id__in=_reporting_hierarchy_user_ids(request.user)
             )
 
+        # Reuse these joined records for options and results. Filtering a queryset
+        # after evaluating it would issue a second query for the same date range.
         filter_options_source = list(base_submissions)
-        submissions = base_submissions
-
-        if employee_id:
-            submissions = submissions.filter(assignId__assign_to_id=employee_id)
-        if project_id:
-            submissions = submissions.filter(assignId__project_obj_id=project_id)
-        if task_id:
-            submissions = submissions.filter(assignId__task_obj_id=task_id)
 
         rows = []
         project_employee_totals = {}
@@ -333,8 +327,14 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
             if task:
                 tasks[task.id] = task.name or f'Task {task.id}'
 
-        for submission in submissions:
+        for submission in filter_options_source:
             assigned_task = submission.assignId
+            if employee_id and str(assigned_task.assign_to_id) != employee_id:
+                continue
+            if project_id and str(assigned_task.project_obj_id) != project_id:
+                continue
+            if task_id and str(assigned_task.task_obj_id) != task_id:
+                continue
             employee = assigned_task.assign_to
             approver = submission.approvedBy or assigned_task.assign_by
             project = assigned_task.project_obj
@@ -1013,21 +1013,17 @@ class TimesheetApprovalViewSet(viewsets.ViewSet):
             timesheet_status = timesheet_week_logs.get(employee_id)
             
             if timesheet_status:
-                overview = timesheet_status.timesheet_status or 'Not Submitted'
-            elif all(item == 'Accepted' for item in statuses):
-                overview = 'Accepted'
-            elif any(item == 'Rejected' for item in statuses):
-                overview = 'Rejected'
+                overview = timesheet_status.timesheet_status
             else:
-                overview = 'Submitted'
+                overview = 'Not Submitted'
 
-            submission_status = _submission_status_label(timesheet_status)
+            submission_status = _submission_status_label(timesheet_status, week_start)
             action_status = _action_status_label(timesheet_status, overview, week_start)
 
             payload.append({
                 **employee_data,
                 'overview': overview,
-                'submission_status': submission_status,
+                'submission_status': submission_status, 
                 'action_status': action_status,
                 'approval_status': action_status,
             })

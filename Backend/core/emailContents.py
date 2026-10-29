@@ -15,7 +15,7 @@ def ticketCreateEmailBody(
     department,
     assigned_to,
     remarks,
-    ticket_url="https://home.icpro.in/tms/",
+    ticket_url="https://tsm.icpro.in/",
 ):
     """Generate a professional HTML email for a newly created ticket."""
 
