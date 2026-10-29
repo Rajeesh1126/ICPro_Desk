@@ -371,8 +371,10 @@ export default function Reports() {
       { label: "Subject", dataKey: "task", width: "auto" },
       { label: "Status", dataKey: "current_status", width: 120 },
       { label: "Team", dataKey: "department_name" },
+      // { label: "Assigned To", dataKey: "assigned_to_name" },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Target Date", dataKey: "target_date" },
+
       { label: "Priority", dataKey: "priority" },
       { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
       { label: "Act Hrs", dataKey: "act_hours", format: "hours" },
@@ -380,7 +382,7 @@ export default function Reports() {
       { label: "Actual Start", dataKey: "actual_start_date" },
       // { label: "Target Completion", dataKey: "target_date" },
       { label: "Actual Completion", dataKey: "actual_end_date" },
-      // { label: "Assigned To", dataKey: "assigned_to_name" },
+
       {
         label: "Rating",
         dataKey: "rating",
@@ -413,7 +415,7 @@ export default function Reports() {
     () => [
       {
         label: "Task Number",
-         width: { xs: 160, sm: 180 },
+        width: { xs: 160, sm: 180 },
         render: (row) => (
           <Box sx={inlineCenterGapSx}>
             <Tooltip title="View details">
@@ -499,28 +501,28 @@ export default function Reports() {
     const rows =
       reportType === "tickets"
         ? filteredTickets.map((ticket) => ({
-            "Ticket #": ticket.number,
-            Subject: ticket.task,
-            Priority: ticket.priority,
-            Status: ticket.display_status,
-            "Estimated Start": ticket.created_at,
-            "Target Date": ticket.target_date,
-            "Actual Start": ticket.actual_start_date,
-            "Actual Finish": ticket.actual_end_date,
-            "Estimated Hours": ticket.est_hours,
-            "Actual Hours": ticket.act_hours,
-            Rating: ticket.rating ?? "",
-            "Work Efficiency": ticket.work_efficiency ?? "",
-            "Schedule Efficiency": ticket.schedule_efficiency ?? "",
-          }))
+          "Ticket #": ticket.number,
+          Subject: ticket.task,
+          Priority: ticket.priority,
+          Status: ticket.display_status,
+          "Estimated Start": ticket.created_at,
+          "Target Date": ticket.target_date,
+          "Actual Start": ticket.actual_start_date,
+          "Actual Finish": ticket.actual_end_date,
+          "Estimated Hours": ticket.est_hours,
+          "Actual Hours": ticket.act_hours,
+          Rating: ticket.rating ?? "",
+          "Work Efficiency": ticket.work_efficiency ?? "",
+          "Schedule Efficiency": ticket.schedule_efficiency ?? "",
+        }))
         : filteredSelfTickets.map((ticket) => ({
-            "Task #": ticket.number,
-            Subject: ticket.task,
-            Priority: ticket.priority,
-            Status: ticket.current_status,
-            "Target Date": ticket.target_date,
-            "Estimated Hours": ticket.est_hours,
-          }));
+          "Task #": ticket.number,
+          Subject: ticket.task,
+          Priority: ticket.priority,
+          Status: ticket.current_status,
+          "Target Date": ticket.target_date,
+          "Estimated Hours": ticket.est_hours,
+        }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet["!cols"] = [
       { wch: 16 },
@@ -614,7 +616,7 @@ export default function Reports() {
           onClearAll={() => setFilters(initialFilters())}
         />
 
-        <Box sx={{ mt: 1}} />
+        <Box sx={{ mt: 1 }} />
 
         <Box sx={contentPanel}>
           {reportType === "tickets" ? (
