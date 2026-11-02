@@ -1,3 +1,4 @@
+import { formatDate } from "@/components/common/formatDate";
 import DateRange from "@/components/common/DateRange";
 import { countChangedFilters } from "@/utils/filterCount";
 import { useCallback, useMemo, useState } from "react";
@@ -325,7 +326,13 @@ export default function Reports() {
     [ticketsQuery.data],
   );
   const selfTickets = useMemo(
-    () => asArray<SelfTicketData>(selfTicketsQuery.data),
+    () => asArray<SelfTicketData>(selfTicketsQuery.data).flatMap((task) =>
+      task.schedule_type === "recurring" && task.occurrences?.length
+        ? task.occurrences.map((occurrence) => ({
+            ...task, id: -occurrence.id, target_date: occurrence.scheduled_date,
+            current_status: occurrence.current_status, alarm: occurrence.alarm, occurrences: [occurrence],
+          }))
+        : [task]),
     [selfTicketsQuery.data],
   );
   const loading =
@@ -337,9 +344,9 @@ export default function Reports() {
   }, []);
 
   const openSelfTicketDetails = useCallback((ticket: SelfTicketData) => {
-    setSelectedSelfTicket(ticket);
+    setSelectedSelfTicket(asArray<SelfTicketData>(selfTicketsQuery.data).find((row) => row.number === ticket.number) ?? ticket);
     setDialogSelfOpen(true);
-  }, []);
+  }, [selfTicketsQuery.data]);
 
   const closeDialog = useCallback(() => {
     setDialogTicketOpen(false);
@@ -431,6 +438,8 @@ export default function Reports() {
           </Box>
         ),
       },
+      { label: "Schedule", width: 140, render: (row) => row.schedule_type === "recurring" ? "Recurring" : row.schedule_type === "period" ? "Continuous Period" : "Static Event" },
+      { label: "Due date", dataKey: "target_date", render: (row) => formatDate(row.target_date) },
       { label: "Subject", dataKey: "task", width: "auto" },
       { label: "Status", dataKey: "current_status" },
       // { label: "Team", dataKey: "team_name" },
@@ -517,6 +526,7 @@ export default function Reports() {
         }))
         : filteredSelfTickets.map((ticket) => ({
           "Task #": ticket.number,
+          Schedule: ticket.schedule_type ?? "static",
           Subject: ticket.task,
           Priority: ticket.priority,
           Status: ticket.current_status,

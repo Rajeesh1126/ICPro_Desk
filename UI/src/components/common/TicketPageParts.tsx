@@ -293,6 +293,8 @@ export type CalendarItem = {
   number: string;
   task: string;
   target_date?: string | null;
+  start_date?: string | null;
+  schedule_type?: string;
   current_status?: string;
   priority?: string;
   alarm?: boolean;
@@ -592,16 +594,27 @@ export function TicketCalendar<T extends CalendarItem>({
     onMonthChange?.(cursor.year, cursor.month);
   }, [cursor.month, cursor.year, onMonthChange]);
 
-  // Derived once per data change; changing month re-uses it (no refetch).
-  const { byDate, undated } = useMemo(
-    () => groupByTargetDate(tickets),
-    [tickets],
-  );
   const days = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
   const keys = useMemo(() => monthKeys(cursor.year, cursor.month), [cursor]);
+  const { byDate, undated } = useMemo(() => {
+    const grouped = groupByTargetDate(tickets);
+    // A period is one task displayed on each visible day of its span.
+    for (const ticket of tickets) {
+      if (ticket.schedule_type !== "period") continue;
+      const start = parseCalendarDate(ticket.start_date);
+      const end = parseCalendarDate(ticket.target_date);
+      if (!start || !end) continue;
+      const first = calendarKey(start), last = calendarKey(end);
+      for (const day of days) {
+        const key = calendarKey(day);
+        if (key < first || key >= last) continue;
+        grouped.byDate.set(key, [...(grouped.byDate.get(key) ?? []), ticket]);
+      }
+    }
+    return grouped;
+  }, [tickets, days]);
   const monthCount = useMemo(
-    () =>
-      keys.reduce((total, key) => total + (byDate.get(key)?.length ?? 0), 0),
+    () => new Set(keys.flatMap((key) => (byDate.get(key) ?? []).map((item) => item.id ?? item.number))).size,
     [byDate, keys],
   );
   const monthLabel = formatMonthYear(cursor.year, cursor.month);
@@ -609,8 +622,7 @@ export function TicketCalendar<T extends CalendarItem>({
   const selectedTickets = byDate.get(selectedKey) ?? [];
   const overdueTickets = useMemo(
     () =>
-      [...byDate.values()]
-        .flat()
+      [...tickets]
         .filter(
           (ticket) =>
             meta.isOverdue(ticket as T) &&
@@ -619,7 +631,7 @@ export function TicketCalendar<T extends CalendarItem>({
         .sort((a, b) =>
           String(a.target_date).localeCompare(String(b.target_date)),
         ),
-    [byDate, meta],
+    [tickets, meta],
   );
 
   // Keyboard moves can cross into another month: focus the new cell once

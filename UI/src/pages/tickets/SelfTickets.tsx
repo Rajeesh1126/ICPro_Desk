@@ -1,3 +1,4 @@
+import { selfTicketDisplayDueDate } from "@/components/selfTickets/highlight";
 import { isSelfTicketEditDisabled } from "@/utils/ticketEdit";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -178,6 +179,8 @@ export default function SelfTickets() {
 
   const columns = useMemo<ColumnData<SelfTicketData>[]>(
     () => [
+      { label: "Schedule", width: 140, render: (row) => row.schedule_type === "recurring" ? "Recurring" : row.schedule_type === "period" ? "Continuous Period" : "Static Event" },
+
       {
         label: "Task Number",
         // This cell contains three action icons and the task number. Reserve
@@ -213,13 +216,12 @@ export default function SelfTickets() {
         dataKey: "target_date",
         render: (row) => (
           <DueDateCell
-            date={row.target_date}
+            date={selfTicketDisplayDueDate(row)}
             overdue={getSelfTicketAlertReason(row) === "target-date"}
           />
         ),
         minWidth: 'auto'
       },
-      { label: "Type", dataKey: "type", format: "label" },
       { label: "Priority", dataKey: "priority", width: 90, },
       { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
       {
@@ -242,7 +244,7 @@ export default function SelfTickets() {
               <Box sx={inlineCenterGapSx}>
                 <NotificationsNoneOutlinedIcon fontSize="small" aria-hidden="true" />
                 <Typography fontSize={13.5}>
-                  Every {row.reminder_interval} day{row.reminder_interval === 1 ? "" : "s"}
+                  {row.reminder_mode === "before_due" ? `${row.reminder_days_before} days before due` : `Every ${row.reminder_interval} day${row.reminder_interval === 1 ? "" : "s"}`}
                 </Typography>
               </Box>
             );
@@ -356,10 +358,15 @@ export default function SelfTickets() {
         <Box key={view} sx={[tablePageContent, viewEnterSx]}>
           {view === "calendar" ? (
             <TicketCalendar
-              tickets={filteredRows}
+              tickets={filteredRows.flatMap((task) => task.schedule_type === "recurring"
+                ? (task.occurrences ?? []).map((occurrence) => ({
+                    ...task, id: -occurrence.id, target_date: occurrence.scheduled_date,
+                    current_status: occurrence.current_status, alarm: occurrence.alarm, occurrences: [occurrence],
+                  }))
+                : [task])}
               loading={loading}
               error={ticketsQuery.isError}
-              onOpen={openDetails}
+              onOpen={(task) => openDetails(filteredRows.find((row) => row.number === task.number) ?? task)}
               onCreate={openCreateForDate}
               noun="task"
               personOf={(task) => task.creator_name}

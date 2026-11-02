@@ -21,7 +21,12 @@ export function getSelfTicketAlertReason(
   ticket: SelfTicketData,
   currentDate = new Date(),
 ): SelfTicketAlertReason | null {
-  if (ticket.current_status?.toLowerCase() !== "open") return null;
+  if (ticket.is_active === false || ticket.current_status?.toLowerCase() !== "open") return null;
+  if (ticket.schedule_type === "recurring") {
+    if (ticket.occurrences?.some((item) => item.alarm && item.current_status === "open")) return "alarm";
+    const today = new Date(currentDate); today.setHours(0, 0, 0, 0);
+    return ticket.occurrences?.some((item) => item.current_status === "open" && (parseSelfTicketTargetDay(item.scheduled_date) ?? Infinity) <= today.getTime()) ? "target-date" : null;
+  }
   if (ticket.alarm === true) return "alarm";
   if (ticket.alarm !== false) return null;
 
@@ -57,7 +62,7 @@ export function shouldBlinkSelfTicket(
  */
 export function isSelfTicketOverdue(ticket: SelfTicketData, currentDate = new Date()) {
   if (!getSelfTicketAlertReason(ticket, currentDate)) return false;
-  const targetDay = parseSelfTicketTargetDay(ticket.target_date);
+  const targetDay = parseSelfTicketTargetDay(selfTicketDisplayDueDate(ticket));
   const today = new Date(currentDate);
   today.setHours(0, 0, 0, 0);
   return targetDay !== null && targetDay <= today.getTime();
@@ -68,5 +73,11 @@ export type ReminderState = "active" | "scheduled" | "off";
 /** Reminder off (no interval), scheduled (interval set) or active (due now). */
 export function getReminderState(ticket: SelfTicketData): ReminderState {
   if (ticket.alarm === true) return "active";
-  return ticket.reminder_interval ? "scheduled" : "off";
+  return (ticket.reminder_mode === "before_due" ? ticket.reminder_days_before : ticket.reminder_interval) ? "scheduled" : "off";
+}
+
+/** Keep the original target date as the recurrence anchor when opening edit. */
+export function selfTicketDisplayDueDate(ticket: SelfTicketData): string {
+  if (ticket.schedule_type !== "recurring") return ticket.target_date;
+  return ticket.occurrences?.find((item) => item.current_status === "open")?.scheduled_date ?? "";
 }

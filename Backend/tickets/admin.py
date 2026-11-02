@@ -27,7 +27,7 @@ class TicketFileAdmin(admin.ModelAdmin):
 @admin.register(Self_Ticket)
 class SelfTicketAdmin(admin.ModelAdmin):
     list_display = ["number", "task", "creator", "current_status", "priority", "target_date", "created_at"]
-    list_filter = ["current_status", "priority", "type", "created_at"]
+    list_filter = ["current_status", "priority", "schedule_type", "created_at"]
     search_fields = ["number", "task", "creator__username"]
     readonly_fields = ["number", "created_at", "updated_at"]
 

@@ -168,7 +168,30 @@ export interface SelfTicketLog {
   status?: string;
 }
 
-export interface SelfTicketData {
+export interface SelfTicketSchedule {
+  schedule_type?: "static" | "period" | "recurring";
+  start_date?: string | null;
+  repeat_frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  repeat_weekdays?: number[] | null;
+  monthly_day_mode?: "first" | "last" | "specific";
+  repeat_day_of_month?: number | null;
+  repeat_interval?: number;
+  repeat_until?: string | null;
+  is_active?: boolean;
+  reminder_mode?: "legacy" | "before_due";
+  reminder_days_before?: number | null;
+}
+
+export interface SelfTicketOccurrence {
+  id: number;
+  scheduled_date: string;
+  current_status: "open" | "closed" | "cancelled";
+  completed_at: string | null;
+  alarm: boolean;
+}
+
+export interface SelfTicketData extends SelfTicketSchedule {
+  occurrences?: SelfTicketOccurrence[];
   [key: string]: unknown;
   id?: number;
   number: string;
@@ -180,7 +203,6 @@ export interface SelfTicketData {
   target_date: string;
   creator: number;
   created_at: string;
-  type: string;
   ticket_number: string;
   reporting_to: number;
   creator_name?: string;
@@ -192,7 +214,7 @@ export interface SelfTicketData {
   logs: SelfTicketLog[];
 }
 
-export interface SelfTicketFormData {
+export interface SelfTicketFormData extends SelfTicketSchedule {
   id?: number;
   task: string;
   description: string;
@@ -201,7 +223,6 @@ export interface SelfTicketFormData {
   priority: string;
   target_date: string;
   creator: number | "";
-  type: string;
   ticket_number: string;
   reminder_interval?: number | 0;
   comments?: string | "";

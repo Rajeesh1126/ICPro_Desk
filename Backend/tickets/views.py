@@ -494,6 +494,7 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
     queryset = Self_Ticket.objects.all()
     permission_classes = [RoleBasedPermission]
     serializer_class = SelfTicketSerializer
+    permission_codename_map = {"occurrence_status": "change_self_ticket"}
    
     def get_queryset(self):
         try:
@@ -522,6 +523,7 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
                     Self_Ticket.objects
                     .select_related("creator__profile__reporting_to")
                     .prefetch_related(
+                        "occurrences",
                         Prefetch("selfLogs", queryset=Self_Ticket_Log.objects.select_related("creator")),
                     )
                     .annotate(
@@ -557,9 +559,40 @@ class SelfTicketViewSet(DepartmentMixin,viewsets.ModelViewSet):
             )
             raise
 
+    @action(detail=True, methods=['post'], url_path='occurrence-status')
+    def occurrence_status(self, request, pk=None):
+        from django.db import transaction
+        from django.utils import timezone
+        from .serializers import SelfTicketOccurrenceSerializer, SelfTicketOccurrenceStatusSerializer
+        payload = SelfTicketOccurrenceStatusSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        with transaction.atomic():
+            ticket = self.get_object()
+            Self_Ticket.objects.select_for_update().get(pk=ticket.pk)
+            if ticket.creator_id != request.user.pk:
+                return Response({'detail': 'Only the task owner can complete occurrences.'}, status=403)
+            new_status = payload.validated_data['current_status']
+            occurrence = ticket.occurrences.select_for_update().filter(pk=payload.validated_data['occurrence_id']).first()
+            if not occurrence:
+                return Response({'detail': 'Occurrence not found.'}, status=404)
+            if occurrence.current_status != 'open':
+                raise ValidationError({'detail': 'This occurrence has already been completed or cancelled.'})
+            occurrence.current_status = new_status
+            occurrence.completed_at = timezone.now() if new_status == 'closed' else None
+            occurrence.alarm = False
+            occurrence.save()
+            Self_Ticket_Log.objects.create(
+                self_ticket=ticket, occurrence=occurrence, creator=request.user,
+                comments=f'{occurrence.scheduled_date}: {new_status}',
+            )
+            ticket.alarm = ticket.occurrences.filter(alarm=True, current_status='open').exists()
+            ticket.save(update_fields=['alarm', 'updated_at'])
+        return Response(SelfTicketOccurrenceSerializer(occurrence).data)
+
     @action(detail=True, methods=["post"], url_path="acknowledge-alarm")
     def acknowledge_alarm(self, request, pk=None):
         self_ticket = self.get_object()
+        self_ticket.occurrences.filter(alarm=True).update(alarm=False)
         self_ticket.alarm = False
         self_ticket.save(update_fields=["alarm", "updated_at"])
 
@@ -678,7 +711,7 @@ def dailyMail(request):
         selfTickets = Self_Ticket.objects.filter(current_status="open",reminder_interval__gt=0).values("number",
                             "creator__first_name","creator__email","task",
                             "description","est_hours","target_date","priority","current_status",
-                            "created_at","updated_at","type",
+                            "created_at","updated_at",
                             "ticket_number","reminder_interval")
 
         for ticket in selfTickets:

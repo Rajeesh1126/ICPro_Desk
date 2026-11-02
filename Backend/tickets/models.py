@@ -111,10 +111,31 @@ class Self_Ticket(models.Model):
     current_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    type = models.CharField(max_length=10, default='open')
     ticket_number = models.CharField(max_length=30, blank=True, null=True)
     reminder_interval = models.IntegerField(default=1)
     alarm = models.BooleanField(default=False, db_index=True)
+
+    schedule_type = models.CharField(max_length=12, choices=[
+        ('static', 'Static Event'), ('period', 'Continuous Period'), ('recurring', 'Recurring'),
+    ], default='static')
+    start_date = models.DateField(null=True, blank=True)
+    repeat_frequency = models.CharField(max_length=8, choices=[
+        ('daily', 'Daily'), ('weekly', 'Weekly'), ('monthly', 'Monthly'), ('yearly', 'Yearly'),
+    ], default='monthly')
+    repeat_weekdays = models.JSONField(null=True, blank=True, default=None)
+    monthly_day_mode = models.CharField(max_length=8, choices=[
+        ('first', 'First day'), ('last', 'Last day'), ('specific', 'Specific day'),
+    ], default='specific')
+    repeat_day_of_month = models.PositiveSmallIntegerField(null=True, blank=True)
+    repeat_interval = models.PositiveIntegerField(default=1)
+    repeat_until = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    # Legacy defaults preserve existing reminders without rewriting historical tasks.
+    reminder_mode = models.CharField(max_length=12, choices=[
+        ('legacy', 'Interval'), ('before_due', 'Before due date'),
+    ], default='legacy')
+    reminder_days_before = models.PositiveIntegerField(null=True, blank=True)
+    last_reminded_for = models.DateField(null=True, blank=True, editable=False)
 
     def save(self, *args, **kwargs):
         if not self.number:
@@ -138,8 +159,26 @@ class Self_Ticket(models.Model):
         return f"{self.number} - {self.task}"
 
 
+class SelfTicketOccurrence(models.Model):
+    self_ticket = models.ForeignKey(Self_Ticket, on_delete=models.CASCADE, related_name='occurrences')
+    scheduled_date = models.DateField(db_index=True)
+    current_status = models.CharField(max_length=12, choices=[
+        ('open', 'Open'), ('closed', 'Completed'), ('cancelled', 'Cancelled'),
+    ], default='open')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    reminded_at = models.DateTimeField(null=True, blank=True)
+    alarm = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['scheduled_date']
+        constraints = [models.UniqueConstraint(
+            fields=['self_ticket', 'scheduled_date'], name='unique_self_ticket_occurrence',
+        )]
+
+
 class Self_Ticket_Log(models.Model):
     self_ticket = models.ForeignKey(Self_Ticket, on_delete=models.CASCADE, related_name='selfLogs')
+    occurrence = models.ForeignKey(SelfTicketOccurrence, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs')
     comments = models.CharField(max_length=500, blank=True, null=True)
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_self_log') 
     created_at = models.DateTimeField(auto_now_add=True)

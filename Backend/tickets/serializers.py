@@ -1,5 +1,6 @@
+from django.db import transaction
 from rest_framework import serializers
-from .models import Ticket, Ticket_Log, Ticket_File, Self_Ticket,Self_Ticket_Log
+from .models import Ticket, Ticket_Log, Ticket_File, Self_Ticket,Self_Ticket_Log, SelfTicketOccurrence
 from core.emailContents import ticketCreateEmailBody
 from django.contrib.auth import get_user_model
 from datetime import date
@@ -322,8 +323,26 @@ class SelfTicketLogSerializer(serializers.ModelSerializer):
         model = Self_Ticket_Log
         fields = ['id', 'self_ticket', 'comments', 'creator', 'created_at', 'creator_name']
 
+class SelfTicketOccurrenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SelfTicketOccurrence
+        fields = ['id', 'scheduled_date', 'current_status', 'completed_at', 'alarm']
+        read_only_fields = fields
+
+
+class SelfTicketOccurrenceStatusSerializer(serializers.Serializer):
+    occurrence_id = serializers.IntegerField(min_value=1)
+    current_status = serializers.ChoiceField(choices=['closed', 'cancelled'])
+
+
 # self ticket serializer
 class SelfTicketSerializer(serializers.ModelSerializer):
+    repeat_weekdays = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6),
+        allow_null=True, allow_empty=False, required=False,
+    )
+    repeat_day_of_month = serializers.IntegerField(min_value=1, max_value=31, allow_null=True, required=False)
+    occurrences = SelfTicketOccurrenceSerializer(many=True, read_only=True)
     team = serializers.ReadOnlyField()
     team_name = serializers.ReadOnlyField()
     creator_name = serializers.ReadOnlyField()
@@ -353,16 +372,62 @@ class SelfTicketSerializer(serializers.ModelSerializer):
             'creator',
             'created_at',
             'updated_at',
-            'reporting_to'
+            'reporting_to', 'last_reminded_for'
         ]
 
+    def validate(self, attrs):
+        def value(key, default=None):
+            return attrs.get(key, getattr(self.instance, key, default))
+        request = self.context.get('request')
+        schedule_fields = {'schedule_type', 'start_date', 'target_date', 'repeat_frequency', 'repeat_interval', 'repeat_until', 'is_active', 'reminder_mode', 'reminder_days_before', 'repeat_weekdays', 'monthly_day_mode', 'repeat_day_of_month'}
+        if self.instance and request and self.instance.creator_id != request.user.pk:
+            if any(key in attrs and attrs[key] != getattr(self.instance, key) for key in schedule_fields):
+                raise serializers.ValidationError({'detail': 'Only the owner can change the task schedule.'})
+        if attrs.get('repeat_weekdays') is not None:
+            attrs['repeat_weekdays'] = sorted(set(attrs['repeat_weekdays']))
+        kind = value('schedule_type', 'static')
+        target = value('target_date', date.today())
+        if kind == 'period':
+            start = value('start_date')
+            if not start or start > target:
+                raise serializers.ValidationError({'start_date': 'Start date is required and must be on or before the target date.'})
+        if value('repeat_interval', 1) < 1 or value('repeat_interval', 1) > 100:
+            raise serializers.ValidationError({'repeat_interval': 'Choose an interval from 1 to 100.'})
+        if kind == 'recurring':
+            until = value('repeat_until')
+            if until and until < target:
+                raise serializers.ValidationError({'repeat_until': 'End of recurrence must be on or after the first due date.'})
+            if target.year < 2000:
+                raise serializers.ValidationError({'target_date': 'Recurring schedules must start in 2000 or later.'})
+            if value('current_status', 'open') in {'closed', 'cancelled'}:
+                raise serializers.ValidationError({'current_status': 'Complete individual occurrences, or pause the recurring schedule.'})
+        if self.instance and self.instance.occurrences.exists() and kind != 'recurring':
+            raise serializers.ValidationError({'schedule_type': 'A recurring task with occurrences cannot change type. Pause it and create a new task.'})
+        if value('reminder_days_before') is not None and not 1 <= value('reminder_days_before') <= 365:
+            raise serializers.ValidationError({'reminder_days_before': 'Use 1 to 365 days before the due date, or leave empty to disable.'})
+        return attrs
+
+    def create(self, validated_data):
+        from .services.self_ticket_schedule import ensure_occurrences
+        validated_data.pop('comments', None)
+        validated_data.setdefault('reminder_mode', 'before_due')
+        with transaction.atomic():
+            instance = super().create(validated_data)
+            ensure_occurrences(instance)
+        return instance
+
+    @transaction.atomic
     def update(self, instance, validated_data):
+        from .services.self_ticket_schedule import SCHEDULE_FIELDS, ensure_occurrences
+        schedule_changed = any(key in validated_data and validated_data[key] != getattr(instance, key) for key in SCHEDULE_FIELDS)
         comments = validated_data.pop('comments', None)
 
         if validated_data.get('current_status', instance.current_status) in {'closed', 'cancelled'}:
             validated_data['alarm'] = False
 
         instance = super().update(instance, validated_data)
+        ensure_occurrences(instance, reset_future=schedule_changed)
+        instance._prefetched_objects_cache = {}
 
         if comments:
             Self_Ticket_Log.objects.create(

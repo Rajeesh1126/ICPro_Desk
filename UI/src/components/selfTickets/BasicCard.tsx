@@ -1,3 +1,4 @@
+import { selfTicketDisplayDueDate } from "@/components/selfTickets/highlight";
 import {
   Box,
   Button,
@@ -20,7 +21,6 @@ import {
   isSelfTicketOverdue,
 } from "@/components/selfTickets/highlight";
 import { PriorityPill } from "@/components/common/StatusPill";
-import { sentenceCase } from "@/components/common/tableCell";
 import {
   boardCardCreatedSx,
   boardCardCreatorSx,
@@ -33,7 +33,6 @@ import {
   boardCardTagSx,
   boardCardSx,
   boardCardTopRowSx,
-  boardCardTypeTagSx,
   doListAcknowledgeButtonSx,
   doListCardFooterSx,
   doListLinkedTicketSx,
@@ -55,7 +54,7 @@ const everyDays = (days: number) => `Every ${days} day${days === 1 ? "" : "s"}`;
 
 /**
  * Do List work item: task number, creator and creation date; the subject;
- * type, priority and reminder / overdue state; then a fixed two-column
+ * priority and reminder / overdue state; then a fixed two-column
  * footer (reminder left, target date right) and the linked ticket when there
  * is one. Acknowledging a reminder never opens the card.
  */
@@ -69,20 +68,20 @@ export default function BasicCardSelfTicket({
   const reminder = getReminderState(ticket);
   const hasAlarm = reminder === "active";
   const alertMessage = getSelfTicketAlertMessage(ticket);
-  const due = formatDueDate(ticket.target_date);
-  const exactDue = formatDate(ticket.target_date);
+  const displayDue = selfTicketDisplayDueDate(ticket);
+  const due = formatDueDate(displayDue);
+  const exactDue = formatDate(displayDue);
   // Urgency colours only matter while the task is still open.
   const isOpen = ticket.current_status?.toLowerCase() === "open";
   const dueTone = isOpen ? due.tone : "upcoming";
   // Same rule as the Do List highlight: an open task whose target date is
   // today or earlier needs action; so does an active reminder.
   const isOverdue = isSelfTicketOverdue(ticket);
-  const overdueText = isOverdue ? formatOverdueLabel(ticket.target_date) ?? "Overdue" : null;
+  const overdueText = isOverdue ? formatOverdueLabel(displayDue) ?? "Overdue" : null;
   const alertParts = [
     isOverdue ? overdueText : null,
     hasAlarm ? "Reminder active" : null,
   ].filter((part): part is string => Boolean(part));
-  const typeLabel = sentenceCase(ticket.type);
   const interval = ticket.reminder_interval ?? 0;
 
   const reminderValue =
@@ -94,7 +93,7 @@ export default function BasicCardSelfTicket({
     ) : reminder === "scheduled" ? (
       <>
         <NotificationsNoneOutlinedIcon aria-hidden="true" />
-        {everyDays(interval)}
+        {ticket.reminder_mode === "before_due" ? `${ticket.reminder_days_before} days before due` : everyDays(interval)}
       </>
     ) : (
       <>
@@ -141,11 +140,6 @@ export default function BasicCardSelfTicket({
         </Typography>
 
         <Box sx={boardCardIndicatorsSx}>
-          {typeLabel && (
-            <Box component="span" sx={boardCardTypeTagSx} aria-label={`Type ${typeLabel}`}>
-              {typeLabel}
-            </Box>
-          )}
           <PriorityPill priority={ticket.priority || "Normal"} />
           {isOverdue && (
             <Box component="span" sx={boardCardTagSx("overdue")}>

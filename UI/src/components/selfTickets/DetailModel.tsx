@@ -1,6 +1,8 @@
+import OccurrenceList from "@/components/selfTickets/OccurrenceList";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { isSelfTicketEditDisabled } from "@/utils/ticketEdit";
 import {
+  Typography,
   Dialog,
   DialogContent,
   DialogActions,
@@ -129,6 +131,11 @@ export default function TicketDetailModal({
         />
 
         <DialogContent>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            {task.schedule_type === "recurring" ? "Recurring" : task.schedule_type === "period" ? `Continuous Period: ${formatDate(task.start_date ?? "")} – ${formatDate(task.target_date)}` : "Static Event"}
+          </Typography>
+          {task.schedule_type === "recurring" && <OccurrenceList task={task} canComplete={task.creator === userId} onChange={setTask} />}
+
           <Grid container spacing={2.5} alignItems="stretch">
             <Grid size={{ xs: 12, md: task.logs?.length > 0 ? 8 : 12 }}>
               <Box sx={detailMainColumnSx}>
@@ -153,17 +160,12 @@ export default function TicketDetailModal({
                       value: formatDate(task.target_date),
                     },
                     {
-                      label: "Task type",
-                      value: task.type || "Unassigned",
-                      capitalize: true,
-                    },
-                    {
                       label: "Related ticket",
                       value: task.ticket_number || "N/A",
                     },
                     {
                       label: "Reminder interval",
-                      value: task.reminder_interval
+                      value: task.reminder_mode === "before_due" ? (task.reminder_days_before ? `${task.reminder_days_before} days before due date` : "Off") : task.reminder_interval
                         ? `${task.reminder_interval} ${task.reminder_interval === 1 ? "day" : "days"}`
                         : "N/A",
                     },
@@ -219,7 +221,7 @@ export default function TicketDetailModal({
               Edit
             </Button>
           )}
-          {["open","revised"].includes(task.current_status) &&
+          {task.schedule_type !== "recurring" && ["open","revised"].includes(task.current_status) &&
             task.creator === userId && (
               <Box sx={detailFooterSx}>
                 <Box sx={detailActionButtonsSx}>

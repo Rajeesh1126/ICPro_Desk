@@ -329,7 +329,6 @@ class SelfTicketCrudApiTests(TestCase):
             "target_date": (date.today() + timedelta(days=2)).isoformat(),
             "priority": "low",
             "current_status": "open",
-            "type": "open",
             "ticket_number": "",
             "reminder_interval": 1,
         }

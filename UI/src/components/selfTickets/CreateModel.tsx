@@ -1,3 +1,4 @@
+import ScheduleFields from "@/components/selfTickets/ScheduleFields";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
@@ -87,9 +88,19 @@ const emptyForm: SelfTicketFormData = {
   priority: "",
   target_date: getTomorrowDate(),
   creator: "",
-  type: "",
   ticket_number: "",
   reminder_interval: 0,
+  schedule_type: "static",
+  start_date: null,
+  repeat_frequency: "monthly",
+  repeat_interval: 1,
+  repeat_weekdays: null,
+  monthly_day_mode: "specific",
+  repeat_day_of_month: null,
+  repeat_until: null,
+  is_active: true,
+  reminder_mode: "before_due",
+  reminder_days_before: null,
 };
 
 
@@ -129,9 +140,19 @@ export default function CreateSelfTicketModel({
         priority: (Data.priority?.toLowerCase() as Priority) || "",
         target_date: Data.target_date || "",
         creator: Data.creator ?? "",
-        type: Data.type || "",
         ticket_number: Data.ticket_number || "",
         reminder_interval: Data.reminder_interval ?? 0,
+        schedule_type: Data.schedule_type ?? "static",
+        start_date: Data.start_date ?? null,
+        repeat_frequency: Data.repeat_frequency ?? "monthly",
+        repeat_interval: Data.repeat_interval ?? 1,
+        repeat_weekdays: Data.repeat_weekdays ?? null,
+        monthly_day_mode: Data.monthly_day_mode ?? "specific",
+        repeat_day_of_month: Data.repeat_day_of_month ?? null,
+        repeat_until: Data.repeat_until ?? null,
+        is_active: Data.is_active !== false,
+        reminder_mode: Data.reminder_mode ?? "legacy",
+        reminder_days_before: Data.reminder_days_before ?? null,
       }
       : {
           ...emptyForm,
@@ -156,16 +177,9 @@ export default function CreateSelfTicketModel({
   const submit = async () => {
     setLoading(true);
     try {
-      const payload = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== "id") {
-          payload.append(key, String(value));
-        }
-      });
       await api[Data ? "patch" : "post"](
         Data ? `/self-tickets/${Data.id}/` : "/self-tickets/",
-        payload,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        formData,
       );
       handleClose();
       showNotification({
@@ -196,7 +210,8 @@ export default function CreateSelfTicketModel({
     !formData.task.trim() ||
     !formData.priority ||
     !formData.target_date ||
-    !formData.type;
+    (formData.schedule_type === "period" && (!formData.start_date || formData.start_date > formData.target_date)) ||
+    (formData.schedule_type === "recurring" && (!(formData.repeat_interval ?? 1) || Boolean(formData.repeat_until && formData.repeat_until < formData.target_date)));
 
   return (
     <Dialog
@@ -246,7 +261,7 @@ export default function CreateSelfTicketModel({
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Estimated hours"
                   type="number"
@@ -265,7 +280,7 @@ export default function CreateSelfTicketModel({
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControl required fullWidth>
                   <InputLabel>Priority</InputLabel>
                   <Select
@@ -280,21 +295,6 @@ export default function CreateSelfTicketModel({
                 </FormControl>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FormControl required fullWidth>
-                  <InputLabel>Task type</InputLabel>
-                  <Select
-                    value={formData.type}
-                    label="Task type"
-                    onChange={(event) => update("type", event.target.value)}
-                  >
-                    <MenuItem value="action">Action</MenuItem>
-                    <MenuItem value="follow-up">Follow-up</MenuItem>
-                    <MenuItem value="Info">Info</MenuItem>
-                    <MenuItem value="Review">Review</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
             </Grid>
           </Box>
 
@@ -305,10 +305,11 @@ export default function CreateSelfTicketModel({
               Schedule and Reminders
             </Typography>
             <Grid container spacing={1.5}>
+              <ScheduleFields value={formData} update={update} hasOccurrences={Boolean(Data?.occurrences?.length)} />
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   required
-                  label="Target completion"
+                  label={formData.schedule_type === "recurring" ? "Schedule starts on" : formData.schedule_type === "period" ? "End date" : "Target completion"}
                   type="date"
                   fullWidth
                   value={formData.target_date}
@@ -318,13 +319,13 @@ export default function CreateSelfTicketModel({
                   sx={dateFieldSx}
                   slotProps={{
                     inputLabel: { shrink: true },
-                    htmlInput: { min: targetDateMinimum },
+                    htmlInput: { min: Data ? undefined : targetDateMinimum },
                   }}
                 // sx={compactFieldSx}
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
+              {formData.reminder_mode === "legacy" && <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Reminder interval (days)"
                   type="number"
@@ -351,7 +352,7 @@ export default function CreateSelfTicketModel({
                   onFocus={(event) => setReminderAnchor(event.currentTarget)}
                   onBlur={() => setReminderAnchor(null)}
                 />
-              </Grid>
+              </Grid>}
             </Grid>
           </Box>
 
