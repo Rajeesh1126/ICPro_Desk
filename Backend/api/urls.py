@@ -18,6 +18,16 @@ router.register(r'approvals', TimesheetApprovalViewSet, basename='approval')
 router.register(r'timesheet-analysis', TimesheetAnalysisViewSet, basename='timesheet-analysis')
 
 urlpatterns = [
+    path(
+        'timesheet-entries/management-task-options/',
+        TimesheetEntryViewSet.as_view({'get': 'management_task_options'}),
+        name='timesheet-entries-management-task-options',
+    ),
+    path(
+        'timesheet-entries/assign-management-tasks/',
+        TimesheetEntryViewSet.as_view({'post': 'assign_management_tasks'}),
+        name='timesheet-entries-assign-management-tasks',
+    ),
     path('', include(router.urls)),
     path(
         'approval-detail-data/',

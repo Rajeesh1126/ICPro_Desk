@@ -41,7 +41,9 @@ const toDisplayDateTime = (date: Date) =>
 /** En dash with spacing: the typographic date-range separator. */
 export const RANGE_SEPARATOR = " – ";
 
+/** ISO_DATE declaration used across the frontend. */
 export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** ISO_DATE_TIME declaration used across the frontend. */
 export const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
 
 /** Display date, e.g. "20 Oct 2026". */

@@ -1,5 +1,6 @@
+import { loggedUser } from "@/utils/currentUser";
 import { useCallback, useMemo, useState } from "react";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   Alert,
   Box,
@@ -34,10 +35,11 @@ import {
   TicketCalendar,
   type CalendarItem,
 } from "@/components/common/TicketPageParts";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
-import { StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
 import {
   page,
   contentPanel,
@@ -61,7 +63,12 @@ import {
   minWidthZero,
 } from "@/styles/common";
 import { dateFieldSx } from "@/styles/filters";
+import { CALENDAR_ENTRY_COLORS } from "@/styles/tokens";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer } from "@/animations/MotionPrimitives";
+import { AnimatePresence } from "motion/react";
+import { CollapseItem } from "@/animations/MotionPrimitives";
+import { fileKey } from "@/animations/fileKey";
 
 type Attachment = { id: number; name: string; file: string };
 type EntryType = "event" | "celebration" | "holiday" | "others";
@@ -97,12 +104,7 @@ type Form = Omit<
 > & { event_date: string };
 type Item = CalendarItem & { entry: Entry };
 const endpoint = "/calendar/entries/";
-const ENTRY_TYPE_COLORS: Record<EntryType, string> = {
-  event: "#2563eb",
-  celebration: "#9333ea",
-  holiday: "#16a34a",
-  others: "#64748b",
-};
+const ENTRY_TYPE_COLORS: Record<EntryType, string> = CALENDAR_ENTRY_COLORS;
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 /** The day an entry belongs on: its calendar date, else an older entry's start day. */
 const entryDate = (entry: Entry) =>
@@ -122,19 +124,13 @@ const formsMatch = (left: Form, right: Form) =>
   left.entry_type === right.entry_type &&
   left.event_date === right.event_date &&
   left.location === right.location;
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 export default function ICProCalendar() {
   const userId = useMemo(() => loggedUser(), []);
   const permissions = getStoredPermissions();
   const canAddCalendarEntry = permissions.has("add_calendarentry");
   const canChangeCalendarEntry = permissions.has("change_calendarentry");
   const canDeleteCalendarEntry = permissions.has("delete_calendarentry");
-  const [month, setMonth] = useState(() => dayjs().startOf("month"));
+  const [month, setMonth] = useState<Dayjs>(() => dayjs().startOf("month"));
   const monthChanged = useCallback((year: number, monthIndex: number) => {
     setMonth((previous) =>
       previous.year() === year && previous.month() === monthIndex
@@ -143,15 +139,15 @@ export default function ICProCalendar() {
     );
   }, []);
   const [selected, setSelected] = useState<Entry | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState<boolean>(false);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [form, setForm] = useState<Form>(initialForm);
   const [initialEditorForm, setInitialEditorForm] = useState<Form>(initialForm);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
   const [uploads, setUploads] = useState<File[]>([]);
   const [removedFiles, setRemovedFiles] = useState<number[]>([]);
-  const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [deleting, setDeleting] = useState<boolean>(false);
   // Include adjoining grid days while keeping multi-day expansion bounded.
   const rangeStart = useMemo(() => month.subtract(7, "day"), [month]);
   const rangeEnd = useMemo(() => month.add(1, "month").add(14, "day"), [month]);
@@ -281,7 +277,7 @@ export default function ICProCalendar() {
   };
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="ICPro Calendar"
           subtitle="Plan and review events, celebrations, holidays, and other important dates."
@@ -321,7 +317,7 @@ export default function ICProCalendar() {
                   startIcon={<AddOutlinedIcon />}
                   onClick={() => openEditor()}
                 >
-                  New calendar entry
+                  New Calendar Entry
                 </Button>
               ),
               mobileNode: (
@@ -330,61 +326,12 @@ export default function ICProCalendar() {
                   startIcon={<AddOutlinedIcon />}
                   onClick={() => openEditor()}
                 >
-                  New entry
+                  New Entry
                 </Button>
               ),
             },
           ]}
         />
-        {/* <Box sx={calendarFilterBarSx}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} sx={calendarFilterFieldsSx}>
-            <TextField
-              select
-              label="Type"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              sx={calendarFilterFieldSx}
-            >
-              <MenuItem value="">All types</MenuItem>
-              {["event", "meeting", "task"].map((value) => (
-                <MenuItem key={value} value={value}>
-                  {label(value)}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={calendarFilterFieldSx}
-            >
-              <MenuItem value="">All statuses</MenuItem>
-              {["scheduled", "completed", "cancelled"].map((value) => (
-                <MenuItem key={value} value={value}>
-                  {label(value)}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={0.75}
-            flexWrap="wrap"
-          >
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={calendarLegendLabelSx}
-            >
-              Status colors
-            </Typography>
-            {["scheduled", "completed", "cancelled"].map((value) => (
-              <StatusPill key={value} status={value} />
-            ))}
-          </Stack>
-        </Box> */}
 
         <Box sx={contentPanel}>
           <TicketCalendar
@@ -410,7 +357,7 @@ export default function ICProCalendar() {
           />
         </Box>
 
-      </Box>
+      </StaggerContainer>
 
       <Dialog
         open={selected !== null && !deleting}
@@ -428,7 +375,7 @@ export default function ICProCalendar() {
               : undefined
           }
           actions={
-            selected ? <StatusPill status={selected.status} /> : undefined
+            selected ? <Pill value={statusLabel(selected.status)} color={statusColor(selected.status)} dot /> : undefined
           }
           onClose={() => setSelected(null)}
         />
@@ -525,16 +472,17 @@ export default function ICProCalendar() {
         )}
       </Dialog>
 
+
       <Dialog
         open={editorOpen}
         onClose={saving ? undefined : discard.requestClose}
         fullWidth
-        maxWidth="md"
+        maxWidth="sm"
         aria-labelledby="calendar-editor-title"
       >
         <DialogHeader
           id="calendar-editor-title"
-          title={editing ? "Edit calendar entry" : "New calendar entry"}
+          title={editing ? "Edit Calendar Entry" : "New Calendar Entry"}
           subtitle={
             editing
               ? `Update the details for this ${editing.entry_type}.`
@@ -560,6 +508,7 @@ export default function ICProCalendar() {
             )}
             <TextField
               required
+              autoFocus
               label="Title"
               value={form.title}
               onChange={(e) => update("title", e.target.value)}
@@ -664,11 +613,13 @@ export default function ICProCalendar() {
               <Typography variant="caption" color="text.secondary">
                 {DOCUMENT_UPLOAD_RULES.acceptLabel}. Up to 10 files, 25 MB each.
               </Typography>
+              {/* Attachments open in when added and fold away when removed. */}
+              <AnimatePresence initial={false}>
               {(editing?.files ?? [])
                 .filter((file) => !removedFiles.includes(file.id))
                 .map((file) => (
+                  <CollapseItem key={file.id}>
                   <Stack
-                    key={file.id}
                     direction="row"
                     alignItems="center"
                     spacing={1}
@@ -691,10 +642,11 @@ export default function ICProCalendar() {
                       </IconButton>
                     </Tooltip>
                   </Stack>
+                  </CollapseItem>
                 ))}
               {uploads.map((file, index) => (
+                <CollapseItem key={fileKey(file)}>
                 <Stack
-                  key={index}
                   direction="row"
                   alignItems="center"
                   spacing={1}
@@ -719,11 +671,14 @@ export default function ICProCalendar() {
                     </IconButton>
                   </Tooltip>
                 </Stack>
+                </CollapseItem>
               ))}
+              </AnimatePresence>
             </Stack>
           </Box>
         </DialogContent>
         <DialogActions>
+          <RequiredFieldsNote />
           <Button
             type="submit"
             form="calendar-entry-form"

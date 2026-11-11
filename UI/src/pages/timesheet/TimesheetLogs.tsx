@@ -12,7 +12,6 @@ import { reportHeaderActions } from "@/components/common/headerActions";
 import StatusLegend, { type StatusLegendItem } from "@/components/timesheet/StatusLegend";
 import { VirtualizedTable, type ColumnData } from "@/components/common/TableView";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
-import { useDebouncedValue } from "@/utils/useDebouncedValue";
 import { useExportStatus } from "@/utils/useExportStatus";
 import type { ReportingEmployees } from "@/types/dataTypes";
 import {
@@ -56,6 +55,7 @@ import {
 import {
   logsHintSx,
 } from "@/styles/common";
+import { ContentSwap, StaggerContainer } from "@/animations/MotionPrimitives";
 
 const TABS = [
   { label: "Submitted Log", activeIcon: <AssignmentIcon />, inactiveIcon: <AssignmentOutlinedIcon /> },
@@ -64,9 +64,12 @@ const TABS = [
 ] as const;
 
 export default function TimesheetLogs() {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState<number>(0);
+  // `filters` drives the tables; the popover edits `draftFilters` and only
+  // Show results / Reset commit it, so the content never changes mid-edit.
   const [filters, setFilters] = useState<LogFilters>(emptyLogFilters);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<LogFilters>(emptyLogFilters);
+  const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   const [reviewerCell, setReviewerCell] = useState<ReviewerCell | null>(null);
@@ -75,6 +78,17 @@ export default function TimesheetLogs() {
   const { exporting, runExport } = useExportStatus();
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const draftFilterCount = Object.values(draftFilters).filter(Boolean).length;
+
+  const openFilters = () => {
+    setDraftFilters(filters);
+    setFiltersOpen(true);
+  };
+  const applyFilters = (next: LogFilters) => {
+    setFilters(next);
+    setDraftFilters(next);
+    setFiltersOpen(false);
+  };
 
   // Shared, cached team list (same entry as the Do List employee filter).
   const teamsQuery = useApiQuery<ReportingEmployees[]>("/teams/");
@@ -82,14 +96,13 @@ export default function TimesheetLogs() {
 
   // ---- Data -------------------------------------------------------------------
   const requestParams = useMemo(() => buildLogRequestParams(filters), [filters]);
-  // Filter changes are debounced and each filter combination is cached.
-  const debouncedParams = useDebouncedValue(requestParams);
-  const logsQuery = useApiQuery<TimesheetLogsResponse>("/timesheet-week-logs/logs/", debouncedParams, {
+  // Each applied filter combination is cached.
+  const logsQuery = useApiQuery<TimesheetLogsResponse>("/timesheet-week-logs/logs/", requestParams, {
     enabled: tabValue === 0,
   });
   const reviewerQuery = useApiQuery<ReviewerLogsResponse>(
     "/timesheet-week-logs/reviewer-logs/",
-    debouncedParams,
+    requestParams,
     { enabled: tabValue !== 0 },
   );
   const logs = useMemo<TimesheetLogsResponse>(
@@ -108,11 +121,8 @@ export default function TimesheetLogs() {
   );
   const approverRows = useMemo(() => buildApproverRows(reviewerLogs), [reviewerLogs]);
 
-  // A filter change shows the skeleton immediately, even during the debounce
-  // wait, so rows for the previous filters are never shown as current.
-  const filtersSettling = requestParams !== debouncedParams;
-  const logsLoading = filtersSettling || logsQuery.isPending;
-  const reviewerLoading = filtersSettling || reviewerQuery.isPending;
+  const logsLoading = logsQuery.isPending;
+  const reviewerLoading = reviewerQuery.isPending;
 
   // ---- Columns ----------------------------------------------------------------
   const columns = useMemo<ColumnData<TimesheetLogRow>[]>(
@@ -225,7 +235,7 @@ export default function TimesheetLogs() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Timesheet Logs"
           subtitle="Track weekly submission and reviewer approval status across your team."
@@ -233,7 +243,7 @@ export default function TimesheetLogs() {
             onExport: exportActiveTab,
             exportDisabled,
             exporting,
-            onFilter: () => setFiltersOpen(true),
+            onFilter: openFilters,
             filterButtonRef: setFilterButton,
             activeFilterCount,
           })}
@@ -286,14 +296,14 @@ export default function TimesheetLogs() {
           ]}
         />
 
-        <Box sx={tablePageContent}>
+        <ContentSwap swapKey={tabValue} sx={tablePageContent}>
           <StatusLegend
             items={legendItems}
             activeKey={statusFilter}
             onSelectStatus={(key) => setStatusFilter((current) => current === key ? null : key)}
             hint={
               tabValue === 0
-                ? "Hover an icon to see the hours entered for that week."
+                ? "Hover over or focus an icon to see the hours entered for that week."
                 : "Select an icon in the table to see each approver or submitter for that week."
             }
           />
@@ -336,18 +346,19 @@ export default function TimesheetLogs() {
               emptyDescription="No timesheet activity for the selected filters."
             />
           )}
-        </Box>
-      </Box>
+        </ContentSwap>
+      </StaggerContainer>
 
       <FilterPopover
         open={filtersOpen}
         anchorEl={filterButton}
         onClose={() => setFiltersOpen(false)}
         title="Timesheet filters"
-        onReset={activeFilterCount ? () => setFilters(emptyLogFilters) : undefined}
+        onReset={activeFilterCount || draftFilterCount ? () => applyFilters(emptyLogFilters) : undefined}
         applyLabel="Show results"
+        onApply={() => applyFilters(draftFilters)}
       >
-        <LogFiltersForm filters={filters} employees={employees} onChange={setFilters} />
+        <LogFiltersForm filters={draftFilters} employees={employees} onChange={setDraftFilters} />
       </FilterPopover>
 
       <ReviewerWeekDialog cell={reviewerCell} onClose={() => setReviewerCell(null)} />

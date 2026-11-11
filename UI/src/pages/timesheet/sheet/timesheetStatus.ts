@@ -11,6 +11,7 @@ import {
   type WeeklyTimesheetLog,
 } from "@/pages/timesheet/submission/timesheetMath";
 
+/** LOCKED_ACTION_MESSAGE declaration used across the frontend. */
 export const LOCKED_ACTION_MESSAGE =
   "This action is not available for the current timesheet status.";
 
@@ -38,6 +39,7 @@ export function getTimesheetActionState(
   };
 }
 
+/** get Preview Blocker declaration used across the frontend. */
 export function getPreviewBlocker(daily: DailyHoursValidation): string | null {
   if (daily.exceededDays.length > 0)
     return dailyLimitMessage(daily.exceededDays, "previewing");

@@ -17,7 +17,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
+import type { ReactNode } from "react";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import EmptyTableState from "@/components/common/EmptyTableState";
 import HoursInput from "@/components/timesheet/HoursInput";
@@ -57,7 +57,7 @@ import {
   timesheetFooterCellSx,
   timesheetGridContainerSx,
   timesheetGridTableSx,
-  timesheetHintScrollSx,
+  timesheetGridToolbarSx,
   timesheetHintSx,
   timesheetHoursInputSx,
   timesheetJobCellSx,
@@ -82,12 +82,18 @@ import {
   timesheetTotalFooterCellSx,
   timesheetTotalHeaderCellSx,
 } from "@/styles/timesheet";
+import { RollingValue, RotatingChevron } from "@/animations/MotionPrimitives";
 
+/** Budget Owner Option declaration used across the frontend. */
 export type BudgetOwnerOption = { value: string; label: string };
 
 /** Everything the rows need from the page. */
 export interface SubmissionGridProps {
+  /** The jobs to show, already filtered by the search. */
   projects: SubmissionProject[];
+  /** A search is active: every match stays open, so there is nothing to toggle. */
+  searching: boolean;
+  searchField: ReactNode;
   weekDays: WeekDay[];
   estimatedWeekHours: number;
   weekDayTotals: { date: string; hours: number }[];
@@ -160,7 +166,7 @@ function ExpandToggle({
       aria-expanded={expanded}
       onClick={onToggle}
     >
-      {expanded ? <ExpandMoreOutlinedIcon /> : <ChevronRightOutlinedIcon />}
+      <RotatingChevron open={expanded} to={90}><ChevronRightOutlinedIcon /></RotatingChevron>
     </IconButton>
   );
 }
@@ -208,8 +214,9 @@ function GridHeader({
         </TableCell>
         <TableCell
           align="center"
+          aria-label="Select"
           sx={timesheetSelectHeaderCellSx(theme)}
-        ></TableCell>
+        />
       </TableRow>
     </TableHead>
   );
@@ -241,14 +248,14 @@ function GridFooter({
             align="center"
             sx={timesheetDayFooterCellSx(theme, dayTotal.date, estimatedWeekHours)}
           >
-            {formatHoursMinutes(dayTotal.hours)}
+            <RollingValue value={dayTotal.hours}>{formatHoursMinutes(dayTotal.hours)}</RollingValue>
           </TableCell>
         ))}
         <TableCell
           align="center"
           sx={timesheetTotalFooterCellSx(theme)}
         >
-          {formatHoursMinutes(weekTotal)}
+          <RollingValue value={weekTotal}>{formatHoursMinutes(weekTotal)}</RollingValue>
         </TableCell>
         <TableCell
           align="center"
@@ -334,7 +341,7 @@ function TaskRow({
         align="center"
         sx={timesheetTotalCellSx(theme)}
       >
-        {formatHoursMinutes(getTaskTotal(task, props.weekDays))}
+        <RollingValue value={getTaskTotal(task, props.weekDays)}>{formatHoursMinutes(getTaskTotal(task, props.weekDays))}</RollingValue>
       </TableCell>
 
       <TableCell
@@ -364,7 +371,7 @@ function MilestoneRows({
   ...props
 }: SubmissionGridProps & { project: SubmissionProject; milestone: Milestone }) {
   const theme = useTheme();
-  const expanded = props.expandedMilestones.includes(milestone.id);
+  const expanded = props.searching || props.expandedMilestones.includes(milestone.id);
 
   return (
     <>
@@ -378,6 +385,7 @@ function MilestoneRows({
               expanded={expanded}
               label={milestone.name}
               onToggle={() => props.onToggleMilestone(milestone.id)}
+              empty={props.searching}
             />
             <Box sx={timesheetCellTextSx}>{milestone.name}</Box>
           </Box>
@@ -407,7 +415,7 @@ function MilestoneRows({
           sx={timesheetTotalCellSx(theme)}
         >
           {!expanded &&
-            formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}
+            <RollingValue value={getMilestoneTotal(milestone, props.weekDays)}>{formatHoursMinutes(getMilestoneTotal(milestone, props.weekDays))}</RollingValue>}
         </TableCell>
 
         <TableCell
@@ -435,7 +443,7 @@ function ProjectRows({
   ...props
 }: SubmissionGridProps & { project: SubmissionProject }) {
   const theme = useTheme();
-  const expanded = props.expandedProjects.includes(project.id);
+  const expanded = props.searching || props.expandedProjects.includes(project.id);
   const selectableIds = getSelectableProjectAssignedTaskIds(project);
   const selectedCount = selectableIds.filter((id) =>
     props.selectedAssignedTaskIds.includes(id),
@@ -457,7 +465,7 @@ function ProjectRows({
               expanded={expanded}
               label={project.code}
               onToggle={() => props.onToggleProject(project.id)}
-              empty={project.milestones.length === 0}
+              empty={props.searching || project.milestones.length === 0}
             />
             <Box>
               <Box sx={timesheetProjectTitleSx}>
@@ -494,7 +502,7 @@ function ProjectRows({
           sx={timesheetTotalCellSx(theme)}
         >
           {!expanded &&
-            formatHoursMinutes(getProjectTotal(project, props.weekDays))}
+            <RollingValue value={getProjectTotal(project, props.weekDays)}>{formatHoursMinutes(getProjectTotal(project, props.weekDays))}</RollingValue>}
         </TableCell>
 
         <TableCell
@@ -562,18 +570,17 @@ export default function SubmissionGrid(props: SubmissionGridProps) {
 
   return (
     <>
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={timesheetHintSx}
-      >
-        Enter hours as <strong>h.mm</strong> (for example, <strong>1.30</strong>{" "}
-        = 1 h 30 m). The <strong>h:mm</strong> format is also accepted.
-        <Box component="span" sx={timesheetHintScrollSx}>
-          {" "}
-          Scroll sideways for all days; Jobs, Total, and Select stay pinned.
-        </Box>
-      </Typography>
+      <Box sx={timesheetGridToolbarSx}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={timesheetHintSx}
+        >
+          Enter hours as <strong>h.mm</strong> (for example, <strong>1.30</strong>{" "}
+          = 1 h 30 m). The <strong>h:mm</strong> format is also accepted.
+        </Typography>
+        {props.searchField}
+      </Box>
 
       <TableContainer
         component={Paper}
@@ -599,10 +606,17 @@ export default function SubmissionGrid(props: SubmissionGridProps) {
                   sx={timesheetEmptyCellSx}
                 >
                   <Box sx={timesheetEmptyStateSx}>
-                    <EmptyTableState
-                      title="No timesheet entries"
-                      description="Jobs and assigned ticket work for the selected week will appear here."
-                    />
+                    {props.searching ? (
+                      <EmptyTableState
+                        title="No matching jobs or tasks"
+                        description="Clear or change the search to see this week's jobs."
+                      />
+                    ) : (
+                      <EmptyTableState
+                        title="No timesheet entries"
+                        description="Jobs and assigned ticket work for the selected week will appear here."
+                      />
+                    )}
                   </Box>
                 </TableCell>
               </TableRow>

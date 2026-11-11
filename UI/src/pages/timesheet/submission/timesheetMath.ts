@@ -29,6 +29,7 @@ export type WeekDay = {
   date: string;
 };
 
+/** Timesheet Submit Entry declaration used across the frontend. */
 export type TimesheetSubmitEntry = {
   assignId: number;
   date: string;
@@ -36,27 +37,32 @@ export type TimesheetSubmitEntry = {
   hours: number;
 };
 
+/** Save Draft Response declaration used across the frontend. */
 export type SaveDraftResponse = {
   entries?: TimesheetSubmitEntry[];
   deleted_entries?: Array<Pick<TimesheetSubmitEntry, "assignId" | "date">>;
 };
 
+/** Budget Owner Validation declaration used across the frontend. */
 export type BudgetOwnerValidation = {
   missingCount: number;
   missingTaskNames: string[];
 };
 
+/** Daily Hours Validation declaration used across the frontend. */
 export type DailyHoursValidation = {
   exceededDays: string[];
   missingRequiredDays: string[];
 };
 
+/** Weekly Hours Validation declaration used across the frontend. */
 export type WeeklyHoursValidation = {
   estimatedHours: number;
   actualHours: number;
   isSatisfied: boolean;
 };
 
+/** Weekly Timesheet Log declaration used across the frontend. */
 export type WeeklyTimesheetLog = {
   timesheet_status: string;
   submission_status?: boolean;
@@ -74,6 +80,7 @@ export type TaskRef = {
 // ---------------------------------------------------------------------------
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** FULL_DAY_LABELS declaration used across the frontend. */
 export const FULL_DAY_LABELS = [
   "Monday",
   "Tuesday",
@@ -84,6 +91,7 @@ export const FULL_DAY_LABELS = [
   "Sunday",
 ];
 
+/** format Local Date declaration used across the frontend. */
 export const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -91,6 +99,7 @@ export const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+/** add Days declaration used across the frontend. */
 export const addDays = (date: Date, days: number) => {
   const next = new Date(date);
   next.setDate(date.getDate() + days);
@@ -103,7 +112,7 @@ export const createWeekDays = (weekStart: string): WeekDay[] => {
   return DAY_LABELS.map((label, index) => {
     const date = addDays(startDate, index);
     return {
-      label: `${label}-${String(date.getDate()).padStart(2, "0")}`,
+      label: `${label} ${String(date.getDate()).padStart(2, "0")}`,
       date: formatLocalDate(date),
     };
   });
@@ -138,12 +147,15 @@ export const getEditableDates = (today: Date) =>
 const entrySeconds = (task: AssignedTask, date: string) =>
   hoursMinutesToSeconds(task.entries[date] ?? 0);
 
+/** get Task Total declaration used across the frontend. */
 export const getTaskTotal = (task: AssignedTask, weekDays: WeekDay[]) =>
   weekDays.reduce((total, day) => total + entrySeconds(task, day.date), 0);
 
+/** get Milestone Total declaration used across the frontend. */
 export const getMilestoneTotal = (milestone: Milestone, weekDays: WeekDay[]) =>
   milestone.assigned_tasks.reduce((total, task) => total + getTaskTotal(task, weekDays), 0);
 
+/** get Project Total declaration used across the frontend. */
 export const getProjectTotal = (project: SubmissionProject, weekDays: WeekDay[]) =>
   project.milestones.reduce(
     (total, milestone) => total + getMilestoneTotal(milestone, weekDays),
@@ -176,13 +188,37 @@ export const getWeekDayTotals = (projects: SubmissionProject[], weekDays: WeekDa
 export const isOthersProject = (project: SubmissionProject) =>
   project.code?.toLowerCase() === "others";
 
+/** get Project Assigned Task Ids declaration used across the frontend. */
 export const getProjectAssignedTaskIds = (project: SubmissionProject) =>
   project.milestones.flatMap((milestone) =>
     milestone.assigned_tasks.map((task) => task.assign_id),
   );
 
+/** get Selectable Project Assigned Task Ids declaration used across the frontend. */
 export const getSelectableProjectAssignedTaskIds = (project: SubmissionProject) =>
   isOthersProject(project) ? [] : getProjectAssignedTaskIds(project);
+
+/**
+ * What the Jobs column shows for a search. A task matches on its own name; a
+ * job or milestone that matches keeps all of its tasks. For display only:
+ * totals, validation and submission must keep using the unfiltered projects.
+ */
+export const filterProjects = (projects: SubmissionProject[], search: string) => {
+  const query = search.trim().toLowerCase();
+  if (!query) return projects;
+  const matches = (text: string | null | undefined) =>
+    (text ?? "").toLowerCase().includes(query);
+
+  return projects.flatMap((project) => {
+    if (matches(project.description) || matches(project.code)) return [project];
+    const milestones = project.milestones.flatMap((milestone) => {
+      if (matches(milestone.name)) return [milestone];
+      const tasks = milestone.assigned_tasks.filter((task) => matches(task.name));
+      return tasks.length ? [{ ...milestone, assigned_tasks: tasks }] : [];
+    });
+    return milestones.length ? [{ ...project, milestones }] : [];
+  });
+};
 
 // ---------------------------------------------------------------------------
 // Week status
@@ -195,7 +231,13 @@ export function getWeekLockState(status: WeeklyTimesheetLog) {
     status.timesheet_status === "Submitted" || Boolean(status.submission_status);
   const isAccepted = status.timesheet_status === "Accepted";
   const isLockedSubmitted = isSubmitted && !isUnlocked;
+  // Drafts are only for a week still being prepared: never submitted, sent
+  // back, or unlocked for changes. A missing status means not submitted.
+  const canSaveDraft = ["Rejected", "Not Submitted", "Unlocked"].includes(
+    status.timesheet_status || "Not Submitted",
+  );
   return {
+    canSaveDraft,
     isRejected,
     isUnlocked,
     isSubmitted,
@@ -274,12 +316,15 @@ const summariseList = (items: string[]) => {
   return `${items.slice(0, 3).join(", ")}${remaining > 0 ? ` and ${remaining} more` : ""}`;
 };
 
+/** budget Owner Message declaration used across the frontend. */
 export const budgetOwnerMessage = (taskNames: string[], action: string) =>
   `Select Budget Owner before ${action}: ${summariseList(taskNames)}.`;
 
+/** daily Limit Message declaration used across the frontend. */
 export const dailyLimitMessage = (exceededDays: string[], action: string) =>
   `Daily total cannot exceed 14 hours before ${action}: ${summariseList(exceededDays)}.`;
 
+/** required Day Hours Message declaration used across the frontend. */
 export const requiredDayHoursMessage = (days: string[], action: string) =>
   `Enter 1 to 14 hours for each required day before ${action}: ${summariseList(days)}.`;
 
@@ -337,6 +382,7 @@ export const updateTask = (
         },
   );
 
+/** find Task declaration used across the frontend. */
 export const findTask = (projects: SubmissionProject[], ref: TaskRef) =>
   projects
     .find((project) => project.id === ref.projectId)
@@ -355,14 +401,7 @@ export const setTaskEntry = (
     entries: { ...task.entries, [date]: value },
   }));
 
-/** Whether storing `value` would change the task's entry for `date`. */
-export const isEntryChange = (
-  projects: SubmissionProject[],
-  ref: TaskRef,
-  date: string,
-  value: string | number,
-) => String(findTask(projects, ref)?.entries[date] ?? 0) !== String(value);
-
+/** set Task Budget Owner declaration used across the frontend. */
 export const setTaskBudgetOwner = (
   projects: SubmissionProject[],
   ref: TaskRef,

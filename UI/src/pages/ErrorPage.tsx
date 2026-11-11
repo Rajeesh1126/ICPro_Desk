@@ -1,4 +1,5 @@
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import type { ComponentProps, ComponentType, ElementType } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -19,6 +20,16 @@ import {
   errorTitleSx,
 } from "@/styles/common";
 import { buildLoginPath, clearSession } from "@/api/session";
+import { motion } from "motion/react";
+import { MotionBox, MotionPaper } from "@/animations/MotionPrimitives";
+import { fadeUp, staggerContainer } from "@/animations/presets";
+
+const BaseMotionTypography = motion.create(Typography);
+// Typography's `component` prop survives motion.create; restore its type.
+const MotionTypography = BaseMotionTypography as ComponentType<
+  ComponentProps<typeof BaseMotionTypography> & { component?: ElementType }
+>;
+const MotionStack = motion.create(Stack);
 
 type ErrorCode = number | "network" | "generic";
 
@@ -54,8 +65,9 @@ const configs: Record<string, ErrorConfig> = {
     message:
       "Your account does not have the required permission. Contact an administrator if you believe this is incorrect.",
     icon: <BlockOutlinedIcon />,
-    primary: "retry",
-    secondary: "home",
+    // Retrying can't grant a missing permission; offer a way out instead.
+    primary: "home",
+    secondary: "back",
   },
   "404": {
     code: 404,
@@ -148,12 +160,12 @@ function actionLabel(
   action: ErrorConfig["primary"] | NonNullable<ErrorConfig["secondary"]>,
 ) {
   return {
-    back: "Go Back",
-    dashboard: "Go to Dashboard",
+    back: "Go back",
+    dashboard: "Go to Home",
     home: "Go to Home",
     refresh: "Refresh",
     retry: "Retry",
-    signin: "Sign In",
+    signin: "Sign in",
   }[action];
 }
 
@@ -171,7 +183,8 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
 
   const runAction = (action: string) => {
     if (action === "back") navigate(-1);
-    if (action === "dashboard") navigate("/Home/Dashboard");
+    // Home is the dashboard every account can open (Team Analysis is gated).
+    if (action === "dashboard") navigate("/Home");
     if (action === "home") navigate("/Home");
     if (action === "signin") {
       clearSession();
@@ -183,22 +196,38 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
 
   return (
     <Box sx={errorPageSx}>
-      <Paper elevation={0} sx={errorPanelSx}>
-        <Box sx={errorIconSx}>{config.icon}</Box>
-        <Typography component="p" sx={errorCodeSx}>
+      {/* Icon lands first, then code, title, message and actions in turn. */}
+      <MotionPaper
+        elevation={0}
+        variants={staggerContainer(0.07, 0.05)}
+        initial="hidden"
+        animate="visible"
+        sx={errorPanelSx}
+      >
+        <MotionBox
+          variants={{
+            hidden: { opacity: 0, scale: 0.6, rotate: -12 },
+            visible: { opacity: 1, scale: 1, rotate: 0, transition: { type: "spring", stiffness: 380, damping: 16 } },
+          }}
+          sx={errorIconSx}
+        >
+          {config.icon}
+        </MotionBox>
+        <MotionTypography variants={fadeUp} component="p" sx={errorCodeSx}>
           {config.code === "network"
             ? "Connection issue"
             : config.code === "generic"
               ? "Unexpected error"
               : `Error ${config.code}`}
-        </Typography>
-        <Typography component="h1" sx={errorTitleSx}>
+        </MotionTypography>
+        <MotionTypography variants={fadeUp} component="h1" sx={errorTitleSx}>
           {config.title}
-        </Typography>
-        <Typography component="p" role="alert" sx={errorMessageSx}>
+        </MotionTypography>
+        <MotionTypography variants={fadeUp} component="p" role="alert" sx={errorMessageSx}>
           {config.message}
-        </Typography>
-        <Stack
+        </MotionTypography>
+        <MotionStack
+          variants={fadeUp}
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
           sx={errorActionsSx}
@@ -231,12 +260,13 @@ export default function ErrorPage({ code = 404 }: { code?: ErrorCode }) {
               {actionLabel(config.secondary)}
             </Button>
           )}
-        </Stack>
-      </Paper>
+        </MotionStack>
+      </MotionPaper>
     </Box>
   );
 }
 
+/** Routed Error Page declaration used across the frontend. */
 export function RoutedErrorPage() {
   const { code } = useParams<{ code?: string }>();
   const parsedCode = Number(code);

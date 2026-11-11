@@ -19,6 +19,7 @@ import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import type { TicketData } from "@/types/dataTypes";
 
+/** Ticket Action Id declaration used across the frontend. */
 export type TicketActionId =
   | "accept"
   | "reassign"
@@ -38,6 +39,7 @@ export type TicketActionId =
 
 type Tone = "primary" | "secondary" | "success" | "warning" | "error" | "info";
 
+/** Ticket Action Button declaration used across the frontend. */
 export type TicketActionButton = {
   label: string;
   icon: SvgIconComponent;
@@ -51,13 +53,14 @@ export type TicketActionButton = {
   hint?: string;
 };
 
+/** ACTION_BUTTONS declaration used across the frontend. */
 export const ACTION_BUTTONS: Record<TicketActionId, TicketActionButton> = {
   accept: { label: "Accept", icon: CheckCircleOutlinedIcon, variant: "contained", color: "success" },
   reassign: { label: "Reassign", icon: PersonAddAltOutlinedIcon, variant: "contained", color: "secondary", disabled: true },
   pending: { label: "Pending", icon: PauseCircleOutlineOutlinedIcon, variant: "outlined", color: "warning" },
   reject: { label: "Reject", icon: BlockOutlinedIcon, variant: "outlined", color: "error" },
-  recallRequest: { label: "Recall Request", icon: UndoOutlinedIcon, variant: "outlined", color: "warning" },
-  feedback: { label: "FeedBack", icon: FeedbackOutlinedIcon, variant: "contained", color: "info" },
+  recallRequest: { label: "Recall request", icon: UndoOutlinedIcon, variant: "outlined", color: "warning" },
+  feedback: { label: "Feedback", icon: FeedbackOutlinedIcon, variant: "contained", color: "info" },
   progress: { label: "Update Progress", icon: PendingActionsOutlinedIcon, variant: "contained", color: "primary" },
   complete: { label: "Completed", icon: TaskAltOutlinedIcon, variant: "contained", color: "success" },
   hold: { label: "On Hold", icon: PauseCircleOutlineOutlinedIcon, variant: "outlined", color: "warning" },
@@ -125,6 +128,7 @@ export type ReasonActionId =
   | "feedback"
   | "recallRequest";
 
+/** Reason Dialog Config declaration used across the frontend. */
 export type ReasonDialogConfig = {
   status: string;
   title: string;
@@ -137,6 +141,7 @@ export type ReasonDialogConfig = {
   confirmIcon?: SvgIconComponent;
 };
 
+/** REASON_DIALOGS declaration used across the frontend. */
 export const REASON_DIALOGS: Record<ReasonActionId, ReasonDialogConfig> = {
   reject: {
     status: "rejected",
@@ -228,9 +233,11 @@ export const REASON_DIALOGS: Record<ReasonActionId, ReasonDialogConfig> = {
   },
 };
 
+/** is Reason Action declaration used across the frontend. */
 export const isReasonAction = (action: TicketActionId): action is ReasonActionId =>
   action in REASON_DIALOGS;
 
+/** RATING_LABELS declaration used across the frontend. */
 export const RATING_LABELS: Record<number, string> = {
   1: "Poor",
   2: "Average",
@@ -255,6 +262,7 @@ export const STATUS_MESSAGES: Record<string, string> = {
   cancelled: "Ticket cancelled successfully.",
 };
 
+/** Status Change Extras declaration used across the frontend. */
 export type StatusChangeExtras = {
   /** "userId|Display Name" from the reassign picker. */
   assigned_to?: string;

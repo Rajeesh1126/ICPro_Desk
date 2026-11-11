@@ -7,8 +7,9 @@
  */
 import { type SxProps } from "@mui/material";
 import { type Theme } from "@mui/material/styles";
-import { RADIUS_PX } from "@/styles/tokens";
+import { RADIUS_PX, FONT, READING_MEASURE } from "@/styles/tokens";
 
+/** page declaration used across the frontend. */
 export const page = {
   bgcolor: "background.default",
   display: "flex",
@@ -20,6 +21,7 @@ export const page = {
   boxSizing: "border-box",
 } satisfies SxProps<Theme>;
 
+/** page Content declaration used across the frontend. */
 export const pageContent: SxProps<Theme> = {
   display: "flex",
   flexDirection: "column",
@@ -28,6 +30,7 @@ export const pageContent: SxProps<Theme> = {
   minHeight: 0,
 };
 
+/** page Header declaration used across the frontend. */
 export const pageHeader = {
   // The page title and its supporting text sit together above page actions.
   alignItems: { xs: "stretch", sm: "center" },
@@ -43,11 +46,12 @@ export const pageHeader = {
 } satisfies SxProps<Theme>;
 
 const pageHeaderSupportText = {
-  maxWidth: 880,
-  fontSize: { xs: "0.8125rem", sm: "0.875rem", md: "0.9375rem" },
+  maxWidth: READING_MEASURE,
+  fontSize: { xs: FONT.sm, sm: FONT.sm, md: FONT.sm },
   lineHeight: 1.55,
 } satisfies SxProps<Theme>;
 
+/** page Header Content declaration used across the frontend. */
 export const pageHeaderContent = {
   flex: 1,
   minWidth: 0,
@@ -71,6 +75,7 @@ export const pageHeaderCompact = {
   pb: 1,
 } satisfies SxProps<Theme>;
 
+/** page Header Compact Title declaration used across the frontend. */
 export const pageHeaderCompactTitle = {
   gridColumn: 1,
   gridRow: 1,
@@ -78,6 +83,7 @@ export const pageHeaderCompactTitle = {
   overflowWrap: "anywhere",
 } satisfies SxProps<Theme>;
 
+/** page Header Compact Actions declaration used across the frontend. */
 export const pageHeaderCompactActions = {
   gridColumn: 2,
   gridRow: 1,
@@ -91,6 +97,7 @@ export const pageHeaderCompactActions = {
   },
 } satisfies SxProps<Theme>;
 
+/** page Header Compact Subtitle declaration used across the frontend. */
 export const pageHeaderCompactSubtitle = {
   ...pageHeaderSupportText,
   gridColumn: "1 / -1",
@@ -103,6 +110,7 @@ export const pageHeaderCompactSubtitle = {
   },
 } satisfies SxProps<Theme>;
 
+/** page Header Compact Row declaration used across the frontend. */
 export const pageHeaderCompactRow = {
   gridColumn: "1 / -1",
   display: "flex",
@@ -114,6 +122,7 @@ export const pageHeaderCompactRow = {
   "&& > *": { flex: "1 1 auto", minWidth: 0 },
 } satisfies SxProps<Theme>;
 
+/** page Header Compact Extra declaration used across the frontend. */
 export const pageHeaderCompactExtra = {
   gridColumn: "1 / -1",
   minWidth: 0,
@@ -130,6 +139,7 @@ export const pageHeaderMoreButton = {
   color: "text.primary",
 } satisfies SxProps<Theme>;
 
+/** page Header Menu Paper declaration used across the frontend. */
 export const pageHeaderMenuPaper = {
   mt: 0.75,
   minWidth: 200,
@@ -139,44 +149,50 @@ export const pageHeaderMenuPaper = {
   borderColor: "divider",
 } satisfies SxProps<Theme>;
 
+/** page Header Menu Section declaration used across the frontend. */
 export const pageHeaderMenuSection = {
   bgcolor: "transparent",
   color: "text.secondary",
-  fontSize: 11,
+  fontSize: FONT.xs,
   fontWeight: 600,
   lineHeight: "28px",
   textTransform: "uppercase",
 } satisfies SxProps<Theme>;
 
+/** page Header Menu Check declaration used across the frontend. */
 export const pageHeaderMenuCheck = {
   ml: 2,
   color: "primary.main",
-  fontSize: 18,
+  fontSize: FONT.md,
 } satisfies SxProps<Theme>;
 
 /** Phone-size icon-only header button (Filters). */
 export const pageHeaderIconButton = {
   minWidth: 0,
   px: 1,
+  "@media (pointer: coarse)": { minWidth: 40 },
   "& .MuiButton-startIcon": { m: 0 },
 } satisfies SxProps<Theme>;
 
+/** page Title declaration used across the frontend. */
 export const pageTitle = {
   color: "text.primary",
-  fontSize: { xs: "1.375rem", sm: "1.625rem", md: "1.75rem" },
+  fontSize: { xs: FONT.lg, sm: FONT.xl, md: FONT.xl },
   fontWeight: 600,
   letterSpacing: "-0.015em",
   lineHeight: 1.2,
 } satisfies SxProps<Theme>;
 
+/** page Subtitle declaration used across the frontend. */
 export const pageSubtitle = {
   color: "text.secondary",
-  fontSize: { xs: "0.8125rem", sm: "0.875rem" },
+  fontSize: { xs: FONT.sm, sm: FONT.sm },
   fontWeight: 400,
   lineHeight: 1.5,
   mt: 0.5,
 } satisfies SxProps<Theme>;
 
+/** page Header Actions declaration used across the frontend. */
 export const pageHeaderActions = {
   alignItems: "center",
   display: "flex",
@@ -190,14 +206,17 @@ export const pageHeaderActions = {
   },
 } satisfies SxProps<Theme>;
 
+/** button Label Full declaration used across the frontend. */
 export const buttonLabelFull = {
   display: { xs: "none", sm: "inline" },
 } satisfies SxProps<Theme>;
 
+/** button Label Compact declaration used across the frontend. */
 export const buttonLabelCompact = {
   display: { xs: "inline", sm: "none" },
 } satisfies SxProps<Theme>;
 
+/** tabs Container declaration used across the frontend. */
 export const tabsContainer: SxProps<Theme> = {
   // Never squeezed by tall page content (overflow hidden would let it reach 0).
   flexShrink: 0,
@@ -213,6 +232,7 @@ export const tabsContainer: SxProps<Theme> = {
   WebkitOverflowScrolling: "touch",
 };
 
+/** tabs declaration used across the frontend. */
 export const tabs: SxProps<Theme> = {
   width: "100%",
   minHeight: 36,
@@ -220,10 +240,11 @@ export const tabs: SxProps<Theme> = {
     minWidth: "max-content",
   },
   "& .MuiTab-root": {
-    minHeight: 32,
+    // 28px tabs inside the track's 4px inset (36px overall), so the hover
+    // fill and the selected indicator are the same height.
+    minHeight: 28,
     minWidth: { xs: "auto", sm: 96 },
-    px: { xs: 1, sm: 1.5 },
-    fontSize: { xs: 13, sm: 14 },
+    fontSize: { xs: FONT.sm, sm: FONT.sm },
     whiteSpace: "nowrap",
     fontVariantNumeric: "tabular-nums",
   },
@@ -235,6 +256,7 @@ export const contentPanel = {
   minHeight: 0,
 } satisfies SxProps<Theme>;
 
+/** scrollable Content declaration used across the frontend. */
 export const scrollableContent = {
   ...contentPanel,
   display: "flex",
@@ -243,6 +265,7 @@ export const scrollableContent = {
   overflow: "auto",
 } satisfies SxProps<Theme>;
 
+/** table Page Content declaration used across the frontend. */
 export const tablePageContent = {
   display: "flex",
   flexDirection: "column",
@@ -253,10 +276,12 @@ export const tablePageContent = {
   overflow: "hidden",
 } satisfies SxProps<Theme>;
 
+/** filter Field declaration used across the frontend. */
 export const filterField = {
   minWidth: { xs: 150, sm: 210 },
 } satisfies SxProps<Theme>;
 
+/** wide Filter Field declaration used across the frontend. */
 export const wideFilterField = {
   minWidth: { xs: "100%", md: 280 },
 } satisfies SxProps<Theme>;

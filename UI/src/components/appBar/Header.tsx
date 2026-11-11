@@ -1,3 +1,4 @@
+import Pill from "@/components/common/Pill";
 import { useState, type ReactNode } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
@@ -5,7 +6,6 @@ import {
   Badge,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,7 +21,6 @@ import {
 } from "@mui/material";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
@@ -35,7 +34,6 @@ import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownR
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { alpha } from "@mui/material/styles";
-import pdfFile from "@/assets/Work_Wise_Process_Flow.pdf";
 import logo from "@/assets/icpro_logo.svg";
 import api from "@/api/axios";
 import { sanitizeUserMessage } from "@/utils/errorUtils";
@@ -71,11 +69,8 @@ import {
   appBarHeaderProfileCardSx,
   appBarHeaderProfileDetailRowSx,
   appBarHeaderProfileFooterButtonSx,
-  headerDesktopActionSx,
-  headerPhoneMenuButtonSx,
   appBarHeaderProfileHeaderSx,
   appBarHeaderProfileInfoIconSx,
-  appBarHeaderProfileMetaSx,
   appBarHeaderProfileTextSx,
   appBarHeaderProfileValueSx,
   profileUsernameSx,
@@ -84,13 +79,16 @@ import {
   marginTopSmallSx,
   pushRightSx,
 } from "@/styles/common";
-import type { NotificationsType } from "@/types/dataTypes";
 import { clearSession } from "@/api/session";
-
-const emptyNotifications: NotificationsType = {
-  selfticketOpenCount: 0,
-  ticketOpenCount: 0,
-};
+import { useNotificationCounts } from "@/components/appBar/useNotificationCounts";
+import {
+  IconSwap,
+  PopNumber,
+  StaggerContainer,
+  StaggerItem,
+} from "@/animations/MotionPrimitives";
+import { motion } from "motion/react";
+import { MotionAnchoredMenuTransition } from "@/animations/muiTransitions";
 
 type StoredPermission = {
   id?: number;
@@ -182,7 +180,10 @@ type ChangePasswordForm = {
 };
 
 type ChangePasswordErrors = Partial<
-  Record<keyof ChangePasswordForm | "non_field_errors" | "detail", string | string[]>
+  Record<
+    keyof ChangePasswordForm | "non_field_errors" | "detail",
+    string | string[]
+  >
 >;
 
 type ChangePasswordErrorResponse = {
@@ -220,28 +221,34 @@ export default function ResponsiveAppBar({
   const [notificationAnchor, setNotificationAnchor] =
     useState<HTMLElement | null>(null);
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
-  const [notifications] = useState<NotificationsType>(emptyNotifications);
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const notifications = useNotificationCounts();
+  const [changePasswordOpen, setChangePasswordOpen] = useState<boolean>(false);
   const [passwordForm, setPasswordForm] =
     useState<ChangePasswordForm>(emptyPasswordForm);
   const [passwordErrors, setPasswordErrors] = useState<ChangePasswordErrors>(
     {},
   );
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [showPasswords, setShowPasswords] = useState({ old: false, next: false, confirm: false });
+  const [changingPassword, setChangingPassword] = useState<boolean>(false);
+  const [showPasswords, setShowPasswords] = useState<{ old: boolean; next: boolean; confirm: boolean }>({
+    old: false,
+    next: false,
+    confirm: false,
+  });
 
   const currentUser = getStoredUser();
-  const firstName = currentUser.first_name || localStorage.getItem("first_name") || "";
+  const firstName =
+    currentUser.first_name || localStorage.getItem("first_name") || "";
   const lastName = currentUser.last_name || "";
   const loggedUser =
     [firstName, lastName].filter(Boolean).join(" ") ||
     currentUser.full_name ||
     currentUser.username ||
     "";
-  const avatarInitials = [firstName, lastName]
-    .filter(Boolean)
-    .map((name) => name.charAt(0).toUpperCase())
-    .join("") || loggedUser.charAt(0).toUpperCase();
+  const avatarInitials =
+    [firstName, lastName]
+      .filter(Boolean)
+      .map((name) => name.charAt(0).toUpperCase())
+      .join("") || loggedUser.charAt(0).toUpperCase();
   const role =
     localStorage.getItem("role") ||
     (Array.isArray(currentUser.role)
@@ -253,17 +260,22 @@ export default function ResponsiveAppBar({
   const reportingTo = [
     currentUser.reporting_to_first_name,
     currentUser.reporting_to_last_name,
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const totalNotifications =
     notifications.selfticketOpenCount + notifications.ticketOpenCount;
-
-  const downloadProcessFlow = () => {
-    const link = document.createElement("a");
-    link.href = pdfFile;
-    link.download = "Work_Wise_Process_Flow.pdf";
-    link.click();
-  };
+  // Counts how often the total went up, so the bell rings once per increase
+  // (derived while rendering; a decrease or first load never rings).
+  const [bell, setBell] = useState<{ count: number; rings: number }>({ count: totalNotifications, rings: 0 });
+  if (bell.count !== totalNotifications) {
+    setBell({
+      count: totalNotifications,
+      rings: totalNotifications > bell.count ? bell.rings + 1 : bell.rings,
+    });
+  }
+  const bellRings = bell.rings;
 
   const logout = () => {
     clearSession();
@@ -331,7 +343,10 @@ export default function ResponsiveAppBar({
       });
       logout();
     } catch (error: unknown) {
-      if (isChangePasswordErrorResponse(error) && error.response?.status === 400) {
+      if (
+        isChangePasswordErrorResponse(error) &&
+        error.response?.status === 400
+      ) {
         const errors = error.response.data ?? {};
 
         setPasswordErrors(errors);
@@ -341,7 +356,10 @@ export default function ResponsiveAppBar({
           formatPasswordError(errors.detail);
 
         if (generalError) {
-          showNotification({ type: "error", message: sanitizeUserMessage(generalError) });
+          showNotification({
+            type: "error",
+            message: sanitizeUserMessage(generalError),
+          });
         }
       }
     } finally {
@@ -351,114 +369,119 @@ export default function ResponsiveAppBar({
 
   return (
     <>
-      <Box sx={headerBarSx}>
-          <IconButton
-            aria-label="Open navigation"
-            onClick={onMenuClick}
-            sx={headerNavButtonSx}
-          >
-            <MenuOutlinedIcon />
-          </IconButton>
+      <Box component="header" sx={headerBarSx}>
+        <IconButton
+          aria-label="Open navigation"
+          onClick={onMenuClick}
+          sx={headerNavButtonSx}
+        >
+          <MenuOutlinedIcon />
+        </IconButton>
 
-          <Box
-            component={RouterLink}
-            to="/Home"
-            aria-label="ICPro home"
-            sx={headerLogoLinkSx}
-          >
-            <Box
-              component="img"
-              src={logo}
-              alt="ICPro"
-              sx={headerLogoImageSx}
-            />
-          </Box>
+        <Box
+          component={RouterLink}
+          to="/Home"
+          aria-label="ICPro home"
+          sx={headerLogoLinkSx}
+        >
+          <Box component="img" src={logo} alt="ICPro" sx={headerLogoImageSx} />
+        </Box>
 
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={{ xs: 0, sm: 0.5 }}
-            sx={pushRightSx}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={{ xs: 0, sm: 0.5 }}
+          sx={pushRightSx}
+        >
+          <Tooltip
+            title={
+              mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
-            <Tooltip title="Download process flow">
-              <IconButton
-                aria-label="Download process flow"
-                onClick={downloadProcessFlow}
-                sx={[headerIconButtonSx, headerDesktopActionSx]}
-              >
-                <DescriptionOutlinedIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip
-              title={
+            <IconButton
+              aria-label={
                 mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
               }
+              onClick={toggleMode}
+              sx={headerThemeToggleSx}
             >
-              <IconButton
-                aria-label={
-                  mode === "dark"
-                    ? "Switch to light mode"
-                    : "Switch to dark mode"
-                }
-                onClick={toggleMode}
-                sx={headerThemeToggleSx}
-              >
-                {mode === "dark" ? (
-                  <LightModeIcon />
-                ) : (
-                  <DarkModeIcon />
-                )}
-              </IconButton>
-            </Tooltip>
-            <Tooltip
-              title={
-                totalNotifications
-                  ? `${totalNotifications} action items`
-                  : "No notifications"
+              <IconSwap swapKey={mode}>
+                {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconSwap>
+            </IconButton>
+          </Tooltip>
+          <Tooltip
+            title={
+              totalNotifications
+                ? `${totalNotifications} action items`
+                : "No notifications"
+            }
+          >
+            <IconButton
+              aria-label="Notifications"
+              aria-controls={
+                notificationAnchor ? "notifications-menu" : undefined
               }
+              aria-expanded={notificationAnchor ? "true" : undefined}
+              aria-haspopup="menu"
+              onClick={(event) => setNotificationAnchor(event.currentTarget)}
+              sx={headerIconButtonSx}
             >
-              <IconButton
-                aria-label="Notifications"
-                onClick={(event) => setNotificationAnchor(event.currentTarget)}
-                sx={headerIconButtonSx}
+              {/* The bell rings once when new action items arrive. */}
+              <motion.span
+                key={bellRings}
+                style={{ display: "inline-flex", transformOrigin: "50% 10%" }}
+                animate={
+                  bellRings ? { rotate: [0, 16, -14, 10, -6, 2, 0] } : undefined
+                }
+                transition={{ duration: 0.7, ease: "easeInOut" }}
               >
                 {totalNotifications > 0 ? (
-                  <Badge badgeContent={totalNotifications} color="error">
+                  <Badge
+                    badgeContent={<PopNumber value={totalNotifications} />}
+                    color="error"
+                  >
                     <NotificationsOutlinedIcon />
                   </Badge>
                 ) : (
                   <NotificationsOutlinedIcon />
                 )}
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Account settings">
-              <Button
-                id="account-menu-button"
-                aria-label="Account menu"
-                aria-controls={profileAnchor ? "account-menu" : undefined}
-                aria-expanded={profileAnchor ? "true" : undefined}
-                aria-haspopup="menu"
-                onClick={(event) => setProfileAnchor(event.currentTarget)}
-                endIcon={<KeyboardArrowDownRoundedIcon sx={headerAccountChevronSx(Boolean(profileAnchor))} />}
-                sx={headerAccountTriggerSx(Boolean(profileAnchor))}
-              >
-                <Avatar sx={headerAccountAvatarSx}>
-                  {avatarInitials}
-                </Avatar>
-                <Stack sx={headerAccountTextSx}>
-                  <Typography variant="body2" sx={headerAccountNameSx}>
-                    {loggedUser || "Account"}
-                  </Typography>
-                  <Typography variant="caption" sx={headerAccountRoleSx}>
-                    {role || "Account settings"}
-                  </Typography>
-                </Stack>
-              </Button>
-            </Tooltip>
-          </Stack>
+              </motion.span>
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Account settings">
+            <Button
+              id="account-menu-button"
+              aria-label="Account menu"
+              aria-controls={profileAnchor ? "account-menu" : undefined}
+              aria-expanded={profileAnchor ? "true" : undefined}
+              aria-haspopup="menu"
+              onClick={(event) => setProfileAnchor(event.currentTarget)}
+              endIcon={
+                <KeyboardArrowDownRoundedIcon
+                  sx={headerAccountChevronSx(Boolean(profileAnchor))}
+                />
+              }
+              sx={headerAccountTriggerSx(Boolean(profileAnchor))}
+            >
+              <Avatar sx={headerAccountAvatarSx}>{avatarInitials}</Avatar>
+              <Stack sx={headerAccountTextSx}>
+                <Typography variant="body2" sx={headerAccountNameSx}>
+                  {loggedUser || "Account"}
+                </Typography>
+                <Typography variant="caption" sx={headerAccountRoleSx}>
+                  {role || "Account settings"}
+                </Typography>
+              </Stack>
+            </Button>
+          </Tooltip>
+        </Stack>
       </Box>
 
       <Menu
+        id="notifications-menu"
+        // Grows out of the bell and shrinks back into it.
+        slots={{ transition: MotionAnchoredMenuTransition }}
         anchorEl={notificationAnchor}
         open={Boolean(notificationAnchor)}
         onClose={() => setNotificationAnchor(null)}
@@ -513,7 +536,7 @@ export default function ResponsiveAppBar({
               color="text.secondary"
               sx={marginTopMediumSx}
             >
-              New ticket updates will appear here.
+              Tasks and tickets that need action will appear here.
             </Typography>
           </Box>
         ) : (
@@ -533,7 +556,7 @@ export default function ResponsiveAppBar({
                   Do List
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Self tickets waiting for action
+                  Your tasks that need action
                 </Typography>
               </Box>
               <Badge
@@ -556,7 +579,7 @@ export default function ResponsiveAppBar({
                   Tickets
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Assigned ticket updates
+                  Active tickets assigned to you
                 </Typography>
               </Box>
               <Badge
@@ -575,6 +598,8 @@ export default function ResponsiveAppBar({
         onClose={() => setProfileAnchor(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        // Grows out of the account button and shrinks back into it.
+        slots={{ transition: MotionAnchoredMenuTransition }}
         slotProps={{
           paper: {
             elevation: 0,
@@ -589,15 +614,21 @@ export default function ResponsiveAppBar({
         <Box sx={appBarHeaderProfileBodySx}>
           <Box sx={appBarHeaderProfileCardSx({ alpha })}>
             <Box sx={appBarHeaderProfileHeaderSx}>
-              <Avatar sx={headerAvatarSx}>
-                {avatarInitials}
-              </Avatar>
+              <Avatar sx={headerAvatarSx}>{avatarInitials}</Avatar>
               <Stack spacing={0.5} sx={appBarHeaderProfileTextSx}>
-                <Typography variant="subtitle1" fontWeight={600} sx={profileTruncatedTextSx}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={600}
+                  sx={profileTruncatedTextSx}
+                >
                   {loggedUser || "Signed in"}
                 </Typography>
                 {currentUser.username && (
-                  <Typography variant="caption" color="text.secondary" sx={profileUsernameSx}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={profileUsernameSx}
+                  >
                     @{currentUser.username}
                   </Typography>
                 )}
@@ -613,7 +644,7 @@ export default function ResponsiveAppBar({
               </Stack>
             </Box>
 
-            <Stack spacing={1} sx={appBarHeaderProfileMetaSx}>
+            <Stack spacing={1}>
               <Box sx={appBarHeaderProfileDetailRowSx}>
                 <Box
                   sx={appBarHeaderProfileInfoIconSx({
@@ -630,15 +661,15 @@ export default function ResponsiveAppBar({
                   Role
                 </Typography>
                 <Box sx={appBarHeaderProfileValueSx}>
-                  <Chip
-                    label={role || "No roles assigned"}
-                    color="primary"
-                    variant="outlined"
-                  />
+                  <Pill value={role || "No roles assigned"} color="primary" />
                 </Box>
               </Box>
 
-              <ProfileDetail icon={<BadgeOutlinedIcon fontSize="small" />} color="primary" label="Designation">
+              <ProfileDetail
+                icon={<BadgeOutlinedIcon fontSize="small" />}
+                color="primary"
+                label="Designation"
+              >
                 <ProfileValue value={currentUser.designation} />
               </ProfileDetail>
 
@@ -653,20 +684,7 @@ export default function ResponsiveAppBar({
 
             <Divider />
 
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              sx={appBarHeaderProfileMetaSx}
-            >
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<DescriptionOutlinedIcon />}
-                onClick={downloadProcessFlow}
-                sx={headerPhoneMenuButtonSx}
-              >
-                Process flow
-              </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -703,56 +721,167 @@ export default function ResponsiveAppBar({
           closeDisabled={changingPassword}
         />
         <DialogContent>
-          <Stack spacing={2}>
-            <TextField
-              label="Current Password"
-              type={showPasswords.old ? "text" : "password"}
-              value={passwordForm.old_password}
-              onChange={(event) =>
-                updatePasswordForm("old_password", event.target.value)
-              }
-              fullWidth
-              required
-              autoComplete="current-password"
-              error={Boolean(passwordErrors.old_password)}
-              helperText={formatPasswordError(passwordErrors.old_password)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.old ? "Hide current password" : "Show current password"} onClick={() => setShowPasswords((value) => ({ ...value, old: !value.old }))} edge="end">{showPasswords.old ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
-            />
-            <TextField
-              label="New Password"
-              type={showPasswords.next ? "text" : "password"}
-              value={passwordForm.new_password}
-              onChange={(event) =>
-                updatePasswordForm("new_password", event.target.value)
-              }
-              fullWidth
-              required
-              autoComplete="new-password"
-              error={Boolean(passwordErrors.new_password)}
-              helperText={formatPasswordError(passwordErrors.new_password) || "Choose a new password that meets your organization's requirements."}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.next ? "Hide new password" : "Show new password"} onClick={() => setShowPasswords((value) => ({ ...value, next: !value.next }))} edge="end">{showPasswords.next ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
-            />
-            <TextField
-              label="Confirm Password"
-              type={showPasswords.confirm ? "text" : "password"}
-              value={passwordForm.confirm_password}
-              onChange={(event) =>
-                updatePasswordForm("confirm_password", event.target.value)
-              }
-              fullWidth
-              required
-              autoComplete="new-password"
-              error={Boolean(passwordErrors.confirm_password) || Boolean(passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password)}
-              helperText={formatPasswordError(passwordErrors.confirm_password) || (passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password ? "Passwords do not match." : "Re-enter your new password to confirm.")}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={showPasswords.confirm ? "Hide confirmation password" : "Show confirmation password"} onClick={() => setShowPasswords((value) => ({ ...value, confirm: !value.confirm }))} edge="end">{showPasswords.confirm ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> } }}
-            />
-          </Stack>
+          <StaggerContainer stagger={0.03}>
+            <Stack spacing={2}>
+              <StaggerItem from="left">
+                <TextField
+                  label="Current Password"
+                  type={showPasswords.old ? "text" : "password"}
+                  value={passwordForm.old_password}
+                  onChange={(event) =>
+                    updatePasswordForm("old_password", event.target.value)
+                  }
+                  fullWidth
+                  required
+                  autoComplete="current-password"
+                  error={Boolean(passwordErrors.old_password)}
+                  helperText={formatPasswordError(passwordErrors.old_password)}
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={
+                              showPasswords.old
+                                ? "Hide current password"
+                                : "Show current password"
+                            }
+                            onClick={() =>
+                              setShowPasswords((value) => ({
+                                ...value,
+                                old: !value.old,
+                              }))
+                            }
+                            edge="end"
+                          >
+                            {showPasswords.old ? (
+                              <VisibilityOffOutlinedIcon />
+                            ) : (
+                              <VisibilityOutlinedIcon />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </StaggerItem>
+              <StaggerItem from="left">
+                <TextField
+                  label="New Password"
+                  type={showPasswords.next ? "text" : "password"}
+                  value={passwordForm.new_password}
+                  onChange={(event) =>
+                    updatePasswordForm("new_password", event.target.value)
+                  }
+                  fullWidth
+                  required
+                  autoComplete="new-password"
+                  error={Boolean(passwordErrors.new_password)}
+                  helperText={
+                    formatPasswordError(passwordErrors.new_password) ||
+                    "Use at least 8 characters. Avoid common words and numbers only."
+                  }
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={
+                              showPasswords.next
+                                ? "Hide new password"
+                                : "Show new password"
+                            }
+                            onClick={() =>
+                              setShowPasswords((value) => ({
+                                ...value,
+                                next: !value.next,
+                              }))
+                            }
+                            edge="end"
+                          >
+                            {showPasswords.next ? (
+                              <VisibilityOffOutlinedIcon />
+                            ) : (
+                              <VisibilityOutlinedIcon />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </StaggerItem>
+              <StaggerItem from="left">
+                <TextField
+                  label="Confirm Password"
+                  type={showPasswords.confirm ? "text" : "password"}
+                  value={passwordForm.confirm_password}
+                  onChange={(event) =>
+                    updatePasswordForm("confirm_password", event.target.value)
+                  }
+                  fullWidth
+                  required
+                  autoComplete="new-password"
+                  error={
+                    Boolean(passwordErrors.confirm_password) ||
+                    Boolean(
+                      passwordForm.confirm_password &&
+                      passwordForm.new_password !==
+                        passwordForm.confirm_password,
+                    )
+                  }
+                  helperText={
+                    formatPasswordError(passwordErrors.confirm_password) ||
+                    (passwordForm.confirm_password &&
+                    passwordForm.new_password !== passwordForm.confirm_password
+                      ? "Passwords do not match."
+                      : "Re-enter your new password to confirm.")
+                  }
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={
+                              showPasswords.confirm
+                                ? "Hide confirmation password"
+                                : "Show confirmation password"
+                            }
+                            onClick={() =>
+                              setShowPasswords((value) => ({
+                                ...value,
+                                confirm: !value.confirm,
+                              }))
+                            }
+                            edge="end"
+                          >
+                            {showPasswords.confirm ? (
+                              <VisibilityOffOutlinedIcon />
+                            ) : (
+                              <VisibilityOutlinedIcon />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </StaggerItem>
+            </Stack>
+          </StaggerContainer>
         </DialogContent>
         <DialogActions>
           <Button
             variant="contained"
             onClick={submitChangePassword}
-            disabled={changingPassword}
+            // Enabled once every field is filled and the confirmation matches.
+            disabled={
+              changingPassword ||
+              !passwordForm.old_password ||
+              !passwordForm.new_password ||
+              passwordForm.new_password !== passwordForm.confirm_password
+            }
             startIcon={changingPassword ? undefined : <LockResetOutlinedIcon />}
           >
             {changingPassword ? "Changing..." : "Change password"}

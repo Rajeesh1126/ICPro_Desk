@@ -91,6 +91,17 @@ class TimesheetAnalysisHierarchyTests(APITestCase):
         self.people['libina'].save(update_fields=['is_superuser'])
         self.assert_visible_people('libina', self.people)
 
+    def test_hr_and_vp_roles_see_everyone_case_insensitively(self):
+        profile = self.people['libina'].profile
+        permissions = list(profile.role.permissions.all())
+        for name in ['HR', 'vp', ' Hr ', 'VP']:
+            with self.subTest(role=name):
+                role = Role.objects.create(name=name)
+                role.permissions.set(permissions)
+                profile.role = role
+                profile.save(update_fields=['role'])
+                self.assert_visible_people('libina', self.people)
+
     def test_employee_filter_cannot_reveal_outside_hierarchy(self):
         self.client.force_authenticate(user=self.people['libina'])
         response = self.client.get('/api/timesheet-analysis/', {

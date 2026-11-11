@@ -3,12 +3,41 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { themeStorageKey } from "@/styles/theme/themeModeContext";
 import { queryClient } from "@/api/queryClient";
-import { WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
 
 /** Query flag Login reads to explain why the user was signed out. */
 export const SESSION_EXPIRED_PARAM = "session";
+/** SESSION_EXPIRED_VALUE declaration used across the frontend. */
 export const SESSION_EXPIRED_VALUE = "expired";
+/** RETURN_TO_PARAM declaration used across the frontend. */
 export const RETURN_TO_PARAM = "returnTo";
+
+export const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const LAST_ACTIVITY_KEY = "sessionLastActivity";
+
+/** Called at login; background requests and token refreshes are not activity. */
+export function startSessionActivity() {
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+}
+
+export function msUntilIdleExpiry() {
+    const stored = localStorage.getItem(LAST_ACTIVITY_KEY);
+    // Existing sessions created before activity tracking start their idle window now.
+    if (!stored) {
+        startSessionActivity();
+        return SESSION_IDLE_TIMEOUT_MS;
+    }
+    const lastActivity = Number(stored);
+    return Number.isFinite(lastActivity)
+        ? SESSION_IDLE_TIMEOUT_MS - Math.max(0, Date.now() - lastActivity) : 0;
+}
+
+/** Enforced before requests as well as by the timer (including sleeping tabs). */
+export function requireActiveSession() {
+    if (msUntilIdleExpiry() <= 0) {
+        expireSession();
+        throw new Error("Session expired due to inactivity");
+    }
+}
 
 /** Removes the signed-in user's data while keeping device preferences (theme). */
 export function clearSession() {
@@ -17,7 +46,9 @@ export function clearSession() {
     void queryClient.cancelQueries();
     queryClient.clear();
     localStorage.clear();
-    sessionStorage.removeItem(WORK_ITEM_VIEW_SESSION_KEY);
+    // sessionStorage holds only per-user page preferences (tabs, views,
+    // hidden columns); clear all of them so the next account starts fresh.
+    sessionStorage.clear();
     if (theme) localStorage.setItem(themeStorageKey, theme);
 }
 
@@ -80,12 +111,18 @@ export function msUntilTokenExpiry(token = localStorage.getItem("accessToken")) 
 
 /** Access is usable now, or a valid refresh token can recover the session. */
 export const hasActiveSession = () =>
-    msUntilTokenExpiry() > 0 || msUntilTokenExpiry(localStorage.getItem("refreshToken")) > 0;
+    msUntilIdleExpiry() > 0 &&
+    (msUntilTokenExpiry() > 0 || msUntilTokenExpiry(localStorage.getItem("refreshToken")) > 0);
 
 let refreshPromise: Promise<string> | null = null;
 
 /** Share one refresh across requests; use bare Axios to avoid interceptor loops. */
 export function refreshAccessToken(): Promise<string> {
+    try {
+        requireActiveSession();
+    } catch (error) {
+        return Promise.reject(error);
+    }
     if (refreshPromise) return refreshPromise;
     const refresh = localStorage.getItem("refreshToken");
     if (!refresh || msUntilTokenExpiry(refresh) <= 0) {
@@ -102,6 +139,7 @@ export function refreshAccessToken(): Promise<string> {
             if (localStorage.getItem("refreshToken") !== refresh) {
                 throw new Error("Session changed");
             }
+            requireActiveSession();
             if (typeof response.data.access !== "string" || msUntilTokenExpiry(response.data.access) <= 0) {
                 expireSession();
                 throw new Error("Invalid refreshed access token");
@@ -122,34 +160,74 @@ export function refreshAccessToken(): Promise<string> {
     return refreshPromise;
 }
 
-/**
- * Refreshes on access expiry and tab wake-up. Temporary connection failures
- * keep the session and retry; invalid refresh credentials sign the user out.
- */
+/** Tracks real interaction across tabs and refreshes tokens until the idle deadline. */
 export function useSessionExpiryWatch() {
     useEffect(() => {
         let stopped = false;
+        let checking = false;
         let timer: number | undefined;
+        let idleTimer: number | undefined;
+        const scheduleIdleCheck = () => {
+            window.clearTimeout(idleTimer);
+            const remaining = msUntilIdleExpiry();
+            if (remaining <= 0) {
+                expireSession();
+                return;
+            }
+            idleTimer = window.setTimeout(scheduleIdleCheck, remaining);
+        };
         const check = async () => {
+            if (stopped || checking) return;
             window.clearTimeout(timer);
+            if (msUntilIdleExpiry() <= 0) {
+                expireSession();
+                return;
+            }
+            checking = true;
             try {
                 if (msUntilTokenExpiry() <= 0) await refreshAccessToken();
             } catch {
-                // A temporary connection failure should not discard the session.
+                // Temporary connection failures keep the session until its idle deadline.
+            } finally {
+                checking = false;
             }
-            if (!stopped) {
+            if (!stopped && !redirecting) {
                 const remaining = msUntilTokenExpiry();
-                timer = window.setTimeout(() => void check(),
-                    remaining > 0 ? Math.min(remaining + 500, 2_147_000_000) : 30_000);
+                timer = window.setTimeout(() => void check(), Math.max(0, Math.min(
+                    msUntilIdleExpiry(), remaining > 0 ? remaining + 500 : 30_000,
+                    2_147_000_000,
+                )));
             }
         };
+        const onActivity = (event: Event) => {
+            if (!event.isTrusted || redirecting) return;
+            // The first interaction after a long sleep must not revive an idle session.
+            if (msUntilIdleExpiry() <= 0) {
+                expireSession();
+                return;
+            }
+            startSessionActivity();
+            scheduleIdleCheck();
+            void check();
+        };
+        const activityEvents = ["pointerdown", "pointermove", "keydown", "scroll", "touchstart"];
+        for (const event of activityEvents) {
+            window.addEventListener(event, onActivity, { capture: true, passive: true });
+        }
+        scheduleIdleCheck();
         void check();
         const onVisible = () => {
             if (document.visibilityState === "visible") void check();
         };
         const onFocus = () => { void check(); };
         const onStorage = (event: StorageEvent) => {
-            if (event.key === "accessToken" || event.key === "refreshToken" || event.key === null) void check();
+            if (event.key === "accessToken" || event.key === "refreshToken" || event.key === null) {
+                if (!localStorage.getItem("refreshToken")) expireSession();
+                else void check();
+            } else if (event.key === LAST_ACTIVITY_KEY) {
+                scheduleIdleCheck();
+                void check();
+            }
         };
         document.addEventListener("visibilitychange", onVisible);
         window.addEventListener("focus", onFocus);
@@ -157,6 +235,8 @@ export function useSessionExpiryWatch() {
         return () => {
             stopped = true;
             window.clearTimeout(timer);
+            window.clearTimeout(idleTimer);
+            for (const event of activityEvents) window.removeEventListener(event, onActivity, true);
             document.removeEventListener("visibilitychange", onVisible);
             window.removeEventListener("focus", onFocus);
             window.removeEventListener("storage", onStorage);

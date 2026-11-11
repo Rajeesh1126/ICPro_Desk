@@ -2,18 +2,23 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  type FocusEvent,
   type ReactNode,
 } from "react";
-import { Link as RouterLink, Outlet, useLocation } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
+import { LayoutGroup, motion } from "motion/react";
 import {
   Box,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -47,13 +52,22 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import TuneIcon from "@mui/icons-material/Tune";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import logo from "@/assets/icpro_logo.svg";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 import WorkHistoryOutlinedIcon from "@mui/icons-material/WorkHistoryOutlined";
 import Header from "@/components/appBar/Header";
+import { AnimatedOutlet } from "@/animations/PageTransition";
+import { EASE_OUT, SPRING_SOFT } from "@/animations/presets";
+import { MotionBox } from "@/animations/MotionPrimitives";
 import { preloadRoute } from "@/routes/lazyPages";
 import { useSessionExpiryWatch } from "@/api/session";
+import { getStoredPermissions } from "@/utils/permissions";
 import { useDocumentTitle } from "@/utils/useDocumentTitle";
 import { prefetchTeamSummary } from "@/pages/tickets/teamSummaryQuery";
+import { prefetchTeamPerformance } from "@/pages/tickets/teamPerformanceQuery";
 import { prefetchApi } from "@/api/useApiQuery";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import ErrorPage from "@/pages/ErrorPage";
@@ -69,17 +83,30 @@ import {
   sidebarContent,
   sidebarIcon,
   sidebarItem,
+  sidebarListSx,
+  sidebarRowSx,
   sidebarItemText,
   sidebarNav,
   sidebarPanel,
   sidebarSection,
   sidebarSectionDivider,
+  sidebarActiveIndicatorSx,
+  headerLogoLinkSx,
+  mobileDrawerHeaderSx,
+  mobileDrawerLogoSx,
 } from "@/styles/common";
 
 const sidebarWidth = 265;
 const sidebarCollapsedWidth = 76;
 const sidebarSectionHeight = 22;
 const sidebarOpenKey = "sidebarExpanded";
+
+/** Expand/collapse spring: settles in ~0.3s with no visible overshoot. */
+const sidebarSpring = { type: "spring", stiffness: 380, damping: 40, mass: 0.9 } as const;
+
+/** Hover-peek is for mice only, so a tap never sticks the overlay open. */
+const finePointer = () =>
+  window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 type SidebarPage = {
   label: string;
@@ -102,7 +129,7 @@ const pages: readonly SidebarPage[] = [
     path: "/Home/ICProCalendar",
     icon: <CalendarMonthOutlinedIcon />,
     activeIcon: <CalendarMonthIcon />,
-    codeName: "view_calendarentry",
+    // codeName: "view_calendarentry",
   },
   {
     label: "Do List",
@@ -132,8 +159,8 @@ const pages: readonly SidebarPage[] = [
     label: "Timesheet",
     section: "Timesheet",
     path: "/Home/TimeSheet",
-    icon: <CalendarMonthOutlinedIcon />,
-    activeIcon: <CalendarMonthIcon />,
+    icon: <ScheduleOutlinedIcon />,
+    activeIcon: <ScheduleIcon />,
     codeName: "access_timesheet",
   },
   {
@@ -144,10 +171,18 @@ const pages: readonly SidebarPage[] = [
     activeIcon: <InsightsIcon />,
     codeName: "access_executive_overview",
   },
+  // {
+  //   label: "Dashboard",
+  //   section: "Analysis",
+  //   path: "/Home/Dashboard",
+  //   icon: <GroupsOutlinedIcon />, 
+  //   activeIcon: <GroupsIcon />,
+  //   codeName: "access_team_analysis",
+  // },
   {
     label: "Team Analysis",
     section: "Analysis",
-    path: "/Home/Dashboard",
+    path: "/Home/TeamAnalysis",
     icon: <GroupsOutlinedIcon />,
     activeIcon: <GroupsIcon />,
     codeName: "access_team_analysis",
@@ -229,19 +264,6 @@ const pages: readonly SidebarPage[] = [
   
 ] as const;
 
-function getStoredPermissions(): string[] {
-  try {
-    const value: unknown = JSON.parse(
-      localStorage.getItem("permissions") ?? "[]",
-    );
-    return Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 /** Preload a page's code and, for the busiest dashboard, its default data. */
 function warmRoute(path: string) {
   preloadRoute(path);
@@ -249,6 +271,8 @@ function warmRoute(path: string) {
     void prefetchApi("/erp/quotations/budget-summary/");
   } else if (path === "/Home/Dashboard") {
     void prefetchTeamSummary();
+  } else if (path === "/Home/TeamAnalysis") {
+    void prefetchTeamPerformance();
   } else if (path === "/Home/PhaseConfiguration") {
     void prefetchApi("/erp/cost-categories/");
     void prefetchApi("/phases/");
@@ -273,7 +297,7 @@ export default function HomePage() {
   const location = useLocation();
   const isSidebarLayout = useMediaQuery((theme) => theme.breakpoints.up("md"));
   // the expanded/collapsed choice survives reloads.
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem(sidebarOpenKey) !== "false";
     } catch {
@@ -287,13 +311,16 @@ export default function HomePage() {
       // Storage unavailable (private mode); the default still works.
     }
   }, [desktopSidebarOpen]);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [permissions] = useState<string[]>(getStoredPermissions);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
+  // Collapsed rail temporarily expanded by mouse hover or keyboard focus.
+  const [sidebarPeek, setSidebarPeek] = useState<boolean>(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const [permissions] = useState(getStoredPermissions);
 
   const visiblePages = useMemo(
     () =>
       pages.filter(
-        (page) => !page.codeName || permissions.includes(page.codeName),
+        (page) => !page.codeName || permissions.has(page.codeName),
       ),
     [permissions],
   );
@@ -321,59 +348,74 @@ export default function HomePage() {
     return () => globalThis.clearTimeout(id);
   }, [visiblePages]);
 
-  const sidebar = (
-    <Box sx={sidebarContent}>
-      <List disablePadding>
-        {visiblePages.map((page, index) => {
-          const selected =
-            page.path === "/Home"
-              ? location.pathname === page.path
-              : location.pathname === page.path ||
-                location.pathname.startsWith(`${page.path}/`);
-          const showSectionHeader =
-            page.section && page.section !== visiblePages[index - 1]?.section;
-          return (
-            <Box key={page.path} component="li" sx={listItemReset}>
-              {showSectionHeader && (
-                <Box sx={positionRelativeSx}>
-                  <Typography
-                    component="div"
-                    className="sidebar-section-label"
-                    sx={sidebarSection(sidebarSectionHeight)}
-                  >
-                    {page.section}
-                  </Typography>
-                  <Divider
-                    className="sidebar-section-divider"
-                    sx={sidebarSectionDivider()}
+  // Rendered twice (desktop rail, mobile drawer); each copy gets its own
+  // LayoutGroup so the active indicators never animate across the two.
+  const renderSidebar = (group: string) => (
+    <LayoutGroup id={group}>
+      <Box sx={sidebarContent}>
+        <List disablePadding sx={sidebarListSx}>
+          {visiblePages.map((page, index) => {
+            const selected =
+              page.path === "/Home"
+                ? location.pathname === page.path
+                : location.pathname === page.path ||
+                  location.pathname.startsWith(`${page.path}/`);
+            const showSectionHeader =
+              page.section && page.section !== visiblePages[index - 1]?.section;
+            return (
+              <Box key={page.path} component="li" sx={[listItemReset, positionRelativeSx, sidebarRowSx]}>
+                {showSectionHeader && (
+                  <Box sx={positionRelativeSx}>
+                    <Typography
+                      component="div"
+                      className="sidebar-section-label"
+                      sx={sidebarSection(sidebarSectionHeight)}
+                    >
+                      {page.section}
+                    </Typography>
+                    <Divider
+                      className="sidebar-section-divider"
+                      sx={sidebarSectionDivider()}
+                    />
+                  </Box>
+                )}
+                {/* Accent pill that glides to the newly selected item. */}
+                {selected && (
+                  <Box
+                    component={motion.span}
+                    layoutId="sidebar-active"
+                    transition={SPRING_SOFT}
+                    aria-hidden
+                    sx={sidebarActiveIndicatorSx()}
                   />
-                </Box>
-              )}
-              <ListItemButton
-                component={RouterLink}
-                to={page.path}
-                selected={selected}
-                onMouseEnter={() => warmRoute(page.path)}
-                onFocus={() => warmRoute(page.path)}
-                onTouchStart={() => warmRoute(page.path)}
-                onClick={() => {
-                  if (!isSidebarLayout) setMobileSidebarOpen(false);
-                }}
-                sx={sidebarItem(selected)}
-              >
-                <ListItemIcon sx={sidebarIcon(selected)}>
-                  {selected ? page.activeIcon : page.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={page.label}
-                  sx={sidebarItemText(selected)}
-                />
-              </ListItemButton>
-            </Box>
-          );
-        })}
-      </List>
-    </Box>
+                )}
+                <ListItemButton
+                  component={RouterLink}
+                  to={page.path}
+                  selected={selected}
+                  aria-current={selected ? "page" : undefined}
+                  onMouseEnter={() => warmRoute(page.path)}
+                  onFocus={() => warmRoute(page.path)}
+                  onTouchStart={() => warmRoute(page.path)}
+                  onClick={() => {
+                    if (!isSidebarLayout) setMobileSidebarOpen(false);
+                  }}
+                  sx={sidebarItem(selected)}
+                >
+                  <ListItemIcon sx={sidebarIcon(selected)}>
+                    {selected ? page.activeIcon : page.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={page.label}
+                    sx={sidebarItemText(selected)}
+                  />
+                </ListItemButton>
+              </Box>
+            );
+          })}
+        </List>
+      </Box>
+    </LayoutGroup>
   );
 
   return (
@@ -396,8 +438,24 @@ export default function HomePage() {
         }}
       />
       <Box sx={appShellBody}>
-        <Box
+        <MotionBox
           component="nav"
+          initial={false}
+          animate={{ width: desktopSidebarOpen ? sidebarWidth : sidebarCollapsedWidth }}
+          transition={sidebarSpring}
+          onMouseEnter={() => {
+            if (!desktopSidebarOpen && finePointer()) setSidebarPeek(true);
+          }}
+          onMouseLeave={() => setSidebarPeek(false)}
+          onFocus={(event: FocusEvent<HTMLElement>) => {
+            // Keyboard focus only; a mouse click must not pin the overlay open.
+            if (!desktopSidebarOpen && event.target.matches(":focus-visible")) {
+              setSidebarPeek(true);
+            }
+          }}
+          onBlur={(event: FocusEvent<HTMLElement>) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setSidebarPeek(false);
+          }}
           sx={sidebarNav(
             desktopSidebarOpen,
             sidebarWidth,
@@ -405,8 +463,14 @@ export default function HomePage() {
           )}
           aria-label="Primary navigation"
         >
-          <Box
+          {/* The rail springs open/closed; a collapsed rail peeks open on hover. */}
+          <MotionBox
             className="sidebar-panel"
+            initial={false}
+            animate={{
+              width: desktopSidebarOpen || sidebarPeek ? sidebarWidth : sidebarCollapsedWidth,
+            }}
+            transition={sidebarSpring}
             sx={sidebarPanel(
               desktopSidebarOpen,
               sidebarWidth,
@@ -414,9 +478,9 @@ export default function HomePage() {
               sidebarSectionHeight,
             )}
           >
-            {sidebar}
-          </Box>
-        </Box>
+            {renderSidebar("desktop-sidebar")}
+          </MotionBox>
+        </MotionBox>
         <Drawer
           variant="temporary"
           open={mobileSidebarOpen}
@@ -424,12 +488,49 @@ export default function HomePage() {
           ModalProps={{ keepMounted: true }}
           sx={mobileDrawer}
         >
-          {sidebar}
+          <Box sx={mobileDrawerHeaderSx}>
+            {/* Slides in with the drawer, just behind it. */}
+            <motion.div
+              initial={false}
+              animate={mobileSidebarOpen ? { opacity: 1, x: 0 } : { opacity: 0, x: -12 }}
+              transition={{ duration: 0.3, ease: EASE_OUT, delay: mobileSidebarOpen ? 0.08 : 0 }}
+              style={{ display: "flex" }}
+            >
+              <Box
+                component={RouterLink}
+                to="/Home"
+                aria-label="ICPro home"
+                onClick={() => setMobileSidebarOpen(false)}
+                sx={headerLogoLinkSx}
+              >
+                <Box component="img" src={logo} alt="ICPro" sx={mobileDrawerLogoSx} />
+              </Box>
+            </motion.div>
+            <Tooltip title="Close navigation">
+              <IconButton
+                aria-label="Close navigation"
+                onClick={() => setMobileSidebarOpen(false)}
+              >
+                {/* Turns a quarter as the drawer opens. */}
+                <motion.span
+                  initial={false}
+                  animate={{ rotate: mobileSidebarOpen ? 0 : -90 }}
+                  transition={{ duration: 0.3, ease: EASE_OUT }}
+                  style={{ display: "inline-flex" }}
+                >
+                  <CloseRoundedIcon />
+                </motion.span>
+              </IconButton>
+            </Tooltip>
+          </Box>
+          {renderSidebar("mobile-sidebar")}
         </Drawer>
         <Box
             component="main"
             id="main-content"
+            ref={mainRef}
             tabIndex={-1}
+            aria-label={currentPageLabel}
             sx={appMain}
           >
             {/*
@@ -439,12 +540,19 @@ export default function HomePage() {
               appears on the very first load.
             */}
             <Suspense fallback={<PageLoadingSkeleton />}>
-              <ErrorBoundary
-                key={location.pathname}
-                fallback={<ErrorPage code="generic" />}
-              >
-                <Outlet />
-              </ErrorBoundary>
+              {/* Old page fades out, new one rises in; scroll resets in between. */}
+              <AnimatedOutlet
+                onExitComplete={() => {
+                  mainRef.current?.scrollTo({ top: 0 });
+                  // Keyboard and screen-reader users start on the new page.
+                  mainRef.current?.focus({ preventScroll: true });
+                }}
+                frame={(page) => (
+                  <ErrorBoundary fallback={<ErrorPage code="generic" />}>
+                    {page}
+                  </ErrorBoundary>
+                )}
+              />
             </Suspense>
         </Box>
       </Box>

@@ -21,6 +21,7 @@ import {
 } from "@/styles/dialog";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 
+/** Confirm Dialog Props declaration used across the frontend. */
 export type ConfirmDialogProps = {
   open: boolean;
   title: string;
@@ -36,6 +37,8 @@ export type ConfirmDialogProps = {
   onConfirm: () => void | Promise<void>;
 };
 
+// Shared confirmation surface for destructive or otherwise consequential actions.
+// Callers provide the message, optional form content, and the async-safe confirm handler.
 export default function ConfirmDialog({
   open,
   title,

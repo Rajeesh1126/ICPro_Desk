@@ -1,3 +1,4 @@
+// Keeps notification delivery independent from React components and API modules.
 let showNotificationCallback:
     | ((
           message: string,
@@ -5,6 +6,7 @@ let showNotificationCallback:
       ) => void)
     | null = null;
 
+// Connects the global service to the notification provider mounted by the app.
 export const registerNotificationHandler = (
     callback: (
         message: string,
@@ -14,6 +16,7 @@ export const registerNotificationHandler = (
     showNotificationCallback = callback;
 };
 
+// Requests a toast notification without requiring callers to know its UI implementation.
 export const showNotification = ({
     message,
     type = "success",

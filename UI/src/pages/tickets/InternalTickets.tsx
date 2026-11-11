@@ -1,5 +1,6 @@
+import { loggedUser } from "@/utils/currentUser";
 import { useCallback, useMemo, useState } from "react";
-import { isOverdueTicket } from "@/utils/ticketDue";
+import { isOverdueTicket, ticketTabEmptyDescription } from "@/utils/ticketDue";
 import {
   Box,
   Button,
@@ -43,7 +44,7 @@ import type {
   UserSummary,
 } from "@/types/dataTypes";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
-import { buildTicketCollections } from "@/pages/tickets/ticketCollections";
+import { buildTicketCollections, isBoardTicket } from "@/pages/tickets/ticketCollections";
 import { useSessionState, WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
 import {
   buttonLabelCompact,
@@ -55,13 +56,13 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
-  viewEnterSx,
   workLetEmptyIconSx,
   workLetEmptySx,
   workLetEmptyTextSx,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
-import { viewToggleAction } from "@/components/common/headerActions";
+import { overdueFilterAction, overdueJumpAction, viewToggleAction } from "@/components/common/headerActions";
+import { ContentSwap, StaggerContainer } from "@/animations/MotionPrimitives";
 
 type CurrentUserGroupsResponse = {
   departments?: groupData[];
@@ -71,25 +72,19 @@ type CurrentUserGroupsResponse = {
 };
 
 
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 
 export default function InternalTickets() {
   const userId = useMemo(() => loggedUser(), []);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [createTargetDate, setCreateTargetDate] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<boolean>(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [view, setView] = useSessionState<PageView>(
     WORK_ITEM_VIEW_SESSION_KEY,
     "calendar",
     (value): value is PageView => WORK_LET_VIEWS.includes(value as PageView),
   );
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState<number>(0);
   // List-only tabs are unavailable on the board; remember where the user was.
   const [tableTabBeforeBoard, setTableTabBeforeBoard] = useState<number | null>(null);
   // Reference data, cached and shared with other pages using the same endpoint.
@@ -178,6 +173,17 @@ export default function InternalTickets() {
       tickets.closed,
     ][tabValue] ?? tickets.all;
   const activeRows = rowsForTab;
+  // "Overdue" narrows Board and List, and jumps to the date in the Calendar.
+  const [overdueJump, setOverdueJump] = useState<number>(0);
+  const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const overdueRows = useMemo(
+    () =>
+      activeRows.filter(
+        (ticket) => isOverdueTicket(ticket) && (view !== "card" || isBoardTicket(ticket)),
+      ),
+    [activeRows, view],
+  );
+  const listRows = overdueOnly ? overdueRows : activeRows;
   const canOpenCreate = canCreateInternalTicket && reportees.length > 0 && departments.length > 0;
   const changeView = (next: PageView) => {
     setView(next);
@@ -192,7 +198,7 @@ export default function InternalTickets() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Work Let"
           subtitle="Your team's internal tickets: raise them for immediate reportees and track them to completion."
@@ -205,7 +211,8 @@ export default function InternalTickets() {
                   title={
                     canOpenCreate
                       ? "Create internal ticket"
-                      : "Internal tickets require a managed department and immediate reportees"
+                      : "Internal ticket cannot be created as there are currently no employees reporting to you."
+                      // "Internal tickets require a managed department and immediate reportees"
                   }
                 >
                   <span>
@@ -222,6 +229,11 @@ export default function InternalTickets() {
                 </Tooltip>
               ),
             },
+            view === "calendar"
+              ? overdueJumpAction("ticket", overdueRows.length, () => setOverdueJump((jump) => jump + 1))
+              : overdueFilterAction("ticket", overdueRows.length, overdueOnly, () =>
+                  setOverdueOnly((current) => !current),
+                ),
             viewToggleAction<PageView>(WORK_LET_VIEWS, view, changeView),
           ]}
         />
@@ -269,9 +281,10 @@ export default function InternalTickets() {
         )}
 
 
-        <Box key={view} sx={[tablePageContent, viewEnterSx]}>
+        <ContentSwap key={view} appear swapKey={tabValue} sx={tablePageContent}>
           {view === "calendar" ? (
             <TicketCalendar
+              overdueJump={overdueJump}
               tickets={activeRows}
               loading={loading}
               error={ticketsQuery.isError}
@@ -291,7 +304,7 @@ export default function InternalTickets() {
               </Typography>
               {createAccessChecked && canOpenCreate && (
                 <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
-                  Create internal ticket
+                  New Internal Ticket
                 </Button>
               )}
             </Box>
@@ -299,14 +312,15 @@ export default function InternalTickets() {
             <TableLoadingState variant="cards" label="Loading tickets" />
           ) : view === "card" ? (
             <TicketCardView
-              data={activeRows}
+              data={listRows}
               onCardClick={openDetails}
               cardType="Ticket"
+              overdueOnly={overdueOnly}
             />
           ) : (
             <VirtualizedTable
               columns={columns}
-              rows={activeRows}
+              rows={listRows}
               height="100%"
               getRowSx={(row) =>
                 row.alarm === true
@@ -317,9 +331,10 @@ export default function InternalTickets() {
               }
               tableHead="Internal tickets"
               loading={loading}
-              emptyTitle="No tickets in this view"
-              emptyDescription="Tickets you create or are assigned will appear here."
-              hideSearch
+              emptyTitle={overdueOnly ? "No overdue tickets" : "No tickets in this view"}
+              emptyDescription={
+                overdueOnly ? "Turn off Overdue to see every ticket." : ticketTabEmptyDescription(tabValue)
+              }
               fitContent
               hiddenColumns={hiddenColumns}
               headerAction={
@@ -331,8 +346,8 @@ export default function InternalTickets() {
               }
             />
           )}
-        </Box>
-      </Box>
+        </ContentSwap>
+      </StaggerContainer>
 
       {!selectedRow && !editing && (
         <CreateTicketModal
@@ -350,6 +365,7 @@ export default function InternalTickets() {
           open={dialogOpen}
           onClose={closeDialog}
           data={selectedRow}
+          onEdit={openEdit}
         />
       )}
       {selectedRow && editing && (

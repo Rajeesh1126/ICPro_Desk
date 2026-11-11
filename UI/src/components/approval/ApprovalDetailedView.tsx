@@ -1,15 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Dialog, Typography } from "@mui/material";
-import { insetSx } from "@/styles/tokens";
-import { VirtualizedTable } from "@/components/common/TableView";
+import { Dialog, DialogContent, useMediaQuery, useTheme } from "@mui/material";
 import type { ApprovalRow, TaskRow } from "@/types/dataTypes";
 import api from "@/api/axios";
 import {
   approveDetailDialogPaperSx,
-  approvalLoadingSx,
-  approvalLoadingTextSx,
-  approvalTableAreaSx,
-  fullHeightSx,
 } from "@/styles/common";
 import { useNotification } from "@/context/notificationContext";
 import {
@@ -17,46 +11,63 @@ import {
   buildWeekDays,
   getActionRating,
   getDayTotals,
-  getVisibleRows,
+  getReviewSummary,
   groupApprovalRows,
   setRowRating,
-  toggleId,
   type ApprovalAction,
   type ApprovalDetailResponse,
 } from "@/components/approval/detail/approvalData";
-import { useApprovalColumns } from "@/components/approval/detail/useApprovalColumns";
-import { ApprovalTotalsRow } from "@/components/approval/detail/ApprovalTableCells";
-import { ApprovalComments, ApprovalDetailHeader } from "@/components/approval/detail/ApprovalDetailSections";
-import RejectReasonDialog from "@/components/approval/detail/RejectReasonDialog";
+import ApprovalWeekBoard from "@/components/approval/detail/ApprovalWeekBoard";
+import {
+  ApprovalComments,
+  ApprovalDetailHeader,
+  REVIEW_DIALOG_LABEL,
+} from "@/components/approval/detail/ApprovalDetailSections";
+import ReviewSummary from "@/components/approval/detail/ReviewSummary";
 
 interface ApprovalDetailedViewProps {
   open: boolean;
   employee: ApprovalRow | null;
   onClose: () => void;
   weekStart: string;
+  /** The team list, for moving between employees without closing. */
+  employees?: ApprovalRow[];
+  onEmployeeChange?: (employee: ApprovalRow) => void;
 }
 
-const TABLE_MIN_WIDTH = 1480;
+/** After a decision, keyboard focus moves on to the next task still to review. */
+function focusNextReviewable(rowId: number) {
+  const rows = [...document.querySelectorAll<HTMLElement>("[data-review-task]")];
+  const index = rows.findIndex((row) => row.dataset.reviewTask === String(rowId));
+  const next = [...rows.slice(index + 1), ...rows.slice(0, index)].find(
+    (row) => row.dataset.reviewable === "true",
+  );
+  next?.querySelector<HTMLElement>('[role="combobox"], button:not(:disabled)')?.focus();
+}
 
 /**
- * One employee's week for approval: hours per job and task, a rating per
- * task, and accept / reject actions. Grouping, totals and rating rules live
- * in ./detail/approvalData.
+ * One employee's week for approval: a one-line summary, then every job's tasks
+ * as single-line table rows with a rating and accept / reject. Grouping, totals
+ * and rating rules live in ./detail/approvalData; the rows in ApprovalWeekBoard.
  */
-const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, employee, onClose, weekStart }) => {
+const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({
+  open,
+  employee,
+  onClose,
+  weekStart,
+  employees = [],
+  onEmployeeChange,
+}) => {
   const { showNotification } = useNotification();
+  const theme = useTheme();
+  const phone = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
-  const [expandedProjects, setExpandedProjects] = useState<number[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [comments, setComments] = useState("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [comments, setComments] = useState<string>("");
   const [updating, setUpdating] = useState<{ rowId: number; action: ApprovalAction } | null>(null);
-  // `key` remounts the reject dialog per task so its field starts fresh.
-  const [rejecting, setRejecting] = useState<{ row: TaskRow | null; open: boolean; key: number }>({
-    row: null,
-    open: false,
-    key: 0,
-  });
+  // The task whose inline reject panel is open.
+  const [rejecting, setRejecting] = useState<TaskRow | null>(null);
 
   const days = useMemo(() => buildWeekDays(weekStart), [weekStart]);
 
@@ -70,6 +81,7 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
     setLoading(true);
     setTasks([]);
     setComments("");
+    setRejecting(null);
     void api
       .get<ApprovalDetailResponse>("/approval-detail-data/", {
         params: { weekStart, employeeId: employee.id },
@@ -77,15 +89,12 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
       })
       .then((response) => {
         if (!active) return;
-        const { rows, projectIds } = groupApprovalRows(response.data?.rows || []);
         setComments(response.data?.comments || "");
-        setTasks(rows);
-        setExpandedProjects(projectIds);
+        setTasks(groupApprovalRows(response.data?.rows || []));
       })
       .catch(() => {
         if (active) {
           setTasks([]);
-          setExpandedProjects([]);
           setComments("");
         }
       })
@@ -99,12 +108,8 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
     };
   }, [open, employee?.id, weekStart]);
 
-  const visibleTasks = useMemo(() => getVisibleRows(tasks, expandedProjects), [tasks, expandedProjects]);
   const totals = useMemo(() => getDayTotals(tasks, days.length), [tasks, days.length]);
-
-  const handleToggleProject = useCallback((projectId: number) => {
-    setExpandedProjects((previous) => toggleId(previous, projectId));
-  }, []);
+  const summary = useMemo(() => getReviewSummary(tasks, totals), [tasks, totals]);
 
   const handleRatingChange = useCallback((rowId: number, rating: string) => {
     setTasks((previous) => setRowRating(previous, rowId, rating));
@@ -144,42 +149,44 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
     [employee?.id, weekStart, comments, updating, showNotification],
   );
 
-  const handleAccept = useCallback((row: TaskRow) => void submitAction(row, "Accepted"), [submitAction]);
+  const handleAccept = useCallback(
+    (row: TaskRow) => {
+      void submitAction(row, "Accepted").then((saved) => {
+        if (saved) focusNextReviewable(row.id);
+      });
+    },
+    [submitAction],
+  );
 
-  const openRejectDialog = useCallback((row: TaskRow) => {
-    setRejecting((current) => ({ row, open: true, key: current.key + 1 }));
-  }, []);
-
-  const closeRejectDialog = useCallback(() => {
-    setRejecting((current) => ({ ...current, open: false }));
-  }, []);
+  const cancelReject = useCallback(() => {
+    const rowId = rejecting?.id;
+    setRejecting(null);
+    // Back to the Reject button that opened the panel.
+    window.setTimeout(() => {
+      document
+        .querySelector<HTMLElement>(`[data-review-task="${rowId}"] [data-reject-button]`)
+        ?.focus();
+    });
+  }, [rejecting?.id]);
 
   const submitReject = useCallback(
     async (reason: string) => {
-      if (!rejecting.row) return;
-      if (await submitAction(rejecting.row, "Rejected", reason)) closeRejectDialog();
+      if (!rejecting) return;
+      if (await submitAction(rejecting, "Rejected", reason)) {
+        setRejecting(null);
+        focusNextReviewable(rejecting.id);
+      }
     },
-    [rejecting.row, submitAction, closeRejectDialog],
-  );
-
-  const columns = useApprovalColumns({
-    days,
-    expandedProjects,
-    onToggleProject: handleToggleProject,
-    onRatingChange: handleRatingChange,
-    onAccept: handleAccept,
-    onReject: openRejectDialog,
-    updating,
-  });
-
-  const footerContent = useCallback(
-    () => <ApprovalTotalsRow columns={columns} days={days} totals={totals} />,
-    [columns, days, totals],
+    [rejecting, submitAction],
   );
 
   if (!employee) {
     return null;
   }
+
+  const position = employees.findIndex((row) => row.id === employee.id);
+  const previous = position > 0 ? employees[position - 1] : undefined;
+  const next = position >= 0 ? employees[position + 1] : undefined;
 
   return (
     <>
@@ -187,64 +194,66 @@ const ApprovalDetailedView: React.FC<ApprovalDetailedViewProps> = ({ open, emplo
         open={open}
         onClose={onClose}
         fullWidth
+        // Phones get the whole screen for the rows.
+        fullScreen={phone}
         maxWidth={false}
+        aria-labelledby={REVIEW_DIALOG_LABEL}
         PaperProps={{
           sx: () => ({
-            ...approveDetailDialogPaperSx,
-            height: "min(92dvh, 760px)",
+            ...(phone ? {} : approveDetailDialogPaperSx),
+            // Tall on purpose: long weeks should show as many rows as fit.
+            height: phone ? "100%" : "92dvh",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
           }),
         }}
       >
-        <ApprovalDetailHeader employee={employee} onClose={onClose} />
+        <ApprovalDetailHeader
+          employee={employee}
+          weekStart={weekStart}
+          onClose={onClose}
+          onPrevious={previous && onEmployeeChange ? () => onEmployeeChange(previous) : undefined}
+          onNext={next && onEmployeeChange ? () => onEmployeeChange(next) : undefined}
+        />
 
-        <Box
+        {/* Padding comes from the theme's MuiDialogContent. */}
+        <DialogContent
           sx={(theme) => ({
             flex: 1,
             minHeight: 0,
             display: "flex",
             flexDirection: "column",
-            gap: 1.5,
-            ...insetSx,
-            overflow: "hidden",
+            gap: 1,
+            // One scroll for the summary and jobs: nothing is squeezed into a
+            // small inner scroller on short screens.
+            overflowY: "auto",
             backgroundColor: theme.palette.background.default,
           })}
         >
-          {loading ? (
-            <Box sx={approvalLoadingSx}>
-              <Typography sx={approvalLoadingTextSx}>Loading...</Typography>
-            </Box>
-          ) : (
-            <Box sx={approvalTableAreaSx}>
-              <Box sx={fullHeightSx}>
-                <VirtualizedTable<TaskRow>
-                  columns={columns}
-                  rows={visibleTasks}
-                  tableHead="Submitted Data"
-                  height="100%"
-                  tableMinWidth={TABLE_MIN_WIDTH}
-                  fixedFooterContent={footerContent}
-                  stickyFirstColumn
-                />
-              </Box>
-            </Box>
-          )}
+          {/* The week in one line: total, stats and review progress. */}
+          <ReviewSummary summary={summary} dayCount={days.length} loading={loading} />
+          {/* Above the rows, so it is read before deciding on a long week. */}
           <ApprovalComments comments={comments} />
-        </Box>
-      </Dialog>
 
-      <RejectReasonDialog
-        key={rejecting.key}
-        open={rejecting.open}
-        taskName={rejecting.row?.task}
-        initialReason={rejecting.row?.rejectionReason || ""}
-        busy={updating !== null}
-        onCancel={closeRejectDialog}
-        onSubmit={(reason) => void submitReject(reason)}
-        onMissingReason={() => showNotification("Please enter a rejection reason.", "warning")}
-      />
+          {/* Every job's tasks, always shown, one line per task. */}
+          <ApprovalWeekBoard
+            rows={tasks}
+            days={days}
+            dayTotals={totals}
+            loading={loading}
+            employeeName={employee.name}
+            onRatingChange={handleRatingChange}
+            onAccept={handleAccept}
+            onReject={setRejecting}
+            rejectingId={rejecting?.id ?? null}
+            onCancelReject={cancelReject}
+            onSubmitReject={(reason) => void submitReject(reason)}
+            onMissingReason={() => showNotification("Please enter a rejection reason.", "warning")}
+            updating={updating}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

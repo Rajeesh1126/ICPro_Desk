@@ -29,9 +29,6 @@ export function formatHoursMinutes(seconds: number) {
   return `${hours}.${String(minutes).padStart(2, "0")}`;
 }
 
-/** Same value as a number (legacy callers that call `.toFixed(2)`). */
-export const hoursMinutesValue = (seconds: number) => Number(formatHoursMinutes(seconds));
-
 /** Unambiguous words, e.g. "7 h 30 m", "45 h", "30 m", "0 h". */
 export function describeHoursMinutes(seconds: number) {
   const { hours, minutes } = split(seconds);

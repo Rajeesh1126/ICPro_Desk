@@ -8,6 +8,7 @@ export type BaseView = "table" | "card";
 /** All views; "calendar" is a capability only the Tickets page opts into. */
 export type PageView = BaseView | "calendar";
 
+/** VIEW_META declaration used across the frontend. */
 export const VIEW_META: Record<PageView, { label: string; icon: ReactNode }> = {
   table: { label: "List", icon: <TableRowsOutlinedIcon /> },
   card: { label: "Board", icon: <ViewKanbanOutlinedIcon /> },

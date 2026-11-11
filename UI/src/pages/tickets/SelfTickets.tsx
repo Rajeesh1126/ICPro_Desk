@@ -1,5 +1,4 @@
-import { selfTicketDisplayDueDate } from "@/components/selfTickets/highlight";
-import { isSelfTicketEditDisabled } from "@/utils/ticketEdit";
+import { loggedUser } from "@/utils/currentUser";
 import { useCallback, useMemo, useState } from "react";
 import {
   Box,
@@ -12,11 +11,8 @@ import {
   Tab,
   Tabs,
   Tooltip,
-  Typography,
 } from "@mui/material";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
-import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
@@ -30,20 +26,24 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CreateSelfTicketModel from "@/components/selfTickets/CreateModel";
 import TicketCardView from "@/components/common/CardView";
 import {
-  DueDateCell,
   RecordNumberCell,
   TicketCalendar,
   type PageView,
 } from "@/components/common/TicketPageParts";
-
-const DO_LIST_VIEWS: readonly PageView[] = ["calendar", "card", "table"];
 import TableLoadingState from "@/components/common/TableLoadingState";
 import {
-  getReminderState,
   getSelfTicketAlertReason,
   isSelfTicketOverdue,
+  selfTicketDisplayDueDate,
   shouldBlinkSelfTicket,
 } from "@/components/selfTickets/highlight";
+import {
+  expandOccurrences,
+  scheduleAgendaMeta,
+  sourceTask,
+} from "@/components/selfTickets/schedule";
+import { selfTicketListColumns } from "@/components/selfTickets/listColumns";
+import { isSelfTicketEditDisabled, selfTicketEditDisabledReason } from "@/utils/ticketEdit";
 import type {
   SelfTicketCollections,
   SelfTicketData,
@@ -56,7 +56,6 @@ import SelfTicketDetailModel from "@/components/selfTickets/DetailModel";
 import {
   filterField,
   headerFilterFieldSx,
-  inlineCenterGapSx,
   page,
   pageContent,
   priorityAlarmRowHighlight,
@@ -64,30 +63,25 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
-  viewEnterSx,
 } from "@/styles/common";
+import { ContentSwap } from "@/animations/MotionPrimitives";
 import PageHeader from "@/components/common/PageHeader";
-import { viewToggleAction } from "@/components/common/headerActions";
+import { overdueFilterAction, overdueJumpAction, viewToggleAction } from "@/components/common/headerActions";
 
+const DO_LIST_VIEWS: readonly PageView[] = ["calendar", "card", "table"];
 
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 
 export default function SelfTickets() {
   const userId = useMemo(() => loggedUser(), []);
-  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedUser, setSelectedUser] = useState<string>("");
   const [view, setView] = useSessionState<PageView>(
     WORK_ITEM_VIEW_SESSION_KEY,
     "calendar",
     (value): value is PageView => DO_LIST_VIEWS.includes(value as PageView),
   );
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [createTargetDate, setCreateTargetDate] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<boolean>(false);
   const [selectedRow, setSelectedRow] = useState<SelfTicketData | null>(null);
   const [tabValue, setTabValue] = useSessionState(
     "do-list:tab",
@@ -96,7 +90,7 @@ export default function SelfTickets() {
   );
   const [acknowledgeTarget, setAcknowledgeTarget] =
     useState<SelfTicketData | null>(null);
-  const [acknowledging, setAcknowledging] = useState(false);
+  const [acknowledging, setAcknowledging] = useState<boolean>(false);
 
   // Cached Do List: both tabs come from one response, and a return visit
   // renders immediately while refreshing in the background.
@@ -178,88 +172,40 @@ export default function SelfTickets() {
   }, [acknowledgeTarget]);
 
   const columns = useMemo<ColumnData<SelfTicketData>[]>(
-    () => [
-      { label: "Schedule", width: 140, render: (row) => row.schedule_type === "recurring" ? "Recurring" : row.schedule_type === "period" ? "Continuous Period" : "Static Event" },
-
-      {
-        label: "Task Number",
-        // This cell contains three action icons and the task number. Reserve
-        // enough fixed-table width for an active reminder bell as well.
-        width: 250,
-        render: (row) => (
-          <RecordNumberCell
-            number={row.number}
-            editTitle="Edit task"
-            editDisabled={isSelfTicketEditDisabled(row, userId)}
-            onView={() => openDetails(row)}
-            onEdit={() => openEdit(row)}
-          >
-            {row.alarm && row.current_status === "open" && row.creator === userId && (
-              <Tooltip title="Acknowledge reminder: marks it as seen and clears the alert">
-                <IconButton
-                  aria-label={`Acknowledge reminder ${row.number}`}
-                  color="warning"
-                  onClick={() => requestAcknowledgeAlarm(row)}
-                >
-                  <NotificationsActiveOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </RecordNumberCell>
-        ),
-      },
-      { label: "Subject", dataKey: "task", width: 'auto' },
-      { label: "Owner", dataKey: "creator_name" },
-      { label: "Status", dataKey: "current_status", width: 120 },
-      {
-        label: "Due Date",
-        dataKey: "target_date",
-        render: (row) => (
-          <DueDateCell
-            date={selfTicketDisplayDueDate(row)}
-            overdue={getSelfTicketAlertReason(row) === "target-date"}
-          />
-        ),
-        minWidth: 'auto'
-      },
-      { label: "Priority", dataKey: "priority", width: 90, },
-      { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
-      {
-        label: "Reminder",
-        width: 130,
-        render: (row) => {
-          const reminder = getReminderState(row);
-          if (reminder === "active") {
-            return (
-              <Box sx={inlineCenterGapSx}>
-                <NotificationsActiveOutlinedIcon color="warning" fontSize="small" aria-hidden="true" />
-                <Typography color="warning.main" fontWeight={600} fontSize={13.5}>
-                  Active
-                </Typography>
-              </Box>
-            );
-          }
-          if (reminder === "scheduled") {
-            return (
-              <Box sx={inlineCenterGapSx}>
-                <NotificationsNoneOutlinedIcon fontSize="small" aria-hidden="true" />
-                <Typography fontSize={13.5}>
-                  {row.reminder_mode === "before_due" ? `${row.reminder_days_before} days before due` : `Every ${row.reminder_interval} day${row.reminder_interval === 1 ? "" : "s"}`}
-                </Typography>
-              </Box>
-            );
-          }
-          return (
-            <Box sx={inlineCenterGapSx}>
-              <NotificationsOffOutlinedIcon color="disabled" fontSize="small" aria-hidden="true" />
-              <Typography color="text.secondary" fontSize={13.5}>
-                Off
-              </Typography>
-            </Box>
-          );
+    () =>
+      selfTicketListColumns({
+        numberColumn: {
+          label: "Task Number",
+          // This cell contains three action icons and the task number. Reserve
+          // enough fixed-table width for an active reminder bell as well.
+          width: 250,
+          render: (row) => (
+            <RecordNumberCell
+              number={row.number}
+              editTitle={selfTicketEditDisabledReason(row, userId) ?? "Edit task"}
+              editDisabled={isSelfTicketEditDisabled(row, userId)}
+              onView={() => openDetails(row)}
+              onEdit={() => openEdit(row)}
+            >
+              {row.alarm && row.current_status === "open" && row.creator === userId && (
+                <Tooltip title="Acknowledge reminder: marks it as seen and clears the alert">
+                  <IconButton
+                    aria-label={`Acknowledge reminder ${row.number}`}
+                    color="warning"
+                    onClick={() => requestAcknowledgeAlarm(row)}
+                  >
+                    <NotificationsActiveOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </RecordNumberCell>
+          ),
         },
-      },
-    ],
+        dueDate: (row) => ({
+          date: selfTicketDisplayDueDate(row),
+          overdue: getSelfTicketAlertReason(row) === "target-date",
+        }),
+      }),
     [requestAcknowledgeAlarm, userId, openDetails, openEdit],
   );
 
@@ -281,6 +227,22 @@ export default function SelfTickets() {
     [activeRows, selectedUser],
   );
 
+  // "Overdue" narrows Board and List, and jumps to the date in the Calendar.
+  const [overdueJump, setOverdueJump] = useState<number>(0);
+  const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const overdueRows = useMemo(
+    () => filteredRows.filter((ticket) => isSelfTicketOverdue(ticket)),
+    [filteredRows],
+  );
+  const listRows = overdueOnly ? overdueRows : filteredRows;
+
+  // Calendar: one item per recurring occurrence, on its own day.
+  const calendarRows = useMemo(() => expandOccurrences(filteredRows), [filteredRows]);
+  const calendarOverdueCount = useMemo(
+    () => calendarRows.filter((ticket) => isSelfTicketOverdue(ticket)).length,
+    [calendarRows],
+  );
+
   return (
     <Box sx={page}>
       <Box sx={pageContent}>
@@ -297,6 +259,7 @@ export default function SelfTickets() {
                 <FormControl sx={[filterField, headerFilterFieldSx]}>
                   <InputLabel>Employee</InputLabel>
                   <Select
+                    inputProps={{ "aria-label": "Employee" }}
                     value={selectedUser}
                     label="Employee"
                     onChange={(event) => setSelectedUser(event.target.value)}
@@ -326,6 +289,11 @@ export default function SelfTickets() {
                 </Button>
               ),
             },
+            view === "calendar"
+              ? overdueJumpAction("task", calendarOverdueCount, () => setOverdueJump((jump) => jump + 1))
+              : overdueFilterAction("task", overdueRows.length, overdueOnly, () =>
+                  setOverdueOnly((current) => !current),
+                ),
             viewToggleAction<PageView>(DO_LIST_VIEWS, view, setView),
           ]}
         />
@@ -355,18 +323,16 @@ export default function SelfTickets() {
           </Tabs>
         </Box>
 
-        <Box key={view} sx={[tablePageContent, viewEnterSx]}>
+        <ContentSwap key={view} appear swapKey={tabValue} sx={tablePageContent}>
           {view === "calendar" ? (
             <TicketCalendar
-              tickets={filteredRows.flatMap((task) => task.schedule_type === "recurring"
-                ? (task.occurrences ?? []).map((occurrence) => ({
-                    ...task, id: -occurrence.id, target_date: occurrence.scheduled_date,
-                    current_status: occurrence.current_status, alarm: occurrence.alarm, occurrences: [occurrence],
-                  }))
-                : [task])}
+              overdueJump={overdueJump}
+              tickets={calendarRows}
               loading={loading}
               error={ticketsQuery.isError}
-              onOpen={(task) => openDetails(filteredRows.find((row) => row.number === task.number) ?? task)}
+              // A recurring occurrence opens its whole task (all occurrences).
+              onOpen={(task) => openDetails(sourceTask(filteredRows, task))}
+              agendaMetaOf={scheduleAgendaMeta}
               onCreate={openCreateForDate}
               noun="task"
               personOf={(task) => task.creator_name}
@@ -376,17 +342,19 @@ export default function SelfTickets() {
             <TableLoadingState variant="cards" label="Loading tasks" />
           ) : view === "card" ? (
             <TicketCardView
-              data={filteredRows}
+              data={listRows}
               onCardClick={openDetails}
               cardType="Self"
+              overdueOnly={overdueOnly}
               onAcknowledgeAlarm={requestAcknowledgeAlarm}
             />
           ) : (
             <VirtualizedTable
               columns={columns}
-              rows={filteredRows}
+              rows={listRows}
               height="100%"
-              tableMinWidth="100%"
+              // Every task on My Do List is the user's own: Owner only matters for the team.
+              hiddenColumns={tabValue === 0 ? ["Owner"] : undefined}
               getRowSx={(row) =>
                 row.alarm === true
                   ? priorityAlarmRowHighlight()
@@ -397,11 +365,15 @@ export default function SelfTickets() {
               tableHead="Tasks"
               fitContent
               loading={loading}
-              emptyTitle="No tasks in this view"
-              emptyDescription="Add a task or reminder to start your Do List."
+              emptyTitle={overdueOnly ? "No overdue tasks" : "No tasks in this view"}
+              emptyDescription={
+                overdueOnly
+                  ? "Turn off Overdue to see every task."
+                  : "Add a task or reminder to start your Do List."
+              }
             />
           )}
-        </Box>
+        </ContentSwap>
       </Box>
 
       {!selectedRow && !editing && (

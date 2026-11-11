@@ -31,10 +31,10 @@ export default function HoursInput({
   ariaLabel,
   sx,
 }: HoursInputProps) {
-  const [focused, setFocused] = useState(false);
+  const [focused, setFocused] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   // Always controlled: hover/focus opens it, and an error forces it open.
-  const [hintOpen, setHintOpen] = useState(false);
+  const [hintOpen, setHintOpen] = useState<boolean>(false);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);

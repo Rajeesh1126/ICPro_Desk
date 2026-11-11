@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
-import { PriorityPill, StatusPill } from "@/components/common/StatusPill";
 import { Box } from "@mui/material";
 import { formatDecimalHours } from "@/utils/hoursMinutes";
 import { twoLineClampSx } from "@/styles/common";
 
 /**
- * How a table column shows its raw value:
- * - "status": the shared status pill
- * - "priority": the shared priority pill
+ * How a table column shows its raw value as text:
  * - "label": a fixed API value ("action", "TEMPLATE") in sentence case
  * - "hours": decimal hours as "2 h 30 m", right-aligned
  * Anything else is shown exactly as stored (no forced capitalisation).
+ * Pills (status, priority, tags) are never automatic: a column draws one
+ * itself with `render: (row) => <Pill value=… color=… />`.
  */
-export type CellFormat = "status" | "priority" | "label" | "hours";
+export type CellFormat = "label" | "hours";
 
+/** Column Align declaration used across the frontend. */
 export type ColumnAlign = "left" | "center" | "right";
 
 type FormattableColumn<T> = {
@@ -28,12 +28,9 @@ type FormattableColumn<T> = {
   render?: (row: T, index: number) => ReactNode;
 };
 
-/** Explicit `format`, else inferred from the common "Status" / "Priority" labels. */
+/** The column's explicit text `format` (nothing is inferred from labels). */
 export function columnFormat<T>(column: FormattableColumn<T>): CellFormat | undefined {
-  if (column.format) return column.format;
-  if (column.label === "Status") return "status";
-  if (column.label === "Priority") return "priority";
-  return undefined;
+  return column.format;
 }
 
 /**
@@ -46,6 +43,7 @@ export function columnAlign<T>(column: FormattableColumn<T>): ColumnAlign {
   return column.numeric || columnFormat(column) === "hours" ? "right" : "left";
 }
 
+/** sentence Case declaration used across the frontend. */
 export const sentenceCase = (value: unknown) => {
   const text = String(value ?? "").trim();
   return text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -62,10 +60,6 @@ export function renderTableCell<T>(
   if (!column.dataKey) return null;
   const value = row[column.dataKey];
   switch (columnFormat(column)) {
-    case "status":
-      return <StatusPill status={value} />;
-    case "priority":
-      return <PriorityPill priority={value} />;
     case "label":
       return sentenceCase(value) || formatPlain(value);
     case "hours":

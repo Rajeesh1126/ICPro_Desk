@@ -18,6 +18,7 @@ type TimeSheetUnlockRequestModalProps = {
   onSubmit: () => void | Promise<void>;
 };
 
+// Collects the reason needed to ask an administrator to reopen a submitted week.
 const TimeSheetUnlockRequestModal: React.FC<
   TimeSheetUnlockRequestModalProps
 > = ({

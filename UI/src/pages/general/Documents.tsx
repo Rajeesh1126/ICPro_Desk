@@ -26,7 +26,7 @@ import { showNotification } from "@/api/notificationService";
 import { formatDateTime } from "@/components/common/formatDate";
 import { getStoredPermissions } from "@/utils/permissions";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 import { TableActionGroup } from "@/components/common/ActionDivider";
 import FileUploadField from "@/components/common/FileUploadField";
 import {
@@ -44,6 +44,7 @@ import {
   documentNameCellSx,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer } from "@/animations/MotionPrimitives";
 
 type DocumentType = "FDS" | "SDS" | "Template" | "Other";
 
@@ -97,14 +98,14 @@ export default function Documents() {
   const canAddDocument = permissions.has("add_documenttemplate");
   const canChangeDocument = permissions.has("change_documenttemplate");
   const canDeleteDocument = permissions.has("delete_documenttemplate");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [form, setForm] = useState<DocumentFormState>(emptyForm);
   const [editingDocument, setEditingDocument] =
     useState<DocumentTemplate | null>(null);
   const [deleteDocument, setDeleteDocument] = useState<DocumentTemplate | null>(
     null,
   );
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
 
   // Cached list: returning to this page shows the last rows immediately and
   // refreshes in the background. Successful saves/deletes refresh it
@@ -112,7 +113,7 @@ export default function Documents() {
   const listQuery = useApiQuery<DocumentTemplate[]>(
     "/documents/document-templates/",
   );
-  console.log(listQuery.data);
+
   const documents = useMemo(
     () => asArray<DocumentTemplate>(listQuery.data),
     [listQuery.data],
@@ -244,7 +245,7 @@ export default function Documents() {
         wrap: true,
       },
       {
-        label: "Orgin",
+        label: "Origin",
         dataKey: "orgin",
         width: 140,
         // format: "label",
@@ -292,23 +293,26 @@ export default function Documents() {
       {
         label: "Updated Date",
         dataKey: "updated_at",
-        width: 140,
+        width: 160,
         render: (row) => formatDateTime(row.updated_at),
       },
       {
         label: "Actions",
-        width: 240,
+        width: 140,
         render: (row) => (
           <TableActionGroup>
-            <Tooltip title="Download document">
-              <Button
-                startIcon={<DownloadOutlinedIcon />}
-                disabled={!row.file}
-                onClick={() => downloadDocument(row)}
-                aria-label={`Download ${row.document_name}`}
-              >
-                Download
-              </Button>
+            {/* Icon button, like the row actions on every other table. */}
+            <Tooltip title={row.file ? "Download document" : "No file uploaded"}>
+              <span>
+                <IconButton
+                  color="primary"
+                  disabled={!row.file}
+                  onClick={() => downloadDocument(row)}
+                  aria-label={`Download ${row.document_name}`}
+                >
+                  <DownloadOutlinedIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
             {canChangeDocument && (
               <Tooltip title="Edit document">
@@ -352,7 +356,7 @@ export default function Documents() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Document Templates"
           subtitle="Manage FDS, SDS and reusable document templates."
@@ -390,7 +394,7 @@ export default function Documents() {
             emptyDescription="Upload an FDS, SDS or template to share it with the team."
           />
         </Box>
-      </Box>
+      </StaggerContainer>
 
       <Dialog
         open={dialogOpen}
@@ -400,7 +404,7 @@ export default function Documents() {
         maxWidth="sm"
       >
         <DialogHeader
-          title={editingDocument ? "Update Document" : "Upload Document"}
+          title={editingDocument ? "Edit Document" : "Upload Document"}
           onClose={discard.requestClose}
         />
         <DialogContent>
@@ -436,7 +440,7 @@ export default function Documents() {
               fullWidth
             />
             <TextField
-              label="orgin"
+              label="Origin"
               value={form.orgin}
               onChange={(event) => updateForm("orgin", event.target.value)}
               fullWidth
@@ -452,6 +456,7 @@ export default function Documents() {
           </Stack>
         </DialogContent>
         <DialogActions>
+          <RequiredFieldsNote />
           <Button
             onClick={submitDocument}
             disabled={saving}
@@ -464,7 +469,7 @@ export default function Documents() {
               )
             }
           >
-            {saving ? "Saving..." : editingDocument ? "Update" : "Submit"}
+            {saving ? "Saving..." : editingDocument ? "Save changes" : "Upload"}
           </Button>
         </DialogActions>
         {discard.dialog}

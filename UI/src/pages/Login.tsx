@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Link as RouterLink, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
-  Box,
   Button,
   Card,
   CardContent,
@@ -18,11 +17,11 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
-import bgImage from "@/assets/taskmanagementloginimage.jpg";
 import api from "@/api/axios";
 import { queryClient } from "@/api/queryClient";
 import { getErrorStatus } from "@/utils/errorUtils";
 import AuthCardHeader from "@/components/common/AuthCardHeader";
+import { AnimatedCollapse, FadeIn, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
 import {
   getSafeReturnTo,
   hasActiveSession,
@@ -31,7 +30,6 @@ import {
   SESSION_EXPIRED_VALUE,
 } from "@/api/session";
 import {
-  authPageBackgroundSx,
   authSubmitButtonSx,
   authCardContentSx,
   authCardSx,
@@ -39,6 +37,7 @@ import {
   authFootnoteSx,
   marginBottomSectionSx,
   authLinkSx,
+  visuallyHiddenSx,
 } from "@/styles/common";
 
 type LoginResponse = {
@@ -59,11 +58,11 @@ export default function Login() {
   useDocumentTitle("Sign in");
   const navigate = useNavigate();
   const location = useLocation();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
   const successMessage =
     typeof location.state === "object" &&
     location.state !== null &&
@@ -129,54 +128,49 @@ export default function Login() {
   }
 
   return (
-    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
-      <Card sx={authCardSx}>
-        <CardContent sx={authCardContentSx}>
+    <Card sx={authCardSx}>
+      <CardContent sx={authCardContentSx}>
+        <FadeIn>
           <AuthCardHeader />
-          {/* <Box sx={authIconBadgeSx}>
-            <LockOutlinedIcon />
-          </Box> */}
-          {/* <Typography variant="h5" component="h1" align="center" sx={authSubtitleSx}>
-            Welcome back
-          </Typography> */}
-          {/* <Typography
-            variant="body2"
-            align="center"
-            color="text.secondary"
-            sx={authSubtitleSx}
-          >
-            Use your Timesheet App credentials to continue.
-          </Typography> */}
+        </FadeIn>
+        {/* The page's heading for screen readers; the logo is the visible title. */}
+        <Typography component="h1" sx={visuallyHiddenSx}>
+          Sign in to ICProDesk
+        </Typography>
 
-          {sessionExpired && !error && (
-            <Alert severity="warning" sx={marginBottomSectionSx}>
-              Your session expired for security. Sign in again
-              {returnTo ? " to return to the page you were on." : " to continue."}
-            </Alert>
-          )}
-          {!sessionExpired && returnTo && !error && (
-            <Alert severity="info" sx={marginBottomSectionSx}>
-              Sign in to continue to the page you requested.
-            </Alert>
-          )}
-          {error && (
-            <Alert severity="error" sx={marginBottomSectionSx}>
-              {error}
-            </Alert>
-          )}
-          {successMessage && (
-            <Alert severity="success" sx={marginBottomSectionSx}>
-              {successMessage}
-            </Alert>
-          )}
+        <AnimatedCollapse show={sessionExpired && !error}>
+          <Alert severity="warning" sx={marginBottomSectionSx}>
+            Your session expired for security. Sign in again
+            {returnTo ? " to return to the page you were on." : " to continue."}
+          </Alert>
+        </AnimatedCollapse>
+        <AnimatedCollapse show={!sessionExpired && Boolean(returnTo) && !error}>
+          <Alert severity="info" sx={marginBottomSectionSx}>
+            Sign in to continue to the page you requested.
+          </Alert>
+        </AnimatedCollapse>
+        <AnimatedCollapse show={Boolean(error)}>
+          <Alert severity="error" sx={marginBottomSectionSx}>
+            {error}
+          </Alert>
+        </AnimatedCollapse>
+        <AnimatedCollapse show={Boolean(successMessage)}>
+          <Alert severity="success" sx={marginBottomSectionSx}>
+            {successMessage}
+          </Alert>
+        </AnimatedCollapse>
 
-          <Box
-            component="form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleLogin();
-            }}
-          >
+        {/* Fields slide in from the left, then the controls rise from below. */}
+        <StaggerContainer
+          component="form"
+          stagger={0.04}
+          delay={0.1}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleLogin();
+          }}
+        >
+          <StaggerItem from="left">
             <TextField
               autoFocus
               fullWidth
@@ -199,6 +193,8 @@ export default function Login() {
               sx={marginBottomSectionSx}
               required
             />
+          </StaggerItem>
+          <StaggerItem from="left">
             <TextField
               fullWidth
               label="Password"
@@ -235,6 +231,8 @@ export default function Login() {
               }}
               required
             />
+          </StaggerItem>
+          <StaggerItem from="up">
             <Button
               fullWidth
               type="submit"
@@ -257,6 +255,8 @@ export default function Login() {
                 "Sign In"
               )}
             </Button>
+          </StaggerItem>
+          <StaggerItem from="up">
             <Typography
               component={RouterLink}
               to="/forgot-password"
@@ -268,6 +268,8 @@ export default function Login() {
             >
               Forgot password?
             </Typography>
+          </StaggerItem>
+          <StaggerItem from="up">
             <Typography
               variant="caption"
               align="center"
@@ -277,9 +279,9 @@ export default function Login() {
             >
               Contact your administrator if you cannot access your account.
             </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+          </StaggerItem>
+        </StaggerContainer>
+      </CardContent>
+    </Card>
   );
 }

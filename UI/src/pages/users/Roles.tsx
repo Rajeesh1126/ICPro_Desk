@@ -39,6 +39,7 @@ import {
   rolesSearchFieldSx,
   rolesSelectFieldSx,
   smUpBlockSx,
+  checkRippleSx,
 } from "@/styles/common";
 import { TableActionGroup } from "@/components/common/ActionDivider";
 import api from "@/api/axios";
@@ -56,6 +57,7 @@ import { showNotification } from "@/api/notificationService";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { getStoredPermissions } from "@/utils/permissions";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer, TabContent } from "@/animations/MotionPrimitives";
 
 const formatPermissionLabel = (permission: permissionData) => {
   const label = permission.name || permission.codename;
@@ -63,6 +65,8 @@ const formatPermissionLabel = (permission: permissionData) => {
   return label
     .replace(/^can\s+access\s+/i, "")
     .replace(/\s+page$/i, "")
+    // The API's permission name is misspelled; show it correctly.
+    .replace(/\bSuggetions\b/i, "Suggestions")
     .trim();
 };
 
@@ -71,15 +75,15 @@ export default function Roles() {
   const canAddRole = storedPermissions.has("add_role");
   const canChangeRole = storedPermissions.has("change_role");
   const canDeleteRole = storedPermissions.has("delete_role");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [editing, setEditing] = useState<boolean>(false);
   const [selectedRow, setSelectedRow] = useState<rolesData | null>(null);
-  const [tabValue, setTabValue] = useState(0);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tabValue, setTabValue] = useState<number>(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [deleteRow, setDeleteRow] = useState<rolesData | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [permissionQuery, setPermissionQuery] = useState("");
-  const [permissionGroup, setPermissionGroup] = useState("all");
+  const [saving, setSaving] = useState<boolean>(false);
+  const [permissionQuery, setPermissionQuery] = useState<string>("");
+  const [permissionGroup, setPermissionGroup] = useState<string>("all");
 
   // Roles and permissions load independently and are cached. The server copy
   // (`savedRoles`) lives in the query cache; checkbox edits go into a local
@@ -225,8 +229,17 @@ export default function Roles() {
     });
   }, [roles, savedRoles]);
 
+  // Role whose "grant all" was just used: its checkboxes tick in a quick
+  // left-to-right ripple instead of all at once.
+  const [rippleRoleId, setRippleRoleId] = useState<number | null>(null);
+
   const handleSelectAllForRole = useCallback(
     (roleId: number, checked: boolean) => {
+      setRippleRoleId(roleId);
+      window.setTimeout(
+        () => setRippleRoleId((current) => (current === roleId ? null : current)),
+        1200,
+      );
       const visiblePermissionIds = visiblePermissions.map(
         (permission) => permission.id,
       );
@@ -332,7 +345,8 @@ export default function Roles() {
   const permissionColumns = useMemo<ColumnData<rolesData>[]>(() => {
     const roleColumn: ColumnData<rolesData> = {
       label: "Roles",
-      width: { xs: 180, sm: 200 },
+      // Wide enough for "Grant all visible · 15 of 15 granted" on one line.
+      width: { xs: 200, sm: 250 },
       render: (row) => {
         const visiblePermissionIds = visiblePermissions.map(
           (permission) => permission.id,
@@ -348,7 +362,7 @@ export default function Roles() {
           <FormControlLabel
             control={
               <Checkbox
-                color="warning"
+                color="primary"
                 slotProps={{
                   input: {
                     "aria-label": `Grant all ${permissionQuery ? "filtered " : ""}permissions to ${row.name}`,
@@ -370,7 +384,8 @@ export default function Roles() {
                 <Typography
                   component="span"
                   variant="caption"
-                  color="warning.dark"
+                  color="text.secondary"
+                  sx={{ whiteSpace: "nowrap" }}
                 >
                   Grant all visible ·{" "}
                   {
@@ -388,7 +403,7 @@ export default function Roles() {
     };
 
     const permissionColumns = visiblePermissions.map(
-      (permission): ColumnData<rolesData> => ({
+      (permission, index): ColumnData<rolesData> => ({
         label: formatPermissionLabel(permission),
         // Wide enough for the longest single word ("CONFIGURATION") once the
         // header wraps.
@@ -401,6 +416,7 @@ export default function Roles() {
               },
             }}
             checked={row.permissions.includes(permission.id)}
+            sx={rippleRoleId === row.id ? checkRippleSx(Math.min(index, 30) * 18) : undefined}
             onChange={(event) =>
               handlePermissionChange(
                 row.id,
@@ -420,6 +436,7 @@ export default function Roles() {
     permissionQuery,
     handleSelectAllForRole,
     handlePermissionChange,
+    rippleRoleId,
   ]);
 
   const saveButton = (
@@ -448,7 +465,7 @@ export default function Roles() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Roles & Permissions"
           subtitle={
@@ -513,7 +530,7 @@ export default function Roles() {
         </Box>
         {tabValue === 0 && (
           <>
-            <Box sx={tablePageContent}>
+            <TabContent sx={tablePageContent}>
               <VirtualizedTable
                 columns={columns}
                 rows={roles}
@@ -523,7 +540,7 @@ export default function Roles() {
                 emptyTitle="No roles yet"
                 emptyDescription="Create a role to start assigning permissions."
               />
-            </Box>
+            </TabContent>
             <RoleModel
               open={dialogOpen}
               editing={editing}
@@ -551,7 +568,7 @@ export default function Roles() {
         )}
         {tabValue === 1 && (
           <>
-            <Box sx={tablePageContent}>
+            <TabContent sx={tablePageContent}>
               <Box
                 sx={rolesFilterBarSx}
               >
@@ -637,7 +654,7 @@ export default function Roles() {
                 stickyFirstColumn
                 loading={rolesLoading}
               />
-            </Box>
+            </TabContent>
             <Box
               sx={rolesMobileActionBarSx}
             >
@@ -645,7 +662,7 @@ export default function Roles() {
             </Box>
           </>
         )}
-      </Box>
+      </StaggerContainer>
     </Box>
   );
 }

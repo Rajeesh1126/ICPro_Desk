@@ -1,5 +1,6 @@
+import { loggedUser } from "@/utils/currentUser";
 import { useCallback, useMemo, useState } from "react";
-import { isOverdueTicket } from "@/utils/ticketDue";
+import { isOverdueTicket, ticketTabEmptyDescription } from "@/utils/ticketDue";
 import {
   Box,
   Button,
@@ -39,7 +40,7 @@ import type {
   TicketData,
 } from "@/types/dataTypes";
 import { useApiQuery } from "@/api/useApiQuery";
-import { buildTicketCollections } from "@/pages/tickets/ticketCollections";
+import { buildTicketCollections, isBoardTicket } from "@/pages/tickets/ticketCollections";
 import { useSessionState, WORK_ITEM_VIEW_SESSION_KEY } from "@/utils/useSessionState";
 import {
   page,
@@ -49,24 +50,18 @@ import {
   tabs,
   tabsContainer,
   tablePageContent,
-  viewEnterSx,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
-import { viewToggleAction } from "@/components/common/headerActions";
+import { overdueFilterAction, overdueJumpAction, viewToggleAction } from "@/components/common/headerActions";
+import { ContentSwap, StaggerContainer } from "@/animations/MotionPrimitives";
 
 
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 
 export default function Tickets() {
   const userId = useMemo(() => loggedUser(), []);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [createTargetDate, setCreateTargetDate] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<boolean>(false);
   const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [view, setView] = useSessionState<TicketsView>(
     WORK_ITEM_VIEW_SESSION_KEY,
@@ -146,6 +141,17 @@ export default function Tickets() {
       tickets.closed,
     ][tabValue] ?? tickets.all;
   const activeRows = rowsForTab;
+  // "Overdue" narrows Board and List, and jumps to the date in the Calendar.
+  const [overdueJump, setOverdueJump] = useState<number>(0);
+  const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const overdueRows = useMemo(
+    () =>
+      activeRows.filter(
+        (ticket) => isOverdueTicket(ticket) && (view !== "card" || isBoardTicket(ticket)),
+      ),
+    [activeRows, view],
+  );
+  const listRows = overdueOnly ? overdueRows : activeRows;
 
   const changeView = (next: TicketsView) => {
     setView(next);
@@ -160,7 +166,7 @@ export default function Tickets() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Tickets"
           subtitle="Track, assign, and complete team tickets from one workspace."
@@ -178,6 +184,11 @@ export default function Tickets() {
                 </Button>
               ),
             },
+            view === "calendar"
+              ? overdueJumpAction("ticket", overdueRows.length, () => setOverdueJump((jump) => jump + 1))
+              : overdueFilterAction("ticket", overdueRows.length, overdueOnly, () =>
+                  setOverdueOnly((current) => !current),
+                ),
             viewToggleAction<TicketsView>(TICKETS_VIEWS, view, changeView),
           ]}
         />
@@ -218,9 +229,10 @@ export default function Tickets() {
           </Tabs>
         </Box>
 
-        <Box key={view} sx={[tablePageContent, viewEnterSx]}>
+        <ContentSwap key={view} appear swapKey={tabValue} sx={tablePageContent}>
           {view === "calendar" ? (
             <TicketCalendar
+              overdueJump={overdueJump}
               tickets={activeRows}
               loading={loading}
               error={ticketsQuery.isError}
@@ -231,14 +243,15 @@ export default function Tickets() {
             <TableLoadingState variant="cards" label="Loading tickets" />
           ) : view === "card" ? (
             <TicketCardView
-              data={activeRows}
+              data={listRows}
               onCardClick={openDetails}
               cardType="Ticket"
+              overdueOnly={overdueOnly}
             />
           ) : (
             <VirtualizedTable
               columns={columns}
-              rows={activeRows}
+              rows={listRows}
               height="100%"
               getRowSx={(row) =>
                 row.alarm === true
@@ -249,8 +262,10 @@ export default function Tickets() {
               }
               tableHead="Tickets"
               loading={loading}
-              emptyTitle="No tickets in this view"
-              emptyDescription="Tickets you create or are assigned will appear here."
+              emptyTitle={overdueOnly ? "No overdue tickets" : "No tickets in this view"}
+              emptyDescription={
+                overdueOnly ? "Turn off Overdue to see every ticket." : ticketTabEmptyDescription(tabValue)
+              }
               fitContent
               hiddenColumns={hiddenColumns}
               headerAction={
@@ -262,8 +277,8 @@ export default function Tickets() {
               }
             />
           )}
-        </Box>
-      </Box>
+        </ContentSwap>
+      </StaggerContainer>
 
       {!selectedRow && !editing && (
         <CreateTicketModal

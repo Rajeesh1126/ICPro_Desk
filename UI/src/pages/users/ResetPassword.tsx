@@ -20,10 +20,8 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 import api from "@/api/axios";
 import { getErrorStatus, sanitizeUserMessage } from "@/utils/errorUtils";
-import bgImage from "@/assets/taskmanagementloginimage.jpg";
 import logo from "@/assets/icpro_logo.svg";
 import {
-  authPageBackgroundSx,
   authLogoSx,
   authSubmitButtonSx,
   authCardContentSx,
@@ -33,6 +31,7 @@ import {
   authIntroSx,
   authLinkSx,
 } from "@/styles/common";
+import { AnimatedCollapse, FadeIn, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
 
 type ResetPasswordField = "email" | "token" | "new_password" | "confirm_password";
 type ResetPasswordErrors = Partial<
@@ -45,12 +44,14 @@ type ResetPasswordErrorResponse = {
   };
 };
 
+// Narrows unknown request failures enough to read the API's field-level errors safely.
 function isResetPasswordErrorResponse(
   error: unknown,
 ): error is ResetPasswordErrorResponse {
   return typeof error === "object" && error !== null && "response" in error;
 }
 
+// Converts either a single API error or a list into safe, user-facing copy.
 function formatFieldError(error?: string | string[]) {
   if (Array.isArray(error)) {
     return sanitizeUserMessage(error.join(" "));
@@ -59,28 +60,32 @@ function formatFieldError(error?: string | string[]) {
   return error ? sanitizeUserMessage(error) : undefined;
 }
 
+// Completes a reset-link flow, validates matching passwords, and maps API errors to fields.
 export default function ResetPassword() {
   useDocumentTitle("Reset password");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const emailFromLink = useMemo(() => searchParams.get("email") ?? "", [searchParams]);
   const tokenFromLink = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
-  const [email, setEmail] = useState(emailFromLink);
-  const [token, setToken] = useState(tokenFromLink);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState<string>(emailFromLink);
+  const [token, setToken] = useState<string>(tokenFromLink);
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<ResetPasswordErrors>({});
 
+  // Keep the mismatch message local while the user is still entering confirmation text.
   const confirmMismatch =
     confirmPassword.length > 0 && newPassword !== confirmPassword;
 
+  // Removes stale server validation for a field as soon as the user edits it.
   const clearFieldError = (field: ResetPasswordField) => {
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
   };
 
+  // Posts the reset credentials and redirects to login after a successful reset.
   const submitResetPassword = async () => {
     setLoading(true);
     setError("");
@@ -128,22 +133,32 @@ export default function ResetPassword() {
   };
 
   return (
-    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
-      <Card sx={authCardSx}>
-        <CardContent sx={authCardContentSx}>
+    <Card sx={authCardSx}>
+      <CardContent sx={authCardContentSx}>
+        <FadeIn>
           <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />
           <Typography variant="h5" component="h1" align="center">
-            Reset Password
+            Reset password
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={authIntroSx}>
             Enter your new password to continue.
           </Typography>
+        </FadeIn>
 
-          {error && <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>}
+        <AnimatedCollapse show={Boolean(error)}>
+          <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>
+        </AnimatedCollapse>
 
-          <Box component="form" onSubmit={(event) => { event.preventDefault(); void submitResetPassword(); }}>
+        <StaggerContainer
+          component="form"
+          stagger={0.04}
+          delay={0.1}
+          onSubmit={(event) => { event.preventDefault(); void submitResetPassword(); }}
+        >
+          <StaggerItem from="left">
             <TextField
               fullWidth
+              autoFocus
               label="Email"
               type="email"
               autoComplete="email"
@@ -157,7 +172,9 @@ export default function ResetPassword() {
               helperText={formatFieldError(fieldErrors.email)}
               sx={marginBottomSectionSx}
             />
-            {!tokenFromLink && (
+          </StaggerItem>
+          {!tokenFromLink && (
+            <StaggerItem from="left">
               <TextField
                 fullWidth
                 label="Reset code"
@@ -171,7 +188,9 @@ export default function ResetPassword() {
                 helperText={formatFieldError(fieldErrors.token) || "Copy the code from your reset email."}
                 sx={marginBottomSectionSx}
               />
-            )}
+            </StaggerItem>
+          )}
+          <StaggerItem from="left">
             <TextField
               fullWidth
               label="New Password"
@@ -211,6 +230,8 @@ export default function ResetPassword() {
                 },
               }}
             />
+          </StaggerItem>
+          <StaggerItem from="left">
             <TextField
               fullWidth
               label="Confirm Password"
@@ -229,6 +250,8 @@ export default function ResetPassword() {
               }
               sx={marginBottomSectionSx}
             />
+          </StaggerItem>
+          <StaggerItem from="up">
             <Button
               fullWidth
               type="submit"
@@ -243,9 +266,11 @@ export default function ResetPassword() {
                   Resetting...
                 </>
               ) : (
-                "Reset Password"
+                "Reset password"
               )}
             </Button>
+          </StaggerItem>
+          <StaggerItem from="up">
             <Typography
               component={RouterLink}
               to="/"
@@ -257,9 +282,9 @@ export default function ResetPassword() {
             >
               Back to login
             </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+          </StaggerItem>
+        </StaggerContainer>
+      </CardContent>
+    </Card>
   );
 }

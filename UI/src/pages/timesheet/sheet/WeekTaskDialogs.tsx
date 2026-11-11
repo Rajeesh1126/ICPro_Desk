@@ -49,8 +49,8 @@ export default function WeekTaskDialogs({
   onTasksChanged,
   onChanged,
 }: WeekTaskDialogsProps) {
-  const [busy, setBusy] = useState(false);
-  const [unlockReason, setUnlockReason] = useState("");
+  const [busy, setBusy] = useState<boolean>(false);
+  const [unlockReason, setUnlockReason] = useState<string>("");
   const count = selectedTaskIds.length;
 
   const run = async (work: () => Promise<void>) => {

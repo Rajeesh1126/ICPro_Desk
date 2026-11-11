@@ -5,6 +5,9 @@ import {
   emptyTableIconSx,
   emptyTableStateSx,
 } from "@/styles/common";
+import { motion } from "motion/react";
+import { StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
+import { SPRING_POP } from "@/animations/presets";
 
 interface EmptyTableStateProps {
   title?: string;
@@ -21,25 +24,41 @@ export default function EmptyTableState({
   action,
 }: EmptyTableStateProps) {
   return (
+    // Icon drops in and settles, then the text follows. Plays once, then
+    // holds still.
+    <StaggerContainer stagger={0.03}>
     <Stack
       role="status"
       alignItems="center"
       spacing={1}
       sx={emptyTableStateSx}
     >
-      {icon ?? (
-        <TableChartOutlinedIcon
-          aria-hidden="true"
-          sx={emptyTableIconSx}
-        />
-      )}
-      <Typography color="text.primary" fontWeight={600}>
-        {title}
-      </Typography>
-      <Typography color="text.secondary" variant="body2">
-        {description}
-      </Typography>
-      {action}
+      <motion.span
+        variants={{
+          hidden: { opacity: 0, y: -8, scale: 0.9 },
+          visible: { opacity: 1, y: 0, scale: 1, transition: SPRING_POP },
+        }}
+        style={{ display: "inline-flex" }}
+      >
+        {icon ?? (
+          <TableChartOutlinedIcon
+            aria-hidden="true"
+            sx={emptyTableIconSx}
+          />
+        )}
+      </motion.span>
+      <StaggerItem>
+        <Typography color="text.primary" fontWeight={600}>
+          {title}
+        </Typography>
+      </StaggerItem>
+      <StaggerItem>
+        <Typography color="text.secondary" variant="body2">
+          {description}
+        </Typography>
+      </StaggerItem>
+      {action && <StaggerItem>{action}</StaggerItem>}
     </Stack>
+    </StaggerContainer>
   );
 }

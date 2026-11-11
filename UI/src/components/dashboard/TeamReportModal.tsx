@@ -1,3 +1,5 @@
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
 import { useMemo, type ReactNode } from "react";
 import {
   Box,
@@ -48,6 +50,7 @@ type TeamDoListRow = {
   creator_name?: string;
 };
 
+/** Team Report Detail declaration used across the frontend. */
 export type TeamReportDetail = {
   department: {
     id: number | null;
@@ -81,7 +84,11 @@ function StatusCounters({
   return (
     <Box sx={teamReportCountersSx}>
       {order.map((key) => (
-        <Box key={key} component="span" sx={teamReportCounterSx(getStatusColor(key))}>
+        <Box
+          key={key}
+          component="span"
+          sx={teamReportCounterSx(getStatusColor(key))}
+        >
           {formatStatusLabel(key)}
           <strong>{data[key] ?? 0}</strong>
         </Box>
@@ -121,19 +128,25 @@ export default function TeamReportModal({
 }: TeamReportModalProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const ticketTotal = useMemo(
-    () => Object.values(detail?.ticket_summary ?? {}).reduce((total, count) => total + count, 0),
-    [detail?.ticket_summary],
-  );
-  const dolistTotal = useMemo(
-    () => Object.values(detail?.dolist_summary ?? {}).reduce((total, count) => total + count, 0),
-    [detail?.dolist_summary],
-  );
+  // Header totals count the listed rows, so they always match the tables.
+  const ticketTotal = detail?.tickets.length ?? 0;
+  const dolistTotal = detail?.dolist.length ?? 0;
   const ticketColumns = useMemo<ColumnData<TeamTicketRow>[]>(
     () => [
       { label: "Ticket Number", dataKey: "number", width: 170 },
       { label: "Subject", dataKey: "task", width: "auto" },
-      { label: "Status", dataKey: "current_status", width: 140 },
+      {
+        label: "Status",
+        dataKey: "current_status",
+        width: 140,
+        render: (row) => (
+          <Pill
+            value={statusLabel(row.current_status)}
+            color={statusColor(row.current_status)}
+            dot
+          />
+        ),
+      },
     ],
     [],
   );
@@ -142,7 +155,18 @@ export default function TeamReportModal({
     () => [
       { label: "Task Number", dataKey: "number", width: 170 },
       { label: "Subject", dataKey: "task", width: "auto" },
-      { label: "Status", dataKey: "current_status", width: 140 },
+      {
+        label: "Status",
+        dataKey: "current_status",
+        width: 140,
+        render: (row) => (
+          <Pill
+            value={statusLabel(row.current_status)}
+            color={statusColor(row.current_status)}
+            dot
+          />
+        ),
+      },
     ],
     [],
   );
@@ -157,12 +181,18 @@ export default function TeamReportModal({
       PaperProps={{ sx: teamReportModalPaperSx }}
     >
       <DialogHeader
-        title={detail?.department.name || "Team Report"}
+        title={detail?.department.name || "Team report"}
         subtitle={`Manager: ${detail?.department.manager || "Not assigned"}`}
         actions={
           <Stack direction="row" spacing={0.75} sx={teamReportTotalsSx}>
-            <Chip label={`${ticketTotal} tickets`} sx={teamReportTotalPillSx} />
-            <Chip label={`${dolistTotal} tasks`} sx={teamReportTotalPillSx} />
+            <Chip
+              label={`${ticketTotal} ${ticketTotal === 1 ? "ticket" : "tickets"}`}
+              sx={teamReportTotalPillSx}
+            />
+            <Chip
+              label={`${dolistTotal} ${dolistTotal === 1 ? "task" : "tasks"}`}
+              sx={teamReportTotalPillSx}
+            />
           </Stack>
         }
         onClose={onClose}
@@ -188,6 +218,7 @@ export default function TeamReportModal({
                   height="100%"
                   tableHead="External Tickets"
                   tableMinWidth={720}
+                  fitContent
                 />
               </Box>
             </Box>
@@ -206,6 +237,7 @@ export default function TeamReportModal({
                   height="100%"
                   tableHead="Manager Do List"
                   tableMinWidth={820}
+                  fitContent
                 />
               </Box>
             </Box>

@@ -2,6 +2,7 @@ import { Box, Chip, IconButton, Paper, Stack } from "@mui/material";
 import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import DateRange from "@/components/common/DateRange";
+import { DirectionalSwap } from "@/animations/MotionPrimitives";
 import {
   calendarNavControlsSx,
   centeredTextGroup,
@@ -30,12 +31,14 @@ export default function WeekSelector({
 }: WeekSelectorProps) {
   return (
     <Paper elevation={0} sx={weekSelectorPanel(compact)}>
-      <Box sx={calendarNavControlsSx}>
+      <Box className="week-nav" sx={calendarNavControlsSx}>
         <IconButton aria-label="Previous week" onClick={onPrevious}>
           <ChevronLeftOutlinedIcon />
         </IconButton>
       </Box>
 
+      {/* The label slides the way you moved: left for earlier, right for later. */}
+      <DirectionalSwap order={weekStart.getTime()} distance={16} sx={{ minWidth: 0, overflow: "hidden" }}>
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={{ xs: 0.25, sm: 1 }}
@@ -57,8 +60,9 @@ export default function WeekSelector({
           sx={nowrapResponsiveText}
         />
       </Stack>
+      </DirectionalSwap>
 
-      <Box sx={calendarNavControlsSx}>
+      <Box className="week-nav" sx={calendarNavControlsSx}>
         <IconButton aria-label="Next week" onClick={onNext}>
           <ChevronRightOutlinedIcon />
         </IconButton>

@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import { formatValidationErrors } from "@/utils/errorUtils";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import { showNotification } from "@/api/notificationService";
 import ERPQuotationModal from "@/components/timesheet/ERPQuotationModal";
 import CreateUndefinedModal from "@/components/timesheet/CreateUndefinedModal";
+import ManagementTasksModal, { type ManagementTaskOptions } from "@/components/timesheet/ManagementTasksModal";
 import TimeSheetTicketsModal, {
   type TimeSheetTicketOption,
 } from "@/components/timesheet/TimeSheetTicketsModal";
@@ -36,7 +40,7 @@ const quotationDescription = (quotation: ERPQuotation) =>
   quotation.quotation_no;
 
 /**
- * The four "Add work" dialogs of the Time Sheet. Their option lists load
+ * The "Add work" dialogs of the Time Sheet. Their option lists load
  * through the shared cache only while the dialog is open.
  */
 export default function AddWorkDialogs({
@@ -47,7 +51,23 @@ export default function AddWorkDialogs({
   onLocked,
   onChanged,
 }: AddWorkDialogsProps) {
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [managementError, setManagementError] = useState("");
+  const managementQuery = useQuery<ManagementTaskOptions>({
+    queryKey: ["/timesheet-entries/management-task-options/"],
+    enabled: open === "management",
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const { data } = await api.get<ManagementTaskOptions>(
+        "/timesheet-entries/management-task-options/",
+        { signal, handleErrorsLocally: true, timeout: 15000 },
+      );
+      if (!data?.project || !Array.isArray(data.tasks)) {
+        throw new Error("Could not load management tasks.");
+      }
+      return data;
+    },
+  });
 
   // ---- Option lists (fetched on open, cached) ----------------------------------
   const quotationsQuery = useApiQuery<ERPQuotation[]>("/erp/quotations/", undefined, {
@@ -149,6 +169,25 @@ export default function AddWorkDialogs({
       "Selected tickets assigned to timesheet successfully.",
     );
 
+  const assignManagementTasks = async (taskIds: number[]) => {
+    if (submitting || !taskIds.length) return;
+    setManagementError("");
+    if (actionsDisabled) { onLocked(); return; }
+    setSubmitting(true);
+    try {
+      await api.post("/timesheet-entries/assign-management-tasks/", {
+        task_ids: taskIds, week_start: weekStartKey,
+      }, { handleErrorsLocally: true, timeout: 15000 });
+      showNotification({ type: "success", message: "Management tasks assigned successfully." });
+      onClose();
+      onChanged();
+    } catch (error) {
+      setManagementError(isAxiosError(error) && error.response?.status === 400
+        ? formatValidationErrors(error.response.data)
+        : "Could not assign management tasks. Your selection is still here; please try again.");
+    } finally { setSubmitting(false); }
+  };
+
   const assignCostMasterTasks = (selection: Record<number, number[]>) =>
     submit(
       () =>
@@ -165,6 +204,18 @@ export default function AddWorkDialogs({
 
   return (
     <>
+      {open === "management" && (
+        <ManagementTasksModal
+          data={managementQuery.data}
+          loading={managementQuery.isFetching}
+          error={managementQuery.isError}
+          assignmentError={managementError}
+          submitting={submitting}
+          onClose={() => { setManagementError(""); onClose(); }}
+          onRetry={() => void managementQuery.refetch()}
+          onSubmit={assignManagementTasks}
+        />
+      )}
       <ERPQuotationModal
         open={open === "quotation"}
         onClose={onClose}

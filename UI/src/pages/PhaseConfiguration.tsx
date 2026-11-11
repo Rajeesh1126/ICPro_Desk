@@ -1,3 +1,5 @@
+import { neutralColor } from "@/components/common/pillValues";
+import Pill from "@/components/common/Pill";
 import {
   type ReactElement,
   useCallback,
@@ -16,7 +18,6 @@ import {
   Select,
   Stack,
   ToggleButton,
-  ToggleButtonGroup,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -42,7 +43,6 @@ import {
   dashedMutedChip,
   footerSurface,
   helperText,
-  mappedTagChip,
   metaChip,
   minWidthZero,
   page,
@@ -62,6 +62,8 @@ import {
   topSpacingSx,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
+import { ContentSwap, StaggerContainer } from "@/animations/MotionPrimitives";
+import AnimatedToggleGroup from "@/animations/AnimatedToggleGroup";
 
 type CostCategory = {
   id: number;
@@ -93,8 +95,8 @@ const phaseMeta: Record<string, { icon: ReactElement }> = {
 };
 
 export default function PhaseConfiguration() {
-  const [selectedPhase, setSelectedPhase] = useState(phaseOptions[0]);
-  const [saving, setSaving] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState<string>(phaseOptions[0]);
+  const [saving, setSaving] = useState<boolean>(false);
   const [pendingPhase, setPendingPhase] = useState<string | null>(null);
   const [mappingFilter, setMappingFilter] = useState<MappingFilter>("all");
   const theme = useTheme();
@@ -298,11 +300,10 @@ export default function PhaseConfiguration() {
             row.mappedPhases
               .split(", ")
               .map((phase) => (
-                <Chip
+                <Pill
                   key={phase}
-                  label={phase}
-                  variant={phase === selectedPhase ? "filled" : "outlined"}
-                  sx={mappedTagChip(phase, phase === selectedPhase)}
+                  value={phase}
+                  color={phase === selectedPhase ? "primary" : neutralColor}
                 />
               ))
           )}
@@ -313,7 +314,7 @@ export default function PhaseConfiguration() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Phase Configuration"
           subtitle="Map each ERP cost category to the phase or phases it belongs to."
@@ -377,7 +378,7 @@ export default function PhaseConfiguration() {
                 </Select>
               </FormControl>
             ) : (
-            <ToggleButtonGroup
+            <AnimatedToggleGroup
               exclusive
               value={selectedPhase}
               onChange={(_event, value) => requestPhaseChange(value)}
@@ -399,7 +400,7 @@ export default function PhaseConfiguration() {
                   />
                 </ToggleButton>
               ))}
-            </ToggleButtonGroup>
+            </AnimatedToggleGroup>
             )}
           </Box>
 
@@ -412,7 +413,7 @@ export default function PhaseConfiguration() {
                 Tick every cost category that belongs to {selectedPhase}. A
                 category can belong to several phases.
               </Typography>
-              <ToggleButtonGroup
+              <AnimatedToggleGroup
                 exclusive
                 value={mappingFilter}
                 onChange={(_event, next: MappingFilter | null) =>
@@ -428,11 +429,14 @@ export default function PhaseConfiguration() {
                 <ToggleButton value="unmapped">
                   Unmapped ({rows.filter((row) => row.mappedPhases === "Unmapped").length})
                 </ToggleButton>
-              </ToggleButtonGroup>
+              </AnimatedToggleGroup>
             </Box>
-            <Box sx={tablePanelFill}>
+            {/* The category table fades as the phase or filter changes. */}
+            <ContentSwap swapKey={`${selectedPhase}:${mappingFilter}`} sx={tablePanelFill}>
               <VirtualizedTable
                 tableHead={`Cost categories for ${selectedPhase}`}
+                // Short enough not to be clipped by the search field.
+                searchPlaceholder="Search categories"
                 height="100%"
                 columns={columns}
                 rows={visibleRows}
@@ -446,7 +450,7 @@ export default function PhaseConfiguration() {
                 }
                 onRowClick={(row) => toggleCategory(row.id, !row.selected)}
               />
-            </Box>
+            </ContentSwap>
           </Box>
 
           <Box sx={footerSurface}>
@@ -515,7 +519,7 @@ export default function PhaseConfiguration() {
             setPendingPhase(null);
           }}
         />
-      </Box>
+      </StaggerContainer>
     </Box>
   );
 }

@@ -1,12 +1,14 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { StatusPill } from "@/components/common/StatusPill";
-import { Box, Button, IconButton } from "@mui/material";
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
+import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
 
 import {
   splitPanelContent,
   tableHeaderLinkSx,
   approvalPanelSx,
   iconMediumSx,
+  inlineCenterGapSx,
 } from "@/styles/common";
 
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -33,7 +35,22 @@ interface ApprovalProps {
   onPreviousWeek: () => void;
 }
 
+type ApprovalReportee = { id: number; username: string };
+
 const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
+  const isSuperAdmin = (localStorage.getItem("role") ?? "")
+    .replace(/\s+/g, "").toLowerCase() === "superadmin";
+  // Scope this page only. /teams/ returns the current user's direct reportees.
+  const reporteesQuery = useApiQuery<ApprovalReportee[]>("/teams/", undefined, {
+    enabled: !isSuperAdmin,
+  });
+  const reportees = useMemo(() => {
+    const users = reporteesQuery.isError ? [] : asArray<ApprovalReportee>(reporteesQuery.data);
+    return {
+      ids: new Set(users.map((user) => user.id)),
+      usernames: new Set(users.map((user) => user.username)),
+    };
+  }, [reporteesQuery.data, reporteesQuery.isError]);
   // Both lists are cached per week; switching weeks or leaving the page
   // cancels in-flight requests. Approving or unlocking refreshes them via
   // the shared after-mutation invalidation.
@@ -48,21 +65,23 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
     },
   );
   const approvalData = useMemo(
-    () => asArray<ApprovalRow>(approvalsQuery.data),
-    [approvalsQuery.data],
+    () => asArray<ApprovalRow>(approvalsQuery.data)
+      .filter((row) => isSuperAdmin || reportees.ids.has(row.id)),
+    [approvalsQuery.data, isSuperAdmin, reportees],
   );
   const unlockRequests = useMemo(
-    () => asArray<timesheetStatusData>(unlockQuery.data),
-    [unlockQuery.data],
+    () => asArray<timesheetStatusData>(unlockQuery.data)
+      .filter((request) => isSuperAdmin || reportees.usernames.has(request.uid)),
+    [unlockQuery.data, isSuperAdmin, reportees],
   );
 
   const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRow | null>(
     null,
   );
 
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [ratingsOpen, setRatingsOpen] = useState(false);
-  const isLoading = approvalsQuery.isPending;
+  const [detailOpen, setDetailOpen] = useState<boolean>(false);
+  const [ratingsOpen, setRatingsOpen] = useState<boolean>(false);
+  const isLoading = approvalsQuery.isPending || (!isSuperAdmin && reporteesQuery.isPending);
 
   const handleUnlockStatus = useCallback(
     async (id: number, status: string, comments?: string): Promise<boolean> => {
@@ -107,26 +126,27 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
 
   const columns = useMemo<ColumnData<ApprovalRow>[]>(
     () => [
-      // View
-      {
-        dataKey: "view",
-        label: "",
-        width: 54,
-
-        render: (row: ApprovalRow) => (
-          <IconButton
-            aria-label={`View timesheet for ${row.name ?? "employee"}`}
-            onClick={() => handleViewEmployee(row)}
-          >
-            <VisibilityOutlinedIcon sx={iconMediumSx} />
-          </IconButton>
-        ),
-      },
-
+      // View + name in one column, like the ticket number column: on phone
+      // cards the employee's name is the card's heading, not a lone icon.
       {
         dataKey: "name",
         label: "Name",
-        width: { xs: "auto", sm: 140 },
+        width: { xs: "auto", sm: 200 },
+        render: (row: ApprovalRow) => (
+          <Box sx={inlineCenterGapSx}>
+            <Tooltip title="View timesheet">
+              <IconButton
+                aria-label={`View timesheet for ${row.name ?? "employee"}`}
+                onClick={() => handleViewEmployee(row)}
+              >
+                <VisibilityOutlinedIcon sx={iconMediumSx} color="primary" />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {row.name}
+            </Typography>
+          </Box>
+        ),
       },
 
       {
@@ -138,16 +158,21 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
       {
         dataKey: "hours",
         label: "Hours",
-        width: 80,
+        width: 90,
         numeric: true,
+        format: "hours",
+        // Centred so the figure doesn't run into the Overview pills.
+        align: "center",
+        mobileOrder: 2,
       },
 
       // Overview
       {
         dataKey: "overview",
         label: "Overview",
-        width: 130,
-        render: (row: ApprovalRow) => <StatusPill status={row.overview} />,
+        width: 140,
+        mobileOrder: 1,
+        render: (row: ApprovalRow) => <Pill value={statusLabel(row.overview)} color={statusColor(row.overview)} dot />,
       },
 
       // Submission Status
@@ -155,9 +180,10 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
         dataKey: "submission_status",
         label: "Submission status",
         width: 180,
+        mobileOrder: 3,
 
         render: (row: ApprovalRow) => (
-          <StatusPill status={row.submission_status} />
+          <Pill value={statusLabel(row.submission_status)} color={statusColor(row.submission_status)} dot />
         ),
       },
 
@@ -167,7 +193,7 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
         label: "Action status",
         width: 180,
         render: (row: ApprovalRow) => (
-          <StatusPill status={row.action_status} />
+          <Pill value={statusLabel(row.action_status)} color={statusColor(row.action_status)} dot />
         ),
       },
     ],
@@ -188,7 +214,7 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
           rows={approvalData}
           height="100%"
           tableMinWidth={980}
-          tableHead="Submitted timesheets"
+          tableHead="Team timesheets"
           tableHeadSub={
             <Button
               startIcon={<InfoOutlinedIcon />}
@@ -200,7 +226,9 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
           }
           loading={isLoading}
           emptyTitle="No timesheets to approve"
-          emptyDescription={`No submissions match the week starting ${formatDate(weekStart)}. Choose another week to review earlier or later submissions.`}
+          emptyDescription={!isSuperAdmin && reporteesQuery.isError
+            ? "Could not load your reporting team. Please reload the page and try again."
+            : `No submissions match the week starting ${formatDate(weekStart)}. Choose another week to review earlier or later submissions.`}
           emptyAction={<Button variant="outlined" onClick={onPreviousWeek}>View previous week</Button>}
         />
       </Box>
@@ -217,6 +245,8 @@ const Approval: React.FC<ApprovalProps> = ({ weekStart, onPreviousWeek }) => {
       <ApprovalDetailedView
         open={detailOpen}
         employee={selectedEmployee}
+        employees={approvalData}
+        onEmployeeChange={setSelectedEmployee}
         onClose={handleCloseDetail}
         weekStart={weekStart}
       />

@@ -9,6 +9,7 @@ export const dialogTitleRowSx: SxProps<Theme> = {
   minWidth: 0,
 };
 
+/** dialog Title Content Sx declaration used across the frontend. */
 export const dialogTitleContentSx: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
@@ -16,14 +17,17 @@ export const dialogTitleContentSx: SxProps<Theme> = {
   minWidth: 0,
 };
 
+/** dialog Title Text Sx declaration used across the frontend. */
 export const dialogTitleTextSx: SxProps<Theme> = {
   overflowWrap: "anywhere",
 };
 
+/** dialog Subtitle Sx declaration used across the frontend. */
 export const dialogSubtitleSx: SxProps<Theme> = {
   mt: 0.25,
 };
 
+/** dialog Title Actions Sx declaration used across the frontend. */
 export const dialogTitleActionsSx: SxProps<Theme> = {
   display: "flex",
   alignItems: "center",
@@ -43,4 +47,5 @@ export const requiredFieldsNoteSx = {
   color: "text.secondary",
 } satisfies SxProps<Theme>;
 
+/** required Mark Sx declaration used across the frontend. */
 export const requiredMarkSx = { fontWeight: 600 } satisfies SxProps<Theme>;

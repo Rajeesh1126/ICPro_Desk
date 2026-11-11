@@ -18,7 +18,9 @@ import {
   headerActionBadge,
 } from "@/styles/common";
 
-export type AddWorkKind = "quotation" | "undefined" | "costMaster" | "tickets";
+/** Add Work Kind declaration used across the frontend. */
+export type AddWorkKind = "quotation" | "undefined" | "costMaster" | "tickets" | "management";
+/** Week Task Kind declaration used across the frontend. */
 export type WeekTaskKind = "unlock" | "extend" | "remove";
 
 interface TimesheetActionsMenuProps {
@@ -101,6 +103,8 @@ export default function TimesheetActionsMenu({
           "Import approved job records into this week.", () => onAddWork("quotation"), actionsDisabled)}
         {item("info", <HelpOutlineOutlinedIcon fontSize="small" />, "Create undefined job",
           "Add a temporary job if ERP details are missing.", () => onAddWork("undefined"), actionsDisabled)}
+        {item("info", <AssignmentOutlinedIcon fontSize="small" />, "Assign management job",
+          "Assign tasks from Management Jobs.", () => onAddWork("management"), actionsDisabled)}
         {item("success", <AssignmentOutlinedIcon fontSize="small" />, "Map undefined tasks to a job",
           "Map temporary tasks to cost codes.", () => onAddWork("costMaster"), actionsDisabled)}
         {item("secondary", <ConfirmationNumberOutlinedIcon fontSize="small" />, "Add assigned tickets",

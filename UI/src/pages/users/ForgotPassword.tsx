@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
-  Box,
   Button,
   Card,
   CardContent,
@@ -19,10 +18,9 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 
 import api from "@/api/axios";
 import { getErrorStatus, sanitizeUserMessage } from "@/utils/errorUtils";
-import bgImage from "@/assets/taskmanagementloginimage.jpg";
 import AuthCardHeader from "@/components/common/AuthCardHeader";
+import { AnimatedCollapse, FadeIn, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
 import {
-  authPageBackgroundSx,
   authSubmitButtonSx,
   authCardContentSx,
   authCardSx,
@@ -36,11 +34,11 @@ type ForgotPasswordResponse = { message?: string };
 
 export default function ForgotPassword() {
   useDocumentTitle("Forgot password");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   const submitForgotPassword = async () => {
     setLoading(true);
@@ -71,23 +69,36 @@ export default function ForgotPassword() {
   };
 
   return (
-    <Box component="main" sx={authPageBackgroundSx({ bgImage })}>
-      <Card sx={authCardSx}>
-        <CardContent sx={authCardContentSx}>
+    <Card sx={authCardSx}>
+      <CardContent sx={authCardContentSx}>
+        <FadeIn>
           <AuthCardHeader />
           <Typography variant="h5" component="h1" align="center">
-            Forgot Password
+            Forgot password
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={authIntroSx}>
             Enter your username and email to receive a reset link.
           </Typography>
+        </FadeIn>
 
-          {message && <Alert severity="success" sx={marginBottomSectionSx}>{message}</Alert>}
-          {error && <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>}
+        <AnimatedCollapse show={Boolean(message)}>
+          <Alert severity="success" sx={marginBottomSectionSx}>{message}</Alert>
+        </AnimatedCollapse>
+        <AnimatedCollapse show={Boolean(error)}>
+          <Alert severity="error" sx={marginBottomSectionSx}>{error}</Alert>
+        </AnimatedCollapse>
 
-          <Box component="form" onSubmit={(event) => { event.preventDefault(); void submitForgotPassword(); }}>
+        <StaggerContainer
+          component="form"
+          stagger={0.04}
+          delay={0.1}
+          onSubmit={(event) => { event.preventDefault(); void submitForgotPassword(); }}
+        >
+          <StaggerItem from="left">
+            {/* Focus lands here after the card flips in, as on Login. */}
             <TextField
               fullWidth
+              autoFocus
               label="Username"
               autoComplete="username"
               value={username}
@@ -104,6 +115,8 @@ export default function ForgotPassword() {
                 },
               }}
             />
+          </StaggerItem>
+          <StaggerItem from="left">
             <TextField
               fullWidth
               label="Email"
@@ -112,7 +125,6 @@ export default function ForgotPassword() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
-              sx={marginBottomSectionSx}
               slotProps={{
                 input: {
                   startAdornment: (
@@ -123,6 +135,8 @@ export default function ForgotPassword() {
                 },
               }}
             />
+          </StaggerItem>
+          <StaggerItem from="up">
             <Button
               fullWidth
               type="submit"
@@ -137,9 +151,11 @@ export default function ForgotPassword() {
                   Sending...
                 </>
               ) : (
-                "Send Reset Link"
+                "Send reset link"
               )}
             </Button>
+          </StaggerItem>
+          <StaggerItem from="up">
             <Typography
               component={RouterLink}
               to="/"
@@ -150,9 +166,9 @@ export default function ForgotPassword() {
               <LoginOutlinedIcon fontSize="small" />
               Back to login
             </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+          </StaggerItem>
+        </StaggerContainer>
+      </CardContent>
+    </Card>
   );
 }

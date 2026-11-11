@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { 
-  // Alert, AlertTitle, alpha, 
-  Box, Skeleton, Stack, useMediaQuery, useTheme } from "@mui/material";
+  // Alert, AlertTitle, alpha,
+  Box, InputAdornment, Skeleton, Stack, TextField, useMediaQuery, useTheme } from "@mui/material";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import { showNotification } from "@/api/notificationService";
@@ -17,6 +18,7 @@ import {
   canEditDate as canEditDateFor,
   createWeekDays,
   dailyLimitMessage,
+  filterProjects,
   findTask,
   findTasksMissingBudgetOwner,
   formatLocalDate,
@@ -41,7 +43,9 @@ import {
 import {
   submissionLayoutSx,
   submissionLoadingSx,
+  tableSearchFieldSx,
 } from "@/styles/common";
+import { DirectionalSwap } from "@/animations/MotionPrimitives";
 
 const FilterBase = [
   "Super Admin",
@@ -121,8 +125,10 @@ function Submission({
   submitDisabled,
 }: SubmissionProps) {
   const theme = useTheme();
-  // Below `sm` the 1,180px grid is replaced by a one-day-at-a-time editor.
-  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  // From 1200px (`lg`) the whole week fits as a grid (timesheetGridMinWidth);
+  // below that, the one-day-at-a-time editor is used instead of a grid that
+  // would scroll sideways under its pinned columns.
+  const useDayEditor = useMediaQuery(theme.breakpoints.down("lg"));
   const weekDays = useMemo(() => createWeekDays(weekStart), [weekStart]);
 
   // ---- Data ------------------------------------------------------------------
@@ -142,15 +148,17 @@ function Submission({
     [entriesQuery.data],
   );
 
-  // Shared, cached user list; only active users can be budget owners.
+  // Shared, cached user list; only active users other than the logged-in
+  // employee can be budget owners.
   const usersQuery = useApiQuery<UsersData[]>("/users/");
-  
-  const budgetOwnerOptions = useMemo<BudgetOwnerOption[]>(
-    () =>
-      asArray<UsersData>(usersQuery.data)
+
+  const budgetOwnerOptions = useMemo<BudgetOwnerOption[]>(() => {
+    const currentUserId = Number(localStorage.getItem("user"));
+    return asArray<UsersData>(usersQuery.data)
         .filter(
           (user) =>
             user.is_active &&
+            user.id !== currentUserId &&
             !FilterBase.includes(user.role ?? ""),
         )
         .map((owner) => ({
@@ -158,9 +166,8 @@ function Submission({
           label:
             [owner.first_name, owner.last_name].filter(Boolean).join(" ").trim() ||
             owner.username,
-        })),
-    [usersQuery.data],
-  );
+        }));
+  }, [usersQuery.data]);
 
   // ---- Draft -----------------------------------------------------------------
   // Draft identity: local edits belong to one week and one parent refresh
@@ -215,13 +222,18 @@ function Submission({
   // ---- View state --------------------------------------------------------------
   const [expandedProjects, setExpandedProjects] = useState<number[]>([1]);
   const [expandedMilestones, setExpandedMilestones] = useState<number[]>([1]);
-  const [savingDraft, setSavingDraft] = useState(false);
+  const [savingDraft, setSavingDraft] = useState<boolean>(false);
+  const [jobSearch, setJobSearch] = useState<string>("");
   // Day picked on the phone layout, remembered per week; defaults to today.
   const [pickedDay, setPickedDay] = useState<{ week: string; index: number } | null>(null);
   const todayIndex = weekDays.findIndex((day) => day.date === formatLocalDate(new Date()));
   const activeDayIndex = pickedDay?.week === weekStart ? pickedDay.index : Math.max(todayIndex, 0);
 
   // ---- Derived values ------------------------------------------------------------
+  // Only the rows on screen use the search: everything below keeps the whole
+  // week, so hidden tasks still count towards totals, validation and submit.
+  const searching = jobSearch.trim() !== "";
+  const visibleProjects = useMemo(() => filterProjects(projects, jobSearch), [projects, jobSearch]);
   const weekDayTotals = useMemo(() => getWeekDayTotals(projects, weekDays), [projects, weekDays]);
   const weekTotal = useMemo(
     () => weekDayTotals.reduce((total, day) => total + day.hours, 0),
@@ -352,21 +364,47 @@ function Submission({
   };
 
   // ---- Render -----------------------------------------------------------------------
+  const searchField = (
+    <TextField
+      value={jobSearch}
+      onChange={(event) => setJobSearch(event.target.value)}
+      placeholder="Search jobs and tasks"
+      sx={tableSearchFieldSx}
+      slotProps={{
+        htmlInput: { "aria-label": "Search jobs and tasks" },
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchOutlinedIcon fontSize="small" color="action" />
+            </InputAdornment>
+          ),
+        },
+      }}
+    />
+  );
+
   return (
     <Box
       sx={submissionLayoutSx}
     >
 
+      {/* Grid slides in from the side you navigated to (submissionLayoutSx clips it). */}
+      <DirectionalSwap
+        order={Date.parse(weekStart)}
+        sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+      >
       {loading && projects.length === 0 ? (
         <Stack spacing={1} role="status" aria-label="Loading timesheet" sx={submissionLoadingSx}>
           <Skeleton variant="rounded" height={44} />
           {Array.from({ length: 6 }, (_, index) => (
-            <Skeleton key={index} variant="rounded" height={isPhone ? 96 : 40} />
+            <Skeleton key={index} variant="rounded" height={useDayEditor ? 96 : 40} />
           ))}
         </Stack>
-      ) : isPhone ? (
+      ) : useDayEditor ? (
         <MobileDayEntry
-          projects={projects}
+          projects={visibleProjects}
+          searching={searching}
+          searchField={searchField}
           weekDays={weekDays}
           dayTotals={weekDayTotals.map((day) => day.hours)}
           weekTotalLabel={formatHoursMinutes(weekTotal)}
@@ -389,7 +427,9 @@ function Submission({
         />
       ) : (
         <SubmissionGrid
-          projects={projects}
+          projects={visibleProjects}
+          searching={searching}
+          searchField={searchField}
           weekDays={weekDays}
           estimatedWeekHours={estimatedWeekHours}
           weekDayTotals={weekDayTotals}
@@ -407,6 +447,7 @@ function Submission({
           onBudgetOwnerChange={(ref, owner) => void updateBudgetOwner(ref, owner)}
         />
       )}
+      </DirectionalSwap>
 
       <SubmissionActionBar
         estimatedWeekHours={estimatedWeekHours}
@@ -419,6 +460,7 @@ function Submission({
         isRejected={lock.isRejected}
         isSubmitted={lock.isSubmitted}
         saveDisabled={savingDraft || lock.isLockedSubmitted || weeklyStatusLoading}
+        canSaveDraft={!weeklyStatusLoading && lock.canSaveDraft}
         saving={savingDraft}
         onSave={() => void saveDraft()}
         onSubmit={onSubmit}

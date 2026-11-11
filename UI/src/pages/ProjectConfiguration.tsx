@@ -24,7 +24,7 @@ import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 import { TableActionGroup } from "@/components/common/ActionDivider";
 import { showNotification } from "@/api/notificationService";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -46,6 +46,7 @@ import {
 } from "@/styles/common";
 import { getStoredPermissions } from "@/utils/permissions";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer } from "@/animations/MotionPrimitives";
 
 type ProjectConfig = {
   id: number;
@@ -87,18 +88,22 @@ type ConfigTableRow = {
   onDelete: () => void;
 };
 
-const emptyProjectForm = {
+type ProjectForm = { code: string; description: string };
+type MilestoneForm = { project: string; category: string; name: string };
+type TaskForm = { project: string; milestone: string; cost: string; name: string; description: string };
+
+const emptyProjectForm: ProjectForm = {
   code: "",
   description: "",
 };
 
-const emptyMilestoneForm = {
+const emptyMilestoneForm: MilestoneForm = {
   project: "",
   category: "",
   name: "",
 };
 
-const emptyTaskForm = {
+const emptyTaskForm: TaskForm = {
   project: "",
   milestone: "",
   cost: "",
@@ -146,19 +151,19 @@ export default function ProjectConfiguration() {
   const [dialogType, setDialogType] = useState<DialogType | null>(null);
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [projectForm, setProjectForm] = useState(emptyProjectForm);
-  const [milestoneForm, setMilestoneForm] = useState(emptyMilestoneForm);
-  const [taskForm, setTaskForm] = useState(emptyTaskForm);
+  const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
+  const [milestoneForm, setMilestoneForm] = useState<MilestoneForm>(emptyMilestoneForm);
+  const [taskForm, setTaskForm] = useState<TaskForm>(emptyTaskForm);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [deleteTarget, setDeleteTarget] = useState<{
     type: DialogType;
     id: number;
     label: string;
   } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
   const [expandedConfigTable, setExpandedConfigTable] =
-    useState<ConfigTableType | null>(null);
+    useState<ConfigTableType | null>("projects");
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -534,7 +539,7 @@ export default function ProjectConfiguration() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Project Configuration"
           subtitle="Configure projects, milestones, and tasks without assigning users."
@@ -549,6 +554,7 @@ export default function ProjectConfiguration() {
             <FormControl sx={wideFilterField}>
               <InputLabel>Project</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Project" }}
                 label="Project"
                 value={selectedProjectId}
                 onChange={(event) => {
@@ -574,7 +580,7 @@ export default function ProjectConfiguration() {
           <Stack spacing={1.5} sx={fullHeightSx}>
             <VirtualizedTable
               tableHead="Projects"
-              tableHeadSub={`${projects.length} projects · Expand to manage project records`}
+              tableHeadSub={`${projects.length} projects${expandedConfigTable === "projects" ? "" : " · Expand to manage project records"}`}
               headerAction={
                 canAddProject && (
                   <Button
@@ -583,7 +589,7 @@ export default function ProjectConfiguration() {
                     onClick={() => openProjectDialog("create")}
                     sx={tableHeaderAddButtonSx}
                   >
-                    Add project
+                    New Project
                   </Button>
                 )
               }
@@ -615,7 +621,7 @@ export default function ProjectConfiguration() {
                     onClick={() => openMilestoneDialog("create")}
                     sx={tableHeaderAddButtonSx}
                   >
-                    Add milestone
+                    New Milestone
                   </Button>
                 )
               }
@@ -652,7 +658,7 @@ export default function ProjectConfiguration() {
                     onClick={() => openTaskDialog("create")}
                     sx={tableHeaderAddButtonSx}
                   >
-                    Add task
+                    New Task
                   </Button>
                 )
               }
@@ -683,7 +689,7 @@ export default function ProjectConfiguration() {
           maxWidth="sm"
         >
           <DialogHeader
-            title={`${dialogMode === "edit" ? "Edit" : "Create"} ${dialogType ?? ""}`}
+            title={`${dialogMode === "edit" ? "Edit" : "New"} ${dialogType ? dialogType.charAt(0).toUpperCase() + dialogType.slice(1) : ""}`}
             subtitle={
               dialogType !== "project" && selectedProject
                 ? `Project ${selectedProject.code}${selectedProject.description ? ` · ${selectedProject.description}` : ""}`
@@ -736,6 +742,7 @@ export default function ProjectConfiguration() {
                 >
                   <InputLabel>Project</InputLabel>
                   <Select
+                    inputProps={{ "aria-label": "Project" }}
                     label="Project"
                     value={milestoneForm.project}
                     onChange={(event) => {
@@ -803,6 +810,7 @@ export default function ProjectConfiguration() {
                 >
                   <InputLabel>Project</InputLabel>
                   <Select
+                    inputProps={{ "aria-label": "Project" }}
                     label="Project"
                     value={taskForm.project}
                     onChange={(event) => {
@@ -834,6 +842,7 @@ export default function ProjectConfiguration() {
                 <FormControl fullWidth>
                   <InputLabel>Milestone</InputLabel>
                   <Select
+                    inputProps={{ "aria-label": "Milestone" }}
                     label="Milestone"
                     value={taskForm.milestone}
                     onChange={(event) =>
@@ -896,6 +905,7 @@ export default function ProjectConfiguration() {
             )}
           </DialogContent>
           <DialogActions>
+            <RequiredFieldsNote />
             <Button
               variant="contained"
               startIcon={
@@ -911,8 +921,8 @@ export default function ProjectConfiguration() {
               {saving
                 ? "Saving..."
                 : dialogMode === "edit"
-                  ? "Update"
-                  : "Submit"}
+                  ? "Save changes"
+                  : "Create"}
             </Button>
           </DialogActions>
           {discard.dialog}
@@ -929,7 +939,7 @@ export default function ProjectConfiguration() {
           onClose={() => setDeleteTarget(null)}
           onConfirm={deleteRecord}
         />
-      </Box>
+      </StaggerContainer>
     </Box>
   );
 }

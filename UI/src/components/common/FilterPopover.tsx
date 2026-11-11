@@ -1,6 +1,5 @@
 import { useId, type ReactElement, type ReactNode } from "react";
 import {
-  Box,
   Button,
   Chip,
   DialogActions,
@@ -12,13 +11,14 @@ import {
 import {
   activeFilterBarSx,
   activeFilterLabelSx,
-  filterDialogBodySx,
   filterDialogContentSx,
   filterResetButtonSx,
 } from "@/styles/common";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
 import DialogHeader from "@/components/common/DialogHeader";
+import { AnimatePresence, motion } from "motion/react";
+import { AnimatedCollapse } from "@/animations/MotionPrimitives";
 
 const WIDTHS = { xs: 420, sm: 560, md: 720 } as const;
 
@@ -90,7 +90,7 @@ export default function FilterPopover({
         onClose={onClose}
       />
       <DialogContent sx={filterDialogContentSx}>
-        <Box sx={filterDialogBodySx}>{children}</Box>
+        {children}
       </DialogContent>
       <DialogActions>
         {onReset && (
@@ -116,6 +116,7 @@ export default function FilterPopover({
   );
 }
 
+/** Active Filter declaration used across the frontend. */
 export interface ActiveFilter {
   key: string;
   label: ReactNode;
@@ -131,8 +132,10 @@ export function ActiveFilterChips({
   filters: ActiveFilter[];
   onClearAll?: () => void;
 }) {
-  if (!filters.length) return null;
   return (
+    // The bar opens when the first filter is applied and folds away when the
+    // last is removed; chips pop in/out and the rest slide to close the gap.
+    <AnimatedCollapse show={filters.length > 0}>
     <Stack
       direction="row"
       spacing={0.75}
@@ -145,20 +148,41 @@ export function ActiveFilterChips({
       <Typography component="span" sx={activeFilterLabelSx}>
         Showing
       </Typography>
-      {filters.map((filter) => (
-        <Chip
-          key={filter.key}
-          variant="outlined"
-          label={filter.label}
-          icon={filter.icon}
-          onDelete={filter.onRemove}
-        />
-      ))}
-      {onClearAll && filters.length > 1 && (
-        <Button onClick={onClearAll}>
-          Clear all
-        </Button>
-      )}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {filters.map((filter) => (
+          <motion.span
+            key={filter.key}
+            layout
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ type: "spring", stiffness: 500, damping: 34 }}
+            style={{ display: "inline-flex" }}
+          >
+            <Chip
+              variant="outlined"
+              label={filter.label}
+              icon={filter.icon}
+              onDelete={filter.onRemove}
+            />
+          </motion.span>
+        ))}
+        {onClearAll && filters.length > 1 && (
+          <motion.span
+            key="clear-all"
+            layout
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ display: "inline-flex" }}
+          >
+            <Button onClick={onClearAll}>
+              Clear all
+            </Button>
+          </motion.span>
+        )}
+      </AnimatePresence>
     </Stack>
+    </AnimatedCollapse>
   );
 }

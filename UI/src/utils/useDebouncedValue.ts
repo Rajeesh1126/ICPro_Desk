@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
  * filter changes (e.g. picking From and To weeks) sends one request, not several.
  */
 export function useDebouncedValue<T>(value: T, delay = 350): T {
-  const [debounced, setDebounced] = useState(value);
+  const [debounced, setDebounced] = useState<T>(value);
   useEffect(() => {
     const timer = window.setTimeout(() => setDebounced(value), delay);
     return () => window.clearTimeout(timer);

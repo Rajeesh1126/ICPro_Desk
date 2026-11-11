@@ -2,6 +2,7 @@
 import type { SxProps } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
+/** date Field Sx declaration used across the frontend. */
 export const dateFieldSx: SxProps<Theme> = (theme) => ({
   "& input[type='date']::-webkit-calendar-picker-indicator": {
     cursor: "pointer",

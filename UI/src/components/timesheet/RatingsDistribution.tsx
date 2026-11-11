@@ -9,10 +9,9 @@ import {
   Paper,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import SentimentVeryDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentVeryDissatisfiedOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import SentimentDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentDissatisfiedOutlined";
 import SentimentSatisfiedOutlinedIcon from "@mui/icons-material/SentimentSatisfiedOutlined";
-import SentimentSatisfiedAltOutlinedIcon from "@mui/icons-material/SentimentSatisfiedAltOutlined";
 import SentimentVerySatisfiedOutlinedIcon from "@mui/icons-material/SentimentVerySatisfiedOutlined";
 import DialogHeader from "@/components/common/DialogHeader";
 import {
@@ -26,6 +25,8 @@ import {
   ratingTileStarSx,
   ratingDistributionTileSx,
 } from "@/styles/common";
+import { MotionPaper, StaggerContainer } from "@/animations/MotionPrimitives";
+import { fadeUp } from "@/animations/presets";
 
 type RatingItem = {
   title: string;
@@ -35,9 +36,9 @@ type RatingItem = {
 
 const ratings: RatingItem[] = [
   {
-    title: "Poor",
-    description: "Did not meet objectives and/or consistently violated core values",
-    icon: <SentimentVeryDissatisfiedOutlinedIcon />,
+    title: "Not Reviewed",
+    description: "The work was accepted without being reviewed against objectives and core values",
+    icon: <HelpOutlineOutlinedIcon />,
   },
   {
     title: "Average",
@@ -50,12 +51,6 @@ const ratings: RatingItem[] = [
     description:
       "Consistently met and in some cases exceeded objectives, consistently demonstrated core values",
     icon: <SentimentSatisfiedOutlinedIcon />,
-  },
-  {
-    title: "Very Good",
-    description:
-      "Exceeded majority of objectives; consistently demonstrated core values and role models of few",
-    icon: <SentimentSatisfiedAltOutlinedIcon />,
   },
   {
     title: "Excellent",
@@ -112,7 +107,7 @@ export default function RatingsDistribution({
   open: controlledOpen,
   onClose,
 }: RatingsDistributionProps) {
-  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState<boolean>(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const close = () => {
@@ -144,10 +139,12 @@ export default function RatingsDistribution({
         />
 
         <DialogContent>
+          {/* The four score tiles cascade in after the dialog opens. */}
+          <StaggerContainer stagger={0.03}>
           <Grid container spacing={1.2}>
             {ratings.map((rating) => (
-              <Grid size={{ xs: 12, sm: 6, lg: 2.4 }} key={rating.title}>
-                <Paper variant="outlined" sx={ratingDistributionTileSx}>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={rating.title}>
+                <MotionPaper variants={fadeUp} variant="outlined" sx={ratingDistributionTileSx}>
                   <Box
                     sx={ratingTileHeaderSx}
                   >
@@ -161,10 +158,11 @@ export default function RatingsDistribution({
                   <Typography variant="body2" color="text.secondary" sx={ratingTileBodySx}>
                     {rating.description}
                   </Typography>
-                </Paper>
+                </MotionPaper>
               </Grid>
             ))}
           </Grid>
+          </StaggerContainer>
 
           <Grid container spacing={2} sx={ratingTileBodySx}>
             <Grid size={{ xs: 12, md: 6 }}>

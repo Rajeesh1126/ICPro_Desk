@@ -1,8 +1,11 @@
 import { Box, IconButton, Tooltip } from "@mui/material";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import { motion } from "motion/react";
+import { IconSwap } from "@/animations/MotionPrimitives";
 import logo from "@/assets/icpro_logo.svg";
 import { useThemeMode } from "@/styles/theme/themeModeContext";
+import { tapPress } from "@/animations/presets";
 import { authLogoSx, authThemeToggleSx } from "@/styles/common";
 
 /**
@@ -18,11 +21,15 @@ export default function AuthCardHeader() {
     <>
       <Tooltip title={toggleLabel}>
         <IconButton
+          component={motion.button}
+          whileTap={tapPress}
           aria-label={toggleLabel}
           onClick={toggleMode}
           sx={authThemeToggleSx}
         >
-          {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+          <IconSwap swapKey={mode}>
+            {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+          </IconSwap>
         </IconButton>
       </Tooltip>
       <Box component="img" src={logo} alt="ICPro" sx={authLogoSx} />

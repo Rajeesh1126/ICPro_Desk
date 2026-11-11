@@ -6,7 +6,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.conf import settings
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from urllib.parse import urlencode
+from html import escape
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from core.microsoftGraphAPI import send_mail
 from .models import Role, UserProfile,DepartmentManager
@@ -101,13 +102,25 @@ class ForgotPasswordSerializer(serializers.Serializer):
                 frontend_base_url = getattr(settings, 'FRONTEND_BASE_URL', '').rstrip('/')
                 reset_url = f'{frontend_base_url}/reset-password' if frontend_base_url else ''
 
-            query = urlencode({'email': user.email, 'token': token})
-            reset_link = f'{reset_url}?{query}' if reset_url else request.build_absolute_uri(f'/reset-password?{query}')
+            reset_url = (reset_url or '').strip()
+            if reset_url.startswith('//'):
+                reset_url = f'https:{reset_url}'
+            elif reset_url.startswith('/'):
+                reset_url = request.build_absolute_uri(reset_url)
+            elif reset_url and '://' not in reset_url:
+                reset_url = f'https://{reset_url}'
+            elif not reset_url:
+                reset_url = request.build_absolute_uri('/reset-password')
+
+            parts = urlsplit(reset_url)
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+            query.update(email=user.email, token=token)
+            reset_link = urlunsplit(parts._replace(query=urlencode(query)))
             html_content = f"""
-                <p>Dear {user.first_name or user.username},</p>
+                <p>Dear {escape(user.first_name or user.username)},</p>
                 <p>We received a request to reset your ICProDesk password.</p>
                 <p>
-                    <a href="{reset_link}">Reset your password</a>
+                    <a href="{escape(reset_link, quote=True)}">Reset your password</a>
                 </p>
                 <p>If you did not request this, please ignore this email.</p>
             """

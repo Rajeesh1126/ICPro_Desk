@@ -33,7 +33,8 @@ import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsAc
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import type { TicketData } from "@/types/dataTypes";
 import TableLoadingState from "@/components/common/TableLoadingState";
-import { PriorityPill, StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel, priorityColor, priorityLabel } from "@/components/common/pillValues";
 import {
   calendarKey,
   groupByTargetDate,
@@ -97,7 +98,6 @@ import {
   calendarPanelTitleSx,
   calendarPanelTitleBlockSx,
   calendarPanelCreateSx,
-  calendarOverdueButtonSx,
   calendarShellSx,
   calendarStateSx,
   calendarToolbarSx,
@@ -230,10 +230,11 @@ export function RecordNumberCell({
   children,
 }: {
   number: string;
-  editTitle: string;
-  editDisabled: boolean;
+  editTitle?: string;
+  editDisabled?: boolean;
   onView: () => void;
-  onEdit: () => void;
+  /** Omit for read-only tables (no edit button). */
+  onEdit?: () => void;
   children?: ReactNode;
 }) {
   return (
@@ -243,17 +244,19 @@ export function RecordNumberCell({
           <VisibilityOutlinedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Tooltip title={editTitle}>
-        <span>
-          <IconButton
-            aria-label={`Edit ${number}`}
-            onClick={onEdit}
-            disabled={editDisabled}
-          >
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-        </span>
-      </Tooltip>
+      {onEdit && (
+        <Tooltip title={editTitle ?? "Edit"}>
+          <span>
+            <IconButton
+              aria-label={`Edit ${number}`}
+              onClick={onEdit}
+              disabled={editDisabled}
+            >
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
       <Typography variant="body2" sx={recordNumberTextSx}>
         {number}
       </Typography>
@@ -441,9 +444,9 @@ function CalendarAgendaRow({
           : `${meta.personOf(ticket) || "Unassigned"} · Target ${targetDateText(ticket)}`}
       </Typography>
       <Box sx={boardCardIndicatorsSx}>
-        <StatusPill status={ticket.current_status} />
+        <Pill value={statusLabel(ticket.current_status)} color={statusColor(ticket.current_status)} dot />
         {meta.showPriority && (
-          <PriorityPill priority={ticket.priority || "Normal"} />
+          <Pill value={priorityLabel(ticket.priority || "Normal")} color={priorityColor(ticket.priority || "Normal")} />
         )}
         {isCalendarOverdue(ticket, meta) && (
           <Box component="span" sx={boardCardTagSx("overdue")}>
@@ -513,6 +516,7 @@ export function TicketCalendar<T extends CalendarItem>({
   dateVerb = "due",
   dateLabel = "target date",
   showPriority = true,
+  overdueJump = 0,
 }: {
   tickets: T[];
   loading?: boolean;
@@ -538,6 +542,8 @@ export function TicketCalendar<T extends CalendarItem>({
   dateLabel?: string;
   /** Whether to show a priority pill and include it in accessible labels. */
   showPriority?: boolean;
+  /** Bumped by the page's header "Overdue" button to go to the earliest overdue date. */
+  overdueJump?: number;
 }) {
   const onOpen = (item: CalendarTicket) => onOpenItem(item as T);
   const meta = useMemo<CalendarMeta>(
@@ -574,7 +580,7 @@ export function TicketCalendar<T extends CalendarItem>({
   const today = todayCalendarDay();
   const todayKey = calendarKey(today);
 
-  const [cursor, setCursor] = useState({
+  const [cursor, setCursor] = useState<{ year: number; month: number }>({
     year: today.year,
     month: today.month,
   });
@@ -596,15 +602,18 @@ export function TicketCalendar<T extends CalendarItem>({
 
   const days = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
   const keys = useMemo(() => monthKeys(cursor.year, cursor.month), [cursor]);
+  // Derived per data change and visible month (no refetch).
   const { byDate, undated } = useMemo(() => {
     const grouped = groupByTargetDate(tickets);
-    // A period is one task displayed on each visible day of its span.
+    // A period task also shows on each visible day from its start date up to
+    // (not including) the end date, which groupByTargetDate already placed.
     for (const ticket of tickets) {
       if (ticket.schedule_type !== "period") continue;
       const start = parseCalendarDate(ticket.start_date);
       const end = parseCalendarDate(ticket.target_date);
       if (!start || !end) continue;
-      const first = calendarKey(start), last = calendarKey(end);
+      const first = calendarKey(start);
+      const last = calendarKey(end);
       for (const day of days) {
         const key = calendarKey(day);
         if (key < first || key >= last) continue;
@@ -613,8 +622,14 @@ export function TicketCalendar<T extends CalendarItem>({
     }
     return grouped;
   }, [tickets, days]);
+  // Distinct items this month: a period spanning many days counts once.
   const monthCount = useMemo(
-    () => new Set(keys.flatMap((key) => (byDate.get(key) ?? []).map((item) => item.id ?? item.number))).size,
+    () =>
+      new Set(
+        keys.flatMap((key) =>
+          (byDate.get(key) ?? []).map((item) => item.id ?? item.number),
+        ),
+      ).size,
     [byDate, keys],
   );
   const monthLabel = formatMonthYear(cursor.year, cursor.month);
@@ -633,6 +648,17 @@ export function TicketCalendar<T extends CalendarItem>({
         ),
     [tickets, meta],
   );
+
+  // Header "Overdue" pressed: state adjusted during render, no extra paint.
+  const [seenOverdueJump, setSeenOverdueJump] = useState(overdueJump);
+  if (overdueJump !== seenOverdueJump) {
+    setSeenOverdueJump(overdueJump);
+    const target = parseCalendarDate(overdueTickets[0]?.target_date);
+    if (target) {
+      setCursor({ year: target.year, month: target.month });
+      setSelected(target);
+    }
+  }
 
   // Keyboard moves can cross into another month: focus the new cell once
   // the grid for that month has rendered.
@@ -738,24 +764,6 @@ export function TicketCalendar<T extends CalendarItem>({
         <Button variant="outlined" onClick={goToday}>
           Today
         </Button>
-        {overdueTickets.length > 0 && (
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<EventBusyOutlinedIcon />}
-            aria-label={`Go to the earliest overdue ${noun} (${overdueTickets.length} overdue)`}
-            onClick={() => {
-              const target = parseCalendarDate(overdueTickets[0].target_date)!;
-              setCursor({ year: target.year, month: target.month });
-              setSelected(target);
-            }}
-            sx={calendarOverdueButtonSx}
-          >
-            {compact
-              ? overdueTickets.length
-              : `Overdue (${overdueTickets.length})`}
-          </Button>
-        )}
       </Box>
     </Box>
   );

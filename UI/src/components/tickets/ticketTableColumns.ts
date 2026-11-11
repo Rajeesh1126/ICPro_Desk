@@ -1,4 +1,6 @@
-import { isTicketEditDisabled } from "@/utils/ticketEdit";
+import Pill from "@/components/common/Pill";
+import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
+import { isTicketEditDisabled, ticketEditDisabledReason } from "@/utils/ticketEdit";
 import { createElement, useMemo } from "react";
 import type { ColumnData } from "@/components/common/TableView";
 import { DueDateCell, RecordNumberCell } from "@/components/common/TicketPageParts";
@@ -46,18 +48,18 @@ export function useTicketTableColumns({
         render: (row) =>
           createElement(RecordNumberCell, {
             number: row.number,
-            editTitle: "Edit ticket",
+            editTitle: ticketEditDisabledReason(row, userId) ?? "Edit ticket",
             editDisabled: isTicketEditDisabled(row, userId),
             onView: () => onView(row),
             onEdit: () => onEdit(row),
           }),
       },
       { label: "Subject", dataKey: "task", width: "auto", wrap: true, mobileOrder: 1 },
-      { label: "Status", dataKey: "current_status", width: 160 },
+      { label: "Status", dataKey: "current_status", width: 160, render: (row) => createElement(Pill, { value: statusLabel(row.current_status), color: statusColor(row.current_status), dot: true }) },
       { label: "Assigned To", dataKey: "assigned_to_name", width: 160, mobileOrder: 4 },
       { label: "Assigned By", dataKey: "creator_name", width: 150 },
       withTeam && { label: "Team", dataKey: "department_name", width: 150 },
-      { label: "Priority", dataKey: "priority", width: 100, mobileOrder: 3 },
+      { label: "Priority", dataKey: "priority", width: 100, mobileOrder: 3, render: (row) => createElement(Pill, { value: priorityLabel(row.priority), color: priorityColor(row.priority) }) },
       {
         label: "Target Completion",
         dataKey: "target_date",

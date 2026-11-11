@@ -49,18 +49,5 @@ export const prefetchApi = (url: string, params?: Params) =>
     ...freshnessFor(url),
   });
 
-/**
- * Imperative cached GET for data loaded on demand (e.g. when a dialog opens):
- * returns fresh cached data without a request, otherwise fetches and caches.
- */
-export const fetchCached = <T>(url: string, params?: Params) =>
-  queryClient.fetchQuery({
-    queryKey: apiQueryKey(url, params),
-    queryFn: ({ signal }) => fetchApi<T>(url, params, signal),
-    staleTime: 30_000,
-    // Live data is never reused here: a dialog always gets the current state.
-    ...freshnessFor(url),
-  });
-
 /** Normalises list endpoints that may return a non-array on edge cases. */
 export const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);

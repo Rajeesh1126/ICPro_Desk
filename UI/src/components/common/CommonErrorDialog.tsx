@@ -1,5 +1,4 @@
 import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
-import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
   Box,
   Button,
@@ -23,6 +22,7 @@ interface Props {
   onClose: () => void;
 }
 
+// Presents a consistent, acknowledgement-only dialog for validation and API errors.
 export default function CommonErrorDialog({
   open,
   title = "Validation Error",
@@ -61,8 +61,6 @@ export default function CommonErrorDialog({
       <DialogActions>
         <Button
           variant="contained"
-          color="error"
-          startIcon={<CheckOutlinedIcon />}
           onClick={onClose}
         >
           OK

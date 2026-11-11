@@ -1,15 +1,5 @@
 import type { TicketCollections, TicketData, TicketLog } from "@/types/dataTypes";
 
-export const emptyTicketCollections: TicketCollections = {
-  all: [],
-  overview: [],
-  assigned: [],
-  created: [],
-  closed: [],
-  rejected: [],
-  recalled: [],
-};
-
 const inactiveStatuses = ["rejected", "closed", "recall successful"];
 
 /** Board columns and the statuses each groups; anything else is list-only. */
@@ -22,6 +12,12 @@ export const TICKET_BOARD_GROUPS = [
   },
   { title: "Completed", accentStatus: "completed", statuses: ["completed"] },
 ] as const;
+
+/** Whether a ticket has a board column (others only show in the list). */
+export const isBoardTicket = (ticket: Pick<TicketData, "current_status">) =>
+  TICKET_BOARD_GROUPS.some((group) =>
+    (group.statuses as readonly string[]).includes(ticket.current_status),
+  );
 
 /**
  * Splits one cached `/tickets/` response into every tab's dataset, so

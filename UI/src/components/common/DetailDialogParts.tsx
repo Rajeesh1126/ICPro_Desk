@@ -1,18 +1,17 @@
+import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
+import { sentenceCase } from "@/components/common/tableCell";
 import { Children, useLayoutEffect, useRef, type ReactNode } from "react";
 import {
   Avatar,
   Box,
-  Chip,
   DialogTitle,
   IconButton,
   Stack,
   Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import { getPriorityPalette } from "@/styles/common";
-import { StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
 import {
   detailChatAvatarSx,
   detailChatBodySx,
@@ -36,19 +35,26 @@ import {
   detailPanelHeaderSx,
   detailPanelSx,
   detailPanelTitleSx,
+  detailPanelBodySx,
+  detailPanelFooterSx,
+  detailPanelIntroSx,
   detailPersonAvatarSx,
   detailPersonLabelSx,
   detailPersonNameSx,
   detailPersonPillSx,
-  detailPriorityChipSx,
   detailSubjectTextSx,
   detailTextFieldSx,
 } from "@/styles/detailDialog";
+import { AnimatePresence } from "motion/react";
+import { MotionBox } from "@/animations/MotionPrimitives";
 
 /* Building blocks shared by the Do List, Ticket and Work Let detail dialogs. */
 
 const initial = (name?: string | null, fallback = "U") =>
   name ? name.charAt(0).toUpperCase() : fallback;
+
+/** Dialog name for detail dialogs: the eyebrow and number, not the whole header. */
+export const DETAIL_DIALOG_LABEL = "detail-dialog-eyebrow detail-dialog-number";
 
 /** Eyebrow, number + priority, an optional person pill, and close. */
 export function DetailDialogHeader({
@@ -67,14 +73,13 @@ export function DetailDialogHeader({
   person?: { label: string; name?: string | null } | null;
   onClose: () => void;
 }) {
-  const pStyle = getPriorityPalette(useTheme(), priority);
 
   return (
-    <DialogTitle component="div">
+    <DialogTitle component="div" id="detail-dialog-header">
       <Box sx={detailHeaderGridSx}>
         <Box sx={detailHeaderMainSx}>
           <Box minWidth={0}>
-            <Typography sx={detailEyebrowSx}>{eyebrow}</Typography>
+            <Typography id="detail-dialog-eyebrow" sx={detailEyebrowSx}>{eyebrow}</Typography>
             <Stack
               direction="row"
               spacing={1}
@@ -83,13 +88,13 @@ export function DetailDialogHeader({
               useFlexGap
               mt={0.25}
             >
-              <Typography component="h2" sx={detailNumberSx}>
+              <Typography id="detail-dialog-number" component="h2" sx={detailNumberSx}>
                 {number}
               </Typography>
-              {status && <StatusPill status={status} />}
-              <Chip
-                label={`${priority?.toUpperCase()} PRIORITY`}
-                sx={detailPriorityChipSx(pStyle)}
+              {status && <Pill value={statusLabel(status)} color={statusColor(status)} dot />}
+              <Pill
+                value={`${priorityLabel(priority)} priority`}
+                color={priorityColor(priority)}
               />
             </Stack>
           </Box>
@@ -138,9 +143,13 @@ export function DetailField({
       <Box sx={detailFieldBodySx}>
         <Typography sx={detailFieldLabelSx}>{label}</Typography>
         {status ? (
-          <StatusPill status={value} />
+          // Hug the start like the text values (a flex column would stretch it).
+          <Pill value={statusLabel(value)} color={statusColor(value)} dot sx={{ alignSelf: "flex-start" }} />
         ) : (
-          <Typography sx={detailFieldValueSx(capitalize)}>{value}</Typography>
+          // Sentence case, like the table cells ("Follow-up", not "Follow-Up").
+          <Typography sx={detailFieldValueSx(false)}>
+            {capitalize ? sentenceCase(value) || value : value}
+          </Typography>
         )}
         {note}
       </Box>
@@ -189,9 +198,14 @@ export function DetailChatPanel({
   const listRef = useRef<HTMLDivElement>(null);
   const messageCount = Children.count(children);
 
+  const scrolledOnce = useRef(false);
+
   useLayoutEffect(() => {
     const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    if (!list) return;
+    // Jump to the latest on open; glide to it when a new message arrives.
+    list.scrollTo({ top: list.scrollHeight, behavior: scrolledOnce.current ? "smooth" : "auto" });
+    scrolledOnce.current = true;
   }, [messageCount]);
 
   return (
@@ -204,8 +218,64 @@ export function DetailChatPanel({
         {badge != null && <Box sx={detailPanelBadgeSx}>{badge}</Box>}
       </Box>
       <Box ref={listRef} sx={detailChatListSx}>
+        {/* Messages already there on open stay still; new ones pop in. */}
+        <AnimatePresence initial={false}>{children}</AnimatePresence>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Side panel with the chat panel's chrome (hairline divider, icon header and
+ * count badge) for any list, e.g. a recurring task's occurrences. `intro`
+ * stays put above the scrolling body; `footer` stays put below it.
+ */
+export function DetailPanel({
+  icon,
+  title,
+  badge,
+  intro,
+  footer,
+  scrollToEndKey,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  badge?: ReactNode;
+  intro?: ReactNode;
+  footer?: ReactNode;
+  /**
+   * Chat-style lists: when set, the body opens scrolled to the end (newest)
+   * and glides there again whenever this value changes, e.g. the count.
+   */
+  scrollToEndKey?: unknown;
+  children: ReactNode;
+}) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const scrolledOnce = useRef(false);
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body || scrollToEndKey === undefined) return;
+    // Jump on open; glide when something new arrives.
+    body.scrollTo({ top: body.scrollHeight, behavior: scrolledOnce.current ? "smooth" : "auto" });
+    scrolledOnce.current = true;
+  }, [scrollToEndKey]);
+
+  return (
+    <Box component="section" sx={detailPanelSx}>
+      <Box sx={detailPanelHeaderSx}>
+        {icon}
+        <Typography component="h3" sx={detailPanelTitleSx}>
+          {title}
+        </Typography>
+        {badge != null && <Box sx={detailPanelBadgeSx}>{badge}</Box>}
+      </Box>
+      {intro && <Box sx={detailPanelIntroSx}>{intro}</Box>}
+      <Box ref={bodyRef} sx={detailPanelBodySx}>
         {children}
       </Box>
+      {footer && <Box sx={detailPanelFooterSx}>{footer}</Box>}
     </Box>
   );
 }
@@ -223,7 +293,15 @@ export function DetailChatMessage({
   children: ReactNode;
 }) {
   return (
-    <Box sx={detailChatRowSx(mine)}>
+    <MotionBox
+      // Grows from the sender's side. Scale (not slide) so it never
+      // overflows the scrolling list.
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 500, damping: 32 }}
+      style={{ transformOrigin: mine ? "100% 100%" : "0% 100%" }}
+      sx={detailChatRowSx(mine)}
+    >
       <Avatar sx={detailChatAvatarSx(mine)}>{initial(name)}</Avatar>
       <Box sx={detailChatBodySx(mine)}>
         <Box sx={detailChatMetaSx}>
@@ -236,7 +314,7 @@ export function DetailChatMessage({
         </Box>
         <Box sx={detailChatBubbleSx(mine)}>{children}</Box>
       </Box>
-    </Box>
+    </MotionBox>
   );
 }
 

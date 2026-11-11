@@ -13,7 +13,7 @@ export const loadXlsx = () => import("xlsx");
  * library downloads or a large sheet blocks the main thread.
  */
 export function useExportStatus() {
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<boolean>(false);
 
   const runExport = useCallback(
     (build: () => string | void | Promise<string | void>) => {

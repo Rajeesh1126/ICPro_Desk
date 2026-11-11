@@ -1,3 +1,4 @@
+import { FONT, TYPOGRAPHY } from "@/styles/tokens";
 import { useEffect, useMemo, useRef } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -8,7 +9,6 @@ import { summariseSeries } from "@/utils/chartSummary";
 import {
   borderedSurfaceSx,
   pieChartHeaderSx,
-  pieChartSingleValueSx,
   pieChartEmptyStateSx,
   pieChartEmptyIconSx,
   pieChartCanvasSx,
@@ -16,15 +16,22 @@ import {
   formatStatusLabel,
   getStatusColor,
 } from "@/styles/common";
+import { chartMotion } from "@/animations/presets";
 
 interface AnalysisPieChartProps {
   title: string;
+  heading?: string;
+  caption?: string;
+  valueLabel?: string;
   data: Record<string, number>;
   height?: number;
 }
 
 export default function AnalysisPieChart({
   title,
+  heading = "Ticket status",
+  caption = "Tickets by status",
+  valueLabel = "Tickets",
   data,
   height = 300,
 }: AnalysisPieChartProps) {
@@ -43,7 +50,7 @@ export default function AnalysisPieChart({
 
   useEffect(() => {
     const element = chartElement.current;
-    if (!element || !chartData.length || chartData.length === 1) return;
+    if (!element || !chartData.length) return;
 
     if (element.clientWidth === 0 || element.clientHeight === 0) {
       return;
@@ -59,7 +66,9 @@ export default function AnalysisPieChart({
 
     chart.setOption(
       {
-        animationDuration: 450,
+        ...chartMotion(),
+        // Canvas text uses the app font too (ECharts defaults to sans-serif).
+        textStyle: { fontFamily: TYPOGRAPHY.fontFamily },
         tooltip: {
           trigger: "item",
           backgroundColor: theme.palette.background.paper,
@@ -73,7 +82,7 @@ export default function AnalysisPieChart({
           itemWidth: 10,
           itemHeight: 10,
           itemGap: 12,
-          textStyle: { color: theme.palette.text.secondary, fontSize: 11 },
+          textStyle: { color: theme.palette.text.secondary, fontSize: FONT.xs },
         },
         series: [
           {
@@ -81,7 +90,11 @@ export default function AnalysisPieChart({
             radius: ["46%", "72%"],
             center: ["36%", "50%"],
             avoidLabelOverlap: true,
-            padAngle: 2,
+            // A single status draws a full ring, with no gap at its seam.
+            padAngle: chartData.length > 1 ? 2 : 0,
+            // Slices sweep open around the ring; the hovered one lifts out.
+            animationType: "expansion",
+            emphasis: { scale: true, scaleSize: 6 },
             itemStyle: {
               borderColor: theme.palette.background.paper,
               borderWidth: 3,
@@ -92,7 +105,7 @@ export default function AnalysisPieChart({
               position: "center",
               formatter: () => String(total),
               color: theme.palette.text.primary,
-              fontSize: 25,
+              fontSize: FONT.xl,
               fontWeight: 600,
             },
             labelLine: { show: false },
@@ -126,7 +139,7 @@ export default function AnalysisPieChart({
     >
       <Box sx={pieChartHeaderSx}>
         <Box>
-          <Typography fontWeight={600}>Ticket status</Typography>
+          <Typography fontWeight={600}>{heading}</Typography>
           <Typography variant="caption" color="text.secondary">
             {title}
           </Typography>
@@ -137,28 +150,23 @@ export default function AnalysisPieChart({
         role="img"
         aria-label={
           chartData.length
-            ? `Ticket status chart. ${summariseSeries(chartData)}`
+            ? `${heading} chart. ${summariseSeries(chartData)}`
             : undefined
         }
-        sx={pieChartCanvasSx({ height, visible: chartData.length > 1 })}
+        sx={pieChartCanvasSx({ height, visible: chartData.length > 0 })}
       />
-      {chartData.length === 1 && (
-        <Box sx={pieChartSingleValueSx} aria-label={`${chartData[0].name}: ${chartData[0].value} tickets`}>
-          <Box><Typography variant="h4" fontWeight={600}>{chartData[0].value}</Typography><Typography variant="body2" color="text.secondary">{chartData[0].name}</Typography></Box>
-        </Box>
-      )}
       <ChartDataTable
-        caption="Tickets by status"
+        caption={caption}
         rowHeader="Status"
         rows={chartData.map((item) => item.name)}
-        columns={[{ label: "Tickets", values: chartData.map((item) => item.value) }]}
+        columns={[
+          { label: valueLabel, values: chartData.map((item) => item.value) },
+        ]}
       />
       {!chartData.length && (
         <Box sx={pieChartEmptyStateSx}>
           <Box>
-            <DonutLargeOutlinedIcon
-              sx={pieChartEmptyIconSx}
-            />
+            <DonutLargeOutlinedIcon sx={pieChartEmptyIconSx} />
             <Typography fontWeight={600}>No status data yet</Typography>
           </Box>
         </Box>

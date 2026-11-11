@@ -8,6 +8,7 @@ import { formatDate } from "@/utils/dateRange";
 
 export { formatDate, formatDateTime } from "@/utils/dateRange";
 
+/** Due Tone declaration used across the frontend. */
 export type DueTone = "overdue" | "today" | "soon" | "upcoming" | "none";
 
 const toLocalDay = (value: string) => {

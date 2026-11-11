@@ -48,3 +48,13 @@ export const getColumnSearchText = <T extends object>(
     .filter(Boolean)
     .join(" ");
 };
+
+/** Sort order for two cell values: numbers by value, text in natural order. */
+export function compareCellValues(a: unknown, b: unknown) {
+  const left = typeof a === "string" && a.trim() !== "" ? Number(a) : a;
+  const right = typeof b === "string" && b.trim() !== "" ? Number(b) : b;
+  if (typeof left === "number" && typeof right === "number" && !Number.isNaN(left) && !Number.isNaN(right)) {
+    return left - right;
+  }
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}

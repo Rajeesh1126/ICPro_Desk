@@ -23,6 +23,7 @@ import {
   strongTextSx,
 } from "@/styles/common";
 
+/** Time Sheet Day declaration used across the frontend. */
 export interface TimeSheetDay {
   day: string;
   hours: number;
@@ -49,7 +50,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
   days,
   submitting = false,
 }) => {
-  const [comments, setComments] = useState("");
+  const [comments, setComments] = useState<string>("");
 
   const timeSheetDays = useMemo<TimeSheetPreviewRow[]>(
     () => (days ?? []).map((item) => ({ ...item })),
@@ -116,7 +117,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
         <VirtualizedTable
           columns={columns}
           rows={timeSheetDays}
-          height="45dvh"
+          height="52dvh"
           tableHead="Work Hours"
           tableMinWidth={360}
           fixedFooterContent={renderFooter}
@@ -137,6 +138,7 @@ const TimeSheetPreviewModal: React.FC<TimeSheetPreviewModalProps> = ({
             value={comments}
             onChange={(e) => setComments(e.target.value)}
             variant="outlined"
+            slotProps={{ htmlInput: { "aria-label": "Comments" } }}
           />
         </Box>
 

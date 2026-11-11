@@ -1,3 +1,5 @@
+import { loggedUser } from "@/utils/currentUser";
+import { getValidationErrors } from "@/utils/errorUtils";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
@@ -40,10 +42,9 @@ import {
   attachmentRemoveButtonSx,
   ticketAttachmentNameSx,
   attachmentHintSx,
-  topSpacingSx,
 } from "@/styles/common";
 import { showNotification } from "@/api/notificationService";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 
 type CreateTicketModalProps = {
   open: boolean;
@@ -58,18 +59,6 @@ type Priority = "high" | "medium" | "low" | "";
 
 const emptyAssignableUsers: UserSummary[] = [];
 
-type ValidationErrorResponse = {
-  response?: {
-    status?: number;
-    data?: Partial<Record<keyof TicketFormData, string | string[]>>;
-  };
-};
-
-function isValidationErrorResponse(
-  error: unknown,
-): error is ValidationErrorResponse {
-  return typeof error === "object" && error !== null && "response" in error;
-}
 
 const formatLocalInputDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -107,12 +96,6 @@ const getAttachmentKey = (pathOrName?: string) =>
 
 const getUserId = (user?: UserSummary) => user?.id ?? user?.users_id ?? "";
 
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 
 export default function CreateTicketModal({
   open,
@@ -127,7 +110,7 @@ export default function CreateTicketModal({
   const [formErrorData, setFormErrorData] = useState<
     Partial<Record<keyof TicketFormData, string | string[]>>
   >({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const userId = useMemo(() => loggedUser(), []);
 
   useEffect(() => {
@@ -140,10 +123,13 @@ export default function CreateTicketModal({
           department: Data.department || "",
           current_status: Data.current_status === "open" ? "open" : "revised",
           is_internal: Boolean(Data.is_internal),
-          est_hours: Data.est_hours,
+          // Same number format as a new ticket ("1", not the API's "1.00").
+          est_hours: Number(Data.est_hours) || 0,
           assigned_to: Data.assigned_to ?? (internalMode ? getUserId(assignableUsers[0]) : ""),
           priority: (Data.priority?.toLowerCase() as Priority) || "",
-          target_date: Data.target_date === "" || new Date(Data.target_date) < new Date(getTomorrowDate()) ? getTomorrowDate() : Data.target_date,
+          // Show the saved date as-is; a passed date is flagged below instead
+          // of being silently replaced (which would change it on save).
+          target_date: Data.target_date || getTomorrowDate(),
           files: Data.files || [],
           newAttachments: [],
           deletedFileIds: [],
@@ -352,9 +338,8 @@ export default function CreateTicketModal({
           : "Ticket created successfully.",
       });
     } catch (error: unknown) {
-      if (isValidationErrorResponse(error) && error.response?.status === 400) {
-        setFormErrorData(error.response.data ?? {});
-      }
+      const fieldErrors = getValidationErrors<Partial<Record<keyof TicketFormData, string | string[]>>>(error);
+      if (fieldErrors) setFormErrorData(fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -362,13 +347,17 @@ export default function CreateTicketModal({
 
   const tomorrow = getTomorrowDate();
   const targetDateMinimum = initialTargetDate ? getTodayDate() : tomorrow;
+  // ISO dates compare correctly as strings.
+  const targetDatePassed =
+    Boolean(formData.target_date) && formData.target_date < targetDateMinimum;
   const invalid =
     !formData.task.trim() ||
     !formData.description.trim() ||
     !formData.department ||
     !formData.assigned_to ||
     !formData.priority ||
-    !formData.target_date;
+    !formData.target_date ||
+    targetDatePassed;
 
   return (
     <Dialog
@@ -382,11 +371,11 @@ export default function CreateTicketModal({
         title={
           Data
             ? internalMode
-              ? "Edit internal ticket"
-              : "Edit ticket"
+              ? "Edit Internal Ticket"
+              : "Edit Ticket"
             : internalMode
-              ? "New internal ticket"
-              : "New ticket"
+              ? "New Internal Ticket"
+              : "New Ticket"
         }
         subtitle={
           internalMode
@@ -397,7 +386,8 @@ export default function CreateTicketModal({
         closeDisabled={loading}
       />
       <DialogContent>
-        <Grid container spacing={1.5} sx={topSpacingSx}>
+        {/* Extra row gap: helper text must clear the next row's floating labels. */}
+        <Grid container columnSpacing={1.5} rowSpacing={2}>
           <Grid size={{ xs: 12 }}>
             <TextField
               required
@@ -426,6 +416,7 @@ export default function CreateTicketModal({
             <FormControl required fullWidth>
               <InputLabel>Team</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Team" }}
                 value={formData.department}
                 label="Team"
                 onChange={handleGroupChange}
@@ -448,6 +439,7 @@ export default function CreateTicketModal({
             <FormControl required fullWidth>
               <InputLabel>Assigned to</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Assigned to" }}
                 value={formData.assigned_to}
                 label="Assigned to"
                 disabled={!internalMode}
@@ -509,6 +501,7 @@ export default function CreateTicketModal({
             <FormControl required fullWidth>
               <InputLabel>Priority</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Priority" }}
                 value={formData.priority}
                 label="Priority"
                 onChange={(event) => update("priority", event.target.value)}
@@ -527,6 +520,10 @@ export default function CreateTicketModal({
               fullWidth
               value={formData.target_date}
               onChange={(event) => update("target_date", event.target.value)}
+              error={targetDatePassed}
+              helperText={
+                targetDatePassed ? "This date has passed. Choose a new target date." : undefined
+              }
               sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
@@ -607,6 +604,7 @@ export default function CreateTicketModal({
         </Grid>
       </DialogContent>
       <DialogActions>
+        <RequiredFieldsNote />
         <Button
           variant="contained"
           startIcon={Data ? <SaveOutlinedIcon /> : <AddOutlinedIcon />}

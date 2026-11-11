@@ -1,3 +1,6 @@
+import { statusColor, statusLabel } from "@/components/common/pillValues";
+import Pill from "@/components/common/Pill";
+
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
@@ -13,7 +16,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
@@ -26,7 +29,7 @@ import { showNotification } from "@/api/notificationService";
 import { formatDateTime } from "@/components/common/formatDate";
 import { getStoredPermissions } from "@/utils/permissions";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 import { TableActionGroup } from "@/components/common/ActionDivider";
 import {
   VirtualizedTable,
@@ -43,6 +46,7 @@ import {
   preWrapTextSx,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer } from "@/animations/MotionPrimitives";
 
 type SuggestionStatus =
   | "Open"
@@ -87,13 +91,13 @@ export default function Suggestions() {
   const canAddSuggestion = permissions.has("add_systemsuggestion");
   const canChangeSuggestion = permissions.has("change_systemsuggestion");
   const canDeleteSuggestion = permissions.has("delete_systemsuggestion");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [editingSuggestion, setEditingSuggestion] =
     useState<SystemSuggestion | null>(null);
   const [deleteSuggestion, setDeleteSuggestion] =
     useState<SystemSuggestion | null>(null);
   const [form, setForm] = useState<SuggestionFormState>(emptyForm);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
   const [readingSuggestion, setReadingSuggestion] =
     useState<SystemSuggestion | null>(null);
 
@@ -207,6 +211,7 @@ export default function Suggestions() {
         label: "Status",
         dataKey: "status",
         width: 110,
+        render: (row) => <Pill value={statusLabel(row.status)} color={statusColor(row.status)} dot />,
       },
       {
         label: "Submitted By",
@@ -241,7 +246,7 @@ export default function Suggestions() {
             {canChangeSuggestion && (
               <Tooltip title="Edit suggestion">
                 <IconButton
-                  aria-label="Edit suggestion"
+                  aria-label={`Edit suggestion from ${row.user_name ?? "user"}`}
                   color="primary"
                   onClick={() => openEditDialog(row)}
                 >
@@ -253,7 +258,7 @@ export default function Suggestions() {
               <Tooltip title="Delete suggestion">
                 <IconButton
                   sx={rowDeleteButtonSx}
-                  aria-label="Delete suggestion"
+                  aria-label={`Delete suggestion from ${row.user_name ?? "user"}`}
                   onClick={() => setDeleteSuggestion(row)}
                 >
                   <DeleteOutlinedIcon fontSize="small" sx={deleteIconSx} />
@@ -269,7 +274,7 @@ export default function Suggestions() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Suggestion / Feedback"
           subtitle="Capture ICProDesk feedback and improvement suggestions."
@@ -280,11 +285,11 @@ export default function Suggestions() {
               node: (
                 <Button
                   variant="contained"
-                  startIcon={<AddCommentOutlinedIcon />}
+                  startIcon={<AddOutlinedIcon />}
                   onClick={openCreateDialog}
                 >
                   <Box component="span" sx={buttonLabelFull}>
-                    Add Suggestion
+                    New Suggestion
                   </Box>
                   <Box component="span" sx={buttonLabelCompact}>
                     Add
@@ -308,7 +313,7 @@ export default function Suggestions() {
             emptyDescription="Share an idea or feedback to help improve ICProDesk."
           />
         </Box>
-      </Box>
+      </StaggerContainer>
 
       <Dialog
         open={readingSuggestion !== null}
@@ -322,6 +327,12 @@ export default function Suggestions() {
         />
         <DialogContent>
           <Stack spacing={2}>
+            {/* Labelled fields and the status, like the other detail dialogs. */}
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle2">Status</Typography>
+              {readingSuggestion && <Pill value={statusLabel(readingSuggestion.status)} color={statusColor(readingSuggestion.status)} dot />}
+            </Stack>
+            <Typography variant="subtitle2">Suggestion</Typography>
             <Typography
               variant="body1"
               sx={preWrapTextSx}
@@ -358,7 +369,7 @@ export default function Suggestions() {
         maxWidth="sm"
       >
         <DialogHeader
-          title={editingSuggestion ? "Update Suggestion" : "Add Suggestion"}
+          title={editingSuggestion ? "Edit Suggestion" : "New Suggestion"}
           onClose={discard.requestClose}
         />
         <DialogContent>
@@ -400,6 +411,7 @@ export default function Suggestions() {
           </Stack>
         </DialogContent>
         <DialogActions>
+          <RequiredFieldsNote />
           <Button
             onClick={submitSuggestion}
             disabled={saving}
@@ -412,7 +424,7 @@ export default function Suggestions() {
               )
             }
           >
-            {saving ? "Saving..." : editingSuggestion ? "Update" : "Submit"}
+            {saving ? "Saving..." : editingSuggestion ? "Save changes" : "Add suggestion"}
           </Button>
         </DialogActions>
         {discard.dialog}

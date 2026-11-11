@@ -1,3 +1,7 @@
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
+import { FONT, TYPOGRAPHY, CHART_COLORS } from "@/styles/tokens";
+import { formatDecimalHours } from "@/utils/hoursMinutes";
 import { countChangedFilters } from "@/utils/filterCount";
 import DateRange from "@/components/common/DateRange";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +58,8 @@ import {
   tabs,
   tabsContainer,
 } from "@/styles/layout";
+import { ContentSwap, StaggerContainer } from "@/animations/MotionPrimitives";
+import { chartMotion } from "@/animations/presets";
 
 type AnalysisRow = {
   id: number;
@@ -99,11 +105,10 @@ type AnalysisResponse = {
 };
 
 const RATING_LABELS: Record<number, string> = {
-  1: "Poor",
+  1: "Not Reviewed",
   2: "Average",
   3: "Good",
-  4: "Very Good",
-  5: "Excellent",
+  4: "Excellent",
 };
 
 const formatRating = (rate: number) => RATING_LABELS[rate] ?? "Not rated";
@@ -145,9 +150,10 @@ function aggregateChartRows(rows: ChartPoint[], groupKey: "project" | "task") {
   const groupNames = Array.from(
     new Set(rows.map((row) => row[groupKey] || "Unassigned")),
   );
+  // Sorted so each employee keeps the same series colour on every chart tab.
   const employees = Array.from(
     new Set(rows.map((row) => row.employee || "Unassigned")),
-  );
+  ).sort((left, right) => left.localeCompare(right));
 
   const series = employees.map((employee) => ({
     label: employee,
@@ -179,19 +185,10 @@ function TimesheetBarChart({
     const element = chartElement.current;
     if (!element) return;
 
-    const palette = [
-      theme.palette.primary.main,
-      theme.palette.secondary.main,
-      theme.palette.success.main,
-      theme.palette.warning.main,
-      theme.palette.info.main,
-      theme.palette.error.main,
-    ];
-    const employeeColor = (name: string) => {
-      let hash = 0;
-      for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) | 0;
-      return palette[Math.abs(hash) % palette.length];
-    };
+    // Categorical series colours, kept apart from the status colours
+    // (success/warning/error) so a bar never reads as a status. Assigned by
+    // series position, so no two employees share a colour within 8 series.
+    const palette = [...CHART_COLORS[theme.palette.mode]];
 
     const chart =
       chartInstance.current ??
@@ -201,7 +198,10 @@ function TimesheetBarChart({
 
     chart.setOption(
       {
-        animationDuration: 450,
+        // Bars grow in with a short cascade; switching chart tabs replays it.
+        ...chartMotion(),
+        // Canvas text uses the app font too (ECharts defaults to sans-serif).
+        textStyle: { fontFamily: TYPOGRAPHY.fontFamily },
         color: palette,
         grid: {
           left: 110,
@@ -217,7 +217,7 @@ function TimesheetBarChart({
           itemHeight: 12,
           textStyle: {
             color: theme.palette.text.secondary,
-            fontSize: 12,
+            fontSize: FONT.xs,
           },
         },
         tooltip: {
@@ -234,7 +234,7 @@ function TimesheetBarChart({
           name: "Hours",
           axisLabel: {
             color: theme.palette.text.secondary,
-            fontSize: 11,
+            fontSize: FONT.xs,
             formatter: (value: number) => `${value} h`,
           },
           axisLine: { lineStyle: { color: theme.palette.divider } },
@@ -245,7 +245,7 @@ function TimesheetBarChart({
           inverse: true,
           axisLabel: {
             color: theme.palette.text.secondary,
-            fontSize: 11,
+            fontSize: FONT.xs,
             width: 120,
             overflow: "break",
           },
@@ -253,13 +253,14 @@ function TimesheetBarChart({
             lineStyle: { color: theme.palette.divider },
           },
         },
-        series: series.map((item) => ({
+        series: series.map((item, index) => ({
           name: item.label,
           type: "bar",
           data: item.data,
           barMaxWidth: 26,
-          itemStyle: { color: employeeColor(item.label), borderRadius: [0, 5, 5, 0] },
-          label: { show: true, position: "right", color: theme.palette.text.secondary, fontSize: 10, formatter: (params) => `${params.value ?? 0} h` },
+          itemStyle: { color: palette[index % palette.length], borderRadius: [0, 5, 5, 0] },
+          // Zero bars get no "0 h" label; it only cluttered the chart.
+          label: { show: true, position: "right", color: theme.palette.text.secondary, fontSize: FONT.xs, formatter: (params) => (Number(params.value) ? `${params.value} h` : "") },
           emphasis: { focus: "series" },
         })),
       } satisfies EChartsOption,
@@ -310,9 +311,9 @@ function TimesheetBarChart({
 }
 
 export default function TimesheetAnalysis() {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState<number>(0);
   const [filters, setFilters] = useState<DateFilters>(initialFilters);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState<boolean>(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(
     null,
@@ -361,9 +362,9 @@ export default function TimesheetAnalysis() {
         dataKey: "hours",
         width: 90,
         numeric: true,
-        align: "center",
+        format: "hours",
       },
-      { label: "Status", dataKey: "status", width: 130 },
+      { label: "Status", dataKey: "status", width: 130, render: (row) => <Pill value={statusLabel(row.status)} color={statusColor(row.status)} dot /> },
       { label: "Project", dataKey: "project", width: 160 },
       { label: "Description", dataKey: "description", width: 200 },
       { label: "Task", dataKey: "task", width: 200 },
@@ -467,7 +468,7 @@ export default function TimesheetAnalysis() {
             <Chip
               color="primary"
               variant="outlined"
-              label={`Total: ${series.reduce((sum, item) => sum + item.data.reduce((a, b) => a + b, 0), 0).toFixed(2)} h`}
+              label={`Total: ${formatDecimalHours(series.reduce((sum, item) => sum + item.data.reduce((a, b) => a + b, 0), 0))}`}
             />
             <Chip variant="outlined" label={`Employees: ${series.length}`} />
             <Chip
@@ -492,7 +493,7 @@ export default function TimesheetAnalysis() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Timesheet Analysis"
           subtitle="Employee, project, task, hours, status, rating and approver report."
@@ -582,14 +583,14 @@ export default function TimesheetAnalysis() {
           ]}
         />
 
-        <Box sx={tablePageContent}>
+        <ContentSwap swapKey={tabValue} sx={tablePageContent}>
           {tabValue === 0 && (
             <VirtualizedTable
               columns={columns}
+              density="compact"
               rows={analysis.rows}
               height="100%"
               tableHead="Timesheet Report"
-              tableMinWidth={700}
               loading={loading}
               emptyTitle="No timesheet entries for these filters"
               emptyDescription="Widen the date range or clear a filter."
@@ -599,8 +600,8 @@ export default function TimesheetAnalysis() {
             renderBarChart(projectChart.groupNames, projectChart.series)}
           {tabValue === 2 &&
             renderBarChart(taskChart.groupNames, taskChart.series)}
-        </Box>
-      </Box>
+        </ContentSwap>
+      </StaggerContainer>
 
       <FilterPopover
         open={filterOpen}

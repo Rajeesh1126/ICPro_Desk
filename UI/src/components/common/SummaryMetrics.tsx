@@ -1,4 +1,6 @@
-import { Box, Skeleton, Tooltip, Typography } from "@mui/material";
+import { Skeleton, Tooltip, Typography } from "@mui/material";
+import { CountUpText, MotionBox } from "@/animations/MotionPrimitives";
+import { fadeUp, staggerContainer } from "@/animations/presets";
 import {
   summaryMetricCellSx,
   summaryMetricHelperSx,
@@ -9,6 +11,7 @@ import {
   summaryMetricsStripSx,
 } from "@/styles/common";
 
+/** Summary Metric declaration used across the frontend. */
 export type SummaryMetric = {
   label: string;
   value: string;
@@ -32,7 +35,9 @@ export default function SummaryMetrics({
   loading?: boolean;
 }) {
   return (
-    <Box sx={summaryMetricsStripSx(metrics.length)}>
+    // Inherits "hidden"/"visible" from the page's StaggerContainer and
+    // staggers its own cells; outside one it renders statically.
+    <MotionBox variants={staggerContainer(0.06)} sx={summaryMetricsStripSx(metrics.length)}>
       {metrics.map((metric) => {
         const helper = (
           <Typography
@@ -43,8 +48,9 @@ export default function SummaryMetrics({
           </Typography>
         );
         return (
-          <Box
+          <MotionBox
             key={metric.label}
+            variants={fadeUp}
             onClick={metric.onClick}
             onKeyDown={
               metric.onClick
@@ -77,7 +83,8 @@ export default function SummaryMetrics({
             ) : (
               <>
                 <Typography sx={summaryMetricValueSx(metric.tone)}>
-                  {metric.value}
+                  {/* Counts up once when the loaded value first appears. */}
+                  <CountUpText text={metric.value} />
                 </Typography>
                 {metric.helperTooltip ? (
                   <Tooltip title={metric.helperTooltip}>{helper}</Tooltip>
@@ -86,9 +93,9 @@ export default function SummaryMetrics({
                 )}
               </>
             )}
-          </Box>
+          </MotionBox>
         );
       })}
-    </Box>
+    </MotionBox>
   );
 }

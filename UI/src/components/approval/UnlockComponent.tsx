@@ -23,23 +23,28 @@ import {
   unlockPanelSx,
   wrapAnywhereSx,
 } from "@/styles/common";
-import { RADIUS_PX } from "@/styles/tokens";
+import { RADIUS_PX, FONT } from "@/styles/tokens";
 import type { timesheetStatusData } from "@/types/dataTypes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
+// Reviewers can approve immediately or reject with a required explanation;
+// the component also prevents overlapping updates for multiple requests.
 interface UnlockComponentProps {
   unlockRequests: timesheetStatusData[];
   handleUnlockStatus: (id: number, status: string, comments?: string) => Promise<boolean>;
 }
 
+// Provides a stable display name when an unlock request has incomplete user data.
 const requestName = (request: timesheetStatusData) => request.first_name?.trim() || "Employee";
 
+// Lists pending timesheet unlock requests and owns the approve/reject dialog state.
 export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: UnlockComponentProps) {
-  const [rejectModelOpen, setRejectModelOpen] = useState(false);
+  const [rejectModelOpen, setRejectModelOpen] = useState<boolean>(false);
   const [rejectRequestId, setRejectRequestId] = useState<number | null>(null);
-  const [comments, setComments] = useState("");
+  const [comments, setComments] = useState<string>("");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
+  // Closes the rejection flow only when no status update is still in progress.
   const closeRejectDialog = () => {
     if (updatingId !== null) return;
     setRejectModelOpen(false);
@@ -47,6 +52,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
     setComments("");
   };
 
+  // Sends the approval action and keeps the row disabled until the request finishes.
   const acceptRequest = async (id: number) => {
     setUpdatingId(id);
     try {
@@ -56,6 +62,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
     }
   };
 
+  // Sends the required rejection reason, then clears the dialog state on success.
   const rejectRequest = async () => {
     if (rejectRequestId === null) return;
     setUpdatingId(rejectRequestId);
@@ -112,7 +119,7 @@ export default function UnlockComponent({ unlockRequests, handleUnlockStatus }: 
                       {name.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box minWidth={0} flex={1}>
-                      <Typography noWrap fontWeight={600} fontSize={13}>
+                      <Typography noWrap fontWeight={600} fontSize={FONT.sm}>
                         {name}
                       </Typography>
                     </Box>

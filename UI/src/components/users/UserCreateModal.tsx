@@ -1,3 +1,5 @@
+import { loggedUser } from "@/utils/currentUser";
+import { getValidationErrors } from "@/utils/errorUtils";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -8,6 +10,7 @@ import {
   DialogContent,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   Grid,
   InputLabel,
   MenuItem,
@@ -30,7 +33,6 @@ import type {
 import {
   dateFieldSx,
   formSwitchLabelSx,
-  topSpacingSx,
 } from "@/styles/common";
 import { showNotification } from "@/api/notificationService";
 
@@ -40,18 +42,6 @@ type UserCreateModalProps = {
   Data: UsersData | null;
 };
 
-type ValidationErrorResponse = {
-  response?: {
-    status?: number;
-    data?: Partial<UsersFormData>;
-  };
-};
-
-function isValidationErrorResponse(
-  error: unknown,
-): error is ValidationErrorResponse {
-  return typeof error === "object" && error !== null && "response" in error;
-}
 
 const emptyForm: UsersFormData = {
   first_name: "",
@@ -67,12 +57,6 @@ const emptyForm: UsersFormData = {
   is_active: true,
 };
 
-function loggedUser(): number | null {
-  const value = localStorage.getItem("user");
-  const id = value ? Number(value) : NaN;
-
-  return Number.isInteger(id) ? id : null;
-}
 
 export default function UserCreateModal({
   open,
@@ -86,14 +70,16 @@ export default function UserCreateModal({
   const rolesQuery = useApiQuery<rolesData[]>("/roles/", undefined, { enabled: open });
   const groupsQuery = useApiQuery<groupData[]>("/groups/", undefined, { enabled: open });
   const users = useMemo(
-    () => asArray<UsersData>(usersQuery.data).filter((user) => user.id !== loggedUser()),
+    () => asArray<UsersData>(usersQuery.data).filter(
+      (user) => user.is_active === true && user.id !== loggedUser(),
+    ),
     [usersQuery.data],
   );
   const roles = useMemo(() => asArray<rolesData>(rolesQuery.data), [rolesQuery.data]);
   const groups = useMemo(() => asArray<groupData>(groupsQuery.data), [groupsQuery.data]);
-  const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [checked, setChecked] = useState<boolean>(false);
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -172,9 +158,8 @@ export default function UserCreateModal({
       });
       setFormErrorData({});
     } catch (error: unknown) {
-      if (isValidationErrorResponse(error) && error.response?.status === 400) {
-        setFormErrorData(error.response.data);
-      }
+      const fieldErrors = getValidationErrors<Partial<UsersFormData>>(error);
+      if (fieldErrors) setFormErrorData(fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -206,13 +191,13 @@ export default function UserCreateModal({
       maxWidth="md"
     >
       <DialogHeader
-        title={Data ? "Edit User" : "Create User"}
+        title={Data ? "Edit User" : "New User"}
         subtitle="Configure user account details."
         onClose={discard.requestClose}
         closeDisabled={loading}
       />
       <DialogContent>
-        <Grid container spacing={2} sx={topSpacingSx}>
+        <Grid container spacing={2}>
           <Grid size={{ xs: 6, sm: 6 }}>
             <TextField
               label="First Name"
@@ -296,6 +281,7 @@ export default function UserCreateModal({
             <FormControl fullWidth>
               <InputLabel>Role</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Role" }}
                 value={formData.role}
                 label="Role"
                 onChange={(event) => update("role", event.target.value)}
@@ -323,6 +309,7 @@ export default function UserCreateModal({
             <FormControl fullWidth>
               <InputLabel>Reporting To</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Reporting To" }}
                 value={formData.reporting_to}
                 label="Reporting To"
                 onChange={(event) => update("reporting_to", event.target.value)}
@@ -340,6 +327,7 @@ export default function UserCreateModal({
             <FormControl fullWidth>
               <InputLabel>Location</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Location" }}
                 value={formData.location}
                 label="Location"
                 onChange={(event) => update("location", event.target.value)}
@@ -375,6 +363,7 @@ export default function UserCreateModal({
             <FormControl fullWidth>
               <InputLabel>Teams</InputLabel>
               <Select
+                inputProps={{ "aria-label": "Teams" }}
                 multiple
                 value={formData.groups || []}
                 label="Teams"
@@ -395,6 +384,9 @@ export default function UserCreateModal({
                   </MenuItem>
                 ))}
               </Select>
+              {!checked && (
+                <FormHelperText>Tick Executive Role to assign teams.</FormHelperText>
+              )}
             </FormControl>
           </Grid>
 
@@ -438,7 +430,7 @@ export default function UserCreateModal({
           onClick={() => void submit()}
           disabled={loading || invalid}
         >
-          {loading ? "Saving…" : Data ? "Update" : "Submit"}
+          {loading ? "Saving…" : Data ? "Save changes" : "Create user"}
         </Button>
       </DialogActions>
       {discard.dialog}

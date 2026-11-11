@@ -23,14 +23,15 @@ const notificationContext = createContext<
     notificationContextType | undefined
 >(undefined);
 
+/** Notification Provider declaration used across the frontend. */
 export const NotificationProvider = ({
     children,
 }: {
     children: ReactNode;
 }) => {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState<boolean>(false);
 
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useState<string>("");
 
     const [severity, setSeverity] = useState<
         "success" | "error" | "warning" | "info"
@@ -65,6 +66,7 @@ export const NotificationProvider = ({
     );
 };
 
+/** use Notification declaration used across the frontend. */
 export const useNotification = () => {
     const context = useContext(notificationContext);
 

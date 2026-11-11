@@ -1,17 +1,16 @@
-import { Box, Button, Stack, Typography } from "@mui/material";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { Box, Button, Stack, Tooltip } from "@mui/material";
 import {
   detailActionBarSx,
   detailActionButtonsSx,
   detailActionGroupSx,
-  detailNoteSx,
 } from "@/styles/detailDialog";
 import { ACTION_BUTTONS, type TicketActionId } from "@/components/tickets/detail/ticketActions";
 
 /**
- * The ticket's footer: information text on the left (what a consequential
- * action does), every action button grouped on the right. Every action still
- * confirms. Dismissing the dialog is the header's close icon only.
+ * The ticket's footer: every action button grouped on the right. What a
+ * consequential action does is that button's own tooltip (as footer text it
+ * sat beside Edit and read as describing it). Every action still confirms.
+ * Dismissing the dialog is the header's close icon only.
  */
 export default function TicketActionButtons({
   groups,
@@ -24,31 +23,22 @@ export default function TicketActionButtons({
   const routine = groups
     .map((group) => group.filter((id) => !ACTION_BUTTONS[id].consequential))
     .filter((group) => group.length);
-  const hints = consequential
-    .map((id) => ACTION_BUTTONS[id].hint)
-    .filter((hint): hint is string => Boolean(hint));
-
   return (
     <Box sx={detailActionBarSx}>
-      {hints.length > 0 && (
-        <Box sx={detailNoteSx}>
-          <InfoOutlinedIcon aria-hidden="true" />
-          <Typography variant="caption">{hints.join(" ")}</Typography>
-        </Box>
-      )}
       <Box sx={detailActionButtonsSx}>
         {consequential.map((id) => {
-          const { label, icon: Icon, color } = ACTION_BUTTONS[id];
+          const { label, icon: Icon, color, hint } = ACTION_BUTTONS[id];
           return (
-            <Button
-              key={id}
-              onClick={() => onAction(id)}
-              variant="outlined"
-              color={color}
-              startIcon={<Icon />}
-            >
-              {label}
-            </Button>
+            <Tooltip key={id} title={hint ?? ""}>
+              <Button
+                onClick={() => onAction(id)}
+                variant="outlined"
+                color={color}
+                startIcon={<Icon />}
+              >
+                {label}
+              </Button>
+            </Tooltip>
           );
         })}
         {routine.map((group) => (

@@ -19,9 +19,9 @@ export function useDiscardGuard(
   close: () => void,
   dirtyOverride?: boolean,
 ) {
-  const [dirty, setDirty] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [wasOpen, setWasOpen] = useState(open);
+  const [dirty, setDirty] = useState<boolean>(false);
+  const [confirming, setConfirming] = useState<boolean>(false);
+  const [wasOpen, setWasOpen] = useState<boolean>(open);
 
   // Each time the form opens or closes it starts clean.
   if (open !== wasOpen) {

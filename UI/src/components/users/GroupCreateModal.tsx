@@ -1,3 +1,4 @@
+import { getValidationErrors } from "@/utils/errorUtils";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
@@ -18,7 +19,6 @@ import { showNotification } from "@/api/notificationService";
 
 import type { groupData } from "@/types/dataTypes";
 import {
-  topSpacingSx,
 } from "@/styles/common";
 
 type GroupFormData = {
@@ -33,16 +33,6 @@ type GroupCreateModalProps = {
   Data: groupData | null;
 };
 
-type ValidationErrorResponse = {
-  response?: {
-    status?: number;
-    data?: GroupFormErrors;
-  };
-};
-
-function isValidationErrorResponse(error: unknown): error is ValidationErrorResponse {
-  return typeof error === "object" && error !== null && "response" in error;
-}
 
 const emptyForm: GroupFormData = {
   name: "",
@@ -55,7 +45,7 @@ export default function GroupCreateModal({
 }: GroupCreateModalProps) {
   const [formData, setFormData] = useState<GroupFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<GroupFormErrors>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!open) return;
@@ -102,9 +92,8 @@ export default function GroupCreateModal({
       });
       setFormErrorData({});
     } catch (error: unknown) {
-      if (isValidationErrorResponse(error) && error.response?.status === 400) {
-        setFormErrorData(error.response.data ?? {});
-      }
+      const fieldErrors = getValidationErrors<GroupFormErrors>(error);
+      if (fieldErrors) setFormErrorData(fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -132,13 +121,13 @@ export default function GroupCreateModal({
       maxWidth="sm"
     >
       <DialogHeader
-        title={Data ? "Edit Team" : "Create Team"}
+        title={Data ? "Edit Team" : "New Team"}
         subtitle="Configure team details."
         onClose={discard.requestClose}
         closeDisabled={loading}
       />
       <DialogContent>
-        <Grid container spacing={2} sx={topSpacingSx}>
+        <Grid container spacing={2}>
           <Grid size={{ xs: 12 }}>
             <TextField
               required
@@ -161,7 +150,7 @@ export default function GroupCreateModal({
           onClick={() => void submit()}
           disabled={loading || invalid}
         >
-          {loading ? "Saving..." : Data ? "Update" : "Submit"}
+          {loading ? "Saving..." : Data ? "Save changes" : "Create team"}
         </Button>
       </DialogActions>
       {discard.dialog}

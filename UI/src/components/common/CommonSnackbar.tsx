@@ -3,6 +3,7 @@ import {
   snackbarAlertSx,
 } from "@/styles/common";
 
+/** Common Snackbar Props declaration used across the frontend. */
 export interface CommonSnackbarProps {
     open: boolean;
     message: string;
@@ -11,11 +12,13 @@ export interface CommonSnackbarProps {
     onClose: () => void;
 }
 
+// Displays short-lived feedback while ignoring Snackbar's clickaway close event.
 export default function CommonSnackbar({
     open,
     message,
     severity = "success",
-    autoHideDuration = 3000,
+    // Longer for problems: there is more to read and act on.
+    autoHideDuration = severity === "error" || severity === "warning" ? 8000 : 4000,
     onClose,
 }: CommonSnackbarProps) {
     return (

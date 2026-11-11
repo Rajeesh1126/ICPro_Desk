@@ -2,6 +2,7 @@ import { Dialog, DialogContent, Grid, Paper, Typography } from "@mui/material";
 import { marginTopMediumSx, ratingTileSx, ratingGuidePanelSx, ratingGuideTextSx } from "@/styles/common";
 import DialogHeader from "@/components/common/DialogHeader";
 
+// The fixed rating rubric keeps performance scores consistent across ticket reviews.
 const ratingData = [
   { score: 1, title: "Poor", description: "Did not meet objectives or consistently demonstrate core values." },
   { score: 2, title: "Average", description: "Met some objectives but needs improvement in consistency and core values." },
@@ -12,6 +13,7 @@ const ratingData = [
 
 type RatingModalProps = { open: boolean; handleClose: () => void };
 
+// Shows the score descriptions and the two dimensions used when choosing a rating.
 export default function RatingModal({ open, handleClose }: RatingModalProps) {
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth fullScreen={false}>

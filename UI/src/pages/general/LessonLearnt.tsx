@@ -1,3 +1,5 @@
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
 import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useMemo, useState } from "react";
 import {
@@ -25,7 +27,7 @@ import { asArray, useApiQuery } from "@/api/useApiQuery";
 import FileUploadField from "@/components/common/FileUploadField";
 import { showNotification } from "@/api/notificationService";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import DialogHeader from "@/components/common/DialogHeader";
+import DialogHeader, { RequiredFieldsNote } from "@/components/common/DialogHeader";
 import { TableActionGroup } from "@/components/common/ActionDivider";
 import { type ColumnData } from "@/components/common/TableView";
 import { CollapsibleTableView } from "@/components/common/CollapsibleTableView";
@@ -42,6 +44,7 @@ import {
 import { formatDateTime } from "@/components/common/formatDate";
 import { getStoredPermissions } from "@/utils/permissions";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer } from "@/animations/MotionPrimitives";
 
 type LessonStatus = "Draft" | "Shared" | "Reviewed" | "Archived";
 
@@ -109,7 +112,7 @@ export default function LessonLearnt() {
   const canAddLesson = permissions.has("add_lessonlearnt");
   const canChangeLesson = permissions.has("change_lessonlearnt");
   const canDeleteLesson = permissions.has("delete_lessonlearnt");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [editingLesson, setEditingLesson] = useState<LessonLearntRow | null>(
     null,
   );
@@ -117,7 +120,7 @@ export default function LessonLearnt() {
     null,
   );
   const [form, setForm] = useState<LessonFormState>(emptyForm);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
 
   // Cached list: returning to this page shows the last rows immediately and
   // refreshes in the background. Successful saves/deletes refresh it
@@ -275,6 +278,7 @@ export default function LessonLearnt() {
         label: "Status",
         dataKey: "status",
         width: 120,
+        render: (row) => <Pill value={statusLabel(row.status)} color={statusColor(row.status)} dot />,
       },
       {
         label: "Shared By",
@@ -359,7 +363,7 @@ export default function LessonLearnt() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
           title="Lessons Learnt"
           subtitle="Capture project execution learning and shared experience."
@@ -374,7 +378,7 @@ export default function LessonLearnt() {
                   onClick={openCreateDialog}
                 >
                   <Box component="span" sx={buttonLabelFull}>
-                    Add Lesson
+                    New Lesson
                   </Box>
                   <Box component="span" sx={buttonLabelCompact}>
                     Add
@@ -400,7 +404,7 @@ export default function LessonLearnt() {
             emptyDescription="Add a lesson to share what the team learned on a project."
           />
         </Box>
-      </Box>
+      </StaggerContainer>
 
       <Dialog
         open={dialogOpen}
@@ -410,7 +414,7 @@ export default function LessonLearnt() {
         maxWidth="md"
       >
         <DialogHeader
-          title={editingLesson ? "Update Lesson" : "Add Lesson"}
+          title={editingLesson ? "Edit Lesson" : "New Lesson"}
           onClose={discard.requestClose}
         />
         <DialogContent>
@@ -492,6 +496,7 @@ export default function LessonLearnt() {
           </Stack>
         </DialogContent>
         <DialogActions>
+          <RequiredFieldsNote />
           <Button
             onClick={submitLesson}
             disabled={saving}
@@ -504,7 +509,7 @@ export default function LessonLearnt() {
               )
             }
           >
-            {saving ? "Saving..." : editingLesson ? "Update" : "Submit"}
+            {saving ? "Saving..." : editingLesson ? "Save changes" : "Add lesson"}
           </Button>
         </DialogActions>
         {discard.dialog}

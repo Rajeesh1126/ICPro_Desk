@@ -45,7 +45,7 @@ const ERPQuotationModal: React.FC<ERPQuotationModalProps> = ({
 
     // Reset transient state when the dialog closes, adjusting during render
     // (previous-value pattern) instead of in an effect.
-    const [wasOpen, setWasOpen] = useState(open);
+    const [wasOpen, setWasOpen] = useState<boolean>(open);
     if (wasOpen !== open) {
         setWasOpen(open);
         if (!open) {

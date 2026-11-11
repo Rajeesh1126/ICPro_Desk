@@ -1,10 +1,10 @@
-import { formatDate } from "@/components/common/formatDate";
 import DateRange from "@/components/common/DateRange";
 import { countChangedFilters } from "@/utils/filterCount";
 import { useCallback, useMemo, useState } from "react";
 import FilterPopover, { ActiveFilterChips, type ActiveFilter } from "@/components/common/FilterPopover";
 import {
   Box,
+  Button,
   FormControl,
   Grid,
   IconButton,
@@ -32,11 +32,18 @@ import type {
 } from "@/types/dataTypes";
 import { loadXlsx, useExportStatus } from "@/utils/useExportStatus";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import TicketDetailModal from "@/components/tickets/DetailModal";
 import SelfTicketDetailModel from "@/components/selfTickets/DetailModel";
+import ScheduleCell from "@/components/selfTickets/ScheduleCell";
+import { scheduleLabel } from "@/components/selfTickets/schedule";
+import { getSelfTicketAlertReason } from "@/components/selfTickets/highlight";
+import { isOverdueTicket } from "@/utils/ticketDue";
+import { ColumnPicker, DueDateCell, RecordNumberCell } from "@/components/common/TicketPageParts";
+import Pill from "@/components/common/Pill";
+import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
 import PageHeader from "@/components/common/PageHeader";
-import { ColumnPicker } from "@/components/common/TicketPageParts";
 import { useSessionState } from "@/utils/useSessionState";
 import { reportHeaderActions } from "@/components/common/headerActions";
 import { inlineCenterGapSx } from "@/styles/common";
@@ -48,6 +55,9 @@ import {
   tabsContainer,
   contentPanel,
 } from "@/styles/layout";
+
+/** The Overdue toggle keeps its label on one line. */
+const noShrinkNowrapSx = { whiteSpace: "nowrap", flexShrink: 0 };
 
 type Department = { id: number; name: string };
 type Filters = {
@@ -148,6 +158,7 @@ function FilterFields({
         <FormControl fullWidth>
           <InputLabel shrink>Status</InputLabel>
           <Select
+            inputProps={{ "aria-label": "Status" }}
             value={filters.status}
             label="Status"
             displayEmpty
@@ -179,6 +190,7 @@ function FilterFields({
           <FormControl fullWidth>
             <InputLabel shrink>Assigned By</InputLabel>
             <Select
+              inputProps={{ "aria-label": "Assigned By" }}
               value={filters.creator}
               label="Assigned By"
               displayEmpty
@@ -206,6 +218,7 @@ function FilterFields({
           <FormControl fullWidth>
             <InputLabel shrink>Created By</InputLabel>
             <Select
+              inputProps={{ "aria-label": "Created By" }}
               value={filters.creator}
               label="Created By"
               displayEmpty
@@ -233,6 +246,7 @@ function FilterFields({
           <FormControl fullWidth>
             <InputLabel shrink>Teams</InputLabel>
             <Select
+              inputProps={{ "aria-label": "Teams" }}
               value={filters.department}
               label="Teams"
               displayEmpty
@@ -256,6 +270,7 @@ function FilterFields({
         <FormControl fullWidth>
           <InputLabel shrink>Priority</InputLabel>
           <Select
+            inputProps={{ "aria-label": "Priority" }}
             value={filters.priority}
             label="Priority"
             displayEmpty
@@ -276,15 +291,15 @@ function FilterFields({
 
 export default function Reports() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState<boolean>(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   // const [selectedRow, setSelectedRow] = useState<TicketData | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
   const [selectedSelfTicket, setSelectedSelfTicket] =
     useState<SelfTicketData | null>(null);
-  const [dialogTicketOpen, setDialogTicketOpen] = useState(false);
-  const [dialogSelfOpen, setDialogSelfOpen] = useState(false);
+  const [dialogTicketOpen, setDialogTicketOpen] = useState<boolean>(false);
+  const [dialogSelfOpen, setDialogSelfOpen] = useState<boolean>(false);
   const [reportType, setReportType] = useState<"tickets" | "dolist">("tickets");
   const { exporting, runExport } = useExportStatus();
 
@@ -315,6 +330,7 @@ export default function Reports() {
     { include_executive: true },
     { enabled: reportType === "dolist" },
   );
+
   const tickets = useMemo(
     () =>
       asArray<TicketData>(ticketsQuery.data).map((ticket) => ({
@@ -326,13 +342,8 @@ export default function Reports() {
     [ticketsQuery.data],
   );
   const selfTickets = useMemo(
-    () => asArray<SelfTicketData>(selfTicketsQuery.data).flatMap((task) =>
-      task.schedule_type === "recurring" && task.occurrences?.length
-        ? task.occurrences.map((occurrence) => ({
-            ...task, id: -occurrence.id, target_date: occurrence.scheduled_date,
-            current_status: occurrence.current_status, alarm: occurrence.alarm, occurrences: [occurrence],
-          }))
-        : [task]),
+    // One report row per task; occurrences are in the task's details.
+    () => asArray<SelfTicketData>(selfTicketsQuery.data),
     [selfTicketsQuery.data],
   );
   const loading =
@@ -344,9 +355,9 @@ export default function Reports() {
   }, []);
 
   const openSelfTicketDetails = useCallback((ticket: SelfTicketData) => {
-    setSelectedSelfTicket(asArray<SelfTicketData>(selfTicketsQuery.data).find((row) => row.number === ticket.number) ?? ticket);
+    setSelectedSelfTicket(ticket);
     setDialogSelfOpen(true);
-  }, [selfTicketsQuery.data]);
+  }, []);
 
   const closeDialog = useCallback(() => {
     setDialogTicketOpen(false);
@@ -376,20 +387,33 @@ export default function Reports() {
         ),
       },
       { label: "Subject", dataKey: "task", width: "auto" },
-      { label: "Status", dataKey: "current_status", width: 120 },
+      {
+        label: "Status",
+        dataKey: "current_status",
+        width: 160,
+        render: (row) => <Pill value={statusLabel(row.current_status)} color={statusColor(row.current_status)} dot />,
+      },
+      {label:"Assigned To", dataKey:"assigned_to_name"},
       { label: "Team", dataKey: "department_name" },
-      // { label: "Assigned To", dataKey: "assigned_to_name" },
-      { label: "Assigned By", dataKey: "creator_name" },
-      { label: "Target Date", dataKey: "target_date" },
-
-      { label: "Priority", dataKey: "priority" },
+      { label: "Assigned By", dataKey: "creator_name" }, 
+      {
+        label: "Target Date",
+        dataKey: "target_date",
+        width: 120,
+        render: (row) => <DueDateCell date={row.target_date} overdue={isOverdueTicket(row)} />,
+      },
+      {
+        label: "Priority",
+        dataKey: "priority",
+        width: 100,
+        render: (row) => <Pill value={priorityLabel(row.priority)} color={priorityColor(row.priority)} />,
+      },
       { label: "Est Hrs", dataKey: "est_hours", format: "hours" },
       { label: "Act Hrs", dataKey: "act_hours", format: "hours" },
       // { label: "Estimated Start", dataKey: "created_at" },
       { label: "Actual Start", dataKey: "actual_start_date" },
       // { label: "Target Completion", dataKey: "target_date" },
       { label: "Actual Completion", dataKey: "actual_end_date" },
-
       {
         label: "Rating",
         dataKey: "rating",
@@ -418,39 +442,61 @@ export default function Reports() {
     [hiddenTicketColumnsValue],
   );
 
-  const dolistColumns = useMemo<ColumnData<SelfTicketData>[]>(
-    () => [
+  // One row per Do List task (as on the Do List page); View opens the
+  // task's details, occurrences included. Read-only: no edit.
+  const dolistColumns = useMemo<ColumnData<SelfTicketData>[]>(() => {
+    const overdue = (row: SelfTicketData) => getSelfTicketAlertReason(row) === "target-date";
+    return [
       {
         label: "Task Number",
-        width: { xs: 160, sm: 180 },
+        // Tables shrink columns to 80% before scrolling; this keeps the
+        // view icon and the full number visible.
+        width: 225,
         render: (row) => (
-          <Box sx={inlineCenterGapSx}>
-            <Tooltip title="View details">
-              <IconButton
-                aria-label={`View ${row.number}`}
-                onClick={() => openSelfTicketDetails(row)}
-              >
-                <VisibilityOutlinedIcon fontSize="small" color="primary" />
-              </IconButton>
-            </Tooltip>
-
-            <Typography variant="body2">{row.number}</Typography>
-          </Box>
+          <RecordNumberCell number={row.number} onView={() => openSelfTicketDetails(row)} />
         ),
       },
-      { label: "Schedule", width: 140, render: (row) => row.schedule_type === "recurring" ? "Recurring" : row.schedule_type === "period" ? "Continuous Period" : "Static Event" },
-      { label: "Due date", dataKey: "target_date", render: (row) => formatDate(row.target_date) },
-      { label: "Subject", dataKey: "task", width: "auto" },
-      { label: "Status", dataKey: "current_status" },
-      // { label: "Team", dataKey: "team_name" },
-      { label: "Name", dataKey: "creator_name" },
-      { label: "Priority", dataKey: "priority", width: 90 },
-      { label: "Est Hrs", dataKey: "est_hours", width: 90, format: "hours" },
-    ],
-    [openSelfTicketDetails],
-  );
+      { label: "Subject", dataKey: "task", width: 280, wrap: true, mobileOrder: 1 },
+      {
+        label: "Status",
+        dataKey: "current_status",
+        width: 130,
+        render: (row) => <Pill value={statusLabel(row.current_status)} color={statusColor(row.current_status)} dot />,
+      },
+      {
+        label: "Schedule",
+        width: 170,
+        mobileOrder: 4,
+        render: (row) => <ScheduleCell type={row.schedule_type} />,
+      },
+      {
+        label: "From Date",
+        dataKey: "target_date",
+        width: 180,
+        mobileOrder: 2,
+        // The overdue tag sits on the last date: here only when there's no To Date.
+        render: (row) => <DueDateCell date={row.target_date} overdue={!row.repeat_until && overdue(row)} />,
+      },
+      {
+        label: "To Date",
+        dataKey: "repeat_until",
+        width: 180,
+        mobileOrder: 2,
+        render: (row) => <DueDateCell date={row.repeat_until} overdue={Boolean(row.repeat_until) && overdue(row)} />,
+      },
+      {
+        label: "Priority",
+        dataKey: "priority",
+        width: 100,
+        mobileOrder: 3,
+        render: (row) => <Pill value={priorityLabel(row.priority)} color={priorityColor(row.priority)} />,
+      },
+      { label: "Owner", dataKey: "creator_name", width: 150 },
+      { label: "Est Hrs", dataKey: "est_hours", format: "hours", width: 110 },
+    ];
+  }, [openSelfTicketDetails]);
 
-  const filteredTickets = useMemo<TicketData[]>(() => {
+  const matchingTickets = useMemo<TicketData[]>(() => {
     const statusGroups: Record<string, string[]> = {
       open: ["open", "revised", "revised-open"],
       accepted: ["accepted", "revised-accepted"],
@@ -481,7 +527,7 @@ export default function Reports() {
     });
   }, [tickets, filters]);
 
-  const filteredSelfTickets = useMemo<SelfTicketData[]>(() => {
+  const matchingSelfTickets = useMemo<SelfTicketData[]>(() => {
     const statusGroups: Record<string, string[]> = {
       open: ["open", "revised-open", "date revision"],
       closed: ["closed", "recall requested", "recall successful"],
@@ -505,6 +551,29 @@ export default function Reports() {
     });
   }, [selfTickets, filters]);
 
+  // "Overdue" narrows both tabs (and the export) to past-due work, using the
+  // same rules as the Overdue tags in the tables.
+  const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const overdueTickets = useMemo(() => matchingTickets.filter(isOverdueTicket), [matchingTickets]);
+  const overdueSelfTickets = useMemo(
+    () => matchingSelfTickets.filter((row) => getSelfTicketAlertReason(row) === "target-date"),
+    [matchingSelfTickets],
+  );
+  const filteredTickets = overdueOnly ? overdueTickets : matchingTickets;
+  const filteredSelfTickets = overdueOnly ? overdueSelfTickets : matchingSelfTickets;
+  const overdueButton = (count: number) => (
+    <Button
+      variant={overdueOnly ? "contained" : "outlined"}
+      color={overdueOnly ? "error" : "error"}
+      startIcon={<EventBusyOutlinedIcon />}
+      aria-pressed={overdueOnly}
+      onClick={() => setOverdueOnly((current) => !current)}
+      sx={noShrinkNowrapSx}
+    >
+      Overdue ({count})
+    </Button>
+  );
+
   const exportToExcel = async () => {
     const XLSX = await loadXlsx();
     const rows =
@@ -526,11 +595,13 @@ export default function Reports() {
         }))
         : filteredSelfTickets.map((ticket) => ({
           "Task #": ticket.number,
-          Schedule: ticket.schedule_type ?? "static",
           Subject: ticket.task,
+          Schedule: scheduleLabel(ticket.schedule_type),
           Priority: ticket.priority,
           Status: ticket.current_status,
-          "Target Date": ticket.target_date,
+          "From Date": ticket.target_date,
+          "To Date": ticket.repeat_until ?? "",
+          Owner: ticket.creator_name ?? "",
           "Estimated Hours": ticket.est_hours,
         }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -640,14 +711,17 @@ export default function Reports() {
               tableHead={`Tickets`}
               hiddenColumns={hiddenTicketColumns}
               headerAction={
-                <ColumnPicker
-                  options={OPTIONAL_REPORT_TICKET_COLUMNS}
-                  hidden={hiddenTicketColumns}
-                  onChange={(next) => setHiddenTicketColumnsValue(next.join(","))}
-                />
+                <Box sx={inlineCenterGapSx}>
+                  <ColumnPicker
+                    options={OPTIONAL_REPORT_TICKET_COLUMNS}
+                    hidden={hiddenTicketColumns}
+                    onChange={(next) => setHiddenTicketColumnsValue(next.join(","))}
+                  />
+                  {overdueButton(overdueTickets.length)}
+                </Box>
               }
               loading={loading}
-              emptyTitle="No tickets match these filters"
+              emptyTitle={overdueOnly ? "No overdue tickets" : "No tickets match these filters"}
               emptyDescription="Widen the date range or remove a filter."
             />
           ) : (
@@ -655,10 +729,11 @@ export default function Reports() {
               columns={dolistColumns}
               rows={filteredSelfTickets}
               height="100%"
-              tableMinWidth={900}
-              tableHead={`Do-List`}
+              tableHead="Do List"
+              fitContent
+              headerAction={overdueButton(overdueSelfTickets.length)}
               loading={loading}
-              emptyTitle="No tasks match these filters"
+              emptyTitle={overdueOnly ? "No overdue tasks" : "No tasks match these filters"}
               emptyDescription="Widen the date range or remove a filter."
             />
           )}

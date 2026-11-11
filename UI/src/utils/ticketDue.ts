@@ -27,16 +27,17 @@ function dueDay(value: string | null | undefined) {
   return Number.isNaN(timestamp) ? null : date.getTime();
 }
 
+/** is Active Ticket declaration used across the frontend. */
 export function isActiveTicket(ticket: Pick<TicketData, "current_status">) {
   return ACTIVE_TICKET_STATUSES.includes(ticket.current_status?.toLowerCase() ?? "");
 }
 
-/** Active and due today or earlier: the single "overdue" rule for tickets. */
+/** Active and due before today: the single "overdue" rule for tickets. */
 export function isOverdueTicket(ticket: Pick<TicketData, "current_status" | "target_date">) {
   const day = dueDay(ticket.target_date);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return day !== null && day <= today.getTime() && isActiveTicket(ticket);
+  return day !== null && day < today.getTime() && isActiveTicket(ticket);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,3 +141,12 @@ export const monthKeys = (year: number, month: number) =>
   Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) =>
     calendarKey({ year, month, day: index + 1 }),
   );
+
+/** Empty-state copy for each ticket tab (Overview, Assigned to me, Assigned by me, Rejected). */
+export const ticketTabEmptyDescription = (tab: number) =>
+  [
+    "Tickets you raise or are assigned will appear here.",
+    "Tickets assigned to you will appear here.",
+    "Tickets you raise will appear here.",
+    "Rejected tickets will appear here.",
+  ][tab] ?? "Tickets you raise or are assigned will appear here.";

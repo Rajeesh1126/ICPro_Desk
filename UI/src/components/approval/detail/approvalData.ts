@@ -6,27 +6,33 @@
 import type { ApiTaskRow, TaskRow } from "@/types/dataTypes";
 import { hoursMinutesToSeconds } from "@/utils/hoursMinutes";
 
+/** Approval Detail Response declaration used across the frontend. */
 export interface ApprovalDetailResponse {
   rows: ApiTaskRow[];
   comments?: string;
   action_status?: boolean;
 }
 
+/** Approval Action declaration used across the frontend. */
 export type ApprovalAction = "Accepted" | "Rejected";
 
+/** Approval Week Day declaration used across the frontend. */
 export type ApprovalWeekDay = { label: string; date: string };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const EMPTY_WEEK = ["", "", "", "", "", "", ""];
 
+/** RATING_OPTIONS declaration used across the frontend. */
 export const RATING_OPTIONS = [
   { value: "0", label: "Select" },
-  { value: "1", label: "Poor" },
+  { value: "1", label: "Not Reviewed" },
   { value: "2", label: "Average" },
   { value: "3", label: "Good" },
-  { value: "4", label: "Very Good" },
-  { value: "5", label: "Excellent" },
+  { value: "4", label: "Excellent" },
 ];
+
+/** Highest rating value in RATING_OPTIONS. */
+const MAX_RATING = Number(RATING_OPTIONS[RATING_OPTIONS.length - 1].value);
 
 /** The "Others" job carries no rating. */
 export const isOthersProject = (project?: string) =>
@@ -51,10 +57,9 @@ export function buildWeekDays(weekStart: string): ApprovalWeekDay[] {
 
 /**
  * Flattens API rows into table rows: one "project" header row per job,
- * followed by its "milestone" rows. Rows without a job are dropped. Also
- * returns the job ids so every job can start expanded.
+ * followed by its "milestone" rows. Rows without a job are dropped.
  */
-export function groupApprovalRows(apiRows: ApiTaskRow[]): { rows: TaskRow[]; projectIds: number[] } {
+export function groupApprovalRows(apiRows: ApiTaskRow[]): TaskRow[] {
   const projects = new Map<number, {
     project: string;
     description?: string;
@@ -105,16 +110,8 @@ export function groupApprovalRows(apiRows: ApiTaskRow[]): { rows: TaskRow[]; pro
     });
   });
 
-  return { rows, projectIds: Array.from(projects.keys()) };
+  return rows;
 }
-
-/** Job rows always; task rows only under expanded jobs. */
-export const getVisibleRows = (rows: TaskRow[], expandedProjects: number[]) =>
-  rows.filter(
-    (row) =>
-      row.rowType === "project" ||
-      (row.rowType === "milestone" && expandedProjects.includes(row.projectId)),
-  );
 
 /** Seconds entered per day across all task rows. */
 export const getDayTotals = (rows: TaskRow[], dayCount: number) =>
@@ -124,12 +121,21 @@ export const getDayTotals = (rows: TaskRow[], dayCount: number) =>
       .reduce((total, row) => total + hoursMinutesToSeconds(row.hours[dayIndex] || "0"), 0),
   );
 
-export const toggleId = (ids: number[], id: number) =>
-  ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id];
-
-/** A row is decided once accepted or rejected; its controls lock. */
-export const isDecided = (row: TaskRow) =>
-  ["accepted", "rejected"].includes(row.status.trim().toLowerCase());
+/** Week at a glance for the review header: hours, days logged, review progress. */
+export function getReviewSummary(rows: TaskRow[], dayTotals: number[]) {
+  const tasks = rows.filter((row) => row.rowType === "milestone");
+  const statusOf = (row: TaskRow) => row.status.trim().toLowerCase();
+  return {
+    totalSeconds: dayTotals.reduce((sum, seconds) => sum + seconds, 0),
+    taskCount: tasks.length,
+    jobCount: rows.filter((row) => row.rowType === "project").length,
+    daysLogged: dayTotals.filter((seconds) => seconds > 0).length,
+    awaiting: tasks.filter((row) => statusOf(row) === "submitted").length,
+    accepted: tasks.filter((row) => statusOf(row) === "accepted").length,
+    rejected: tasks.filter((row) => statusOf(row) === "rejected").length,
+    draft: tasks.filter((row) => statusOf(row) === "draft").length,
+  };
+}
 
 /**
  * Accepting is available for submitted rows with a valid rating. The Others
@@ -141,8 +147,16 @@ export const canDecideTask = (row: TaskRow) => {
   return (
     row.status.trim().toLowerCase() === "submitted" &&
     (isOthersProject(row.project) ||
-      (Number.isFinite(rating) && rating >= 1 && rating <= 5))
+      (Number.isFinite(rating) && rating >= 1 && rating <= MAX_RATING))
   );
+};
+
+/** Why a task can't be accepted or rejected yet (only submitted tasks can). */
+export const notReviewableReason = (row: TaskRow) => {
+  const status = row.status.trim().toLowerCase();
+  if (status === "draft") return "Not submitted yet: nothing to review";
+  if (status === "accepted" || status === "rejected") return `Already ${status}`;
+  return `Only submitted tasks can be reviewed (this one is ${status || "not submitted"})`;
 };
 
 /** Rejection is available for submitted rows, regardless of rating. */
@@ -152,7 +166,7 @@ export const canRejectTask = (row: TaskRow) =>
 /**
  * The rating to send with an action, or the warning to show instead.
  * Rejections and the "Others" job send 0; all other acceptances need a
- * rating from 1–5.
+ * rating from 1–4.
  */
 export function getActionRating(
   row: TaskRow,
@@ -167,7 +181,7 @@ export function getActionRating(
     return { error: "Please select a rating before accepting." };
   }
   const rating = Number(row.rating);
-  if (Number.isNaN(rating) || rating < 1 || rating > 5) {
+  if (Number.isNaN(rating) || rating < 1 || rating > MAX_RATING) {
     return { error: "Please select a valid rating before accepting." };
   }
   return { rating };
@@ -192,5 +206,6 @@ export const applyActionResult = (
       : row,
   );
 
+/** set Row Rating declaration used across the frontend. */
 export const setRowRating = (rows: TaskRow[], rowId: number, rating: string) =>
   rows.map((row) => (row.id === rowId ? { ...row, rating } : row));

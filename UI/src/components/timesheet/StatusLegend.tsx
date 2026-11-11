@@ -23,7 +23,9 @@ import {
   statusLegendTitleSx,
   statusLegendToggleSx,
 } from "@/styles/common";
+import { PopNumber } from "@/animations/MotionPrimitives";
 
+/** Status Legend Item declaration used across the frontend. */
 export type StatusLegendItem = {
   key: string;
   icon: SvgIconComponent;
@@ -75,7 +77,7 @@ export default function StatusLegend({
   onSelectStatus?: (key: string) => void;
 }) {
   const resolve = usePaletteColor();
-  const [expanded, setExpanded] = useState(readExpanded);
+  const [expanded, setExpanded] = useState<boolean>(readExpanded);
   const panelId = useId();
 
   const toggle = () => {
@@ -146,7 +148,7 @@ export default function StatusLegend({
                         aria-hidden="true"
                         sx={statusLegendCountSx(tone)}
                       >
-                        {count}
+                        <PopNumber value={count} />
                       </Box>
                     )}
                   </ButtonBase>

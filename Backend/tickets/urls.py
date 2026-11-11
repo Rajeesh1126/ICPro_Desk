@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import TicketViewSet,SelfTicketViewSet,dailyMail,NotificationView
+from .team_performance import TeamPerformanceView
 
 # 1. Initialize the router
 router = DefaultRouter()
@@ -15,6 +16,7 @@ router.register(r'self-tickets', SelfTicketViewSet, basename='self-tickets')
 # 3. Define the patterns variable (MUST be named 'urlpatterns')
 
 urlpatterns = [
+    path('team-performance/', TeamPerformanceView.as_view(), name='team-performance'),
     path('dailyMail/', dailyMail, name='dailyMail'),
     path('summary/', TicketViewSet.as_view({'get': 'summary'}), name='ticket-summary'), # New summary endpoint
     path("notifications/", NotificationView.as_view(), name="notifications"),

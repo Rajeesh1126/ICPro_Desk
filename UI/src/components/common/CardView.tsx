@@ -2,7 +2,6 @@ import * as React from "react";
 import {
   Box,
   ButtonBase,
-  Collapse,
   useMediaQuery,
   Chip,
   Stack,
@@ -33,8 +32,14 @@ import {
   boardColumnTitleSx,
   getStatusColor,
 } from "@/styles/common";
+import { AnimatePresence, type Variants } from "motion/react";
+import { MotionBox, PresenceItem, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
+import { EASE_OUT, SPRING_SOFT, tapPress } from "@/animations/presets";
 
-type TicketCardViewProps =
+type TicketCardViewProps = {
+  /** `data` is narrowed to overdue items by the page's Overdue filter. */
+  overdueOnly?: boolean;
+} & (
   | {
       cardType: "Ticket";
       data: TicketData[];
@@ -45,7 +50,8 @@ type TicketCardViewProps =
       data: SelfTicketData[];
       onCardClick: (ticket: SelfTicketData) => void;
       onAcknowledgeAlarm?: (ticket: SelfTicketData) => void;
-    };
+    }
+);
 
 type ColumnProps = {
   title: string;
@@ -100,7 +106,9 @@ function TicketColumn({
     </Stack>
   );
   return (
-    <Box sx={boardColumnSx(expanded)}>
+    // `layout="position"`: when another stage opens, the headers below glide
+    // to their new place instead of jumping.
+    <StaggerItem layout="position" transition={SPRING_SOFT} sx={boardColumnSx(expanded)}>
       {isSmallScreen ? (
         <ButtonBase
           id={headerId}
@@ -115,7 +123,17 @@ function TicketColumn({
         header
       )}
       {isSmallScreen ? (
-        <Collapse in={expanded} timeout={200} sx={cardViewCollapseSx}>
+        // The opening stage unrolls from its header (clip reveal, so the
+        // flex height cap never fights a height tween); the closing one
+        // folds away at once so the two never compete for space.
+        <MotionBox
+          initial={false}
+          animate={expanded ? "open" : "closed"}
+          variants={boardRevealVariants}
+          // Hidden by class in the same render (not at animation end), so
+          // the stage headers' layout glide sees the real before/after.
+          sx={cardViewCollapseSx(expanded)}
+        >
           <Box
             id={panelId}
             role="region"
@@ -124,13 +142,28 @@ function TicketColumn({
           >
             {children}
           </Box>
-        </Collapse>
+        </MotionBox>
       ) : (
         <Box sx={boardColumnListSx}>{children}</Box>
       )}
-    </Box>
+    </StaggerItem>
   );
 }
+
+const boardRevealVariants: Variants = {
+  open: {
+    clipPath: "inset(0% 0% 0% 0%)",
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: EASE_OUT },
+  },
+  closed: {
+    clipPath: "inset(0% 0% 100% 0%)",
+    opacity: 0,
+    y: -8,
+    transition: { duration: 0 },
+  },
+};
 
 /** What an empty stage means, so a sparse board reads as intentional. */
 const EMPTY_STAGE_TEXT: Record<string, string> = {
@@ -138,13 +171,16 @@ const EMPTY_STAGE_TEXT: Record<string, string> = {
   "In progress": "Nothing is in progress right now.",
   Completed: "Completed tickets show here until they're rated and closed.",
   Closed: "Closed tasks show here.",
+  Overdue: "No overdue tasks. You are on track.",
 };
 
-function EmptyColumn({ title }: { title: string }) {
+function EmptyColumn({ title, overdueOnly }: { title: string; overdueOnly?: boolean }) {
   return (
     <Box sx={boardColumnEmptySx}>
       <InboxOutlinedIcon />
-      {EMPTY_STAGE_TEXT[title] ?? "Nothing in this stage."}
+      {overdueOnly
+        ? "Nothing overdue in this stage."
+        : EMPTY_STAGE_TEXT[title] ?? "Nothing in this stage."}
     </Box>
   );
 }
@@ -163,7 +199,13 @@ const DateChecker = (targetDateStr: string) => {
 export default function TicketCardView(props: TicketCardViewProps) {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("lg"));
-  const [expandedStatus, setExpandedStatus] = React.useState("Open");
+  const [expandedStatus, setExpandedStatus] = React.useState<string>("Open");
+  // Phone accordion: under the Overdue filter, open a stage that has cards.
+  const expandedTitle = (columns: { title: string; rows: unknown[] }[]) => {
+    const current = columns.find((column) => column.title === expandedStatus);
+    if (!props.overdueOnly || current?.rows.length) return expandedStatus;
+    return columns.find((column) => column.rows.length)?.title ?? expandedStatus;
+  };
   if (props.cardType === "Ticket") {
     const columns = TICKET_BOARD_GROUPS.map((group) => ({
       title: group.title,
@@ -172,8 +214,9 @@ export default function TicketCardView(props: TicketCardViewProps) {
         (group.statuses as readonly string[]).includes(ticket.current_status),
       ),
     }));
+    const expandedColumn = expandedTitle(columns);
     return (
-      <Box sx={boardColumnsSx}>
+      <StaggerContainer sx={boardColumnsSx}>
         {columns.map((column) => (
           <TicketColumn
             key={column.title}
@@ -181,7 +224,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
             count={column.rows.length}
             accent={column.accent}
             isSmallScreen={isSmallScreen}
-            expanded={expandedStatus === column.title}
+            expanded={expandedColumn === column.title}
             hasAlarm={column.rows.some(
               (ticket) =>
                 ticket.alarm === true || DateChecker(ticket.target_date),
@@ -189,21 +232,27 @@ export default function TicketCardView(props: TicketCardViewProps) {
             cardType="Ticket"
             onExpand={() => setExpandedStatus(column.title)}
           >
-            {column.rows.length ? (
-              column.rows.map((ticket) => (
-                <BasicCardComponent
-                  key={ticket.id ?? ticket.number}
-                  ticket={ticket}
-                  onOpen={props.onCardClick}
-                  columnStatus={column.title.toLowerCase()}
-                />
-              ))
-            ) : (
-              <EmptyColumn title={column.title} />
-            )}
+            {/* Cards animate in/out as tickets change stage or get filtered. */}
+            <AnimatePresence initial={false} mode="popLayout">
+              {column.rows.length ? (
+                column.rows.map((ticket) => (
+                  <PresenceItem key={ticket.id ?? ticket.number} whileHover={{ y: -2 }} whileTap={tapPress}>
+                    <BasicCardComponent
+                      ticket={ticket}
+                      onOpen={props.onCardClick}
+                      columnStatus={column.title.toLowerCase()}
+                    />
+                  </PresenceItem>
+                ))
+              ) : (
+                <PresenceItem key="empty">
+                  <EmptyColumn title={column.title} overdueOnly={props.overdueOnly} />
+                </PresenceItem>
+              )}
+            </AnimatePresence>
           </TicketColumn>
         ))}
-      </Box>
+      </StaggerContainer>
     );
   }
 
@@ -218,7 +267,7 @@ export default function TicketCardView(props: TicketCardViewProps) {
       ),
     },
     {
-      title: "Over due",
+      title: "Overdue",
       accent: getStatusColor("closed"),
       rows: props.data.filter(
         (ticket) =>
@@ -227,10 +276,10 @@ export default function TicketCardView(props: TicketCardViewProps) {
       ),
     },
   ];
+  const expandedColumn = expandedTitle(columns);
 
-  console.log(columns);
   return (
-    <Box sx={boardColumnsSelfSx}>
+    <StaggerContainer sx={boardColumnsSelfSx}>
       {columns.map((column) => (
         <TicketColumn
           key={column.title}
@@ -238,25 +287,30 @@ export default function TicketCardView(props: TicketCardViewProps) {
           count={column.rows.length}
           accent={column.accent}
           isSmallScreen={isSmallScreen}
-          expanded={expandedStatus === column.title}
+          expanded={expandedColumn === column.title}
           hasAlarm={column.rows.some((ticket) => shouldBlinkSelfTicket(ticket))}
           cardType="Self"
           onExpand={() => setExpandedStatus(column.title)}
         >
-          {column.rows.length ? (
-            column.rows.map((ticket) => (
-              <BasicCardSelfTicket
-                key={ticket.id ?? ticket.number}
-                ticket={ticket}
-                onOpen={props.onCardClick}
-                onAcknowledgeAlarm={props.onAcknowledgeAlarm}
-              />
-            ))
-          ) : (
-            <EmptyColumn title={column.title} />
-          )}
+          <AnimatePresence initial={false} mode="popLayout">
+            {column.rows.length ? (
+              column.rows.map((ticket) => (
+                <PresenceItem key={ticket.id ?? ticket.number} whileHover={{ y: -2 }} whileTap={tapPress}>
+                  <BasicCardSelfTicket
+                    ticket={ticket}
+                    onOpen={props.onCardClick}
+                    onAcknowledgeAlarm={props.onAcknowledgeAlarm}
+                  />
+                </PresenceItem>
+              ))
+            ) : (
+              <PresenceItem key="empty">
+                <EmptyColumn title={column.title} overdueOnly={props.overdueOnly} />
+              </PresenceItem>
+            )}
+          </AnimatePresence>
         </TicketColumn>
       ))}
-    </Box>
+    </StaggerContainer>
   );
 }

@@ -33,6 +33,8 @@ import {
   pageSubtitle,
   pageTitle,
 } from "@/styles/layout";
+import { MotionBox } from "@/animations/MotionPrimitives";
+import { fadeUp } from "@/animations/presets";
 
 /** Header layout tiers: desktop is the original layout, untouched. */
 const TABLET_DOWN = "(max-width:1200px)";
@@ -52,6 +54,7 @@ export type PageHeaderPlacement = "inline" | "menu" | "row" | "hidden";
  */
 export type PageHeaderPriority = "high" | "medium" | "low";
 
+/** Page Header Menu Item declaration used across the frontend. */
 export interface PageHeaderMenuItem {
   key: string;
   label: ReactNode;
@@ -62,6 +65,7 @@ export interface PageHeaderMenuItem {
   selected?: boolean;
 }
 
+/** Page Header Action declaration used across the frontend. */
 export interface PageHeaderAction {
   key: string;
   /** The control as shown on desktop. */
@@ -123,7 +127,7 @@ export default function PageHeader({
 
   if (!isTablet) {
     return (
-      <Box sx={[pageHeader, { flexShrink: 0 }, ...(Array.isArray(sx) ? sx : [sx])]}>
+      <MotionBox variants={fadeUp} sx={[pageHeader, { flexShrink: 0 }, ...(Array.isArray(sx) ? sx : [sx])]}>
         <Box sx={pageHeaderContent}>
           {titleNode}
           {subtitle && (
@@ -140,7 +144,7 @@ export default function PageHeader({
             ))}
           </Box>
         )}
-      </Box>
+      </MotionBox>
     );
   }
 
@@ -158,7 +162,7 @@ export default function PageHeader({
   const menu = list.filter((action) => placementOf(action) === "menu");
 
   return (
-    <Box sx={[pageHeaderCompact, ...(Array.isArray(sx) ? sx : [sx])]}>
+    <MotionBox variants={fadeUp} sx={[pageHeaderCompact, ...(Array.isArray(sx) ? sx : [sx])]}>
       {titleNode}
       {(inline.length > 0 || menu.length > 0) && (
         <Box sx={pageHeaderCompactActions}>
@@ -181,7 +185,7 @@ export default function PageHeader({
         </Box>
       )}
       {children && <Box sx={pageHeaderCompactExtra}>{children}</Box>}
-    </Box>
+    </MotionBox>
   );
 }
 

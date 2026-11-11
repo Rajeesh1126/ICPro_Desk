@@ -43,6 +43,7 @@ const LIVE_ENDPOINT_PREFIXES = [
   "/tickets/",
   "/self-tickets/",
   "/summary/",
+  "/team-performance/",
   "/timesheet-entries/",
   "/timesheet-week-logs/",
   "/timesheet-analysis/",
@@ -54,6 +55,7 @@ const LIVE_ENDPOINT_PREFIXES = [
 /** How long a closed page's live data may be reused (quick back/forward). */
 export const LIVE_CACHE_MS = 20_000;
 
+/** is Live Endpoint declaration used across the frontend. */
 export const isLiveEndpoint = (url: string) =>
   LIVE_ENDPOINT_PREFIXES.some((prefix) => url.startsWith(prefix));
 
@@ -87,9 +89,9 @@ const mutationDependencies: ReadonlyArray<{
   { mutationPrefix: "/milestones/", queryPrefixes: ["/milestones/", "/projects/"] },
   { mutationPrefix: "/tasks/", queryPrefixes: ["/tasks/", "/projects/", "/timesheet-entries/"] },
   { mutationPrefix: "/phases/", queryPrefixes: ["/phases/"] },
-  { mutationPrefix: "/tickets/", queryPrefixes: ["/tickets/", "/summary/"] },
-  { mutationPrefix: "/self-tickets/", queryPrefixes: ["/self-tickets/"] },
-  { mutationPrefix: "/users/", queryPrefixes: ["/users/"] },
+  { mutationPrefix: "/tickets/", queryPrefixes: ["/tickets/", "/summary/", "/team-performance/"] },
+  { mutationPrefix: "/self-tickets/", queryPrefixes: ["/self-tickets/", "/team-performance/"] },
+  { mutationPrefix: "/users/", queryPrefixes: ["/users/", "/team-performance/"] },
   { mutationPrefix: "/departments/", queryPrefixes: ["/departments/", "/users/"] },
   { mutationPrefix: "/roles/", queryPrefixes: ["/roles/", "/users/"] },
   { mutationPrefix: "/documents/", queryPrefixes: ["/documents/"] },

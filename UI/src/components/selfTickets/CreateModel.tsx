@@ -1,5 +1,3 @@
-import ScheduleFields from "@/components/selfTickets/ScheduleFields";
-import { useDiscardGuard } from "@/components/common/useDiscardGuard";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -33,7 +31,6 @@ import type {
 } from "@/types/dataTypes";
 import {
   compactFieldSx,
-  dateFieldSx,
   reminderHelpIconBadgeSx,
   reminderExampleTextSx,
   reminderExampleDaysSx,
@@ -55,7 +52,9 @@ import {
   requiredNoteTextSx,
 } from "@/styles/common";
 import DialogHeader from "@/components/common/DialogHeader";
-
+import { useDiscardGuard } from "@/components/common/useDiscardGuard";
+import ScheduleFields from "@/components/selfTickets/ScheduleFields";
+import { reminderAnchorLabel } from "@/components/selfTickets/schedule";
 
 type Props = {
   open: boolean;
@@ -122,8 +121,8 @@ export default function CreateSelfTicketModel({
 }: Props) {
   const [formData, setFormData] = useState<SelfTicketFormData>(emptyForm);
   const [formErrorData, setFormErrorData] = useState<Partial<SelfTicketFormData>>();
-  const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [checked, setChecked] = useState<boolean>(false);
   const [reminderAnchor, setReminderAnchor] = useState<HTMLElement | null>(
     null,
   );
@@ -151,7 +150,8 @@ export default function CreateSelfTicketModel({
         repeat_day_of_month: Data.repeat_day_of_month ?? null,
         repeat_until: Data.repeat_until ?? null,
         is_active: Data.is_active !== false,
-        reminder_mode: Data.reminder_mode ?? "legacy",
+        // Recurring tasks only support "before each occurrence" reminders.
+        reminder_mode: Data.schedule_type === "recurring" ? "before_due" : Data.reminder_mode ?? "legacy",
         reminder_days_before: Data.reminder_days_before ?? null,
       }
       : {
@@ -210,8 +210,11 @@ export default function CreateSelfTicketModel({
     !formData.task.trim() ||
     !formData.priority ||
     !formData.target_date ||
-    (formData.schedule_type === "period" && (!formData.start_date || formData.start_date > formData.target_date)) ||
-    (formData.schedule_type === "recurring" && (!(formData.repeat_interval ?? 1) || Boolean(formData.repeat_until && formData.repeat_until < formData.target_date)));
+    (formData.schedule_type === "period" &&
+      (!formData.start_date || formData.start_date > formData.target_date)) ||
+    (formData.schedule_type === "recurring" &&
+      (!((formData.repeat_interval ?? 1) >= 1) ||
+        Boolean(formData.repeat_until && formData.repeat_until < formData.target_date)));
 
   return (
     <Dialog
@@ -222,14 +225,14 @@ export default function CreateSelfTicketModel({
       maxWidth="md"
     >
       <DialogHeader
-        title={Data ? "Edit task" : "Create task"}
+        title={Data ? "Edit Task" : "New Task"}
         subtitle="Plan an action or follow-up with reminders."
         onClose={discard.requestClose}
         closeDisabled={loading}
       />
 
       <DialogContent >
-        <Stack spacing={2.25}>
+        <Stack spacing={1.5}>
           <Box>
             <Typography sx={doListFormSectionTitleSx} gutterBottom>
               Task details
@@ -284,6 +287,7 @@ export default function CreateSelfTicketModel({
                 <FormControl required fullWidth>
                   <InputLabel>Priority</InputLabel>
                   <Select
+                    inputProps={{ "aria-label": "Priority" }}
                     value={formData.priority}
                     label="Priority"
                     onChange={(event) => update("priority", event.target.value)}
@@ -302,57 +306,98 @@ export default function CreateSelfTicketModel({
 
           <Box>
             <Typography sx={doListFormSectionTitleSx} gutterBottom>
-              Schedule and Reminders
+              Schedule
             </Typography>
             <Grid container spacing={1.5}>
-              <ScheduleFields value={formData} update={update} hasOccurrences={Boolean(Data?.occurrences?.length)} />
+              <ScheduleFields
+                value={formData}
+                update={update}
+                hasOccurrences={Boolean(Data?.occurrences?.length)}
+                editing={Boolean(Data)}
+                minDate={Data ? undefined : targetDateMinimum}
+                errors={formErrorData}
+              />
+            </Grid>
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography sx={doListFormSectionTitleSx} gutterBottom>
+              Reminders
+            </Typography>
+            <Grid container spacing={1.5}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  required
-                  label={formData.schedule_type === "recurring" ? "Schedule starts on" : formData.schedule_type === "period" ? "End date" : "Target completion"}
-                  type="date"
+                  select
                   fullWidth
-                  value={formData.target_date}
+                  label="Remind me"
+                  value={formData.reminder_mode ?? "before_due"}
                   onChange={(event) =>
-                    update("target_date", event.target.value)
+                    update("reminder_mode", event.target.value as SelfTicketFormData["reminder_mode"])
                   }
-                  sx={dateFieldSx}
-                  slotProps={{
-                    inputLabel: { shrink: true },
-                    htmlInput: { min: Data ? undefined : targetDateMinimum },
-                  }}
-                // sx={compactFieldSx}
-                />
+                >
+                  <MenuItem value="before_due">
+                    Before {reminderAnchorLabel(formData.schedule_type)}
+                  </MenuItem>
+                  {/* Recurring tasks remind before each occurrence only. */}
+                  {formData.schedule_type !== "recurring" && (
+                    <MenuItem value="legacy">On a repeating interval</MenuItem>
+                  )}
+                </TextField>
               </Grid>
 
-              {formData.reminder_mode === "legacy" && <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Reminder interval (days)"
-                  type="number"
-                  fullWidth
-                  value={formData.reminder_interval}
-                  onChange={(event) =>
-                    // update("reminder_interval", event.target.value)
-                    update(
-                      "reminder_interval",
-                      event.target.value === ""
-                        ? 0
-                        : Number(event.target.value),
-                    )
-                  }
-                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
-                  helperText={
-                    formData.reminder_interval
-                      ? `A reminder every ${formData.reminder_interval} day${
-                          formData.reminder_interval === 1 ? "" : "s"
-                        }.`
-                      : "0 means no reminder."
-                  }
-                  // sx={compactFieldSx}
-                  onFocus={(event) => setReminderAnchor(event.currentTarget)}
-                  onBlur={() => setReminderAnchor(null)}
-                />
-              </Grid>}
+              {formData.reminder_mode === "legacy" ? (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Reminder interval (days)"
+                    type="number"
+                    fullWidth
+                    value={formData.reminder_interval}
+                    onChange={(event) =>
+                      update(
+                        "reminder_interval",
+                        event.target.value === ""
+                          ? 0
+                          : Number(event.target.value),
+                      )
+                    }
+                    slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                    helperText={
+                      formData.reminder_interval
+                        ? `A reminder every ${formData.reminder_interval} day${
+                            formData.reminder_interval === 1 ? "" : "s"
+                          }.`
+                        : "0 means no reminder."
+                    }
+                    onFocus={(event) => setReminderAnchor(event.currentTarget)}
+                    onBlur={() => setReminderAnchor(null)}
+                  />
+                </Grid>
+              ) : (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Days before due"
+                    type="number"
+                    fullWidth
+                    value={formData.reminder_days_before ?? ""}
+                    onChange={(event) =>
+                      update(
+                        "reminder_days_before",
+                        event.target.value ? Number(event.target.value) : null,
+                      )
+                    }
+                    slotProps={{ htmlInput: { min: 1, max: 365, step: 1 } }}
+                    helperText={
+                      formData.reminder_days_before
+                        ? `One reminder ${formData.reminder_days_before} day${
+                            formData.reminder_days_before === 1 ? "" : "s"
+                          } before ${reminderAnchorLabel(formData.schedule_type)}.`
+                        : "Leave empty for no reminder."
+                    }
+                  />
+                </Grid>
+              )}
             </Grid>
           </Box>
 

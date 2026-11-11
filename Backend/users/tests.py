@@ -5,6 +5,10 @@ from django.contrib.auth.tokens import default_token_generator
 from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
+from html import unescape
+import re
+from urllib.parse import parse_qs, urlsplit
+from django.test import override_settings
 
 from .models import DepartmentManager, Role, UserProfile
 
@@ -58,6 +62,30 @@ class PasswordAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('ResetPass123!'))
+
+    @patch('users.serializers.send_mail')
+    def test_reset_email_uses_clickable_absolute_url(self, mock_send_mail):
+        for configured, expected in [
+            ('wwp.icpro.in/reset-password', 'https://wwp.icpro.in/reset-password'),
+            ('https://tsm.icpro.in/reset-password', 'https://tsm.icpro.in/reset-password'),
+            ('http://localhost:5173/reset-password', 'http://localhost:5173/reset-password'),
+            ('https://tsm.icpro.in/reset-password?source=email#form', 'https://tsm.icpro.in/reset-password'),
+        ]:
+            with self.subTest(url=configured), override_settings(FRONTEND_RESET_PASSWORD_URL=configured):
+                response = self.client.post('/api/users/forgot_password/', {
+                    'username': self.user.username, 'email': self.user.email,
+                })
+                self.assertEqual(response.status_code, 200)
+                html = mock_send_mail.call_args.args[1]
+                link = unescape(re.search(r'<a href="([^"]+)">Reset your password</a>', html).group(1))
+                parts = urlsplit(link)
+                self.assertEqual(f'{parts.scheme}://{parts.netloc}{parts.path}', expected)
+                query = parse_qs(parts.query)
+                self.assertEqual(query['email'], [self.user.email])
+                self.assertTrue(default_token_generator.check_token(self.user, query['token'][0]))
+                if 'source=email' in configured:
+                    self.assertEqual(query['source'], ['email'])
+                    self.assertEqual(parts.fragment, 'form')
 
     def test_create_user_with_password(self):
         add_permission = Permission.objects.get(codename='add_user')

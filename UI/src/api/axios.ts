@@ -2,12 +2,15 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { showGlobalError } from "@/api/errorDialogService";
 import { formatValidationErrors } from "@/utils/errorUtils";
-import { expireSession, refreshAccessToken } from "@/api/session";
+import { expireSession, refreshAccessToken, requireActiveSession } from "@/api/session";
 import { invalidateAfterMutation } from "@/api/queryClient";
 
 declare module "axios" {
+/** Axios Request Config declaration used across the frontend. */
     export interface AxiosRequestConfig {
         suppressGlobalError?: boolean;
+        /** Let a dialog display its own errors, retaining authentication recovery. */
+        handleErrorsLocally?: boolean;
         _authRetry?: boolean;
     }
 }
@@ -32,6 +35,7 @@ const isAuthEndpoint = (url?: string) =>
 api.interceptors.request.use(
     async (config) => {
         if (!isAuthEndpoint(config.url)) {
+            requireActiveSession();
             let token = localStorage.getItem("accessToken");
             if (!token || isTokenExpired(token)) token = await refreshAccessToken();
             if (config.signal?.aborted) throw new axios.CanceledError();
@@ -89,6 +93,8 @@ api.interceptors.response.use(
             expireSession();
             return Promise.reject(error);
         }
+
+        if (error.config?.handleErrorsLocally) return Promise.reject(error);
 
         // Bad requests carry an API-authored explanation (often a validation
         // or business-rule message). Show it so users know what to correct.
@@ -156,6 +162,7 @@ function clientErrorTitle(status: number) {
     return "Request could not be completed";
 }
 
+/** is Token Expired declaration used across the frontend. */
 export const isTokenExpired = (token: string): boolean => {
     try {
         const decoded = jwtDecode<JwtPayload>(token);

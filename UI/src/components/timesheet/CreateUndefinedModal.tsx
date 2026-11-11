@@ -39,9 +39,9 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
   onSubmit,
   submitting = false,
 }) => {
-  const [description, setDescription] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [jobNumber, setJobNumber] = useState("");
+  const [description, setDescription] = useState<string>("");
+  const [customerName, setCustomerName] = useState<string>("");
+  const [jobNumber, setJobNumber] = useState<string>("");
   const [formErrorData, setFormErrorData] = useState<FormErrors>({});
 
   const validate = (data: {
@@ -131,7 +131,7 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
           {/* Project Name */}
           <TextField
             fullWidth
-            placeholder="Description"
+            label="Description"
             value={description}
             onBlur={() => setDescription((current) => current.trim())}
             onChange={(e) => {
@@ -145,7 +145,7 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
           {/* Customer Name */}
           <TextField
             fullWidth
-            placeholder="Customer Name"
+            label="Customer Name"
             value={customerName}
             onBlur={() => setCustomerName((current) => current.trim())}
             onChange={(e) => {
@@ -159,7 +159,7 @@ const CreateUndefinedModal: React.FC<CreateUndefinedModalProps> = ({
           {/* Job Number */}
           <TextField
             fullWidth
-            placeholder="Job Number"
+            label="Job Number"
             value={jobNumber}
             onBlur={() => setJobNumber((current) => current.trim())}
             onChange={(e) => {

@@ -1,3 +1,5 @@
+import { neutralColor, statusColor } from "@/components/common/pillValues";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useCallback, useMemo, useState } from "react";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
@@ -6,7 +8,6 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import {
   Box,
   Button,
-  Chip,
   IconButton,
   MenuItem,
   Select,
@@ -14,7 +15,6 @@ import {
   Tab,
   Tabs,
   ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -45,11 +45,16 @@ import {
   VirtualizedTable,
   type ColumnData,
 } from "@/components/common/TableView";
-import { CollapsibleTableView } from "@/components/common/CollapsibleTableView";
+import {
+  CollapsibleTableView,
+  type ExpandedColumnData,
+} from "@/components/common/CollapsibleTableView";
 import { showNotification } from "@/api/notificationService";
 import { getStoredPermissions } from "@/utils/permissions";
-import { StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
 import PageHeader from "@/components/common/PageHeader";
+import { StaggerContainer, TabContent } from "@/animations/MotionPrimitives";
+import AnimatedToggleGroup from "@/animations/AnimatedToggleGroup";
 
 export default function Users() {
   const permissions = getStoredPermissions();
@@ -62,17 +67,17 @@ export default function Users() {
     "all" | "active" | "inactive"
   >("all");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [editing, setEditing] = useState<boolean>(false);
   const [selectedRow, setSelectedRow] = useState<UsersData | null>(null);
 
-  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-  const [groupEditing, setGroupEditing] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState<boolean>(false);
+  const [groupEditing, setGroupEditing] = useState<boolean>(false);
   const [selectedGroupRow, setSelectedGroupRow] = useState<groupData | null>(
     null,
   );
 
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState<number>(0);
 
   // Users and teams load independently, so each tab renders as soon as its
   // own data arrives. Both are cached reference data shared with the
@@ -118,6 +123,17 @@ export default function Users() {
     setGroupEditing(true);
     setGroupDialogOpen(true);
   }, []);
+
+  const [pendingManager, setPendingManager] = useState<{
+    group: groupData;
+    managerId: number | null;
+  } | null>(null);
+  const userName = (id: number | null) => {
+    const user = users.find((item) => item.id === id);
+    return user
+      ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username
+      : "";
+  };
 
   const updateGroupManager = useCallback(
     async (group: groupData, managerId: number | null) => {
@@ -197,23 +213,47 @@ export default function Users() {
       { label: "First Name", dataKey: "first_name" },
       { label: "Last Name", dataKey: "last_name" },
       { label: "Email", dataKey: "email", width: 200 },
-      { label: "Role", dataKey: "role", width: 150, render: (row) => row.role ? <Chip label={row.role} variant="outlined" /> : "—" },
+      { label: "Role", dataKey: "role", width: 150, render: (row) => (row.role ? <Pill value={row.role} color={neutralColor} /> : "—") },
       {
         label: "Status",
         width: 100,
         render: (row) => (
-          <StatusPill status={row.is_active === false ? "inactive" : "active"} label={row.is_active === false ? "Inactive" : "Active"} />
+          <Pill value={row.is_active === false ? "Inactive" : "Active"} color={statusColor(row.is_active === false ? "inactive" : "active")} dot />
         ),
       },
-      { label: "Execution Teams", dataKey: "groups", render: (row) => <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={row.groups?.join(", ")}>{(row.groups ?? []).slice(0, 2).map((group) => <Chip key={group} label={group} variant="outlined" />)}{(row.groups?.length ?? 0) > 2 && <Chip label={`+${row.groups!.length - 2}`} />}{!row.groups?.length ? "—" : null}</Stack> },
-      { label: "Designation", dataKey: "designation" },
-      { label: "Reporting To", dataKey: "reporting_to" },
+            {
+        label: "Execution Teams",
+        dataKey: "groups",
+        render: (row) =>
+          row.groups?.length ? (
+            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={row.groups.join(", ")}>
+              {row.groups.slice(0, 2).map((group) => (
+                <Pill key={group} value={group} color={neutralColor} />
+              ))}
+              {row.groups.length > 2 && <Pill value={`+${row.groups.length - 2}`} color={neutralColor} />}
+            </Stack>
+          ) : (
+            "—"
+          ),
+      },
+      { label: "Designation", dataKey: "designation", width: 130 },
+      {
+        label: "Reporting To",
+        dataKey: "reporting_to",
+        width: 150,
+        // Full name, as everywhere else ("Libina P Babu", not "Libina").
+        render: (row) => {
+          const manager = users.find((user) => user.username === row.reporting_to);
+          const name = manager ? `${manager.first_name ?? ""} ${manager.last_name ?? ""}`.trim() : "";
+          return name || row.reporting_to || "—";
+        },
+      },
       { label: "Location", dataKey: "location" },
       ...(canChangeUser
         ? [
             {
               label: "Actions",
-              width: 40,
+              width: 72,
               render: (row: UsersData) => (
                 <Tooltip title="Edit user">
                   <IconButton
@@ -228,7 +268,7 @@ export default function Users() {
           ]
         : []),
     ],
-    [canChangeUser, openEdit],
+    [canChangeUser, openEdit, users],
   );
 
   const columnsGroup = useMemo<ColumnData<groupData>[]>(
@@ -259,60 +299,87 @@ export default function Users() {
           <Select
             fullWidth
             displayEmpty
+            inputProps={{ "aria-label": `Manager of ${row.name}` }}
             disabled={!canChangeDepartmentManager || savingGroupId === row.id}
             value={row.manager?.id === undefined ? "" : String(row.manager.id)}
+            // Reassigning a manager changes who approves the team's work,
+            // so the change is confirmed before it is saved.
             onChange={(event) =>
-              void updateGroupManager(
-                row,
-                event.target.value === "" ? null : Number(event.target.value),
-              )
+              setPendingManager({
+                group: row,
+                managerId: event.target.value === "" ? null : Number(event.target.value),
+              })
             }
           >
             <MenuItem value="">
               <em>Select Manager</em>
             </MenuItem>
 
-            {users.map((user) => (
-              <MenuItem key={user.id} value={String(user.id)}>
-                {`${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
-                  user.username}
-              </MenuItem>
-            ))}
+            {/* Only active users can be assigned. A current manager who has
+                since been deactivated stays listed (marked) so the cell still
+                shows who it is. */}
+            {users
+              .filter((user) => user.is_active !== false || user.id === row.manager?.id)
+              .map((user) => (
+                <MenuItem key={user.id} value={String(user.id)} disabled={user.is_active === false}>
+                  {`${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+                    user.username}
+                  {user.is_active === false && " (Inactive)"}
+                </MenuItem>
+              ))}
           </Select>
         ),
       },
     ],
-    [canChangeDepartmentManager, openEditGroup, savingGroupId, updateGroupManager, users],
+    [canChangeDepartmentManager, openEditGroup, savingGroupId, users],
   );
   const primaryUserColumns = useMemo(
     () =>
       columns.filter((column) =>
-        ["User", "Email", "Role", "Status", "Actions"].includes(
+        ["User", "Email", "Role", "Designation", "Reporting To", "Status", "Actions"].includes(
           column.label,
         ),
       ),
     [columns],
   );
-  const detailUserColumns = useMemo(
+  // Expanded-row details: what the row itself has no room for. Execution
+  // Teams goes last, so every team is listed instead of being cut to "+N".
+  const detailUserColumns = useMemo<ExpandedColumnData<UsersData>[]>(
     () =>
-      columns.filter((column) =>
-        [
-          "First Name",
-          "Last Name",
-          "Execution Teams",
-          "Designation",
-          "Reporting To",
-          "Location",
-        ].includes(column.label),
-      ),
+      [
+        "First Name",
+        "Last Name",
+        "Location",
+        "Execution Teams",
+      ].flatMap((label) => {
+        const column = columns.find((item) => item.label === label);
+        if (!column) return [];
+        if (label !== "Execution Teams") return [column];
+        return [
+          {
+            ...column,
+            size: { xs: 12, sm: 6, md: 9 },
+            render: (row: UsersData) =>
+              row.groups?.length ? (
+                <Stack component="span" direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                  {row.groups.map((group) => (
+                    <Pill key={group} value={group} color={neutralColor} />
+                  ))}
+                </Stack>
+              ) : (
+                "—"
+              ),
+          },
+        ];
+      }),
     [columns],
   );
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
-          title="Users"
+          title={tabValue === 0 ? "Users" : "Teams"}
           subtitle={
             tabValue === 0
               ? "Manage user accounts, profiles, access, and assignments"
@@ -323,7 +390,7 @@ export default function Users() {
               key: "status",
               priority: "medium",
               node: (
-                <ToggleButtonGroup
+                <AnimatedToggleGroup
                   exclusive
                   value={userStatusFilter}
                   onChange={(_, value: "all" | "active" | "inactive" | null) => {
@@ -335,7 +402,7 @@ export default function Users() {
                   <ToggleButton value="all">All</ToggleButton>
                   <ToggleButton value="active">Active</ToggleButton>
                   <ToggleButton value="inactive">Inactive</ToggleButton>
-                </ToggleButtonGroup>
+                </AnimatedToggleGroup>
               ),
               menuLabel: "Status",
               menuItems: (["all", "active", "inactive"] as const).map((status) => ({
@@ -416,7 +483,7 @@ export default function Users() {
           </Tabs>
         </Box>
         {tabValue === 0 && (
-          <Box sx={tablePageContent}>
+          <TabContent sx={tablePageContent}>
             <CollapsibleTableView
               columns={primaryUserColumns}
               expandedColumns={detailUserColumns}
@@ -430,10 +497,10 @@ export default function Users() {
               emptyTitle="No users yet"
               emptyDescription="Create a user to give someone access to ICProDesk."
             />
-          </Box>
+          </TabContent>
         )}
         {tabValue === 1 && (
-          <Box sx={tablePageContent}>
+          <TabContent sx={tablePageContent}>
             <VirtualizedTable
               columns={columnsGroup}
               rows={groups}
@@ -444,9 +511,9 @@ export default function Users() {
               emptyTitle="No teams yet"
               emptyDescription="Create a team and assign a manager."
             />
-          </Box>
+          </TabContent>
         )}
-      </Box>
+      </StaggerContainer>
       {!selectedRow && !editing && (
         <UserCreateModal
           open={dialogOpen}
@@ -475,6 +542,27 @@ export default function Users() {
           Data={selectedGroupRow}
         />
       )}
+      <ConfirmDialog
+        open={pendingManager !== null}
+        title={pendingManager?.managerId ? "Change team manager?" : "Remove team manager?"}
+        description={
+          pendingManager
+            ? pendingManager.managerId
+              ? `${userName(pendingManager.managerId)} will manage ${pendingManager.group.name}${
+                  pendingManager.group.manager?.name ? ` instead of ${pendingManager.group.manager.name}` : ""
+                }.`
+              : `${pendingManager.group.name} will have no manager.`
+            : undefined
+        }
+        confirmLabel={pendingManager?.managerId ? "Change manager" : "Remove manager"}
+        onClose={() => setPendingManager(null)}
+        onConfirm={async () => {
+          if (!pendingManager) return;
+          const { group, managerId } = pendingManager;
+          setPendingManager(null);
+          await updateGroupManager(group, managerId);
+        }}
+      />
     </Box>
   );
 }

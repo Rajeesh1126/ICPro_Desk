@@ -13,7 +13,6 @@ import {
   Typography,
 } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import ExpandLessOutlinedIcon from "@mui/icons-material/ExpandLessOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 
@@ -28,12 +27,15 @@ import {
   assignTaskToolbarSx,
   assignTaskTreeSx,
 } from "@/styles/common";
+import { RotatingChevron } from "@/animations/MotionPrimitives";
 
+/** Time Sheet Cost Category declaration used across the frontend. */
 export type TimeSheetCostCategory = {
   id: number;
   name: string;
 };
 
+/** Time Sheet Phase Mapping declaration used across the frontend. */
 export type TimeSheetPhaseMapping = {
   id: number;
   phase: string;
@@ -41,6 +43,7 @@ export type TimeSheetPhaseMapping = {
   cost_category_name?: string | null;
 };
 
+/** Time Sheet Cost Master declaration used across the frontend. */
 export type TimeSheetCostMaster = {
   id: number;
   name: string;
@@ -85,7 +88,7 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
 
   // Reset transient state when the dialog closes, adjusting during render
   // (previous-value pattern) instead of in an effect.
-  const [wasOpen, setWasOpen] = useState(open);
+  const [wasOpen, setWasOpen] = useState<boolean>(open);
   if (wasOpen !== open) {
     setWasOpen(open);
     if (!open) {
@@ -268,11 +271,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                       aria-expanded={expandedKeys.includes(projectKey)}
                       onClick={() => toggleExpanded(projectKey)}
                     >
-                      {expandedKeys.includes(projectKey) ? (
-                        <ExpandLessOutlinedIcon />
-                      ) : (
+                      <RotatingChevron open={expandedKeys.includes(projectKey)}>
                         <ExpandMoreOutlinedIcon />
-                      )}
+                      </RotatingChevron>
                     </IconButton>
                     <Checkbox
                       checked={projectState.checked}
@@ -320,11 +321,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                 aria-expanded={expandedKeys.includes(phaseKey)}
                                 onClick={() => toggleExpanded(phaseKey)}
                               >
-                                {expandedKeys.includes(phaseKey) ? (
-                                  <ExpandLessOutlinedIcon />
-                                ) : (
+                                <RotatingChevron open={expandedKeys.includes(phaseKey)}>
                                   <ExpandMoreOutlinedIcon />
-                                )}
+                                </RotatingChevron>
                               </IconButton>
                               <Checkbox
                                 checked={phaseState.checked}
@@ -373,13 +372,9 @@ const AssignCostMasterTasksModal: React.FC<AssignCostMasterTasksModalProps> = ({
                                             toggleExpanded(categoryKey)
                                           }
                                         >
-                                          {expandedKeys.includes(
-                                            categoryKey,
-                                          ) ? (
-                                            <ExpandLessOutlinedIcon />
-                                          ) : (
+                                          <RotatingChevron open={expandedKeys.includes(categoryKey)}>
                                             <ExpandMoreOutlinedIcon />
-                                          )}
+                                          </RotatingChevron>
                                         </IconButton>
                                         <Checkbox
                                           checked={categoryState.checked}

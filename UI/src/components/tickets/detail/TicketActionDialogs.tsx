@@ -52,10 +52,10 @@ export default function TicketActionDialogs({
   users,
   onStatusChange,
 }: TicketActionDialogsProps) {
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState<string>("");
   const [rating, setRating] = useState<number | null>(null);
-  const [ratingGuideOpen, setRatingGuideOpen] = useState(false);
-  const [reassignTo, setReassignTo] = useState("");
+  const [ratingGuideOpen, setRatingGuideOpen] = useState<boolean>(false);
+  const [reassignTo, setReassignTo] = useState<string>("");
   const [estimatedHours, setEstimatedHours] = useState<number | null>(null);
   const requiresEstimatedHours = Number(ticket.est_hours) === 0;
 
@@ -187,7 +187,8 @@ export default function TicketActionDialogs({
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
               <InputLabel>Assign To</InputLabel>
-              <Select label="Assign To" value={reassignTo} onChange={(event) => setReassignTo(event.target.value)}>
+              <Select
+                inputProps={{ "aria-label": "Assign To" }} label="Assign To" value={reassignTo} onChange={(event) => setReassignTo(event.target.value)}>
                 {users.map((user) => (
                   <MenuItem key={user.users_id} value={`${user.users_id}|${user.first_name || user.username}`}>
                     {user.first_name || user.username}

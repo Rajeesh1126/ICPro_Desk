@@ -1,7 +1,4 @@
-// Shared spacing token keeps the table surface aligned with page content.
-// React supplies state, memoization, contexts, and component typings.
 import * as React from "react";
-// Material UI primitives build the table surface, toolbar, and responsive states.
 import {
   Table,
   TableBody,
@@ -20,30 +17,21 @@ import {
   useMediaQuery,
   type SxProps,
 } from "@mui/material";
-// Theme helpers provide breakpoint detection and theme-aware row styling.
 import { useTheme, type Theme } from "@mui/material/styles";
 
-// Virtuoso renders large datasets efficiently while preserving table semantics.
 import { TableVirtuoso } from "react-virtuoso";
-// Virtuoso component types keep the custom table element mapping type safe.
+import { motion } from "motion/react";
+import { FadeIn, MotionPaper } from "@/animations/MotionPrimitives";
+import { DURATION, EASE_OUT, fadeUp } from "@/animations/presets";
 import type { TableComponents } from "react-virtuoso";
-// Sort controls expose the active field and direction in column headers.
 import { TableSortLabel } from "@mui/material";
-// Down arrow indicates that a collapsible table is currently closed.
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-// Up arrow indicates that a collapsible table is currently open.
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-// Search icon identifies the table-wide search field.
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-// EmptyTableState renders the standard no-data and no-results presentation.
 import EmptyTableState from "@/components/common/EmptyTableState";
-// MobileRowCard converts each record into the responsive card layout.
 import MobileRowCard from "@/components/common/MobileRowCard";
-// Date formatting keeps recognized date values consistent across cells.
 import { formatIfDate } from "@/utils/dateRange";
-// Search text extraction normalizes arbitrary column values for filtering.
-import { getColumnSearchText } from "@/components/common/tableSearch";
-// Cell helpers define rendering, formatting, and alignment behavior.
+import { compareCellValues, getColumnSearchText } from "@/components/common/tableSearch";
+import type { TableDensity } from "@/styles/tokens";
 import {
   columnAlign,
   columnFormat,
@@ -51,9 +39,7 @@ import {
   type CellFormat,
   type ColumnAlign,
 } from "@/components/common/tableCell";
-// TableLoadingState supplies the shared table and card loading skeletons.
 import TableLoadingState from "@/components/common/TableLoadingState";
-// Shared style objects keep table surfaces, rows, headers, and controls consistent.
 import {
   alternatingRowSx,
   stickyTableCellSx,
@@ -127,6 +113,8 @@ interface VirtualizedTableProps<T> {
   rows: T[];
   /** Height passed to the table panel when a page controls its size. */
   height?: string;
+  /** Row height: standard (52px) or compact (40px) for long lists. */
+  density?: TableDensity;
   /** Minimum desktop table width before horizontal scrolling begins. */
   tableMinWidth?: number | string;
   /** Opens or selects a record when its row is activated. */
@@ -178,6 +166,14 @@ interface VirtualizedTableProps<T> {
 const FIT_HEADER_HEIGHT = 48;
 /** Room for the empty state when a fitted table has no rows. */
 const FIT_EMPTY_HEIGHT = 240;
+/** First-paint row estimate for fitted tables, before Virtuoso measures. */
+const FIT_ROW_ESTIMATE = 53;
+/**
+ * Fitted tables start small, so Virtuoso must render rows past its viewport:
+ * it only measures rendered rows, and a header plus a horizontal scrollbar
+ * can otherwise fill the first frame and leave the table stuck at 0 rows.
+ */
+const FIT_OVERSCAN = { top: 0, bottom: 600 };
 
 /** Converts raw cell values into readable fallback text or formatted dates. */
 const formatCellValue = (value: unknown): React.ReactNode => {
@@ -286,6 +282,7 @@ export function VirtualizedTable<T extends object>({
   columns: allColumns,
   rows,
   height,
+  density = "standard",
   tableMinWidth,
   onRowClick,
   getRowStatus,
@@ -309,7 +306,19 @@ export function VirtualizedTable<T extends object>({
   fitContent = false,
 }: VirtualizedTableProps<T>) {
   // Tracks Virtuoso's measured content height for tables that fit their rows.
-  const [listHeight, setListHeight] = React.useState(0);
+  const [listHeight, setListHeight] = React.useState<number>(0);
+  // Height a horizontal scrollbar takes, so fitted rows are not cut off by it.
+  const [scrollbarHeight, setScrollbarHeight] = React.useState<number>(0);
+  const scrollerRef = React.useRef<HTMLElement | null>(null);
+  // Stable: Virtuoso re-attaches its scroller whenever this callback changes.
+  const setScrollerRef = React.useCallback((element: HTMLElement | Window | null) => {
+    scrollerRef.current = element instanceof HTMLElement ? element : null;
+  }, []);
+  const handleListHeight = React.useCallback((next: number) => {
+    setListHeight(next);
+    const scroller = scrollerRef.current;
+    setScrollbarHeight(scroller ? scroller.offsetHeight - scroller.clientHeight : 0);
+  }, []);
   // Provides the active application theme to responsive and style helpers.
   const theme = useTheme();
   // Selects the card layout at the application's phone breakpoint.
@@ -334,7 +343,7 @@ export function VirtualizedTable<T extends object>({
     "asc",
   );
   // Stores the user's table-wide search query.
-  const [searchText, setSearchText] = React.useState("");
+  const [searchText, setSearchText] = React.useState<string>("");
   // Applies the current search and sort settings without mutating source rows.
   const processedRows = React.useMemo(() => {
     // Begin with the supplied records and replace this list only when filtering.
@@ -360,9 +369,8 @@ export function VirtualizedTable<T extends object>({
         if (aValue == null) return 1;
         if (bValue == null) return -1;
 
-        if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-        return 0;
+        const order = compareCellValues(aValue, bValue);
+        return sortDirection === "asc" ? order : -order;
       });
     }
     return filtered;
@@ -390,6 +398,7 @@ export function VirtualizedTable<T extends object>({
           {...props}
           sx={tableViewTableWithMinWidth(
             resolveTableMinWidth(tableMinWidth, columnsTotalWidth),
+            density,
           )}
         />
       ),
@@ -404,7 +413,7 @@ export function VirtualizedTable<T extends object>({
         <TableBody {...props} ref={ref} />
       )),
     }),
-    [tableMinWidth, columnsTotalWidth],
+    [tableMinWidth, columnsTotalWidth, density],
   );
 
   /** Activates a new sort field or reverses the current field's direction. */
@@ -451,6 +460,7 @@ export function VirtualizedTable<T extends object>({
           key={column.label}
           variant="head"
           align={columnAlign(column)}
+          sortDirection={sortField && sortField === column.dataKey ? sortDirection : false}
           sx={tableHeaderCellForColumnSx({
             column,
             index,
@@ -510,7 +520,7 @@ export function VirtualizedTable<T extends object>({
 
   // Assemble the responsive card list and its centered empty state.
   const mobileContent = (
-    <Box
+    <FadeIn
       sx={tableCardListSx}
     >
       {processedRows.length ? (
@@ -534,21 +544,28 @@ export function VirtualizedTable<T extends object>({
           {emptyState}
         </Box>
       )}
-    </Box>
+    </FadeIn>
   );
+
+  // Fitted height: measured rows (or an estimate before the first measure)
+  // plus any horizontal scrollbar, so the last row is never hidden under it.
+  const fitHeight = processedRows.length
+    ? (listHeight > FIT_HEADER_HEIGHT
+        ? listHeight
+        : FIT_HEADER_HEIGHT + processedRows.length * FIT_ROW_ESTIMATE) +
+      scrollbarHeight
+    : FIT_EMPTY_HEIGHT;
 
   // Assemble the virtualized desktop table, footer, and empty-state overlay.
   const tableContent = (
-    <Box
+    <FadeIn
       sx={
         fitContent
           ? {
               ...tableBodyAreaSx,
               // Shrink to the panel so Virtuoso owns overflow for long lists.
               flex: "0 1 auto",
-              height: processedRows.length
-                ? listHeight || FIT_HEADER_HEIGHT
-                : FIT_EMPTY_HEIGHT,
+              height: fitHeight,
             }
           : tableBodyAreaSx
       }
@@ -560,15 +577,16 @@ export function VirtualizedTable<T extends object>({
               ? {
                   ...tableVirtuosoStyle,
                   // Rows' own height; flex lets it shrink to the space left.
-                  height: processedRows.length
-                    ? listHeight || FIT_HEADER_HEIGHT
-                    : FIT_EMPTY_HEIGHT,
+                  height: fitHeight,
                   flex: "0 1 auto",
                   minHeight: 0,
                 }
               : tableVirtuosoStyle
           }
-          totalListHeightChanged={fitContent ? setListHeight : undefined}
+          totalListHeightChanged={fitContent ? handleListHeight : undefined}
+          // Never undefined: Virtuoso reads `.top` on an explicit undefined.
+          increaseViewportBy={fitContent ? FIT_OVERSCAN : 0}
+          scrollerRef={setScrollerRef}
           data={processedRows}
           components={virtuosoTableComponents}
           fixedHeaderContent={fixedHeaderContent}
@@ -583,12 +601,15 @@ export function VirtualizedTable<T extends object>({
       {processedRows.length === 0 && (
         <Box sx={tableEmptyOverlaySx}>{emptyState}</Box>
       )}
-    </Box>
+    </FadeIn>
   );
 
   return (
-    <Paper
+    <MotionPaper
       elevation={0}
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
       sx={{
         ...paperSx,
         ...(collapsible && !isTableExpanded
@@ -627,15 +648,17 @@ export function VirtualizedTable<T extends object>({
               }}
               sx={tableExpandButtonSx}
             >
-              {isTableExpanded ? (
-                <KeyboardArrowUpIcon />
-              ) : (
+              <motion.span
+                style={{ display: "inline-flex" }}
+                animate={{ rotate: isTableExpanded ? 180 : 0 }}
+                transition={{ duration: DURATION.hover * 1.4, ease: EASE_OUT }}
+              >
                 <KeyboardArrowDownIcon />
-              )}
+              </motion.span>
             </IconButton>
           )}
           <Stack spacing={0.5} sx={tableViewTitleStackSx}>
-            <Typography variant="subtitle1" fontWeight={600} sx={tableTitleSx}>
+            <Typography variant="subtitle1" component="h2" fontWeight={600} sx={tableTitleSx}>
               {tableTitle}
               {tableTitle && !loading && (
                 <Box component="span" sx={tableTitleCountSx}>
@@ -643,13 +666,16 @@ export function VirtualizedTable<T extends object>({
                 </Box>
               )}
             </Typography>
-            <Typography
-              variant="subtitle2"
-              fontWeight={400}
-              sx={tableSubtitleSx}
-            >
-              {tableHeadSub ? tableHeadSub : ""}
-            </Typography>
+            {tableHeadSub && (
+              <Typography
+                variant="subtitle2"
+                component="p"
+                fontWeight={400}
+                sx={tableSubtitleSx}
+              >
+                {tableHeadSub}
+              </Typography>
+            )}
           </Stack>
         </Box>
         <Box
@@ -694,6 +720,6 @@ export function VirtualizedTable<T extends object>({
         ) : (
           tableContent
         ))}
-    </Paper>
+    </MotionPaper>
   );
 }

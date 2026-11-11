@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 
-from projects.models import AssignedTask, Project
+from projects.models import AssignedTask, Project, Task
 from tickets.models import Ticket
 from .models import Submission, TimesheetWeekLog
 
@@ -128,6 +128,43 @@ class TimesheetAssignTicketsSerializer(serializers.Serializer):
 class TimesheetAssignProjectSerializer(serializers.Serializer):
     project_id = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
     week_start = serializers.DateField(required=False)
+
+
+MANAGEMENT_PROJECT_CODE = 'ICP/GM/001'
+
+
+class TimesheetAssignManagementTasksSerializer(serializers.Serializer):
+    task_ids = serializers.ListField(
+        child=serializers.PrimaryKeyRelatedField(
+            queryset=Task.objects.filter(project__code__iexact=MANAGEMENT_PROJECT_CODE)
+            .select_related('project', 'milestone'),
+        ),
+        allow_empty=False,
+    )
+    week_start = serializers.DateField()
+
+    def validate_task_ids(self, tasks):
+        if any(task.milestone_id and task.milestone.project_id != task.project_id for task in tasks):
+            raise serializers.ValidationError('Task milestones must belong to the management project.')
+        return list({task.id: task for task in tasks}.values())
+
+    def validate_week_start(self, value):
+        if value.weekday() != 0:
+            raise serializers.ValidationError('Week start must be a Monday.')
+        return value
+
+    def validate(self, attrs):
+        year, week, _ = attrs['week_start'].isocalendar()
+        log = TimesheetWeekLog.objects.filter(
+            uid=self.context['request'].user, weekyear=year, weeknumber=week,
+        ).first()
+        if log:
+            state = (log.timesheet_status or '').lower()
+            if state in {'submitted', 'accepted', 'requested'} or (
+                state != 'rejected' and log.submission_status
+            ):
+                raise serializers.ValidationError({'week_start': 'This timesheet week is locked.'})
+        return attrs
 
 
 class TimesheetExtendTasksSerializer(serializers.Serializer):

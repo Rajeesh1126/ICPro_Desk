@@ -1,4 +1,3 @@
-import { selfTicketDisplayDueDate } from "@/components/selfTickets/highlight";
 import {
   Box,
   Button,
@@ -19,8 +18,16 @@ import {
   getReminderState,
   getSelfTicketAlertMessage,
   isSelfTicketOverdue,
+  selfTicketDisplayDueDate,
 } from "@/components/selfTickets/highlight";
-import { PriorityPill } from "@/components/common/StatusPill";
+import {
+  dueDateLabel,
+  reminderSummary,
+  scheduleLabel,
+} from "@/components/selfTickets/schedule";
+import { ScheduleIcon } from "@/components/selfTickets/ScheduleCell";
+import Pill from "@/components/common/Pill";
+import { priorityColor, priorityLabel } from "@/components/common/pillValues";
 import {
   boardCardCreatedSx,
   boardCardCreatorSx,
@@ -31,6 +38,7 @@ import {
   boardCardMetaSx,
   boardCardNumberSx,
   boardCardTagSx,
+  boardCardTypeTagSx,
   boardCardSx,
   boardCardTopRowSx,
   doListAcknowledgeButtonSx,
@@ -39,6 +47,7 @@ import {
   doListReminderValueSx,
   sharedCardContentSx,
   sharedCardTitleSx,
+  ticketCardDescriptionSx,
 } from "@/styles/common";
 
 interface BasicCardProps {
@@ -50,11 +59,10 @@ const currentUserParsed = Number(localStorage.getItem("user") || "null");
 
 const userId = currentUserParsed ?? null;
 
-const everyDays = (days: number) => `Every ${days} day${days === 1 ? "" : "s"}`;
-
 /**
- * Do List work item: task number, creator and creation date; the subject;
- * priority and reminder / overdue state; then a fixed two-column
+ * Do List work item: task number, creator and creation date; the subject
+ * and a short description preview (as on ticket cards);
+ * priority, schedule (period / recurring) and reminder / overdue state; then a fixed two-column
  * footer (reminder left, target date right) and the linked ticket when there
  * is one. Acknowledging a reminder never opens the card.
  */
@@ -93,7 +101,7 @@ export default function BasicCardSelfTicket({
     ) : reminder === "scheduled" ? (
       <>
         <NotificationsNoneOutlinedIcon aria-hidden="true" />
-        {ticket.reminder_mode === "before_due" ? `${ticket.reminder_days_before} days before due` : everyDays(interval)}
+        {reminderSummary(ticket)}
       </>
     ) : (
       <>
@@ -123,14 +131,14 @@ export default function BasicCardSelfTicket({
       <CardContent sx={sharedCardContentSx}>
         <Box sx={boardCardTopRowSx}>
           <Typography sx={boardCardNumberSx}>
-            Task No #{ticket.number}
+            #{ticket.number}
           </Typography>
           <Box sx={boardCardMetaSx}>
             {ticket.creator !== userId && ticket.creator_name && (
               <Typography sx={boardCardCreatorSx}>{ticket.creator_name}</Typography>
             )}
             <Typography sx={boardCardCreatedSx}>
-              {formatDate(ticket.created_at)}
+              Created {formatDate(ticket.created_at)}
             </Typography>
           </Box>
         </Box>
@@ -139,8 +147,22 @@ export default function BasicCardSelfTicket({
           {ticket.task}
         </Typography>
 
+        {/* Same short preview as ticket cards. */}
+        {ticket.description && (
+          <Typography variant="body2" sx={ticketCardDescriptionSx}>
+            {ticket.description}
+          </Typography>
+        )}
+
         <Box sx={boardCardIndicatorsSx}>
-          <PriorityPill priority={ticket.priority || "Normal"} />
+          <Pill value={priorityLabel(ticket.priority || "Normal")} color={priorityColor(ticket.priority || "Normal")} />
+          {/* One-time is the default, so only period / recurring get a tag. */}
+          {ticket.schedule_type && ticket.schedule_type !== "static" && (
+            <Box component="span" sx={boardCardTypeTagSx} aria-label={`Schedule ${scheduleLabel(ticket.schedule_type)}`}>
+              <ScheduleIcon type={ticket.schedule_type} />
+              {scheduleLabel(ticket.schedule_type)}
+            </Box>
+          )}
           {isOverdue && (
             <Box component="span" sx={boardCardTagSx("overdue")}>
               <EventBusyOutlinedIcon aria-hidden="true" />
@@ -163,7 +185,7 @@ export default function BasicCardSelfTicket({
             </Typography>
           </Box>
           <Box minWidth={0} textAlign="right">
-            <Typography sx={boardCardFieldLabelSx}>Target date</Typography>
+            <Typography sx={boardCardFieldLabelSx}>{dueDateLabel(ticket.schedule_type)}</Typography>
             <Typography sx={boardCardDueSx(dueTone, !isOpen)}>
               <Box component="span" sx={boardCardDueLabelSx(dueTone)}>
                 {due.label}
@@ -177,7 +199,7 @@ export default function BasicCardSelfTicket({
             </Typography>
           </Box>
 
-             {hasAlarm && onAcknowledgeAlarm && isOpen && userId == ticket.creator && (
+          {hasAlarm && onAcknowledgeAlarm && isOpen && userId == ticket.creator && (
             <Tooltip
               title={`Marks this reminder as seen and clears the alert.${
                 interval ? ` The next one follows the ${interval}-day interval.` : ""
@@ -204,7 +226,6 @@ export default function BasicCardSelfTicket({
           {/* Only a real link is shown; "no ticket" isn't worth a field. */}
           {ticket.ticket_number && (
             <Box component="span" sx={doListLinkedTicketSx}>
-              {/* <LinkOutlinedIcon aria-hidden="true" /> */}
               Linked ticket
               <Box component="span">{ticket.ticket_number}</Box>
             </Box>

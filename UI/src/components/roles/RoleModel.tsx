@@ -37,7 +37,7 @@ export default function RoleModel({
   Data,
   handleClose,
 }: RoleModelProps) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState<RoleFormData>({
     name: "",
     description: "",
@@ -126,10 +126,10 @@ export default function RoleModel({
       maxWidth="sm"
     >
       <DialogHeader
-        title={editing ? "Edit Role" : "Create Role"}
+        title={editing ? "Edit Role" : "New Role"}
         subtitle={
           editing
-            ? "Update role details and permissions."
+            ? "Update the role name and description."
             : "Create a new role and configure its permissions."
         }
         onClose={discard.requestClose}
@@ -139,9 +139,8 @@ export default function RoleModel({
       <DialogContent>
         <Stack spacing={2.25}>
           <Box>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              {" "}
-              Role Details{" "}
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.75 }}>
+              Role details
             </Typography>
 
             <Grid container spacing={1.5}>
@@ -190,7 +189,7 @@ export default function RoleModel({
           onClick={() => void submit()}
           disabled={loading || !formData.name.trim()}
         >
-          {loading ? "Saving..." : editing ? "Update" : "Submit"}
+          {loading ? "Saving..." : editing ? "Save changes" : "Create role"}
         </Button>
       </DialogActions>
       {discard.dialog}

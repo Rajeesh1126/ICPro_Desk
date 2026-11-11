@@ -1,5 +1,7 @@
+import { neutralColor } from "@/components/common/pillValues";
+import Pill from "@/components/common/Pill";
 import type { ReactNode } from "react";
-import { Box, Chip, Dialog, DialogContent, Stack, Typography, useMediaQuery } from "@mui/material";
+import { Box, Dialog, DialogContent, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
@@ -36,11 +38,11 @@ export default function LogDetailDialog({ open, onClose, title, subtitle, childr
 
 type ReviewStatus = "Accepted" | "Rejected" | "Mixed" | "Pending" | string;
 
-const statusChip: Record<string, { color: "success" | "error" | "warning" | "default"; icon: ReactNode }> = {
+const statusChip: Record<string, { color: string; icon: ReactNode }> = {
   Accepted: { color: "success", icon: <CheckCircleOutlineOutlinedIcon /> },
   Rejected: { color: "error", icon: <CancelOutlinedIcon /> },
   Mixed: { color: "warning", icon: <RuleOutlinedIcon /> },
-  Pending: { color: "default", icon: <HourglassEmptyOutlinedIcon /> },
+  Pending: { color: neutralColor, icon: <HourglassEmptyOutlinedIcon /> },
 };
 
 /** One person row inside a log detail dialog; the status reads by icon and text, not colour alone. */
@@ -68,13 +70,7 @@ export function LogDetailItem({
           </Typography>
         ))}
       </Box>
-      <Chip
-        icon={chip.icon as React.ReactElement}
-        label={status}
-        color={chip.color}
-        variant={status === "Pending" ? "outlined" : "filled"}
-        sx={noShrinkSx}
-      />
+      <Pill value={status} color={chip.color} icon={chip.icon} sx={noShrinkSx} />
     </Box>
   );
 }

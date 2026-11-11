@@ -1,3 +1,5 @@
+import Pill from "@/components/common/Pill";
+import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
 import { useCallback, useMemo, useState } from "react";
 import DateRange from "@/components/common/DateRange";
 import {
@@ -11,7 +13,6 @@ import {
   Stack,
   TextField,
   ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -35,6 +36,7 @@ import {
   TEAM_SUMMARY_URL,
   teamSummaryParams,
   type DatePreset,
+  type DateRange as DateRangeValue,
 } from "@/pages/tickets/teamSummaryQuery";
 import {
   buttonLabelCompact,
@@ -66,6 +68,13 @@ import {
   toggleButton,
 } from "@/styles/common";
 import PageHeader from "@/components/common/PageHeader";
+import { motion } from "motion/react";
+import { MotionBox, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
+import { DURATION, EASE_OUT, staggerContainer } from "@/animations/presets";
+import { useRevealed } from "@/animations/useRevealed";
+import AnimatedToggleGroup from "@/animations/AnimatedToggleGroup";
+
+const MotionButtonBase = motion.create(ButtonBase);
 
 type DepartmentLoad = {
   id: number;
@@ -102,8 +111,8 @@ const teamInitials = (name: string) =>
 
 export default function Dashboard() {
   const [datePreset, setDatePreset] = useState<DatePreset>("weekly");
-  const [dateRange, setDateRange] = useState(() => getPresetRange("weekly"));
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange("weekly"));
+  const [filterOpen, setFilterOpen] = useState<boolean>(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   // Cached per date range. A new range shows skeletons until its own numbers
@@ -117,8 +126,9 @@ export default function Dashboard() {
     [summaryQuery.data],
   );
   const summaryLoading = summaryQuery.isPending;
-  const [teamReportOpen, setTeamReportOpen] = useState(false);
-  const [teamReportLoading, setTeamReportLoading] = useState(false);
+  const barsRevealed = useRevealed(!summaryLoading);
+  const [teamReportOpen, setTeamReportOpen] = useState<boolean>(false);
+  const [teamReportLoading, setTeamReportLoading] = useState<boolean>(false);
   const [teamReportDetail, setTeamReportDetail] =
     useState<TeamReportDetail | null>(null);
 
@@ -150,10 +160,10 @@ export default function Dashboard() {
     () => [
       { label: "Ticket Number", dataKey: "number", width: 120 },
       { label: "Subject", dataKey: "task", width: 220, wrap: true },
-      { label: "Status", dataKey: "current_status", width: { xs: 80, sm: 120 } },
+      { label: "Status", dataKey: "current_status", width: { xs: 80, sm: 120 }, render: (row) => <Pill value={statusLabel(row.current_status)} color={statusColor(row.current_status)} dot /> },
       { label: "Assigned By", dataKey: "creator_name" },
       { label: "Assigned To", dataKey: "assigned_to_name" },
-      { label: "Priority", dataKey: "priority", width: { xs: 90, sm: 120 } },
+      { label: "Priority", dataKey: "priority", width: { xs: 90, sm: 120 }, render: (row) => <Pill value={priorityLabel(row.priority)} color={priorityColor(row.priority)} /> },
       { label: "Target Completion", dataKey: "target_date", width: { xs: 80, sm: 120 } },
     ],
     [],
@@ -161,7 +171,8 @@ export default function Dashboard() {
 
   const expandedColumns = useMemo<ExpandedColumnData<TicketData>[]>(
     () => [
-      { label: "Subject", dataKey: "task", size: { xs: 12, md: 6 } },
+      // The row clamps long subjects; the details show the full text.
+      { label: "Full subject", dataKey: "task", size: { xs: 12, md: 6 } },
       { label: "Est Hrs", dataKey: "est_hours", format: "hours", size: { xs: 4, md: 2 } },
       { label: "Act Hrs", dataKey: "act_hours", format: "hours", size: { xs: 4, md: 2 } },
       {
@@ -224,9 +235,9 @@ export default function Dashboard() {
 
   return (
     <Box sx={page}>
-      <Box sx={pageContent}>
+      <StaggerContainer sx={pageContent}>
         <PageHeader
-          title="Team Analysis"
+          title="Dashboard"
           subtitle={
             <>
               Due work, team load and ticket status for{" "}
@@ -238,7 +249,7 @@ export default function Dashboard() {
               key: "preset",
               priority: "medium",
               node: (
-                <ToggleButtonGroup
+                <AnimatedToggleGroup
                   exclusive
                   value={datePreset}
                   onChange={(_, next) => updateDatePreset(next)}
@@ -252,7 +263,7 @@ export default function Dashboard() {
                       </Tooltip>
                     </ToggleButton>
                   ))}
-                </ToggleButtonGroup>
+                </AnimatedToggleGroup>
               ),
               menuLabel: "Date range",
               menuItems: presetChoices.map((preset) => ({
@@ -284,8 +295,8 @@ export default function Dashboard() {
           ]}
         />
 
-        <Box sx={overviewGrid}>
-          <Box sx={overviewPrimaryGridItem}>
+        <MotionBox variants={staggerContainer()} sx={overviewGrid}>
+          <StaggerItem sx={overviewPrimaryGridItem}>
             <Paper elevation={0} sx={surfacePanel}>
               <Stack
                 direction="row"
@@ -324,8 +335,11 @@ export default function Dashboard() {
                 ) : summary.deptData.length ? (
                   summary.deptData.map((department, index) => {
                     return (
-                      <ButtonBase
+                      <MotionButtonBase
                         key={department.name}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: DURATION.field, ease: EASE_OUT, delay: Math.min(index, 10) * 0.04 }}
                         onClick={() => void openTeamReport(department)}
                         aria-label={`${department.name}: ${department.count} ${department.count === 1 ? "ticket" : "tickets"}. Open team report`}
                         title={department.name}
@@ -341,7 +355,8 @@ export default function Dashboard() {
                           {/* Relative counts are visual comparison only; this is not a capacity meter. */}
                           <LinearProgress
                             variant="determinate"
-                            value={Math.min(
+                            // Grows from 0 once the list is on screen.
+                            value={barsRevealed ? Math.min(
                               100,
                               (department.count /
                                 Math.max(
@@ -349,7 +364,7 @@ export default function Dashboard() {
                                   ...summary.deptData.map((item) => item.count),
                                 )) *
                                 100,
-                            )}
+                            ) : 0}
                             sx={teamWorkloadBarSx}
                           />
                         </Box>
@@ -362,7 +377,7 @@ export default function Dashboard() {
                           className="team-workload-chevron"
                           sx={teamWorkloadChevronSx}
                         />
-                      </ButtonBase>
+                      </MotionButtonBase>
                     );
                   })
                 ) : (
@@ -377,8 +392,8 @@ export default function Dashboard() {
                 )}
               </Stack>
             </Paper>
-          </Box>
-          <Box sx={overviewSecondaryGridItem}>
+          </StaggerItem>
+          <StaggerItem sx={overviewSecondaryGridItem}>
             <Box sx={fillContainer}>
               {summaryLoading ? (
                 <Paper
@@ -393,14 +408,15 @@ export default function Dashboard() {
                 </Paper>
               ) : (
                 <AnalysisPieChart
-                  title={`Total ${summary.total}`}
+                  // Total of the plotted statuses, so it matches the donut.
+                  title={`Total ${Object.values(summary.statuses).reduce((sum, count) => sum + Number(count || 0), 0)}`}
                   data={summary.statuses}
                   height={210}
                 />
               )}
             </Box>
-          </Box>
-          <Box sx={overviewFullGridItem}>
+          </StaggerItem>
+          <StaggerItem sx={overviewFullGridItem}>
             <CollapsibleTableView
               columns={columns}
               expandedColumns={expandedColumns}
@@ -417,9 +433,9 @@ export default function Dashboard() {
               emptyTitle="No target tickets in this range"
               emptyDescription="Change the date range to see other commitments."
             />
-          </Box>
-        </Box>
-      </Box>
+          </StaggerItem>
+        </MotionBox>
+      </StaggerContainer>
 
       <TeamReportModal
         open={teamReportOpen}

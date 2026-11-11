@@ -1,11 +1,12 @@
-import type { RefCallback } from "react";
+import type { ReactNode, RefCallback } from "react";
 import { Box, Button, CircularProgress } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import type { PageHeaderAction } from "@/components/common/PageHeader";
 import { ViewToggle } from "@/components/common/TicketPageParts";
 import { VIEW_META, type PageView } from "@/components/common/viewMeta";
-import { filterButtonCountSx, pageHeaderIconButton } from "@/styles/common";
+import { calendarOverdueButtonSx, filterButtonCountSx, pageHeaderIconButton } from "@/styles/common";
 
 /* PageHeader action sets shared by several pages. */
 
@@ -98,6 +99,64 @@ export function reportHeaderActions({
       ),
     },
   ].filter(Boolean) as PageHeaderAction[];
+}
+
+/** "Overdue" holds one header spot in every view; phones show only the count. */
+const overdueAction = (
+  count: number,
+  button: (label: string | number) => ReactNode,
+): PageHeaderAction => ({
+  key: "overdue",
+  priority: "high",
+  node: button(`Overdue (${count})`),
+  mobileNode: button(count),
+});
+
+/** Calendar "Overdue": jumps to the earliest overdue date. Hidden when none are overdue. */
+export function overdueJumpAction(
+  noun: string,
+  count: number,
+  onJump: () => void,
+): PageHeaderAction | false {
+  if (!count) return false;
+  return overdueAction(count, (label) => (
+    <Button
+      variant="outlined"
+      color="error"
+      startIcon={<EventBusyOutlinedIcon />}
+      aria-label={`Go to the earliest overdue ${noun} (${count} overdue)`}
+      onClick={onJump}
+      sx={calendarOverdueButtonSx}
+    >
+      {label}
+    </Button>
+  ));
+}
+
+/**
+ * Board / List "Overdue" toggle. It hides when nothing is overdue, but stays
+ * while on so the filter can always be turned off.
+ */
+export function overdueFilterAction(
+  noun: string,
+  count: number,
+  active: boolean,
+  onToggle: () => void,
+): PageHeaderAction | false {
+  if (!count && !active) return false;
+  return overdueAction(count, (label) => (
+    <Button
+      variant={active ? "contained" : "outlined"}
+      color="error"
+      startIcon={<EventBusyOutlinedIcon />}
+      aria-label={`Overdue ${noun}s only (${count})`}
+      aria-pressed={active}
+      onClick={onToggle}
+      sx={calendarOverdueButtonSx}
+    >
+      {label}
+    </Button>
+  ));
 }
 
 /**

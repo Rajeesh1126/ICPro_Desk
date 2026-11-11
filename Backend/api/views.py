@@ -20,6 +20,8 @@ from .serializers import (
     SubmissionSerializer,
     TimesheetDraftSerializer,
     TimesheetAssignProjectSerializer,
+    MANAGEMENT_PROJECT_CODE,
+    TimesheetAssignManagementTasksSerializer,
     TimesheetAssignTicketsSerializer,
     TimesheetExtendTasksSerializer,
     TimesheetRemoveTasksSerializer,
@@ -298,7 +300,10 @@ class TimesheetAnalysisViewSet(viewsets.ViewSet):
             .order_by('-date', 'assignId__assign_to__first_name')
         )
 
-        if not request.user.is_superuser:
+        role = getattr(getattr(request.user, 'profile', None), 'role', None)
+        role_name = (getattr(role, 'name', '') or '').strip()
+        print(f"User: {request.user.username}, Role: {role_name}")
+        if not request.user.is_superuser and role_name not in {'Human Resource', 'Manager'}:
             base_submissions = base_submissions.filter(
                 assignId__assign_to_id__in=_reporting_hierarchy_user_ids(request.user)
             )
@@ -1518,6 +1523,49 @@ class TimesheetEntryViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=False, methods=['get'], url_path='management-task-options')
+    def management_task_options(self, request):
+        project = Project.objects.filter(code__iexact=MANAGEMENT_PROJECT_CODE).first()
+        if not project:
+            return Response(
+                {'detail': f'Management project {MANAGEMENT_PROJECT_CODE} was not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        tasks = project.tasks.select_related('milestone').order_by('milestone__name', 'name', 'id')
+        return Response({
+            'project': {'id': project.id, 'code': project.code, 'description': project.description},
+            'tasks': [
+                {'id': task.id, 'name': task.name, 'description': task.description,
+                 'milestone_id': task.milestone_id,
+                 'milestone_name': task.milestone.name if task.milestone else 'General'}
+                for task in tasks
+                if not task.milestone_id or task.milestone.project_id == project.id
+            ],
+        })
+
+    @action(detail=False, methods=['post'], url_path='assign-management-tasks')
+    def assign_management_tasks(self, request):
+        serializer = TimesheetAssignManagementTasksSerializer(
+            data=request.data, context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        week_start, week_end = self._assignment_dates(serializer)
+        assigned_ids = []
+        with transaction.atomic():
+            # Serialize assignment requests from this user to avoid duplicate rows on double submit.
+            User.objects.select_for_update().get(pk=request.user.pk)
+            for task in serializer.validated_data['task_ids']:
+                assignment, _ = AssignedTask.objects.get_or_create(
+                    assign_to=request.user, project_obj=task.project, task_obj=task,
+                    milestone_obj=task.milestone,
+                    defaults={'assign_by': self._default_budget_owner(request.user),
+                              'start_date': week_start, 'end_date': week_end},
+                )
+                self._ensure_assignment_covers_week(assignment, week_start, week_end)
+                assigned_ids.append(assignment.id)
+        return Response({'message': 'Management tasks assigned successfully.',
+                         'assigned_task_ids': assigned_ids}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='assign-project')
     def assign_project(self, request):

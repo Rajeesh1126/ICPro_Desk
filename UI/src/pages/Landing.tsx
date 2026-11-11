@@ -1,3 +1,4 @@
+import { statusColor, statusLabel } from "@/components/common/pillValues";
 import { useMemo, useState } from "react";
 import SummaryMetrics, {
   type SummaryMetric,
@@ -6,7 +7,6 @@ import { formatDecimalHours } from "@/utils/hoursMinutes";
 import {
   Box,
   Button,
-  Chip,
   Dialog,
   DialogContent,
   Typography,
@@ -33,6 +33,9 @@ import {
   quotationPreviewTitleSx,
   twoLineClampSx,
 } from "@/styles/common";
+import { StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
+import Pill from "@/components/common/Pill";
+
 
 type QuotationBudgetSummary = {
   quotation_id: number;
@@ -59,7 +62,7 @@ const formatMetricHours = (value: unknown) =>
   formatBudgetHours(value).replace(/\bh\b/g, "hrs");
 
 const budgetStatus = (row: QuotationBudgetSummary) =>
-  row.actual_hours > row.budget_hours ? "Over Budget" : "Under Budget";
+  row.actual_hours > row.budget_hours ? "Over Budget" : "Within budget";
 
 export default function Landing() {
   const [preview, setPreview] = useState<QuotationBudgetSummary | null>(null);
@@ -133,13 +136,14 @@ export default function Landing() {
       {
         label: "Quotation No",
         dataKey: "quotation_no",
-        width: 160,
+        width: 140,
       },
       {
-        // The main description, so it gets the most room.
+        // The main description, so it gets the most room. Widths add up so
+        // every column fits a 1400px screen beside the open sidebar.
         label: "Subject",
         dataKey: "covering_letter_subject",
-        width: 360,
+        width: 280,
         render: (row) => (
           <Button
             variant="text"
@@ -159,32 +163,34 @@ export default function Landing() {
       {
         label: "Customer",
         dataKey: "customer_name",
-        width: 180,
+        width: 160,
         wrap: true,
       },
       {
         label: "Status",
         dataKey: "status",
+        // Fits the longest pill ("Submitted") without truncating it.
         width: 120,
+        render: (row) => <Pill value={statusLabel(row.status)} color={statusColor(row.status)} dot />,
       },
       {
         label: "Budget Hrs",
         dataKey: "budget_hours",
-        width: 100,
+        width: 90,
         numeric: true,
         render: (row) => formatBudgetHours(row.budget_hours),
       },
       {
         label: "Actual Hrs",
         dataKey: "actual_hours",
-        width: 100,
+        width: 90,
         numeric: true,
         render: (row) => formatBudgetHours(row.actual_hours),
       },
       {
         label: "Remaining Hrs",
         dataKey: "variance_hours",
-        width: 125,
+        width: 110,
         numeric: true,
         render: (row) => (
           <Box component="span" sx={negativeValueSx(row.variance_hours < 0)}>
@@ -195,13 +201,13 @@ export default function Landing() {
       {
         label: "Utilization",
         dataKey: "utilization_percent",
-        width: 120,
+        width: 100,
         numeric: true,
         render: (row) => formatPercent(row.utilization_percent),
       },
       {
         label: "Budget Status",
-        width: 145,
+        width: 130,
         render: (row) => {
           // Only the exception gets a chip; the usual case stays quiet so
           // over-budget rows stand out.
@@ -212,12 +218,11 @@ export default function Landing() {
           }
           const overBy = row.actual_hours - row.budget_hours;
           return (
-            <Chip
+            <Pill
               icon={<TrendingUpOutlinedIcon />}
-              label={`Over by ${formatBudgetHours(overBy)}`}
+              value={`Over by ${formatBudgetHours(overBy)}`}
               color="error"
-              variant="filled"
-              aria-label={`Over budget by ${formatBudgetHours(overBy)}`}
+              ariaLabel={`Over budget by ${formatBudgetHours(overBy)}`}
             />
           );
         },
@@ -228,8 +233,8 @@ export default function Landing() {
 
   return (
     <Box sx={[page, { fontVariantNumeric: "tabular-nums" }]}>
-      <Box sx={pageContent}>
-        <Box sx={pageHeader}>
+      <StaggerContainer sx={pageContent}>
+        <StaggerItem sx={pageHeader}>
           <Box sx={pageHeaderContent}>
             <Typography variant="h5" component="h1" sx={pageTitle}>
               Budget Summary
@@ -238,11 +243,11 @@ export default function Landing() {
               Budgeted versus actual hours for the latest quotations.
             </Typography>
           </Box>
-        </Box>
+        </StaggerItem>
 
         <SummaryMetrics metrics={summary} loading={loading} />
 
-        <Box
+        <StaggerItem
           sx={[
             contentPanel,
             {
@@ -271,8 +276,8 @@ export default function Landing() {
             emptyTitle="No quotations yet"
             emptyDescription="Quotations with budgeted hours will appear here."
           />
-        </Box>
-      </Box>
+        </StaggerItem>
+      </StaggerContainer>
       <Dialog
         open={preview !== null}
         onClose={() => setPreview(null)}
@@ -303,7 +308,13 @@ export default function Landing() {
               >
                 {[
                   ["Customer", preview.customer_name || "Not provided"],
-                  ["Status", preview.status],
+                  ["Status", <Pill key="status" value={statusLabel(preview.status)} color={statusColor(preview.status)} dot />],
+                  [
+                    "Budget status",
+                    budgetStatus(preview) === "Over Budget"
+                      ? `Over by ${formatBudgetHours(preview.actual_hours - preview.budget_hours)}`
+                      : "Within budget",
+                  ],
                   ["Budget hours", formatBudgetHours(preview.budget_hours)],
                   ["Actual hours", formatBudgetHours(preview.actual_hours)],
                   [
@@ -312,7 +323,7 @@ export default function Landing() {
                   ],
                   ["Utilization", formatPercent(preview.utilization_percent)],
                 ].map(([label, value]) => (
-                  <Box key={label}>
+                  <Box key={String(label)}>
                     <dt>{label}</dt>
                     <dd>{value}</dd>
                   </Box>

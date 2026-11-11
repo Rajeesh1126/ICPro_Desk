@@ -1,6 +1,8 @@
 import { prefetchApi } from "@/api/useApiQuery";
 
+/** Date Preset declaration used across the frontend. */
 export type DatePreset = "weekly" | "biweekly" | "monthly" | "custom";
+/** Date Range declaration used across the frontend. */
 export type DateRange = { startDate: string; endDate: string };
 
 const formatDate = (date: Date) => {
@@ -10,6 +12,7 @@ const formatDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+/** get Preset Range declaration used across the frontend. */
 export const getPresetRange = (preset: Exclude<DatePreset, "custom">): DateRange => {
   const today = new Date();
 
@@ -26,6 +29,7 @@ export const getPresetRange = (preset: Exclude<DatePreset, "custom">): DateRange
   return { startDate: formatDate(start), endDate: formatDate(end) };
 };
 
+/** TEAM_SUMMARY_URL declaration used across the frontend. */
 export const TEAM_SUMMARY_URL = "/summary/";
 
 /** Params for the Team Analysis summary; one cache entry per date range. */

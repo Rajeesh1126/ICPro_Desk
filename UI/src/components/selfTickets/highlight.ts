@@ -22,10 +22,17 @@ export function getSelfTicketAlertReason(
   currentDate = new Date(),
 ): SelfTicketAlertReason | null {
   if (ticket.is_active === false || ticket.current_status?.toLowerCase() !== "open") return null;
+  // Recurring: judged by its open occurrences, not the schedule start date.
   if (ticket.schedule_type === "recurring") {
-    if (ticket.occurrences?.some((item) => item.alarm && item.current_status === "open")) return "alarm";
-    const today = new Date(currentDate); today.setHours(0, 0, 0, 0);
-    return ticket.occurrences?.some((item) => item.current_status === "open" && (parseSelfTicketTargetDay(item.scheduled_date) ?? Infinity) <= today.getTime()) ? "target-date" : null;
+    const open = (ticket.occurrences ?? []).filter((item) => item.current_status === "open");
+    if (open.some((item) => item.alarm)) return "alarm";
+    const today = new Date(currentDate);
+    today.setHours(0, 0, 0, 0);
+    return open.some(
+      (item) => (parseSelfTicketTargetDay(item.scheduled_date) ?? Infinity) <= today.getTime(),
+    )
+      ? "target-date"
+      : null;
   }
   if (ticket.alarm === true) return "alarm";
   if (ticket.alarm !== false) return null;
@@ -70,13 +77,18 @@ export function isSelfTicketOverdue(ticket: SelfTicketData, currentDate = new Da
 
 export type ReminderState = "active" | "scheduled" | "off";
 
-/** Reminder off (no interval), scheduled (interval set) or active (due now). */
+/** Reminder off (none set), scheduled (days before due or an interval) or active (due now). */
 export function getReminderState(ticket: SelfTicketData): ReminderState {
   if (ticket.alarm === true) return "active";
-  return (ticket.reminder_mode === "before_due" ? ticket.reminder_days_before : ticket.reminder_interval) ? "scheduled" : "off";
+  const setting =
+    ticket.reminder_mode === "before_due" ? ticket.reminder_days_before : ticket.reminder_interval;
+  return setting ? "scheduled" : "off";
 }
 
-/** Keep the original target date as the recurrence anchor when opening edit. */
+/**
+ * Date to show for a task: its target date, or for a recurring task the next
+ * open occurrence (target_date stays the schedule start used when editing).
+ */
 export function selfTicketDisplayDueDate(ticket: SelfTicketData): string {
   if (ticket.schedule_type !== "recurring") return ticket.target_date;
   return ticket.occurrences?.find((item) => item.current_status === "open")?.scheduled_date ?? "";

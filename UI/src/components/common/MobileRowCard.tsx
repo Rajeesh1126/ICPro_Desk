@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Box, Button, Collapse, Paper, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import { columnFormat, type CellFormat } from "@/components/common/tableCell";
+import { type CellFormat } from "@/components/common/tableCell";
 import {
   mobileRowCardFieldPairSx,
   mobileRowCardFieldsSx,
@@ -13,6 +12,7 @@ import {
   mobileRowCardSx,
   mobileRowCardValueSx,
 } from "@/styles/common";
+import { RotatingChevron } from "@/animations/MotionPrimitives";
 
 type CardColumn<T> = {
   label: string;
@@ -45,11 +45,12 @@ export default function MobileRowCard<T>({
   accent?: string;
   onClick?: (row: T) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<boolean>(false);
 
   const content = columns;
   const actions = content.find((column) => column.label === "Actions");
-  const status = content.find((column) => columnFormat(column) === "status");
+  // The "Status" column's own render (its pill) goes in the card header.
+  const status = content.find((column) => column.label === "Status");
   const [primary, ...rest] = content.filter(
     (column) => column !== actions && column !== status,
   );
@@ -111,7 +112,7 @@ export default function MobileRowCard<T>({
           {hidden.length > 0 ? (
             <Button
               aria-expanded={expanded}
-              endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              endIcon={<RotatingChevron open={expanded}><ExpandMoreIcon /></RotatingChevron>}
               onClick={(event) => {
                 event.stopPropagation();
                 setExpanded((open) => !open);

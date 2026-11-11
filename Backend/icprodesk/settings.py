@@ -104,9 +104,9 @@ DATABASES = {
 #         # 'PASSWORD': os.getenv('DB_PASSWORD', 'Wiretrone@123$'),
 #         # 'HOST': os.getenv('DB_HOST', '15.207.178.193'),
         
-#         'USER': os.getenv('DB_USER', 'erp_prod'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
-#         'HOST': os.getenv('DB_HOST', 'localhost'),
+#         # 'USER': os.getenv('DB_USER', 'erp_prod'),
+#         # 'PASSWORD': os.getenv('DB_PASSWORD', 'icpro@ERP123#'),
+#         # 'HOST': os.getenv('DB_HOST', 'localhost'),
 
 #         'PORT': int(os.getenv('DB_PORT', '3306')),
 #         'OPTIONS': {
@@ -196,13 +196,15 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=600),
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(minutes=600),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=30),
+    # Rotating refresh credentials keep active sessions recoverable. UI enforces 10-minute idle logout.
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@example.com'
-FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'wwp.icpro.in')
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://tsm.icpro.in')
 FRONTEND_RESET_PASSWORD_URL = os.getenv(
     'FRONTEND_RESET_PASSWORD_URL',
     f'{FRONTEND_BASE_URL.rstrip("/")}/reset-password',
@@ -210,7 +212,7 @@ FRONTEND_RESET_PASSWORD_URL = os.getenv(
 
 TIMESHEET_EXCLUDED_ROLE_NAMES = [
     role.strip()
-    for role in os.getenv('TIMESHEET_EXCLUDED_ROLE_NAMES', 'SuperAdmin,President & CEO,Consultant,External Employee').split(',')
+    for role in os.getenv('TIMESHEET_EXCLUDED_ROLE_NAMES', 'SuperAdmin,President & CEO,Consultant,External Employee,Director').split(',')
     if role.strip()
 ]
 

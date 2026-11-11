@@ -1,3 +1,4 @@
+import { FONT } from "@/styles/tokens";
 import { Box, type SxProps, type Theme } from "@mui/material";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import {
@@ -56,7 +57,7 @@ export default function DateRange({
           maxWidth: "100%",
           verticalAlign: "middle",
           whiteSpace: "nowrap",
-          fontSize: "0.8125rem",
+          fontSize: FONT.sm,
           lineHeight: 1.4,
           letterSpacing: 0,
           textTransform: "none",

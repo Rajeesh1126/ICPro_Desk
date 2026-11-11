@@ -22,6 +22,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -30,7 +31,6 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import EmptyTableState from "@/components/common/EmptyTableState";
 import { formatIfDate } from "@/utils/dateRange";
@@ -38,7 +38,7 @@ import TableLoadingState from "@/components/common/TableLoadingState";
 import type { ColumnData } from "@/components/common/TableView";
 import { columnAlign, renderTableCell } from "@/components/common/tableCell";
 import MobileRowCard from "@/components/common/MobileRowCard";
-import { getColumnSearchText } from "@/components/common/tableSearch";
+import { compareCellValues, getColumnSearchText } from "@/components/common/tableSearch";
 import {
   detailLabelSx,
   detailValueSx,
@@ -66,11 +66,15 @@ import {
   collapsibleHeaderCellSx,
   collapsibleRowSx,
 } from "@/styles/common";
+import { MotionBox, RotatingChevron } from "@/animations/MotionPrimitives";
+import { EASE_OUT } from "@/animations/presets";
 
+/** Expanded Column Data declaration used across the frontend. */
 export type ExpandedColumnData<T> = ColumnData<T> & {
   size?: GridProps["size"];
 };
 
+/** Collapsible Table View Props declaration used across the frontend. */
 export interface CollapsibleTableViewProps<T> {
   columns: ColumnData<T>[];
   expandedColumns?: ExpandedColumnData<T>[];
@@ -124,7 +128,7 @@ function CollapsibleRow<T extends object>({
   row: T;
   index: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
   const detailsId = useId();
   const details = renderRowDetails?.(row);
 
@@ -148,7 +152,8 @@ function CollapsibleRow<T extends object>({
         sx={collapsibleRowSx(Boolean(onRowClick))}
       >
         <TableCell sx={collapsibleExpandCellSx(expandColumnWidth)}>
-          <Tooltip title={open ? "Hide details" : "View details"}>
+          {/* Right side: below the button it would cover the expanded details. */}
+          <Tooltip title={open ? "Hide details" : "View details"} placement="right">
             <IconButton
               aria-label={open ? "Hide row details" : "View row details"}
               sx={collapsibleExpandButtonSx}
@@ -159,7 +164,7 @@ function CollapsibleRow<T extends object>({
                 setOpen(!open);
               }}
             >
-              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              <RotatingChevron open={open}><KeyboardArrowDownIcon /></RotatingChevron>
             </IconButton>
           </Tooltip>
         </TableCell>
@@ -176,11 +181,17 @@ function CollapsibleRow<T extends object>({
       <TableRow>
         <TableCell
           colSpan={columns.length + 1}
-          sx={collapsibleDetailRowCellSx(open)}
+          sx={{ ...collapsibleDetailRowCellSx(open), pl: 8 }}
         >
           <Box id={detailsId}>
             <Collapse in={open} timeout="auto" unmountOnExit>
-              <Box sx={insetSx}>
+              {/* Details fade in once the row has started opening. */}
+              <MotionBox
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.08, ease: EASE_OUT }}
+                sx={insetSx}
+              >
                 {details ?? (
                   <Grid container spacing={1.25}>
                     {expandedColumns?.map((column) => (
@@ -195,14 +206,15 @@ function CollapsibleRow<T extends object>({
                             {column.label}
                           </Typography>
                           <Typography sx={detailValueSx}>
-                            {renderTableCell(column, row, index, formatValue)}
+                            {/* Details show the full text: the two-line clamp is for rows only. */}
+                            {renderTableCell({ ...column, wrap: false }, row, index, formatValue)}
                           </Typography>
                         </Box>
                       </Grid>
                     ))}
                   </Grid>
                 )}
-              </Box>
+              </MotionBox>
             </Collapse>
           </Box>
         </TableCell>
@@ -235,11 +247,22 @@ export function CollapsibleTableView<T extends object>({
     ...columns,
     ...(expandedColumns ?? []),
   ];
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState<string>("");
+  // Same click-to-sort headers as VirtualizedTable (columns with a dataKey).
+  const [sortField, setSortField] = useState<keyof T | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const handleSort = (field: keyof T) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     const searchableColumns = [...columns, ...(expandedColumns ?? [])];
-    return query
+    const matched = query
       ? rows.filter((row, index) =>
           searchableColumns.some((column) =>
             getColumnSearchText(column, row, index)
@@ -248,7 +271,17 @@ export function CollapsibleTableView<T extends object>({
           ),
         )
       : rows;
-  }, [columns, expandedColumns, rows, searchText]);
+    if (!sortField) return matched;
+    return [...matched].sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      const order = compareCellValues(aValue, bValue);
+      if (order) return sortDirection === "asc" ? order : -order;
+      return 0;
+    });
+  }, [columns, expandedColumns, rows, searchText, sortField, sortDirection]);
 
   const isFiltered = searchText.trim() !== "" && rows.length > 0;
   const emptyState = isFiltered ? (
@@ -274,7 +307,7 @@ export function CollapsibleTableView<T extends object>({
       <Box sx={tableHeaderBarSx}>
         <Box sx={tableViewTitleGroupSx}>
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1" fontWeight={600} sx={tableTitleSx}>
+            <Typography variant="subtitle1" component="h2" fontWeight={600} sx={tableTitleSx}>
               {tableHead}
               {!loading && (
                 <Box component="span" sx={tableTitleCountSx}>
@@ -373,9 +406,20 @@ export function CollapsibleTableView<T extends object>({
                     <TableCell
                       key={column.label}
                       align={columnAlign(column)}
+                      sortDirection={sortField && sortField === column.dataKey ? sortDirection : false}
                       sx={collapsibleHeaderCellSx(column, columnIndex)}
                     >
-                      {column.label}
+                      {column.dataKey ? (
+                        <TableSortLabel
+                          active={sortField === column.dataKey}
+                          direction={sortField === column.dataKey ? sortDirection : "asc"}
+                          onClick={() => handleSort(column.dataKey as keyof T)}
+                        >
+                          {column.label}
+                        </TableSortLabel>
+                      ) : (
+                        column.label
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

@@ -39,6 +39,7 @@ import AddWorkDialogs from "@/pages/timesheet/sheet/AddWorkDialogs";
 import WeekTaskDialogs from "@/pages/timesheet/sheet/WeekTaskDialogs";
 import { getStoredPermissions } from "@/utils/permissions";
 import PageHeader from "@/components/common/PageHeader";
+import { TabContent } from "@/animations/MotionPrimitives";
 
 dayjs.extend(isoWeek);
 
@@ -51,7 +52,7 @@ function TabPanel({ children, value, index }: { children?: React.ReactNode; inde
       aria-labelledby={`timesheet-tab-${index}`}
       style={{ height: value === index ? "100%" : undefined, minHeight: 0 }}
     >
-      {value === index && <Box sx={tabPanelContent}>{children}</Box>}
+      {value === index && <TabContent sx={tabPanelContent}>{children}</TabContent>}
     </div>
   );
 }
@@ -65,9 +66,9 @@ const showLocked = (message = LOCKED_ACTION_MESSAGE) =>
  */
 function TimeSheet() {
   const permissions = getStoredPermissions();
-  const [tabIndex, setTabIndex] = useState(0);
+  const [tabIndex, setTabIndex] = useState<number>(0);
   const [selectedWeek, setSelectedWeek] = useState<Dayjs>(dayjs());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const refresh = () => setRefreshKey((current) => current + 1);
 
   // ---- Week ---------------------------------------------------------------------
@@ -105,7 +106,7 @@ function TimeSheet() {
     exceededDays: [],
     missingRequiredDays: [],
   });
-  const [hasUnsavedHourChanges, setHasUnsavedHourChanges] = useState(false);
+  const [hasUnsavedHourChanges, setHasUnsavedHourChanges] = useState<boolean>(false);
   const [selectedAssignedTaskIds, setSelectedAssignedTaskIds] = useState<number[]>([]);
 
   const toggleAssignedTaskSelection = useCallback((assignedTaskId: number, checked: boolean) => {
@@ -131,8 +132,8 @@ function TimeSheet() {
   // ---- Dialogs ----------------------------------------------------------------------
   const [addWork, setAddWork] = useState<AddWorkKind | null>(null);
   const [weekTask, setWeekTask] = useState<WeekTaskKind | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   const openAddWork = (kind: AddWorkKind) => (actionsDisabled ? showLocked() : setAddWork(kind));
   const openWeekTask = (kind: WeekTaskKind) => {

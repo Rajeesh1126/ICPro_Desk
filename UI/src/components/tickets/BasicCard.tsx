@@ -6,7 +6,8 @@ import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 
 import type { TicketData } from "@/types/dataTypes";
 import { formatDate, formatDueDate, formatOverdueLabel } from "@/components/common/formatDate";
-import { PriorityPill, StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel, priorityColor, priorityLabel } from "@/components/common/pillValues";
 import {
   boardCardCreatedSx,
   boardCardDueLabelSx,
@@ -88,11 +89,11 @@ export default function BasicCardComponent({
       <CardContent sx={sharedCardContentSx}>
         <Box sx={boardCardTopRowSx}>
           <Typography sx={boardCardNumberSx}>
-            Ticket No #{ticket.number}
+            #{ticket.number}
           </Typography>
           <Box sx={boardCardMetaSx}>
             <Typography sx={boardCardCreatedSx}>
-              {formatDate(ticket.created_at)}
+              Created {formatDate(ticket.created_at)}
             </Typography>
           </Box>
         </Box>
@@ -109,8 +110,8 @@ export default function BasicCardComponent({
 
         <Box sx={boardCardIndicatorsSx}>
           {/* Exact status only when it adds to the column (e.g. "Revised" under Open). */}
-          {ticket.current_status !== columnStatus && <StatusPill status={ticket.current_status} />}
-          <PriorityPill priority={ticket.priority || "Normal"} />
+          {ticket.current_status !== columnStatus && <Pill value={statusLabel(ticket.current_status)} color={statusColor(ticket.current_status)} dot />}
+          <Pill value={priorityLabel(ticket.priority || "Normal")} color={priorityColor(ticket.priority || "Normal")} />
           {isOverdue && (
             <Box component="span" sx={boardCardTagSx("overdue")}>
               <EventBusyOutlinedIcon aria-hidden="true" />

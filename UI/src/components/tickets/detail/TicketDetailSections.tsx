@@ -14,7 +14,8 @@ import {
 } from "@/components/common/DetailDialogParts";
 import { oldestFirst } from "@/utils/chatOrder";
 import { formatDecimalHours } from "@/utils/hoursMinutes";
-import { StatusPill } from "@/components/common/StatusPill";
+import Pill from "@/components/common/Pill";
+import { statusColor, statusLabel } from "@/components/common/pillValues";
 import {
   attachmentHeaderSx,
   attachmentIconSx,
@@ -114,7 +115,7 @@ export function TicketActivityTimeline({
             <Typography variant="caption" color="text.secondary" sx={noWrapSx}>{formatDateTime(log.created_at)}</Typography>
           </Box>
           <Box sx={ticketDetailFileMetaSx}>
-            <StatusPill status={log.status} />
+            <Pill value={statusLabel(log.status)} color={statusColor(log.status)} dot />
             {log.remarks && <Typography variant="body2" color="text.secondary" sx={wrapAnywhereSx}>{log.remarks}</Typography>}
           </Box>
         </Box>

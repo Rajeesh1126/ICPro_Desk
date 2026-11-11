@@ -1,7 +1,8 @@
+import { DETAIL_DIALOG_LABEL } from "@/components/common/DetailDialogParts";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { isTicketEditDisabled } from "@/utils/ticketEdit";
+import { isTicketEditDisabled, ticketEditDisabledReason } from "@/utils/ticketEdit";
 import { useMemo, useState } from "react";
-import { Button, Dialog, DialogActions, DialogContent, Grid } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, Grid, Tooltip } from "@mui/material";
 import api from "@/api/axios";
 import { asArray, useApiQuery } from "@/api/useApiQuery";
 import { showNotification } from "@/api/notificationService";
@@ -89,11 +90,11 @@ export default function TicketDetailModal({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" aria-labelledby={DETAIL_DIALOG_LABEL}>
         <TicketDetailHeader ticket={data} onClose={onClose} />
 
         <DialogContent>
-          <Grid container spacing={2.5} alignItems="stretch">
+          <Grid container spacing={2} alignItems="stretch">
             <Grid size={{ xs: 12, md: 8 }}>
               <TicketSummaryPanel ticket={data} />
             </Grid>
@@ -106,19 +107,24 @@ export default function TicketDetailModal({
 
         <DialogActions>
           {onEdit && (
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<EditOutlinedIcon />}
-              disabled={isTicketEditDisabled(data, userId)}
-              onClick={() => {
-                if (isTicketEditDisabled(data, userId)) return;
-                onClose();
-                onEdit(data);
-              }}
-            >
-              Edit
-            </Button>
+            // Always first, on the left; the tooltip says why it is disabled.
+            <Tooltip title={ticketEditDisabledReason(data, userId) ?? ""}>
+              <Box component="span" sx={{ mr: "auto" }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<EditOutlinedIcon />}
+                  disabled={isTicketEditDisabled(data, userId)}
+                  onClick={() => {
+                    if (isTicketEditDisabled(data, userId)) return;
+                    onClose();
+                    onEdit(data);
+                  }}
+                >
+                  Edit
+                </Button>
+              </Box>
+            </Tooltip>
           )}
           <TicketActionButtons
             groups={getAvailableActionGroups(data, userId)}
