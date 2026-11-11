@@ -1,188 +1,145 @@
-import Pill from "@/components/common/Pill";
-import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
 import { useCallback, useMemo, useState } from "react";
-import DateRange from "@/components/common/DateRange";
 import {
+  Alert,
   Box,
   Button,
-  ButtonBase,
-  Chip,
-  LinearProgress,
-  Paper,
-  Skeleton,
   Stack,
   TextField,
   ToggleButton,
   Tooltip,
-  Typography,
 } from "@mui/material";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
-import AnalysisPieChart from "@/components/dashboard/AnalysisPieChart";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import DateRange from "@/components/common/DateRange";
 import FilterPopover from "@/components/common/FilterPopover";
-import TeamReportModal, {
-  type TeamReportDetail,
-} from "@/components/dashboard/TeamReportModal";
-import { type ColumnData } from "@/components/common/TableView";
-import type { TicketData } from "@/types/dataTypes";
-import CollapsibleTableView, {
-  type ExpandedColumnData,
-} from "@/components/common/CollapsibleTableView";
-import { apiQueryKey, fetchApi, useApiQuery } from "@/api/useApiQuery";
-import { queryClient } from "@/api/queryClient";
+import PageHeader from "@/components/common/PageHeader";
+import Pill from "@/components/common/Pill";
+import { priorityColor, priorityLabel, statusColor, statusLabel } from "@/components/common/pillValues";
+import { VirtualizedTable, type ColumnData } from "@/components/common/TableView";
+import EmployeeProgressPanel, { type ProgressPanelLabels } from "@/components/dashboard/EmployeeProgressPanel";
+import WorkItemRecordDialog from "@/components/dashboard/WorkItemRecordDialog";
+import WorkStatusOverview from "@/components/dashboard/WorkStatusOverview";
 import {
   getPresetRange,
-  TEAM_SUMMARY_URL,
-  teamSummaryParams,
+  useTeamAnalysis,
   type DatePreset,
   type DateRange as DateRangeValue,
+  type TeamProgress,
+  type TeamWorkItem,
 } from "@/pages/tickets/teamSummaryQuery";
+import type { EmployeePerformance } from "@/pages/tickets/teamPerformanceQuery";
 import {
   buttonLabelCompact,
   buttonLabelFull,
   dateFieldSx,
-  emptyStateSx,
-  fillContainer,
-  largeMutedIcon,
-  minWidthZeroSx,
   page,
   pageContent,
-  overviewFullGridItem,
-  overviewGrid,
-  overviewPrimaryGridItem,
-  overviewSecondaryGridItem,
-  flexFillSx,
-  panelTitleRowFull,
-  teamWorkloadListSx,
-  verticalPadSx,
-  teamWorkloadBadgeSx,
-  teamWorkloadBarSx,
-  teamWorkloadChevronSx,
-  teamWorkloadCountSx,
-  teamWorkloadNameSx,
-  teamWorkloadRowSx,
-  teamWorkloadTotalSx,
-  surfacePanelLoadingSx,
-  surfacePanel,
+  teamAnalysisGridSx,
+  teamAnalysisPanelSx,
+  teamAnalysisStatusSx,
   toggleButton,
 } from "@/styles/common";
-import PageHeader from "@/components/common/PageHeader";
-import { motion } from "motion/react";
 import { MotionBox, StaggerContainer, StaggerItem } from "@/animations/MotionPrimitives";
-import { DURATION, EASE_OUT, staggerContainer } from "@/animations/presets";
-import { useRevealed } from "@/animations/useRevealed";
+import { staggerContainer } from "@/animations/presets";
 import AnimatedToggleGroup from "@/animations/AnimatedToggleGroup";
+import { formatIfDate } from "@/utils/dateRange";
 
-const MotionButtonBase = motion.create(ButtonBase);
-
-type DepartmentLoad = {
-  id: number;
-  name: string;
-  count: number;
-  color?: string;
-};
 const datePresets: DatePreset[] = ["weekly", "biweekly", "monthly", "custom"];
-type TicketSummary = {
-  total: number;
-  statuses: Record<string, number>;
-  departments: Record<string, number>;
-  weekly_target_tickets: TicketData[];
-  deptData: DepartmentLoad[];
+
+/** Teams in the shared progress panel: Tickets and Do List bars. */
+const teamLabels: ProgressPanelLabels = {
+  title: "Teams workload",
+  caption: "Select a team to show only its target tickets.",
+  unit: { one: "team", other: "teams" },
+  listLabel: "Teams workload list",
+  workTypes: ["Tickets", "Do List"],
+  itemNoun: "tickets and Do List items",
+  selectHint: "Show only this team's target tickets",
+  empty: "No team workload yet",
 };
 
-const emptySummary: TicketSummary = {
-  total: 0,
-  statuses: {},
-  departments: {},
-  weekly_target_tickets: [],
-  deptData: [],
-};
-
-
-/** Up to two initials for a team's badge, e.g. "Field Service" -> "FS". */
-const teamInitials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join("");
+/** Team target ticket columns. Remaining fields are in the item details. */
+const targetColumns: ColumnData<TeamWorkItem>[] = [
+  { label: "Number", dataKey: "number", width: 160 },
+  { label: "Subject", dataKey: "task", width: 220, wrap: true },
+  { label: "Work type", dataKey: "kind", width: 90 },
+  { label: "Team", dataKey: "team_name", width: 120 },
+  // Do List items have an owner rather than an assignee.
+  {
+    label: "Employee",
+    dataKey: "assigned_to_name",
+    width: 130,
+    render: (row) => row.assigned_to_name || row.creator_name || "—",
+    searchValue: (row) => row.assigned_to_name || row.creator_name,
+  },
+  { label: "Status", dataKey: "current_status", width: 120, render: (row) => <Pill value={statusLabel(row.current_status)} color={statusColor(row.current_status)} dot /> },
+  { label: "Priority", dataKey: "priority", width: 90, render: (row) => <Pill value={priorityLabel(row.priority)} color={priorityColor(row.priority)} /> },
+  { label: "Due date", dataKey: "target_date", width: 120, render: (row) => formatIfDate(row.target_date) },
+];
 
 export default function Dashboard() {
   const [datePreset, setDatePreset] = useState<DatePreset>("weekly");
+  // Applied range: this drives the summary query.
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange("weekly"));
+  // Dates being edited in the panel; they reach `dateRange` on Apply dates.
+  const [draftRange, setDraftRange] = useState<DateRangeValue>(dateRange);
   const [filterOpen, setFilterOpen] = useState<boolean>(false);
   // The Filters button; the filter panel drops down from it.
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
-  // Cached per date range. A new range shows skeletons until its own numbers
-  // arrive, so figures for the wrong range are never on screen.
-  const summaryQuery = useApiQuery<Partial<TicketSummary>>(
-    TEAM_SUMMARY_URL,
-    teamSummaryParams(dateRange),
+  // Cached per date range and team. A new range shows skeletons until its own
+  // numbers arrive, so figures for the wrong range are never on screen.
+  const analysis = useTeamAnalysis(dateRange);
+  const summaryLoading = analysis.loading;
+  // Team the target table is narrowed to; null shows every team.
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const selectedTeam = analysis.teams.find((team) => team.id === selectedTeamId) ?? null;
+  const targetRows = useMemo(() => {
+    if (selectedTeam) {
+      return analysis.items.filter((item) => item.team_id === selectedTeam.id);
+    }
+    // An item listed by two teams shows once in the all-teams view.
+    const seen = new Set<string>();
+    return analysis.items.filter((item) => {
+      const id = `${item.kind}-${item.number}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [analysis.items, selectedTeam]);
+  // Status strip counts the rows the table lists for all teams.
+  const statuses = useMemo(() => {
+    const seen = new Set<string>();
+    const counts: Record<string, number> = {};
+    analysis.items.forEach((item) => {
+      const id = `${item.kind}-${item.number}`;
+      if (seen.has(id)) return;
+      seen.add(id);
+      const status = String(item.current_status || "unknown").toLowerCase();
+      counts[status] = (counts[status] ?? 0) + 1;
+    });
+    return counts;
+  }, [analysis.items]);
+  // Selecting the same team again goes back to every team.
+  const toggleTeam = useCallback(
+    (team: EmployeePerformance) =>
+      setSelectedTeamId((current) => (current === team.id ? null : team.id)),
+    [],
   );
-  const summary = useMemo<TicketSummary>(
-    () => ({ ...emptySummary, ...summaryQuery.data }),
-    [summaryQuery.data],
-  );
-  const summaryLoading = summaryQuery.isPending;
-  const barsRevealed = useRevealed(!summaryLoading);
-  const [teamReportOpen, setTeamReportOpen] = useState<boolean>(false);
-  const [teamReportLoading, setTeamReportLoading] = useState<boolean>(false);
-  const [teamReportDetail, setTeamReportDetail] =
-    useState<TeamReportDetail | null>(null);
-
-
-  const openTeamReport = useCallback(
-    async (department: DepartmentLoad) => {
-      setTeamReportOpen(true);
-      setTeamReportLoading(true);
-      setTeamReportDetail(null);
-
-      try {
-        // Cached per team and range: reopening a team report is instant.
-        const params = teamSummaryParams(dateRange, department.id);
-        const detail = await queryClient.fetchQuery({
-          queryKey: apiQueryKey(TEAM_SUMMARY_URL, params),
-          queryFn: ({ signal }) =>
-            fetchApi<TeamReportDetail>(TEAM_SUMMARY_URL, params, signal),
-        });
-
-        setTeamReportDetail(detail);
-      } finally {
-        setTeamReportLoading(false);
-      }
+  const teamManager = useCallback(
+    (team: EmployeePerformance) => {
+      const manager = (team as TeamProgress).manager;
+      return manager ? `Manager: ${manager}` : undefined;
     },
-    [dateRange],
-  );
-
-  const columns = useMemo<ColumnData<TicketData>[]>(
-    () => [
-      { label: "Ticket Number", dataKey: "number", width: 120 },
-      { label: "Subject", dataKey: "task", width: 220, wrap: true },
-      { label: "Status", dataKey: "current_status", width: { xs: 80, sm: 120 }, render: (row) => <Pill value={statusLabel(row.current_status)} color={statusColor(row.current_status)} dot /> },
-      { label: "Assigned By", dataKey: "creator_name" },
-      { label: "Assigned To", dataKey: "assigned_to_name" },
-      { label: "Priority", dataKey: "priority", width: { xs: 90, sm: 120 }, render: (row) => <Pill value={priorityLabel(row.priority)} color={priorityColor(row.priority)} /> },
-      { label: "Target Completion", dataKey: "target_date", width: { xs: 80, sm: 120 } },
-    ],
     [],
   );
+  // Ticket or Do List row whose detail dialog is open.
+  const [openItem, setOpenItem] = useState<TeamWorkItem | null>(null);
 
-  const expandedColumns = useMemo<ExpandedColumnData<TicketData>[]>(
-    () => [
-      // The row clamps long subjects; the details show the full text.
-      { label: "Full subject", dataKey: "task", size: { xs: 12, md: 6 } },
-      { label: "Est Hrs", dataKey: "est_hours", format: "hours", size: { xs: 4, md: 2 } },
-      { label: "Act Hrs", dataKey: "act_hours", format: "hours", size: { xs: 4, md: 2 } },
-      {
-        label: "Actual Completion",
-        dataKey: "actual_end_date",
-        size: { xs: 4, md: 2 },
-      },
-    ],
-    [],
-  );
+  // The panel always starts from the applied range; closing it discards edits.
+  const openDateFilter = useCallback(() => {
+    setDraftRange(dateRange);
+    setFilterOpen(true);
+  }, [dateRange]);
 
   const updateDatePreset = useCallback((next: unknown) => {
     if (!datePresets.includes(next as DatePreset)) {
@@ -192,19 +149,28 @@ export default function Dashboard() {
     const preset = next as DatePreset;
 
     if (preset === "custom") {
-      setDatePreset("custom");
-      setFilterOpen(true);
+      openDateFilter();
       return;
     }
 
+    const range = getPresetRange(preset);
     setDatePreset(preset);
-    setDateRange(getPresetRange(preset));
-  }, []);
+    setDateRange(range);
+    setDraftRange(range);
+  }, [openDateFilter]);
 
-  const updateDateRange = useCallback(
-    (field: "startDate" | "endDate", value: string) => {
+  /** Runs the summary query for the panel's dates, only if they changed. */
+  const applyDraftRange = () => {
+    if (draftRange.startDate !== dateRange.startDate || draftRange.endDate !== dateRange.endDate) {
       setDatePreset("custom");
-      setDateRange((current) => {
+      setDateRange(draftRange);
+    }
+    setFilterOpen(false);
+  };
+
+  const updateDraftRange = useCallback(
+    (field: "startDate" | "endDate", value: string) => {
+      setDraftRange((current) => {
         if (
           field === "startDate" &&
           current.endDate &&
@@ -237,10 +203,10 @@ export default function Dashboard() {
     <Box sx={page}>
       <StaggerContainer sx={pageContent}>
         <PageHeader
-          title="Dashboard"
+          title="Team Analysis"
           subtitle={
             <>
-              Due work, team load and ticket status for{" "}
+              Team Tickets and Do List progress for{" "}
               <DateRange start={dateRange.startDate} end={dateRange.endDate} />
             </>
           }
@@ -253,7 +219,7 @@ export default function Dashboard() {
                   exclusive
                   value={datePreset}
                   onChange={(_, next) => updateDatePreset(next)}
-                  aria-label="Dashboard date range"
+                  aria-label="Team Analysis date range"
                   sx={toggleButton}
                 >
                   {presetChoices.map((preset) => (
@@ -281,7 +247,7 @@ export default function Dashboard() {
                   startIcon={<FilterListOutlinedIcon />}
                   variant="outlined"
                   ref={setFilterButton}
-                  onClick={() => setFilterOpen(true)}
+                  onClick={openDateFilter}
                 >
                   <Box component="span" sx={buttonLabelFull}>
                     Custom dates
@@ -295,154 +261,77 @@ export default function Dashboard() {
           ]}
         />
 
-        <MotionBox variants={staggerContainer()} sx={overviewGrid}>
-          <StaggerItem sx={overviewPrimaryGridItem}>
-            <Paper elevation={0} sx={surfacePanel}>
-              <Stack
-                direction="row"
-                spacing={1.25}
-                alignItems="center"
-                sx={panelTitleRowFull}
-              >
-                <Box sx={flexFillSx}>
-                  <Typography fontWeight={600}>Teams workload</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Click a team to open its report. Bars compare ticket counts.
-                  </Typography>
-                </Box>
-                <Chip
-                  variant="outlined"
-                  label={summaryLoading ? "Teams" : `${summary.deptData.length} teams`}
-                  sx={teamWorkloadTotalSx}
-                />
-              </Stack>
-              <Stack
-                component="div"
-                role="region"
-                aria-label="Teams workload list"
-                spacing={0}
-                sx={teamWorkloadListSx}
-              >
-                {summaryLoading ? (
-                  <Stack spacing={1.25} role="status" aria-label="Loading team workload" sx={verticalPadSx}>
-                    {Array.from({ length: 5 }, (_, index) => (
-                      <Box key={index}>
-                        <Skeleton variant="text" width="55%" />
-                        <Skeleton variant="rounded" height={6} />
-                      </Box>
-                    ))}
-                  </Stack>
-                ) : summary.deptData.length ? (
-                  summary.deptData.map((department, index) => {
-                    return (
-                      <MotionButtonBase
-                        key={department.name}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: DURATION.field, ease: EASE_OUT, delay: Math.min(index, 10) * 0.04 }}
-                        onClick={() => void openTeamReport(department)}
-                        aria-label={`${department.name}: ${department.count} ${department.count === 1 ? "ticket" : "tickets"}. Open team report`}
-                        title={department.name}
-                        sx={teamWorkloadRowSx(index < summary.deptData.length - 1)}
-                      >
-                        <Box aria-hidden="true" sx={teamWorkloadBadgeSx}>
-                          {teamInitials(department.name)}
-                        </Box>
-                        <Box sx={minWidthZeroSx}>
-                          <Typography noWrap sx={teamWorkloadNameSx}>
-                            {department.name}
-                          </Typography>
-                          {/* Relative counts are visual comparison only; this is not a capacity meter. */}
-                          <LinearProgress
-                            variant="determinate"
-                            // Grows from 0 once the list is on screen.
-                            value={barsRevealed ? Math.min(
-                              100,
-                              (department.count /
-                                Math.max(
-                                  1,
-                                  ...summary.deptData.map((item) => item.count),
-                                )) *
-                                100,
-                            ) : 0}
-                            sx={teamWorkloadBarSx}
-                          />
-                        </Box>
-                        <Typography component="span" sx={teamWorkloadCountSx}>
-                          <strong>{department.count}</strong>
-                          {department.count === 1 ? "ticket" : "tickets"}
-                        </Typography>
-                        <ChevronRightRoundedIcon
-                          aria-hidden="true"
-                          className="team-workload-chevron"
-                          sx={teamWorkloadChevronSx}
-                        />
-                      </MotionButtonBase>
-                    );
-                  })
-                ) : (
-                  <Box sx={emptyStateSx}>
-                    <Box>
-                      <EventAvailableOutlinedIcon sx={largeMutedIcon} />
-                      <Typography fontWeight={600}>
-                        No team workload yet
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-              </Stack>
-            </Paper>
-          </StaggerItem>
-          <StaggerItem sx={overviewSecondaryGridItem}>
-            <Box sx={fillContainer}>
-              {summaryLoading ? (
-                <Paper
-                  elevation={0}
-                  role="status"
-                  aria-label="Loading ticket status"
-                  sx={surfacePanelLoadingSx}
-                >
-                  <Skeleton variant="text" width="40%" />
-                  <Skeleton variant="circular" width={150} height={150} />
-                  <Skeleton variant="text" width="70%" />
-                </Paper>
-              ) : (
-                <AnalysisPieChart
-                  // Total of the plotted statuses, so it matches the donut.
-                  title={`Total ${Object.values(summary.statuses).reduce((sum, count) => sum + Number(count || 0), 0)}`}
-                  data={summary.statuses}
-                  height={210}
-                />
-              )}
-            </Box>
-          </StaggerItem>
-          <StaggerItem sx={overviewFullGridItem}>
-            <CollapsibleTableView
-              columns={columns}
-              expandedColumns={expandedColumns}
-              rows={summary.weekly_target_tickets}
-              tableHead="Target tickets"
-              tableHeadSub={
-                <>
-                  Commitments due{" "}
-                  <DateRange start={dateRange.startDate} end={dateRange.endDate} />
-                </>
-              }
-              getRowId={(row) => row.id ?? row.number}
-              loading={summaryLoading}
-              emptyTitle="No target tickets in this range"
-              emptyDescription="Change the date range to see other commitments."
-            />
-          </StaggerItem>
-        </MotionBox>
+        {analysis.isError && (
+          <Alert
+            severity="error"
+            sx={{ mb: 1.5 }}
+            action={
+              <Button color="inherit" size="small" disabled={analysis.isFetching} onClick={analysis.refetch}>
+                Retry
+              </Button>
+            }
+          >
+            {analysis.hasData
+              ? "Could not refresh team analysis. Showing the last loaded figures."
+              : "Could not load team analysis. Please try again."}
+          </Alert>
+        )}
+
+        {/* A failed first load has no figures, so zeros are never shown as real data. */}
+        {!(analysis.isError && !analysis.hasData) && (
+          <MotionBox variants={staggerContainer()} sx={teamAnalysisGridSx}>
+            <StaggerItem sx={teamAnalysisStatusSx}>
+              <WorkStatusOverview
+                statuses={statuses}
+                loading={summaryLoading}
+                title="Ticket status"
+              />
+            </StaggerItem>
+            <StaggerItem sx={teamAnalysisPanelSx}>
+              <EmployeeProgressPanel
+                employees={analysis.teams}
+                labels={teamLabels}
+                getSubtitle={teamManager}
+                loading={summaryLoading}
+                selectedId={selectedTeam?.id ?? null}
+                onSelect={toggleTeam}
+              />
+            </StaggerItem>
+            <StaggerItem sx={teamAnalysisPanelSx}>
+              <VirtualizedTable
+                columns={targetColumns}
+                rows={targetRows}
+                height="100%"
+                tableMinWidth={900}
+                searchPlaceholder="Search target tickets"
+                tableHead={selectedTeam ? `${selectedTeam.name}’s target tickets` : "Target tickets"}
+                headerAction={
+                  selectedTeam && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<GroupsOutlinedIcon />}
+                      onClick={() => setSelectedTeamId(null)}
+                    >
+                      All teams
+                    </Button>
+                  )
+                }
+                tableHeadSub={
+                  <>
+                    Tickets and Do List items
+                  </>
+                }
+                onRowClick={setOpenItem}
+                loading={summaryLoading}
+                emptyTitle={selectedTeam ? `No tickets for ${selectedTeam.name} in this range` : "No team tickets in this range"}
+                emptyDescription="Change the date range to review other target tickets."
+              />
+            </StaggerItem>
+          </MotionBox>
+        )}
       </StaggerContainer>
 
-      <TeamReportModal
-        open={teamReportOpen}
-        loading={teamReportLoading}
-        detail={teamReportDetail}
-        onClose={() => setTeamReportOpen(false)}
-      />
+      {openItem && <WorkItemRecordDialog item={openItem} onClose={() => setOpenItem(null)} />}
 
       <FilterPopover
         open={filterOpen}
@@ -451,34 +340,35 @@ export default function Dashboard() {
         title="Date range"
         onReset={() => updateDatePreset("weekly")}
         applyLabel="Apply dates"
+        onApply={applyDraftRange}
       >
           <Stack spacing={1.5}>
             <TextField
               fullWidth
               label="From"
               type="date"
-              value={dateRange.startDate}
+              value={draftRange.startDate}
               onChange={(event) =>
-                updateDateRange("startDate", event.target.value)
+                updateDraftRange("startDate", event.target.value)
               }
               sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
-                htmlInput: { max: dateRange.endDate || undefined },
+                htmlInput: { max: draftRange.endDate || undefined },
               }}
             />
             <TextField
               fullWidth
               label="To"
               type="date"
-              value={dateRange.endDate}
+              value={draftRange.endDate}
               onChange={(event) =>
-                updateDateRange("endDate", event.target.value)
+                updateDraftRange("endDate", event.target.value)
               }
               sx={dateFieldSx}
               slotProps={{
                 inputLabel: { shrink: true },
-                htmlInput: { min: dateRange.startDate || undefined },
+                htmlInput: { min: draftRange.startDate || undefined },
               }}
             />
           </Stack>

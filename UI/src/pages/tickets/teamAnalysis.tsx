@@ -169,7 +169,7 @@ export default function TeamAnalysis() {
     <Box sx={page}>
       <StaggerContainer sx={pageContent}>
         <PageHeader
-          title="Team Analysis"
+          title="Work Let Analysis"
           subtitle={
             <>
               Direct reportees Work Let and Do List progress for{" "}

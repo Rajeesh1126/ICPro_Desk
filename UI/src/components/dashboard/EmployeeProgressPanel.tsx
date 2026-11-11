@@ -56,8 +56,38 @@ function WorkTypeProgress({ label, counts, revealed }: { label: string; counts: 
   );
 }
 
+/** Wording for the panel, so Team Analysis can reuse it for teams. */
+export type ProgressPanelLabels = {
+  title: string;
+  caption: string;
+  /** Header count, e.g. "4 employees". */
+  unit: { one: string; other: string };
+  listLabel: string;
+  /** Labels of the two bars: `worklet` first, then `dolist`. */
+  workTypes: [string, string];
+  /** What the totals count, e.g. "work items". */
+  itemNoun: string;
+  /** Screen reader action, e.g. "Show only this employee's due work". */
+  selectHint: string;
+  empty: string;
+};
+
+const EMPLOYEE_LABELS: ProgressPanelLabels = {
+  title: "Subordinate progress",
+  caption: "Select an employee to show only their due work.",
+  unit: { one: "employee", other: "employees" },
+  listLabel: "Subordinate progress list",
+  workTypes: ["Work Let", "Do List"],
+  itemNoun: "work items",
+  selectHint: "Show only this employee's due work",
+  empty: "No direct reportees found",
+};
+
 interface EmployeeProgressPanelProps {
   employees: EmployeePerformance[];
+  labels?: ProgressPanelLabels;
+  /** Optional text under a row's name, after the completion summary. */
+  getSubtitle?: (employee: EmployeePerformance) => string | undefined;
   loading: boolean;
   /** Employee the due-work table is narrowed to, if any. */
   selectedId: number | null;
@@ -65,25 +95,36 @@ interface EmployeeProgressPanelProps {
 }
 
 /** Direct reportees with Work Let and Do List completion; a row narrows the due-work table to that employee. */
-export default function EmployeeProgressPanel({ employees, loading, selectedId, onSelect }: EmployeeProgressPanelProps) {
+export default function EmployeeProgressPanel({
+  employees,
+  loading,
+  selectedId,
+  onSelect,
+  labels = EMPLOYEE_LABELS,
+  getSubtitle,
+}: EmployeeProgressPanelProps) {
   const revealed = useRevealed(!loading);
 
   return (
     <Paper elevation={0} sx={surfacePanel}>
       <Stack direction="row" spacing={1.25} alignItems="center" sx={panelTitleRowFull}>
         <Box sx={flexFillSx}>
-          <Typography fontWeight={600}>Subordinate progress</Typography>
+          <Typography fontWeight={600}>{labels.title}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Select an employee to show only their due work.
+            {labels.caption}
           </Typography>
         </Box>
         <Chip
           variant="outlined"
-          label={loading ? "Employees" : `${employees.length} employees`}
+          label={
+            loading
+              ? labels.unit.other.charAt(0).toUpperCase() + labels.unit.other.slice(1)
+              : `${employees.length} ${employees.length === 1 ? labels.unit.one : labels.unit.other}`
+          }
           sx={teamWorkloadTotalSx}
         />
       </Stack>
-      <Stack role="region" aria-label="Subordinate progress list" spacing={0.75} sx={teamMemberListSx}>
+      <Stack role="region" aria-label={labels.listLabel} spacing={0.75} sx={teamMemberListSx}>
         {loading ? (
           <Stack spacing={0.75} role="status" aria-label="Loading employee progress">
             {Array.from({ length: SKELETON_ROWS }, (_, index) => (
@@ -100,7 +141,7 @@ export default function EmployeeProgressPanel({ employees, loading, selectedId, 
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: DURATION.field, ease: EASE_OUT, delay: Math.min(index, 10) * 0.04 }}
                 onClick={() => onSelect(employee)}
-                aria-label={`${employee.name}: ${employee.completed} of ${employee.total} work items completed, ${employee.progress}%. Show only this employee's due work`}
+                aria-label={`${employee.name}: ${employee.completed} of ${employee.total} ${labels.itemNoun} completed, ${employee.progress}%. ${labels.selectHint}`}
                 aria-pressed={selected}
                 title={employee.name}
                 sx={teamMemberRowSx(selected)}
@@ -110,8 +151,10 @@ export default function EmployeeProgressPanel({ employees, loading, selectedId, 
                 </Box>
                 <Box sx={minWidthZeroSx}>
                   <Typography noWrap sx={teamMemberNameSx}>{employee.name}</Typography>
-                  <Typography component="div" variant="caption" color="text.secondary">
-                    {employee.total ? `${employee.completed} of ${employee.total} completed` : "No work due"}
+                  <Typography component="div" variant="caption" color="text.secondary" noWrap>
+                    {[employee.total ? `${employee.completed} of ${employee.total} completed` : "No work due", getSubtitle?.(employee)]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </Typography>
                 </Box>
                 <Box aria-hidden="true" sx={teamMemberRingSx}>
@@ -120,8 +163,8 @@ export default function EmployeeProgressPanel({ employees, loading, selectedId, 
                   <Box component="span" sx={teamMemberRingTextSx}>{employee.total ? `${Math.round(employee.progress)}%` : "—"}</Box>
                 </Box>
                 <Box sx={teamMemberBarsSx}>
-                  <WorkTypeProgress label="Work Let" counts={employee.worklet} revealed={revealed} />
-                  <WorkTypeProgress label="Do List" counts={employee.dolist} revealed={revealed} />
+                  <WorkTypeProgress label={labels.workTypes[0]} counts={employee.worklet} revealed={revealed} />
+                  <WorkTypeProgress label={labels.workTypes[1]} counts={employee.dolist} revealed={revealed} />
                 </Box>
               </MotionButtonBase>
             );
@@ -130,7 +173,7 @@ export default function EmployeeProgressPanel({ employees, loading, selectedId, 
           <Box sx={emptyStateSx}>
             <Box>
               <EventAvailableOutlinedIcon sx={largeMutedIcon} />
-              <Typography fontWeight={600}>No direct reportees found</Typography>
+              <Typography fontWeight={600}>{labels.empty}</Typography>
             </Box>
           </Box>
         )}

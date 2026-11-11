@@ -21,13 +21,22 @@ interface WorkStatusOverviewProps {
   /** Work item count keyed by API status, for the whole team. */
   statuses: Record<string, number>;
   loading: boolean;
+  /** Strip heading; defaults to "Work status". */
+  title?: string;
+  /** What the total counts, singular and plural; defaults to team work items. */
+  unit?: { one: string; other: string };
 }
 
 /**
  * Team-wide status strip: the total, then one cell per status with its count
  * and share. Shares use the sum of the shown statuses, so they always add up.
  */
-export default function WorkStatusOverview({ statuses, loading }: WorkStatusOverviewProps) {
+export default function WorkStatusOverview({
+  statuses,
+  loading,
+  title = "Work status",
+  unit = { one: "team work item", other: "team work items" },
+}: WorkStatusOverviewProps) {
   const entries = useMemo(
     () =>
       Object.entries(statuses)
@@ -38,17 +47,17 @@ export default function WorkStatusOverview({ statuses, loading }: WorkStatusOver
   const total = entries.reduce((sum, [, count]) => sum + count, 0);
 
   return (
-    <Paper elevation={0} component="section" aria-label="Work status" aria-busy={loading} sx={teamStatusStripSx}>
+    <Paper elevation={0} component="section" aria-label={title} aria-busy={loading} sx={teamStatusStripSx}>
       <Box component="ul" sx={teamStatusGridSx}>
         <Box component="li" sx={teamStatusSummaryCellSx}>
-          <Typography component="h2" sx={teamStatusHeadingSx}>Work status</Typography>
+          <Typography component="h2" sx={teamStatusHeadingSx}>{title}</Typography>
           {loading ? (
             <Skeleton variant="text" width={48} sx={teamStatusValueSx} />
           ) : (
             <Typography sx={teamStatusValueSx}>{total}</Typography>
           )}
           <Typography variant="caption" color="text.secondary">
-            team work {total === 1 && !loading ? "item" : "items"}
+            {total === 1 && !loading ? unit.one : unit.other}
           </Typography>
         </Box>
 
@@ -80,7 +89,7 @@ export default function WorkStatusOverview({ statuses, loading }: WorkStatusOver
           })
         ) : (
           <Box component="li" sx={teamStatusCellSx}>
-            <Typography variant="body2" color="text.secondary">No work items in this range.</Typography>
+            <Typography variant="body2" color="text.secondary">No {unit.other} in this range.</Typography>
           </Box>
         )}
       </Box>

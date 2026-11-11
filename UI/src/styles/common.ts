@@ -45,7 +45,6 @@ export * from "@/styles/shared/shell";
 export * from "@/styles/shared/primitives";
 export * from "@/styles/shared/calendar";
 export * from "@/styles/shared/workItems";
-export * from "@/styles/shared/charts";
 export * from "@/styles/shared/selfTickets";
 export * from "@/styles/shared/tables";
 export * from "@/styles/shared/tickets";
